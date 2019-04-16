@@ -138,6 +138,8 @@ void vtkContourRepresentation::AddNodeAtPositionInternal(
 
   this->UpdateLines(static_cast<int>(this->Internal->Nodes.size()) - 1);
   this->NeedToRender = 1;
+
+  this->BuildRepresentation();
 }
 
 //------------------------------------------------------------------------------
