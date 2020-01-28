@@ -2569,6 +2569,7 @@ std::string TerminationInit(vtkRenderer* vtkNotUsed(ren), vtkVolumeMapper* mappe
       \n\
       \n  g_terminatePointMax = length(g_terminatePos.xyz - g_dataPos.xyz) /\
       \n                        length(g_dirStep);\
+      \n  if (isnan(g_terminatePointMax)) g_terminatePointMax = 0.;\
       \n  g_currentT = 0.0;");
 
   return shaderStr;
