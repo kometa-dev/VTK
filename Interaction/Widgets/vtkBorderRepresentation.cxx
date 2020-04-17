@@ -14,6 +14,7 @@
 =========================================================================*/
 #include "vtkBorderRepresentation.h"
 #include "vtkActor2D.h"
+#include "vtkCamera.h"
 #include "vtkCellArray.h"
 #include "vtkFeatureEdges.h"
 #include "vtkMath.h"
@@ -665,7 +666,9 @@ void vtkBorderRepresentation::BuildRepresentation()
   if (this->Renderer &&
     (this->GetMTime() > this->BuildTime ||
       (this->Renderer->GetVTKWindow() &&
-        this->Renderer->GetVTKWindow()->GetMTime() > this->BuildTime)))
+        this->Renderer->GetVTKWindow()->GetMTime() > this->BuildTime) ||
+      (this->Renderer->GetActiveCamera() &&
+        this->Renderer->GetActiveCamera()->GetMTime() > this->BuildTime)))
   {
     // Negotiate with subclasses
     if (!this->Negotiated)
