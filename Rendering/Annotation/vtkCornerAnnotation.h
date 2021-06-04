@@ -194,6 +194,9 @@ public:
   vtkGetMacro(ShowSliceAndImage, vtkTypeBool);
   //@}
 
+  void SetMaximumLengthText(int i, const char* text);
+  void QueueFontUpdate();
+
 protected:
   vtkCornerAnnotation();
   ~vtkCornerAnnotation() override;
@@ -218,6 +221,12 @@ protected:
 
   int MinimumFontSize;
   int MaximumFontSize;
+
+  char** MaximumLengthText;
+  char** TextBuffer;
+  bool UpdateFontSize;
+  void FreezeFontSize(vtkViewport* viewport);
+  int* GetBestFitFont(vtkViewport* viewport);
 
   double LinearFontScaleFactor;
   double NonlinearFontScaleFactor;
