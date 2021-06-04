@@ -96,6 +96,7 @@ void vtkDataSetMapper::Render(vtkRenderer *ren, vtkActor *act)
     vtkDataSetSurfaceFilter *gf = vtkDataSetSurfaceFilter::New();
     vtkPolyDataMapper *pm = vtkPolyDataMapper::New();
     pm->SetInputConnection(gf->GetOutputPort());
+    pm->SetRelativeCoincidentTopologyZShift(this->RelativeCoincidentTopologyZShift);
 
     this->GeometryExtractor = gf;
     this->PolyDataMapper = pm;

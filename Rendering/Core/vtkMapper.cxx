@@ -80,6 +80,7 @@ vtkMapper::vtkMapper()
   this->CoincidentLineFactor = 0.0;
   this->CoincidentLineOffset = 0.0;
   this->CoincidentPointOffset = 0.0;
+  this->RelativeCoincidentTopologyZShift = 0.0;
 }
 
 vtkMapper::~vtkMapper()
@@ -161,9 +162,14 @@ void vtkMapper::SetResolveCoincidentTopologyZShift(double val)
   vtkMapperGlobalResolveCoincidentTopologyZShift = val;
 }
 
-double vtkMapper::GetResolveCoincidentTopologyZShift()
+double vtkMapper::GetGlobalResolveCoincidentTopologyZShift()
 {
   return vtkMapperGlobalResolveCoincidentTopologyZShift;
+}
+
+double vtkMapper::GetResolveCoincidentTopologyZShift()
+{
+  return vtkMapperGlobalResolveCoincidentTopologyZShift + this->RelativeCoincidentTopologyZShift;
 }
 
 void vtkMapper::SetResolveCoincidentTopologyPolygonOffsetParameters(
@@ -203,6 +209,14 @@ void vtkMapper::GetRelativeCoincidentTopologyPolygonOffsetParameters(
 {
   factor = this->CoincidentPolygonFactor;
   units = this->CoincidentPolygonOffset;
+}
+
+void vtkMapper::SetRelativeCoincidentTopologyZShift(double shift) {
+  this->RelativeCoincidentTopologyZShift = shift;
+}
+
+void vtkMapper::GetRelativeCoincidentTopologyZShift(double& shift) {
+  shift = this->RelativeCoincidentTopologyZShift;
 }
 
 void vtkMapper::GetCoincidentTopologyPolygonOffsetParameters(

@@ -409,10 +409,14 @@ public:
   //@{
   /**
    * Used to set the z-shift if ResolveCoincidentTopology is set to
-   * ShiftZBuffer. This is a global variable.
+   * ShiftZBuffer. There are global and local variables.
+   * GetResolveCoincidentTopologyZShift returns the sum.
    */
   static void SetResolveCoincidentTopologyZShift(double val);
-  static double GetResolveCoincidentTopologyZShift();
+  static double GetGlobalResolveCoincidentTopologyZShift();
+  void SetRelativeCoincidentTopologyZShift(double shift);
+  void GetRelativeCoincidentTopologyZShift(double& shift);
+  double GetResolveCoincidentTopologyZShift();
   //@}
 
   /**
@@ -565,6 +569,8 @@ protected:
   double CoincidentLineFactor;
   double CoincidentLineOffset;
   double CoincidentPointOffset;
+
+  double RelativeCoincidentTopologyZShift;
 
 private:
   vtkMapper(const vtkMapper&) = delete;
