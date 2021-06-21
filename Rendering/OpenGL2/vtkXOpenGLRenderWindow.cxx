@@ -770,8 +770,10 @@ void vtkXOpenGLRenderWindow::DestroyWindow()
     if (this->Internal->ContextId)
     {
       glFinish();
-      glXDestroyContext(this->DisplayId, this->Internal->ContextId);
-      glXMakeCurrent(this->DisplayId, None, nullptr);
+      if (this->DisplayId) {
+        glXDestroyContext(this->DisplayId, this->Internal->ContextId);
+        glXMakeCurrent(this->DisplayId, None, nullptr);
+      }
     }
   }
   else
