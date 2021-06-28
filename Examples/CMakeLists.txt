@@ -50,6 +50,7 @@ else ()
   add_example(DataManipulation/Cxx)
   #add_example(GUI/Cocoa) # xcode project
   add_example(GUI/Qt/FourPaneViewer)
+  add_example(GUI/Qt/GraphicsView)
   add_example(GUI/Qt/ImageViewer)
   add_example(GUI/Qt/SimpleView)
   add_example(GUI/Qt/TouchGestureViewer)
