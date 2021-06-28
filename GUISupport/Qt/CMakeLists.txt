@@ -1,7 +1,6 @@
 set(classes
   QFilterTreeProxyModel
   QVTKApplication
-  QVTKGraphicsItem
   QVTKInteractor
   QVTKInteractorAdapter
   QVTKOpenGLNativeWidget
