@@ -5,6 +5,7 @@ find_package(VTK
   COMPONENTS
     CommonCore
     GUISupportQt
+    GUISupportQtOpenGL
     IOInfovis
     InfovisCore
     ViewsInfovis)
