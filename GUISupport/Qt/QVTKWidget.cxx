@@ -279,7 +279,7 @@ void QVTKWidget::markCachedImageAsDirty()
   if (this->cachedImageCleanFlag)
   {
     this->cachedImageCleanFlag = false;
-    emit cachedImageDirty();
+    Q_EMIT cachedImageDirty();
   }
 }
 
@@ -300,7 +300,7 @@ void QVTKWidget::saveImageToCache()
   this->mRenWin->GetPixelData(0, 0, this->width() - 1, this->height() - 1,
     this->mRenWin->GetDoubleBuffer() ? 0 /*back*/ : 1 /*front*/, array);
   this->cachedImageCleanFlag = true;
-  emit cachedImageClean();
+  Q_EMIT cachedImageClean();
 }
 
 void QVTKWidget::setAutomaticImageCacheEnabled(bool flag)
@@ -491,7 +491,7 @@ void QVTKWidget::mousePressEvent(QMouseEvent* e)
 {
 
   // Emit a mouse press event for anyone who might be interested
-  emit mouseEvent(e);
+  Q_EMIT mouseEvent(e);
 
   if (this->mRenWin)
   {
@@ -508,7 +508,7 @@ void QVTKWidget::mouseMoveEvent(QMouseEvent* e)
     mIrenAdapter->ProcessEvent(e, this->mRenWin->GetInteractor());
 
     // Emit a mouse press event for anyone who might be interested
-    emit mouseEvent(e);
+    Q_EMIT mouseEvent(e);
   }
 }
 
@@ -541,7 +541,7 @@ void QVTKWidget::mouseReleaseEvent(QMouseEvent* e)
     mIrenAdapter->ProcessEvent(e, this->mRenWin->GetInteractor());
 
     // Emit a mouse press event for anyone who might be interested
-    emit mouseEvent(e);
+    Q_EMIT mouseEvent(e);
   }
 }
 
