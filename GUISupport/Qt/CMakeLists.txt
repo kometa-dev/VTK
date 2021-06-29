@@ -54,7 +54,7 @@ endif()
 
 if (VTK_USE_X AND add_qvtkwidget)
   # X11Extras is only needed for QVTKWidget, which is a deprecated class.
-  list(APPEND qt5_components
+  list(APPEND qt_components
     X11Extras)
 endif ()
 
