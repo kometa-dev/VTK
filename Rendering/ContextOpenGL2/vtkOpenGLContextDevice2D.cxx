@@ -156,7 +156,8 @@ vtkOpenGLGL2PSHelper* PrepProgramForGL2PS(vtkOpenGLHelper& helper)
     // Always recreate the program when doing GL2PS capture.
     if (helper.Program)
     {
-      helper.ReleaseGraphicsResources(nullptr);
+      helper.Program->Delete();
+      helper.Program = nullptr;
     }
   }
   else
@@ -165,7 +166,8 @@ vtkOpenGLGL2PSHelper* PrepProgramForGL2PS(vtkOpenGLHelper& helper)
     // program and we're not capturing, recreate the program.
     if (helper.Program && helper.Program->GetTransformFeedback())
     {
-      helper.ReleaseGraphicsResources(nullptr);
+      helper.Program->Delete();
+      helper.Program = nullptr;
     }
   }
 
@@ -602,7 +604,7 @@ void vtkOpenGLContextDevice2D::ReadyVCBOProgram()
 
 void vtkOpenGLContextDevice2D::ReadyLinesBOProgram()
 {
-  vtkOpenGLGL2PSHelper* gl2ps = PrepProgramForGL2PS(*this->LinesBO);
+  vtkOpenGLGL2PSHelper* gl2ps = PrepProgramForGL2PS(*this->VCBO);
 
   if (!this->LinesBO->Program)
   {
@@ -632,7 +634,7 @@ void vtkOpenGLContextDevice2D::ReadyLinesBOProgram()
 
 void vtkOpenGLContextDevice2D::ReadyLinesCBOProgram()
 {
-  vtkOpenGLGL2PSHelper* gl2ps = PrepProgramForGL2PS(*this->LinesCBO);
+  vtkOpenGLGL2PSHelper* gl2ps = PrepProgramForGL2PS(*this->VCBO);
 
   if (!this->LinesCBO->Program)
   {
@@ -879,6 +881,9 @@ void vtkOpenGLContextDevice2D::DrawPoly(float* f, int n, unsigned char* colors, 
     this->SetLineWidth(1.0);
   }
 
+  // free everything
+  cbo->ReleaseGraphicsResources(this->RenderWindow);
+
   vtkOpenGLCheckErrorMacro("failed after DrawPoly");
 }
 
@@ -1016,6 +1021,9 @@ void vtkOpenGLContextDevice2D::DrawLines(float* f, int n, unsigned char* colors,
     this->SetLineWidth(1.0);
   }
 
+  // free everything
+  cbo->ReleaseGraphicsResources(this->RenderWindow);
+
   vtkOpenGLCheckErrorMacro("failed after DrawLines");
 }
 
@@ -1064,6 +1072,9 @@ void vtkOpenGLContextDevice2D::DrawPoints(float* f, int n, unsigned char* c, int
   PreDraw(*cbo, GL_POINTS, n);
   glDrawArrays(GL_POINTS, 0, n);
   PostDraw(*cbo, this->Renderer, this->Pen->GetColor());
+
+  // free everything
+  cbo->ReleaseGraphicsResources(this->RenderWindow);
 
   vtkOpenGLCheckErrorMacro("failed after DrawPoints");
 }
@@ -1132,6 +1143,8 @@ void vtkOpenGLContextDevice2D::DrawPointSprites(
 
     glDrawArrays(GL_POINTS, 0, n);
 
+    // free everything
+    cbo->ReleaseGraphicsResources(this->RenderWindow);
     if (this->RenderWindow->IsPointSpriteBugPresent())
     {
       glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_FALSE);
@@ -1260,6 +1273,9 @@ void vtkOpenGLContextDevice2D::CoreDrawTriangles(
   PreDraw(*cbo, GL_TRIANGLES, tverts.size() / 2);
   glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(tverts.size() / 2));
   PostDraw(*cbo, this->Renderer, this->Brush->GetColor());
+
+  // free everything
+  cbo->ReleaseGraphicsResources(this->RenderWindow);
 
   if (this->Storage->Texture)
   {
@@ -1677,6 +1693,9 @@ void vtkOpenGLContextDevice2D::DrawString(float* point, const vtkUnicodeString& 
 
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
+  // free everything
+  cbo->ReleaseGraphicsResources(this->RenderWindow);
+
   texture->PostRender(this->Renderer);
 
   vtkOpenGLCheckErrorMacro("failed after DrawString");
@@ -1743,6 +1762,9 @@ void vtkOpenGLContextDevice2D::DrawImage(float p[2], float scale, vtkImageData* 
   this->SetMatrices(cbo->Program);
 
   glDrawArrays(GL_TRIANGLES, 0, 6);
+
+  // free everything
+  cbo->ReleaseGraphicsResources(this->RenderWindow);
 
   this->Storage->Texture->PostRender(this->Renderer);
 
@@ -1842,6 +1864,9 @@ void vtkOpenGLContextDevice2D::DrawImage(const vtkRectf& pos, vtkImageData* imag
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
   this->RenderWindow->GetTextureUnitManager()->Free(tunit);
+
+  // free everything
+  cbo->ReleaseGraphicsResources(this->RenderWindow);
 
   glDeleteTextures(1, &index);
 
