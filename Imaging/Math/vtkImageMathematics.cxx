@@ -283,7 +283,7 @@ void vtkImageMathematicsExecute2(vtkImageMathematics* self, vtkImageData* in1Dat
             *outPtr = *in1Ptr + *in2Ptr;
             break;
           case VTK_SUBTRACT:
-            *outPtr = *in1Ptr - *in2Ptr;
+            *outPtr = constantc - *in2Ptr + *in1Ptr;
             break;
           case VTK_MULTIPLY:
             *outPtr = *in1Ptr * *in2Ptr;
