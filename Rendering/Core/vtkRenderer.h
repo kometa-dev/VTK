@@ -1142,12 +1142,12 @@ private:
   /**
    * Tiled Aspect Ratio used to get the transform in this->CompositeProjectionTransformationMatrix.
    */
-  double LastCompositeProjectionTransformationMatrixTiledAspectRatio;
+  double LastCompositeProjectionTransformationMatrixTiledAspectRatio{};
 
   /**
    * Modified time from the camera when this->CompositeProjectionTransformationMatrix was set.
    */
-  vtkMTimeType LastCompositeProjectionTransformationMatrixCameraModified;
+  vtkMTimeType LastCompositeProjectionTransformationMatrixCameraModified{};
 
   /**
    * Cache of ProjectionTransformationMatrix.
@@ -1157,7 +1157,7 @@ private:
   /**
    * Tiled Aspect Ratio used to get the transform in this->ProjectionTransformationMatrix.
    */
-  double LastProjectionTransformationMatrixTiledAspectRatio;
+  double LastProjectionTransformationMatrixTiledAspectRatio{};
 
   /**
    * Modified time from the camera when this->ProjectionTransformationMatrix was set.
@@ -1172,7 +1172,7 @@ private:
   /**
    * Modified time from the camera when this->ViewTransformMatrix was set.
    */
-  vtkMTimeType LastViewTransformCameraModified;
+  vtkMTimeType LastViewTransformCameraModified{};
 
   vtkRenderer(const vtkRenderer&) = delete;
   void operator=(const vtkRenderer&) = delete;

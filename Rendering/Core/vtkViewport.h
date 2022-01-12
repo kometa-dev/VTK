@@ -415,9 +415,9 @@ protected:
   double WorldPoint[4];
 
 private:
-  std::array<int, 2> LastComputeAspectSize;
-  std::array<double, 4> LastComputeAspectVPort;
-  std::array<double, 2> LastComputeAspectPixelAspect;
+  std::array<int, 2> LastComputeAspectSize{};
+  std::array<double, 4> LastComputeAspectVPort{};
+  std::array<double, 2> LastComputeAspectPixelAspect{};
 
   vtkViewport(const vtkViewport&) = delete;
   void operator=(const vtkViewport&) = delete;
