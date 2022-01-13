@@ -44,7 +44,6 @@ class QVTKInteractorAdapter;
 
 class vtkRenderWindow;
 #include <vtkConfigure.h>
-#include <vtkToolkits.h>
 class vtkImageData;
 
 #include "vtkTDxConfigure.h" // defines VTK_USE_TDX
