@@ -568,8 +568,9 @@ void vtkBoxWidget::OnLeftButtonDown()
   // if no handles picked, then pick the bounding box.
   if (!this->CurrentRenderer || !this->CurrentRenderer->IsInViewport(X, Y))
   {
-    this->State = vtkBoxWidget::Outside;
-    return;
+   // this->State = vtkBoxWidget::Outside;
+    if (CurrentRenderer) std::cerr<<"!ivp";
+   // return;
   }
 
   vtkAssemblyPath* path = this->GetAssemblyPath(X, Y, 0., this->HandlePicker);

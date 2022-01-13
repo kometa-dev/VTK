@@ -3,7 +3,7 @@
 
 // #######################  Start Clang Header Tool Managed Headers ########################
 // clang-format off
-#include <ctype.h>                                   // for toupper
+#include <cctype>                                    // for toupper, isdigit
 #include <stddef.h>                                  // for size_t
 #include <algorithm>                                 // for remove, etc
 #include <iterator>                                  // for insert_iterator
@@ -353,7 +353,7 @@ namespace Iotm {
 
       std::string make_upper_case(std::string str)
       {
-        std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+        std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c){ return std::toupper(c); });
         return str;
       }
 
