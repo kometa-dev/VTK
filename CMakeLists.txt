@@ -88,6 +88,8 @@ set(CMAKE_CXX_VISIBILITY_PRESET "hidden")
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
+option(VTK_ENABLE_REMOTE_MODULES "Enable remote modules" ON)
+mark_as_advanced(VTK_ENABLE_REMOTE_MODULES)
 #-----------------------------------------------------------------------------
 # Add the Remote Subdirectory
 if (VTK_ENABLE_REMOTE_MODULES)
@@ -274,8 +276,6 @@ set(remote_default ON)
 if (VTK_WHEEL_BUILD)
   set(remote_default OFF)
 endif ()
-option(VTK_ENABLE_REMOTE_MODULES "Enable remote modules" ON)
-mark_as_advanced(VTK_ENABLE_REMOTE_MODULES)
 if (VTK_ENABLE_REMOTE_MODULES)
   list(APPEND vtk_source_directories
     "${CMAKE_CURRENT_SOURCE_DIR}/Remote")
