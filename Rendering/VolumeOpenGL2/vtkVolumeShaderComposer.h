@@ -1897,7 +1897,6 @@ std::string ShadingSingleInput(vtkRenderer* vtkNotUsed(ren), vtkVolumeMapper* ma
   shaderStr += std::string("\
       \n    if (!g_skip)\
       \n      {\
-      \n      vec4 scalar;\
       \n");
   if (vtkRectilinearGrid::SafeDownCast(mapper->GetInput()))
   {
@@ -1942,28 +1941,27 @@ std::string ShadingSingleInput(vtkRenderer* vtkNotUsed(ren), vtkVolumeMapper* ma
       \n          }\
       \n        ijkTexCoord[j] = (ijk[j] + pCoords[j]) / in_coordTexSizes[j];\
       \n        }\
-      \n      scalar = texture3D(in_volume[0], sign(in_cellSpacing[0]) * ijkTexCoord);\
+      \n      vec4 scalar = texture3D(in_volume[0], sign(in_cellSpacing[0]) * ijkTexCoord);\
       \n");
   }
-  else
+  else if (!mask || !maskInput || maskType != vtkGPUVolumeRayCastMapper::LabelMapMaskType)
   {
     shaderStr += std::string("\
-      \n      scalar = texture3D(in_volume[0], g_dataPos);\
+      \n      vec4 scalar = texture3D(in_volume[0], g_dataPos);\
       \n");
-  }
-
-  // simulate old intensity textures
-  if (noOfComponents == 1)
-  {
-    shaderStr += std::string("\
-        \n      scalar.r = scalar.r * in_volume_scale[0].r + in_volume_bias[0].r;\
-        \n      scalar = vec4(scalar.r);");
-  }
-  else
-  {
-    // handle bias and scale
-    shaderStr += std::string("\
-        \n      scalar = scalar * in_volume_scale[0] + in_volume_bias[0];");
+    // simulate old intensity textures
+    if (noOfComponents == 1)
+    {
+      shaderStr += std::string("\
+          \n      scalar.r = scalar.r * in_volume_scale[0].r + in_volume_bias[0].r;\
+          \n      scalar = vec4(scalar.r);");
+    }
+    else
+    {
+      // handle bias and scale
+      shaderStr += std::string("\
+          \n      scalar = scalar * in_volume_scale[0] + in_volume_bias[0];");
+    }
   }
 
   if (mapper->GetBlendMode() == vtkVolumeMapper::MAXIMUM_INTENSITY_BLEND)
@@ -2088,8 +2086,12 @@ std::string ShadingSingleInput(vtkRenderer* vtkNotUsed(ren), vtkVolumeMapper* ma
         \n                         in_scalarsRange[0][0]) * scalar.x;\
         \n      if (in_averageIPRange.x <= intensity &&\
         \n          intensity <= in_averageIPRange.y)\
-        \n        {\
-        \n        l_avgValue.x += computeOpacity(scalar) * scalar.x;\
+        \n        {");
+      shaderStr += std::string(!mask || !maskInput || maskType != vtkGPUVolumeRayCastMapper::LabelMapMaskType
+        ? "\n        l_avgValue.x += computeOpacity(scalar) * scalar.x;"
+        : "\n        l_avgValue.x += g_srcColor.a * scalar.x;"
+      );
+      shaderStr += std::string("\
         \n        ++l_numSamples.x;\
         \n        }");
     }
