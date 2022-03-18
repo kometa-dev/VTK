@@ -624,7 +624,8 @@ void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::RefreshMaskTransfer(
 {
   auto vol = input.Volume;
   if (this->NeedToInitializeResources ||
-    input.Volume->GetProperty()->GetMTime() > this->InitializationTime.GetMTime())
+    input.Volume->GetProperty()->GetMTime() > this->InitializationTime.GetMTime() ||
+    this->Parent->MaskInput != nullptr && this->Parent->MaskType == LabelMapMaskType && !this->LabelMapTransfer2D)
   {
     this->SetupMaskTransfer(ren);
   }
