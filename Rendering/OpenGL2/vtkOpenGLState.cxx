@@ -52,7 +52,7 @@
 
 // this method checks all the cached state to make sure
 // nothing is out of sync. It can be slow.
-void vtkOpenGLState::CheckState()
+bool vtkOpenGLState::CheckState()
 {
   bool error = false;
 
@@ -274,6 +274,7 @@ void vtkOpenGLState::CheckState()
     vtkGenericWarningMacro("at stack loc\n" << msg);
   }
   vtkOpenGLRenderUtilities::MarkDebugEvent("Finished Checking OpenGL State");
+  return error;
 }
 
 namespace
@@ -1450,6 +1451,7 @@ void vtkOpenGLState::Reset()
 void vtkOpenGLState::Push()
 {
   vtkOpenGLRenderUtilities::MarkDebugEvent("Pushing OpenGL State");
+  vtkOpenGLCheckStateMacro();
   this->Stack.push(this->Stack.top());
   this->PushFramebufferBindings();
   vtkOpenGLRenderUtilities::MarkDebugEvent("Finished Pushing OpenGL State");

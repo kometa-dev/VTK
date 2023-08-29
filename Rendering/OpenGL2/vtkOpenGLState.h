@@ -397,6 +397,12 @@ public:
    */
   std::string const& GetRenderer() { return this->Renderer; }
 
+  /**
+   * Check that this OpenGL state has consistent values
+   * with the current OpenGL context
+   */
+  bool CheckState();
+
 protected:
   vtkOpenGLState(); // set initial values
   ~vtkOpenGLState() override;
@@ -412,12 +418,6 @@ protected:
 
   vtkTextureUnitManager* TextureUnitManager;
   std::map<const vtkTextureObject*, int> TextureResourceIds;
-
-  /**
-   * Check that this OpenGL state has consistent values
-   * with the current OpenGL context
-   */
-  void CheckState();
 
   // framebuffers hold state themselves
   // specifically they hold their draw and read buffers
