@@ -3557,7 +3557,11 @@ void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::SetMaskShaderParameters(
   {
     auto maskTex = this->CurrentMask->GetCurrentBlock()->TextureObject;
     maskTex->Activate();
+    float shift=0, scale=1;
+    maskTex->GetShiftAndScale(shift, scale);
     prog->SetUniformi("in_mask", maskTex->GetTextureUnit());
+    prog->SetUniformf("in_mask_bias", shift);
+    prog->SetUniformf("in_mask_scale", scale);
   }
 
   if (noOfComponents == 1 && this->Parent->BlendMode != vtkGPUVolumeRayCastMapper::ADDITIVE_BLEND)
@@ -3573,8 +3577,6 @@ void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::SetMaskShaderParameters(
           "in_labelMapGradientOpacity", this->LabelMapGradientOpacity->GetTextureUnit());
       }
       prog->SetUniformf("in_maskBlendFactor", this->Parent->MaskBlendFactor);
-      prog->SetUniformf("in_mask_scale", this->CurrentMask->Scale[0]);
-      prog->SetUniformf("in_mask_bias", this->CurrentMask->Bias[0]);
       prog->SetUniformi("in_labelMapNumLabels", this->LabelMapTransfer2D->GetTextureHeight() - 1);
     }
   }

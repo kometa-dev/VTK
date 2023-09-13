@@ -3028,7 +3028,7 @@ std::string CompositeMaskImplementation(vtkRenderer* vtkNotUsed(ren),
         \n  if (in_labelMapNumLabels > 0)\
         \n    {\
         \n    maskValue.r =\
-        \n      floor(maskValue.r * in_labelMapNumLabels) /\
+        \n      floor(maskValue.r) /\
         \n      in_labelMapNumLabels;\
         \n    }\
         \n  else\
