@@ -678,7 +678,7 @@ bool vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::LoadMask(vtkRenderer* ren)
       (arr && arr->GetMTime() > this->MaskUpdateTime))
     {
       result =
-        this->CurrentMask->LoadVolume(ren, maskInput, arr, isCellData, VTK_NEAREST_INTERPOLATION);
+        this->CurrentMask->LoadVolume(ren, maskInput, arr, isCellData, VTK_NEAREST_INTERPOLATION, false);
 
       this->MaskUpdateTime.Modified();
     }

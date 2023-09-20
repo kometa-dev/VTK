@@ -145,7 +145,7 @@ public:
    * Requires an active OpenGL context.
    */
   bool LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArray* scalars, int const isCell,
-    int const interpolation);
+    int const interpolation, bool scaleRange=true);
 
   /**
    * It currently only calls SetInterpolation internally. Requires an active OpenGL
@@ -234,6 +234,8 @@ private:
    */
   void SelectTextureFormat(unsigned int& format, unsigned int& internalFormat, int& type,
     int const scalarType, int const noOfComponents);
+
+  void ScaleRange(int const scalarType, int const noOfComponents);
 
   /**
    * Clean-up any acquired host side resources (image blocks, etc.).

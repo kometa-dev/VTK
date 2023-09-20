@@ -62,7 +62,7 @@ vtkStandardNewMacro(vtkVolumeTexture);
 
 //------------------------------------------------------------------------------
 bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArray* scalars,
-  int const isCell, int const interpolation)
+  int const isCell, int const interpolation, bool scaleRange)
 {
   this->ClearBlocks();
   this->Scalars = scalars;
@@ -152,6 +152,10 @@ bool vtkVolumeTexture::LoadVolume(vtkRenderer* ren, vtkDataSet* data, vtkDataArr
 
   // Resolve the appropriate texture format from the array properties
   this->SelectTextureFormat(format, internalFormat, type, scalarType, noOfComponents);
+  if (scaleRange)
+  {
+    ScaleRange(scalarType, noOfComponents);
+  }
   this->CreateBlocks(format, internalFormat, type);
 
   // If there is a single block, load it right away since GetNextBlock() does not
@@ -796,7 +800,10 @@ void vtkVolumeTexture::SelectTextureFormat(unsigned int& format, unsigned int& i
       assert("check: impossible case" && 0);
       break;
   }
+}
 
+void vtkVolumeTexture::ScaleRange(int const scalarType, int const noOfComponents)
+{
   // Cache the array's scalar range
   for (int n = 0; n < noOfComponents; ++n)
   {
