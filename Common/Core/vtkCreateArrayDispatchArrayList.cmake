@@ -109,7 +109,7 @@ set(vtkArrayDispatch_all_types
   "unsigned char"
   "unsigned int"
   "unsigned long"
-  "unsigned long long"
+#  "unsigned long long"
   "unsigned short"
   "vtkIdType"
 )
