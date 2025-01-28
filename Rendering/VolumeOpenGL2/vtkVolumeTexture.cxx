@@ -340,6 +340,11 @@ bool vtkVolumeTexture::LoadTexture(int const interpolation, VolumeBlock* volBloc
       success = SafeLoadTexture(
         texture, blockSize[0], blockSize[1], blockSize[2], noOfComponents, scalarType, dataPtr);
     }
+    if (!success)
+    {
+      this->UploadTime.Modified();
+      return false;
+    }
     texture->Activate();
     texture->SetWrapS(vtkTextureObject::ClampToEdge);
     texture->SetWrapT(vtkTextureObject::ClampToEdge);
@@ -373,6 +378,11 @@ bool vtkVolumeTexture::LoadTexture(int const interpolation, VolumeBlock* volBloc
     {
       success = SafeLoadTexture(
         texture, blockSize[0], blockSize[1], blockSize[2], noOfComponents, scalarType, nullptr);
+    }
+    if (!success)
+    {
+      this->UploadTime.Modified();
+      return false;
     }
     texture->Activate();
     texture->SetWrapS(vtkTextureObject::ClampToEdge);

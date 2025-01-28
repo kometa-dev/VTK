@@ -3411,32 +3411,34 @@ void vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::SetVolumeShaderParameters(
     auto block = input.second.Texture->GetCurrentBlock();
     std::stringstream ss;
     ss << "in_volume[" << index << "]";
-    block->TextureObject->Activate();
-    prog->SetUniformi(ss.str().c_str(), block->TextureObject->GetTextureUnit());
+    if (block->TextureObject->GetHandle()) {
+      block->TextureObject->Activate();
+      prog->SetUniformi(ss.str().c_str(), block->TextureObject->GetTextureUnit());
 
-    // LargeDataTypes have been already biased and scaled so in those cases 0s
-    // and 1s are passed respectively.
-    float tscale[4] = { 1.0, 1.0, 1.0, 1.0 };
-    float tbias[4] = { 0.0, 0.0, 0.0, 0.0 };
-    float(*scalePtr)[4] = &tscale;
-    float(*biasPtr)[4] = &tbias;
-    auto volTex = input.second.Texture.GetPointer();
-    if (!volTex->HandleLargeDataTypes &&
-      (noOfComponents == 1 || noOfComponents == 2 || independentComponents))
-    {
-      scalePtr = &volTex->Scale;
-      biasPtr = &volTex->Bias;
+      // LargeDataTypes have been already biased and scaled so in those cases 0s
+      // and 1s are passed respectively.
+      float tscale[4] = { 1.0, 1.0, 1.0, 1.0 };
+      float tbias[4] = { 0.0, 0.0, 0.0, 0.0 };
+      float(*scalePtr)[4] = &tscale;
+      float(*biasPtr)[4] = &tbias;
+      auto volTex = input.second.Texture.GetPointer();
+      if (!volTex->HandleLargeDataTypes &&
+        (noOfComponents == 1 || noOfComponents == 2 || independentComponents))
+      {
+        scalePtr = &volTex->Scale;
+        biasPtr = &volTex->Bias;
+      }
+      vtkInternal::CopyVector<float, 4>(*scalePtr, this->ScaleVec.data(), index * 4);
+      vtkInternal::CopyVector<float, 4>(*biasPtr, this->BiasVec.data(), index * 4);
+      vtkInternal::CopyVector<float, 3>(block->CellStep, this->StepVec.data(), index * 3);
+      vtkInternal::CopyVector<float, 3>(volTex->CellSpacing, this->SpacingVec.data(), index * 3);
+
+      // 8 elements stands for [min, max] per 4-components
+      vtkInternal::CopyVector<float, 8>(
+        reinterpret_cast<float*>(volTex->ScalarRange), this->RangeVec.data(), index * 8);
+
+      input.second.ActivateTransferFunction(prog, this->Parent->BlendMode);
     }
-    vtkInternal::CopyVector<float, 4>(*scalePtr, this->ScaleVec.data(), index * 4);
-    vtkInternal::CopyVector<float, 4>(*biasPtr, this->BiasVec.data(), index * 4);
-    vtkInternal::CopyVector<float, 3>(block->CellStep, this->StepVec.data(), index * 3);
-    vtkInternal::CopyVector<float, 3>(volTex->CellSpacing, this->SpacingVec.data(), index * 3);
-
-    // 8 elements stands for [min, max] per 4-components
-    vtkInternal::CopyVector<float, 8>(
-      reinterpret_cast<float*>(volTex->ScalarRange), this->RangeVec.data(), index * 8);
-
-    input.second.ActivateTransferFunction(prog, this->Parent->BlendMode);
     index++;
   }
   prog->SetUniform4fv(
