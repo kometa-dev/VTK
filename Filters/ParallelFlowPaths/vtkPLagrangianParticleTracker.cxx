@@ -24,7 +24,7 @@
 #include "vtkLagrangianBasicIntegrationModel.h"
 #include "vtkLagrangianParticle.h"
 #include "vtkLagrangianThreadedData.h"
-#include "vtkLongLongArray.h"
+#include "vtkLongArray.h"
 #include "vtkMPIController.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkPointData.h"
@@ -1005,14 +1005,14 @@ bool vtkPLagrangianParticleTracker::FinalizeOutputs(
     if (this->GenerateParticlePathsOutput)
     {
       // Construct array with all non outofdomains ids and terminations
-      vtkNew<vtkLongLongArray> idTermination;
-      vtkNew<vtkLongLongArray> allIdTermination;
+      vtkNew<vtkLongArray> idTermination;
+      vtkNew<vtkLongArray> allIdTermination;
       idTermination->Allocate(particlePathsOutput->GetNumberOfCells());
       idTermination->SetNumberOfComponents(2);
       vtkIntArray* terminations =
         vtkIntArray::SafeDownCast(particlePathsOutput->GetCellData()->GetArray("Termination"));
-      vtkLongLongArray* ids =
-        vtkLongLongArray::SafeDownCast(particlePathsOutput->GetCellData()->GetArray("Id"));
+      vtkLongArray* ids =
+        vtkLongArray::SafeDownCast(particlePathsOutput->GetCellData()->GetArray("Id"));
       for (int i = 0; i < particlePathsOutput->GetNumberOfCells(); i++)
       {
         if (terminations->GetValue(i) != vtkLagrangianParticle::PARTICLE_TERMINATION_OUT_OF_DOMAIN)

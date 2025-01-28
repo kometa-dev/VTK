@@ -1761,7 +1761,7 @@ vtkAbstractArray* vtkDataReader::ReadArray(
     }
   }
 
-  else if (!strncmp(type, "vtktypeint64", 12))
+/*  else if (!strncmp(type, "vtktypeint64", 12))
   {
     array = vtkTypeInt64Array::New();
     array->SetNumberOfComponents(numComp);
@@ -1794,7 +1794,7 @@ vtkAbstractArray* vtkDataReader::ReadArray(
       vtkReadASCIIData(this, ptr, numTuples, numComp);
     }
   }
-
+*/
   else if (!strncmp(type, "float", 5))
   {
     array = vtkFloatArray::New();

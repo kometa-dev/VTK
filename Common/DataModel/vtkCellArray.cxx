@@ -21,7 +21,7 @@
 #include "vtkIdTypeArray.h"
 #include "vtkIntArray.h"
 #include "vtkLongArray.h"
-#include "vtkLongLongArray.h"
+//#include "vtkLongLongArray.h"
 #include "vtkObjectFactory.h"
 #include "vtkSMPThreadLocal.h"
 #include "vtkSMPTools.h"
@@ -835,7 +835,7 @@ void vtkCellArray::SetData(
 }
 
 //------------------------------------------------------------------------------
-void vtkCellArray::SetData(
+/*void vtkCellArray::SetData(
   vtkAOSDataArrayTemplate<long long>* offsets, vtkAOSDataArrayTemplate<long long>* connectivity)
 {
 #if VTK_SIZEOF_LONG_LONG == 4
@@ -853,7 +853,7 @@ void vtkCellArray::SetData(
 #else
   vtkErrorMacro("`long long` type is neither 32 nor 64 bits.");
 #endif
-}
+}*/
 
 namespace
 {

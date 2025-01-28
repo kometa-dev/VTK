@@ -50,12 +50,12 @@
 #include "vtkFloatArray.h"
 #include "vtkIntArray.h"
 #include "vtkLongArray.h"
-#include "vtkLongLongArray.h"
+//#include "vtkLongLongArray.h"
 #include "vtkShortArray.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkUnsignedLongArray.h"
-#include "vtkUnsignedLongLongArray.h"
+//#include "vtkUnsignedLongLongArray.h"
 #include "vtkUnsignedShortArray.h"
 //
 #include <vector>

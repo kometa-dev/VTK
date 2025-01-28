@@ -103,7 +103,7 @@ set(vtkArrayDispatch_all_types
   "float"
   "int"
   "long"
-  "long long"
+#  "long long"
   "short"
   "signed char"
   "unsigned char"

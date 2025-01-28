@@ -24,7 +24,7 @@
 #include "vtkPoints.h"
 #include "vtkSMPTools.h"
 #include "vtkTypeInt32Array.h"
-#include "vtkTypeInt64Array.h"
+//#include "vtkTypeInt64Array.h"
 #include "vtkUnstructuredGrid.h"
 
 #include <algorithm>

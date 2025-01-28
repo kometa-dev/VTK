@@ -214,7 +214,7 @@ public:
    */
   using InputArrayList =
     typename vtkTypeList::Unique<vtkTypeList::Create<vtkAOSDataArrayTemplate<int>,
-      vtkAOSDataArrayTemplate<long>, vtkAOSDataArrayTemplate<long long>>>::Result;
+      vtkAOSDataArrayTemplate<long>/*, vtkAOSDataArrayTemplate<long long>*/>>::Result;
 
   /**
    * Allocate memory.
@@ -380,8 +380,8 @@ public:
   void SetData(vtkIdTypeArray* offsets, vtkIdTypeArray* connectivity);
   void SetData(vtkAOSDataArrayTemplate<int>* offsets, vtkAOSDataArrayTemplate<int>* connectivity);
   void SetData(vtkAOSDataArrayTemplate<long>* offsets, vtkAOSDataArrayTemplate<long>* connectivity);
-  void SetData(
-    vtkAOSDataArrayTemplate<long long>* offsets, vtkAOSDataArrayTemplate<long long>* connectivity);
+//  void SetData(
+//    vtkAOSDataArrayTemplate<long long>* offsets, vtkAOSDataArrayTemplate<long long>* connectivity);
   /**@}*/
 #endif // __VTK_WRAP__
 

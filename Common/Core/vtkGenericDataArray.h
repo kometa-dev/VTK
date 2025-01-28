@@ -551,7 +551,7 @@ namespace vtkDataArrayPrivate
 // These are instantiated in vtkGenericDataArrayValueRange${i}.cxx
 VTK_DECLARE_VALUERANGE_VALUETYPE(long)
 VTK_DECLARE_VALUERANGE_VALUETYPE(unsigned long)
-VTK_DECLARE_VALUERANGE_VALUETYPE(long long)
+//VTK_DECLARE_VALUERANGE_VALUETYPE(long long)
 //VTK_DECLARE_VALUERANGE_VALUETYPE(unsigned long long)
 
 // This is instantiated in vtkGenericDataArray.cxx
@@ -569,7 +569,7 @@ VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<int>, double)
 VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<unsigned int>, double)
 VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<long>, double)
 VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<unsigned long>, double)
-VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<long long>, double)
+//VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<long long>, double)
 //VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<unsigned long long>, double)
 
 // These are instantiated in vtkSOADataArrayTemplateInstantiate${i}.cxx
@@ -584,7 +584,7 @@ VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<int>, double)
 VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<unsigned int>, double)
 VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<long>, double)
 VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<unsigned long>, double)
-VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<long long>, double)
+//VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<long long>, double)
 //VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkSOADataArrayTemplate<unsigned long long>, double)
 
 // These are instantiated in vtkScaledSOADataArrayTemplateInstantiate${i}.cxx
@@ -600,7 +600,7 @@ VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkScaledSOADataArrayTemplate<int>, double)
 VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkScaledSOADataArrayTemplate<unsigned int>, double)
 VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkScaledSOADataArrayTemplate<long>, double)
 VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkScaledSOADataArrayTemplate<unsigned long>, double)
-VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkScaledSOADataArrayTemplate<long long>, double)
+//VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkScaledSOADataArrayTemplate<long long>, double)
 //VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkScaledSOADataArrayTemplate<unsigned long long>, double)
 #endif // VTK_USE_SCALED_SOA_ARRAYS
 

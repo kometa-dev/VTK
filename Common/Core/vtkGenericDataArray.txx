@@ -1002,14 +1002,14 @@ template <>
 struct VTIsSupported<unsigned long> : public std::true_type
 {
 };
-template <>
+/*template <>
 struct VTIsSupported<long long> : public std::true_type
 {
 };
 template <>
 struct VTIsSupported<unsigned long long> : public std::true_type
 {
-};
+};*/
 
 // Full array types with compiled-in support for value ranges in
 // vtkGenericDataArray.cxx

@@ -20,3 +20,6 @@ vtkInstantiateTemplateMacro(template class VTKCOMMONCORE_EXPORT vtkArrayIterator
 template class VTKCOMMONCORE_EXPORT vtkArrayIteratorTemplate<vtkStdString>;
 template class VTKCOMMONCORE_EXPORT vtkArrayIteratorTemplate<vtkUnicodeString>;
 template class VTKCOMMONCORE_EXPORT vtkArrayIteratorTemplate<vtkVariant>;
+
+template class VTKCOMMONCORE_EXPORT vtkArrayIteratorTemplate<unsigned long long>;
+template class VTKCOMMONCORE_EXPORT vtkArrayIteratorTemplate<long long>;

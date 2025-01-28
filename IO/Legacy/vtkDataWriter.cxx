@@ -1265,7 +1265,7 @@ int vtkDataWriter::WriteArray(ostream* fp, int dataType, vtkAbstractArray* data,
     break;
 
     case VTK_LONG_LONG:
-    {
+/*    {
       snprintf(str, sizeof(str), format, "vtktypeint64");
       *fp << str;
       long long* s = GetArrayRawPointer<long long, vtkTypeInt64Array>(data, isAOSArray);
@@ -1277,10 +1277,10 @@ int vtkDataWriter::WriteArray(ostream* fp, int dataType, vtkAbstractArray* data,
         delete[] s;
       }
     }
-    break;
+    break; */
 
     case VTK_UNSIGNED_LONG_LONG:
-    {
+/*    {
       snprintf(str, sizeof(str), format, "vtktypeuint64");
       *fp << str;
       unsigned long long* s =
@@ -1288,6 +1288,19 @@ int vtkDataWriter::WriteArray(ostream* fp, int dataType, vtkAbstractArray* data,
       strcpy(outputFormat, vtkTypeTraits<unsigned long long>::ParseFormat());
       strcat(outputFormat, " ");
       vtkWriteDataArray(fp, s, this->FileType, outputFormat, num, numComp);
+      if (!isAOSArray)
+      {
+        delete[] s;
+      }
+    }*/
+    break;
+
+    case VTK_DOUBLE:
+    {
+      snprintf(str, sizeof(str), format, "double");
+      *fp << str;
+      double* s = GetArrayRawPointer<double, vtkDoubleArray>(data, isAOSArray);
+      vtkWriteDataArray(fp, s, this->FileType, "%.11lg ", num, numComp);
       if (!isAOSArray)
       {
         delete[] s;
@@ -1308,18 +1321,6 @@ int vtkDataWriter::WriteArray(ostream* fp, int dataType, vtkAbstractArray* data,
     }
     break;
 
-    case VTK_DOUBLE:
-    {
-      snprintf(str, sizeof(str), format, "double");
-      *fp << str;
-      double* s = GetArrayRawPointer<double, vtkDoubleArray>(data, isAOSArray);
-      vtkWriteDataArray(fp, s, this->FileType, "%.11lg ", num, numComp);
-      if (!isAOSArray)
-      {
-        delete[] s;
-      }
-    }
-    break;
 
     case VTK_ID_TYPE:
     {

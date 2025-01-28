@@ -50,14 +50,14 @@
 #include <vtkFloatArray.h>
 #include <vtkIntArray.h>
 #include <vtkLongArray.h>
-#include <vtkLongLongArray.h>
+//#include <vtkLongLongArray.h>
 #include <vtkShortArray.h>
 #include <vtkSignedCharArray.h>
 #include <vtkStringArray.h>
 #include <vtkUnsignedCharArray.h>
 #include <vtkUnsignedIntArray.h>
 #include <vtkUnsignedLongArray.h>
-#include <vtkUnsignedLongLongArray.h>
+//#include <vtkUnsignedLongLongArray.h>
 #include <vtkUnsignedShortArray.h>
 
 vtkSmartPointer<vtkPolyData> GeneratePolyData()
@@ -184,11 +184,11 @@ vtkSmartPointer<vtkPolyData> GeneratePolyData()
 
   AddPointDataArray(int, vtkIntArray, 1, 0);
   AddPointDataArray(long, vtkLongArray, 1, 0);
-  AddPointDataArray(long long, vtkLongLongArray, 1, 0);
+//  AddPointDataArray(long long, vtkLongLongArray, 1, 0);
   AddPointDataArray(short, vtkShortArray, 1, 0);
   AddPointDataArray(unsigned int, vtkUnsignedIntArray, 1, 0);
   AddPointDataArray(unsigned long, vtkUnsignedLongArray, 1, 0);
-  AddPointDataArray(unsigned long long, vtkUnsignedLongLongArray, 1, 0);
+//  AddPointDataArray(unsigned long long, vtkUnsignedLongLongArray, 1, 0);
   AddPointDataArray(unsigned short, vtkUnsignedShortArray, 1, 0);
   AddPointDataArray(char, vtkCharArray, 1, '0');
   AddPointDataArray(unsigned char, vtkUnsignedCharArray, 1, '0');
@@ -198,11 +198,11 @@ vtkSmartPointer<vtkPolyData> GeneratePolyData()
 
   AddCellDataArray(int, vtkIntArray, 1, 0);
   AddCellDataArray(long, vtkLongArray, 1, 0);
-  AddCellDataArray(long long, vtkLongLongArray, 1, 0);
+//  AddCellDataArray(long long, vtkLongLongArray, 1, 0);
   AddCellDataArray(short, vtkShortArray, 1, 0);
   AddCellDataArray(unsigned int, vtkUnsignedIntArray, 1, 0);
   AddCellDataArray(unsigned long, vtkUnsignedLongArray, 1, 0);
-  AddCellDataArray(unsigned long long, vtkUnsignedLongLongArray, 1, 0);
+//  AddCellDataArray(unsigned long long, vtkUnsignedLongLongArray, 1, 0);
   AddCellDataArray(unsigned short, vtkUnsignedShortArray, 1, 0);
   AddCellDataArray(char, vtkCharArray, 1, '0');
   AddCellDataArray(unsigned char, vtkUnsignedCharArray, 1, '0');

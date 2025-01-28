@@ -4,13 +4,13 @@ cmake_dependent_option(VTK_USE_64BIT_TIMESTAMPS "Build VTK with 64 bit timestamp
 mark_as_advanced(VTK_USE_64BIT_TIMESTAMPS)
 
 if (CMAKE_SIZEOF_VOID_P GREATER 4)
- set(vtk_use_64bit_ids_default ON)
+ set(vtk_use_64bit_ids_default OFF)
 else ()
  set(vtk_use_64bit_ids_default OFF)
 endif ()
 
 option(VTK_USE_64BIT_IDS "Build VTK with 64 bit ids" "${vtk_use_64bit_ids_default}")
-mark_as_advanced(VTK_USE_64BIT_IDS)
+set(VTK_USE_64BIT_IDS OFF)
 
 option(VTK_DEBUG_LEAKS "Build leak checking support into VTK." OFF)
 mark_as_advanced(VTK_DEBUG_LEAKS)
@@ -192,7 +192,7 @@ set(classes
   vtkLargeInteger
   vtkLogger
   vtkLongArray
-  vtkLongLongArray
+#  vtkLongLongArray
   vtkLookupTable
   vtkMath
   vtkMersenneTwister
@@ -229,7 +229,7 @@ set(classes
   vtkUnsignedCharArray
   vtkUnsignedIntArray
   vtkUnsignedLongArray
-  vtkUnsignedLongLongArray
+#  vtkUnsignedLongLongArray
   vtkUnsignedShortArray
   vtkVariant
   vtkVariantArray

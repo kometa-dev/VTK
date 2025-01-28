@@ -28,6 +28,13 @@
 #ifndef vtkLongLongArray_h
 #define vtkLongLongArray_h
 
+#include "vtkLongArray.h"
+
+using vtkLongLongArray = vtkLongArray;
+
+#endif
+#if 0
+
 #include "vtkAOSDataArrayTemplate.h" // Real Superclass
 #include "vtkCommonCoreModule.h"     // For export macro
 #include "vtkDataArray.h"

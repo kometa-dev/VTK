@@ -28,7 +28,7 @@
 #include "vtkInformationVector.h"
 #include "vtkIntArray.h"
 #include "vtkLongArray.h"
-#include "vtkLongLongArray.h"
+//#include "vtkLongLongArray.h"
 #include "vtkMath.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
@@ -38,7 +38,7 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkUnsignedLongArray.h"
-#include "vtkUnsignedLongLongArray.h"
+//#include "vtkUnsignedLongLongArray.h"
 #include "vtkUnsignedShortArray.h"
 
 vtkStandardNewMacro(vtkRandomAttributeGenerator);
@@ -228,20 +228,29 @@ vtkDataArray* vtkRandomAttributeGenerator::GenerateData(
     }
     break;
     case VTK_LONG_LONG:
-    {
+    /*{
       dataArray = vtkLongLongArray::New();
       dataArray->SetNumberOfComponents(numComp);
       dataArray->SetNumberOfTuples(numTuples);
       long long* data = static_cast<vtkLongLongArray*>(dataArray)->GetPointer(0);
       this->GenerateRandomTuples(data, numTuples, numComp, minComp, maxComp, min, max);
     }
-    break;
+    break;*/
     case VTK_UNSIGNED_LONG_LONG:
-    {
+    /*{
       dataArray = vtkUnsignedLongLongArray::New();
       dataArray->SetNumberOfComponents(numComp);
       dataArray->SetNumberOfTuples(numTuples);
       unsigned long long* data = static_cast<vtkUnsignedLongLongArray*>(dataArray)->GetPointer(0);
+      this->GenerateRandomTuples(data, numTuples, numComp, minComp, maxComp, min, max);
+    }
+    break;*/
+    case VTK_DOUBLE:
+    {
+      dataArray = vtkDoubleArray::New();
+      dataArray->SetNumberOfComponents(numComp);
+      dataArray->SetNumberOfTuples(numTuples);
+      double* data = static_cast<vtkDoubleArray*>(dataArray)->GetPointer(0);
       this->GenerateRandomTuples(data, numTuples, numComp, minComp, maxComp, min, max);
     }
     break;
@@ -251,15 +260,6 @@ vtkDataArray* vtkRandomAttributeGenerator::GenerateData(
       dataArray->SetNumberOfComponents(numComp);
       dataArray->SetNumberOfTuples(numTuples);
       float* data = static_cast<vtkFloatArray*>(dataArray)->GetPointer(0);
-      this->GenerateRandomTuples(data, numTuples, numComp, minComp, maxComp, min, max);
-    }
-    break;
-    case VTK_DOUBLE:
-    {
-      dataArray = vtkDoubleArray::New();
-      dataArray->SetNumberOfComponents(numComp);
-      dataArray->SetNumberOfTuples(numTuples);
-      double* data = static_cast<vtkDoubleArray*>(dataArray)->GetPointer(0);
       this->GenerateRandomTuples(data, numTuples, numComp, minComp, maxComp, min, max);
     }
     break;

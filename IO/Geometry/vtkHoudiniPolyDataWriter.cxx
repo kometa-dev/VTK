@@ -25,7 +25,7 @@
 #include "vtkInformation.h"
 #include "vtkIntArray.h"
 #include "vtkLongArray.h"
-#include "vtkLongLongArray.h"
+//#include "vtkLongLongArray.h"
 #include "vtkNew.h"
 #include "vtkPointData.h"
 #include "vtkPoints.h"
@@ -38,7 +38,7 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkUnsignedLongArray.h"
-#include "vtkUnsignedLongLongArray.h"
+//#include "vtkUnsignedLongLongArray.h"
 #include "vtkUnsignedShortArray.h"
 #include "vtksys/FStream.hxx"
 
@@ -82,9 +82,11 @@ struct AttributeTrait;
 
 DefineAttributeTrait(VTK_DOUBLE, double, "float", vtkDoubleArray, 0.0);
 DefineAttributeTrait(VTK_FLOAT, float, "float", vtkFloatArray, 0.0);
-DefineAttributeTrait(VTK_LONG_LONG, long long, "int", vtkLongLongArray, 0);
-DefineAttributeTrait(
-  VTK_UNSIGNED_LONG_LONG, unsigned long long, "int", vtkUnsignedLongLongArray, 0);
+//DefineAttributeTrait(VTK_LONG_LONG, long long, "int", vtkLongLongArray, 0);
+//DefineAttributeTrait(
+//  VTK_UNSIGNED_LONG_LONG, unsigned long long, "int", vtkUnsignedLongLongArray, 0);
+DefineAttributeTrait(VTK_LONG_LONG, double, "float", vtkDoubleArray, 0.0);
+DefineAttributeTrait(VTK_UNSIGNED_LONG_LONG, double, "float", vtkDoubleArray, 0.0);
 DefineAttributeTrait(VTK_ID_TYPE, vtkIdType, "int", vtkIdTypeArray, 0);
 DefineAttributeTrait(VTK_LONG, long, "int", vtkLongArray, 0);
 DefineAttributeTrait(VTK_UNSIGNED_LONG, unsigned long, "int", vtkUnsignedLongArray, 0);

@@ -89,13 +89,13 @@ vtkArray* vtkArray::CreateArray(int StorageType, int ValueType)
         case VTK_UNSIGNED_LONG:
           return vtkDenseArray<unsigned long>::New();
         case VTK_LONG_LONG:
-          return vtkDenseArray<long long>::New();
+//          return vtkDenseArray<long long>::New();
         case VTK_UNSIGNED_LONG_LONG:
-          return vtkDenseArray<unsigned long long>::New();
-        case VTK_FLOAT:
-          return vtkDenseArray<float>::New();
+//          return vtkDenseArray<unsigned long long>::New();
         case VTK_DOUBLE:
           return vtkDenseArray<double>::New();
+        case VTK_FLOAT:
+          return vtkDenseArray<float>::New();
         case VTK_ID_TYPE:
           return vtkDenseArray<vtkIdType>::New();
         case VTK_STRING:
@@ -133,13 +133,13 @@ vtkArray* vtkArray::CreateArray(int StorageType, int ValueType)
         case VTK_UNSIGNED_LONG:
           return vtkSparseArray<unsigned long>::New();
         case VTK_LONG_LONG:
-          return vtkSparseArray<long long>::New();
+//          return vtkSparseArray<long long>::New();
         case VTK_UNSIGNED_LONG_LONG:
-          return vtkSparseArray<unsigned long long>::New();
-        case VTK_FLOAT:
-          return vtkSparseArray<float>::New();
+//          return vtkSparseArray<unsigned long long>::New();
         case VTK_DOUBLE:
           return vtkSparseArray<double>::New();
+        case VTK_FLOAT:
+          return vtkSparseArray<float>::New();
         case VTK_ID_TYPE:
           return vtkSparseArray<vtkIdType>::New();
         case VTK_STRING:

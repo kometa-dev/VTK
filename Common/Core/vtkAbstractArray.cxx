@@ -32,7 +32,7 @@
 #include "vtkInformationVector.h"
 #include "vtkIntArray.h"
 #include "vtkLongArray.h"
-#include "vtkLongLongArray.h"
+//#include "vtkLongLongArray.h"
 #include "vtkMath.h"
 #include "vtkMinimalStandardRandomSequence.h"
 #include "vtkNew.h"
@@ -44,7 +44,7 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkUnsignedLongArray.h"
-#include "vtkUnsignedLongLongArray.h"
+//#include "vtkUnsignedLongLongArray.h"
 #include "vtkUnsignedShortArray.h"
 #include "vtkVariantArray.h"
 
@@ -404,16 +404,16 @@ vtkAbstractArray* vtkAbstractArray::CreateArray(int dataType)
       return vtkUnsignedLongArray::New();
 
     case VTK_LONG_LONG:
-      return vtkLongLongArray::New();
+//      return vtkLongLongArray::New();
 
     case VTK_UNSIGNED_LONG_LONG:
-      return vtkUnsignedLongLongArray::New();
-
-    case VTK_FLOAT:
-      return vtkFloatArray::New();
+//      return vtkUnsignedLongLongArray::New();
 
     case VTK_DOUBLE:
       return vtkDoubleArray::New();
+
+    case VTK_FLOAT:
+      return vtkFloatArray::New();
 
     case VTK_ID_TYPE:
       return vtkIdTypeArray::New();

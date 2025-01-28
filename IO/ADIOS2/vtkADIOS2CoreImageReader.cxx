@@ -37,7 +37,7 @@
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkLongArray.h"
-#include "vtkLongLongArray.h"
+//#include "vtkLongLongArray.h"
 #ifdef IOADIOS2_HAVE_MPI
 #include "vtkMPI.h"
 #include "vtkMPIController.h"
@@ -58,7 +58,7 @@
 #include "vtkType.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkUnsignedLongArray.h"
-#include "vtkUnsignedLongLongArray.h"
+//#include "vtkUnsignedLongLongArray.h"
 #include "vtkUnsignedShortArray.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtksys/SystemTools.hxx"

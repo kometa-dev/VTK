@@ -24,7 +24,7 @@
 #include "vtkInformationVector.h"
 #include "vtkIntArray.h"
 #include "vtkLongArray.h"
-#include "vtkLongLongArray.h"
+//#include "vtkLongLongArray.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkShortArray.h"
@@ -35,7 +35,7 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedIntArray.h"
 #include "vtkUnsignedLongArray.h"
-#include "vtkUnsignedLongLongArray.h"
+//#include "vtkUnsignedLongLongArray.h"
 #include "vtkUnsignedShortArray.h"
 #include "vtkVariantArray.h"
 
@@ -190,12 +190,12 @@ bool vtkTransposeTableInternal::TransposeTable(vtkTable* inTable, vtkTable* outT
         TransposeTypedColumn(VTK_SHORT, vtkShortArray, short);
         TransposeTypedColumn(VTK_INT, vtkIntArray, int);
         TransposeTypedColumn(VTK_LONG, vtkLongArray, long);
-        TransposeTypedColumn(VTK_LONG_LONG, vtkLongLongArray, long long);
+//        TransposeTypedColumn(VTK_LONG_LONG, vtkLongLongArray, long long);
         TransposeTypedColumn(VTK_UNSIGNED_CHAR, vtkUnsignedCharArray, unsigned char);
         TransposeTypedColumn(VTK_UNSIGNED_SHORT, vtkUnsignedShortArray, unsigned short);
         TransposeTypedColumn(VTK_UNSIGNED_INT, vtkUnsignedIntArray, unsigned int);
         TransposeTypedColumn(VTK_UNSIGNED_LONG, vtkUnsignedLongArray, unsigned long);
-        TransposeTypedColumn(VTK_UNSIGNED_LONG_LONG, vtkUnsignedLongLongArray, unsigned long long);
+//        TransposeTypedColumn(VTK_UNSIGNED_LONG_LONG, vtkUnsignedLongLongArray, unsigned long long);
         TransposeTypedColumn(VTK_ID_TYPE, vtkIdTypeArray, vtkIdType);
         TransposeTypedColumn(VTK_STRING, vtkStringArray, vtkStdString);
 #undef TransposeTypedColumn

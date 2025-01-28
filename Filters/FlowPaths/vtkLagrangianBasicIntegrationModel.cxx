@@ -26,7 +26,7 @@
 #include "vtkLagrangianParticle.h"
 #include "vtkLagrangianParticleTracker.h"
 #include "vtkLagrangianThreadedData.h"
-#include "vtkLongLongArray.h"
+#include "vtkLongArray.h"
 #include "vtkMath.h"
 #include "vtkNew.h"
 #include "vtkPointData.h"
@@ -1256,17 +1256,17 @@ void vtkLagrangianBasicIntegrationModel::InitializeParticleData(
 //------------------------------------------------------------------------------
 void vtkLagrangianBasicIntegrationModel::InitializePathData(vtkFieldData* data)
 {
-  vtkNew<vtkLongLongArray> particleIdArray;
+  vtkNew<vtkLongArray> particleIdArray;
   particleIdArray->SetName("Id");
   particleIdArray->SetNumberOfComponents(1);
   data->AddArray(particleIdArray);
 
-  vtkNew<vtkLongLongArray> particleParentIdArray;
+  vtkNew<vtkLongArray> particleParentIdArray;
   particleParentIdArray->SetName("ParentId");
   particleParentIdArray->SetNumberOfComponents(1);
   data->AddArray(particleParentIdArray);
 
-  vtkNew<vtkLongLongArray> particleSeedIdArray;
+  vtkNew<vtkLongArray> particleSeedIdArray;
   particleSeedIdArray->SetName("SeedId");
   particleSeedIdArray->SetNumberOfComponents(1);
   data->AddArray(particleSeedIdArray);
@@ -1315,10 +1315,10 @@ void vtkLagrangianBasicIntegrationModel::InsertParticleSeedData(
 void vtkLagrangianBasicIntegrationModel::InsertPathData(
   vtkLagrangianParticle* particle, vtkFieldData* data)
 {
-  vtkLongLongArray::SafeDownCast(data->GetArray("Id"))->InsertNextValue(particle->GetId());
-  vtkLongLongArray::SafeDownCast(data->GetArray("ParentId"))
+  vtkLongArray::SafeDownCast(data->GetArray("Id"))->InsertNextValue(particle->GetId());
+  vtkLongArray::SafeDownCast(data->GetArray("ParentId"))
     ->InsertNextValue(particle->GetParentId());
-  vtkLongLongArray::SafeDownCast(data->GetArray("SeedId"))->InsertNextValue(particle->GetSeedId());
+  vtkLongArray::SafeDownCast(data->GetArray("SeedId"))->InsertNextValue(particle->GetSeedId());
   vtkIntArray::SafeDownCast(data->GetArray("Termination"))
     ->InsertNextValue(particle->GetTermination());
 }

@@ -211,8 +211,8 @@ typedef vtkTypeList::Create<double, float> Reals;
  * A Typelist containing all integral ValueTypes.
  */
 typedef vtkTypeList::Unique<
-  vtkTypeList::Create<char, int, long, long long, short, signed char, unsigned char, unsigned int,
-    unsigned long, unsigned long long, unsigned short, vtkIdType>>::Result Integrals;
+  vtkTypeList::Create<char, int, long, /*long long,*/ short, signed char, unsigned char, unsigned int,
+    unsigned long, /*unsigned long long,*/ unsigned short, vtkIdType>>::Result Integrals;
 
 /**
  * A Typelist containing all standard VTK array ValueTypes.
