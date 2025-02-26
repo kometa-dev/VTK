@@ -1,3 +1,5 @@
+set(BUILD_SHARED_LIBS OFF)
+
 vtk_module_third_party(
   INTERNAL
     LICENSE_FILES "vtklz4/lib/LICENSE"
