@@ -374,9 +374,15 @@ void vtkXRenderWindowInteractor::Finalize()
   if (this->OwnDisplay && this->DisplayId)
   {
     XCloseDisplay(this->DisplayId);
-    this->DisplayId = nullptr;
-    this->OwnDisplay = false;
   }
+
+  // disconnect from the display, even if we didn't own it
+  this->DisplayId = nullptr;
+  this->OwnDisplay = false;
+
+  // revert to uninitialized state
+  this->Initialized = false;
+  this->Enabled = false;
 }
 
 //------------------------------------------------------------------------------
@@ -460,8 +466,8 @@ void vtkXRenderWindowInteractor::UpdateSizeNoXResize(int x, int y)
   {
     this->Size[0] = x;
     this->Size[1] = y;
-    // static_cast<vtkXOpenGLRenderWindow*>(this->RenderWindow)->SetSizeNoXResize(x, y);
-    this->RenderWindow->SetSize(x, y);
+    // change the ivars but don't resize the X window
+    this->RenderWindow->vtkRenderWindow::SetSize(x, y);
   }
 }
 

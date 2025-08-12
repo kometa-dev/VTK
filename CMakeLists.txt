@@ -269,10 +269,10 @@ mark_as_advanced(VTK_TARGET_SPECIFIC_COMPONENTS)
 set(_vtk_module_group_default_StandAlone "WANT")
 set(_vtk_module_group_default_Rendering "WANT")
 
-set(vtk_enable_tests "${VTK_BUILD_TESTING}")
-if (VTK_FORBID_DOWNLOADS)
-  message(STATUS "Module testing disabled due to `VTK_FORBID_DOWNLOADS` being set.")
-  set(vtk_enable_tests "OFF")
+if (VTK_FORBID_DOWNLOADS AND VTK_BUILD_TESTING)
+  message(STATUS
+    "Module testing will fail due to `VTK_FORBID_DOWNLOADS` without a local "
+    "copy of the testing data.")
 endif ()
 
 include(vtkModule)
@@ -336,7 +336,7 @@ vtk_module_scan(
   REQUIRES_MODULES    vtk_required_modules
   UNRECOGNIZED_MODULES vtk_unrecognized_modules
   WANT_BY_DEFAULT     "${VTK_BUILD_ALL_MODULES}"
-  ENABLE_TESTS        "${vtk_enable_tests}")
+  ENABLE_TESTS        "${VTK_BUILD_TESTING}")
 
 if (vtk_required_modules OR vtk_unrecognized_modules)
   message(FATAL_ERROR
@@ -452,6 +452,14 @@ if (VTK_WRAP_PYTHON)
   string(REPLACE ";" "\n" vtk_required_python_modules "${vtk_required_python_modules}")
   file(WRITE "${CMAKE_BINARY_DIR}/requirements.txt"
     "${vtk_required_python_modules}\n")
+  get_property(vtk_web_python_modules GLOBAL
+    PROPERTY  vtk_web_python_modules)
+  if (vtk_web_python_modules)
+    list(REMOVE_DUPLICATES vtk_web_python_modules)
+  endif ()
+  string(REPLACE ";" "\n" vtk_web_python_modules "${vtk_web_python_modules}")
+  file(WRITE "${CMAKE_BINARY_DIR}/requirements_web.txt"
+    "${vtk_web_python_modules}\n")
   get_property(vtk_soabi GLOBAL
     PROPERTY  _vtk_python_soabi)
   cmake_dependent_option(VTK_WINDOWS_PYTHON_DEBUGGABLE "Append `_d` to Python module names" OFF
