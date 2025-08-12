@@ -24,6 +24,7 @@
 #include "vtkDoubleArray.h"
 #include "vtkFloatArray.h"
 #include "vtkGraph.h"
+#include "vtkHyperTreeGrid.h"
 #include "vtkIOStream.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -132,7 +133,21 @@ vtkFieldData* vtkExtractHistogram::GetInputFieldData(vtkDataObject* input)
     case vtkDataObject::FIELD_ASSOCIATION_POINTS_THEN_CELLS:
       return vtkDataSet::SafeDownCast(input)->GetPointData();
     case vtkDataObject::FIELD_ASSOCIATION_CELLS:
-      return vtkDataSet::SafeDownCast(input)->GetCellData();
+    {
+      if (auto ds = vtkDataSet::SafeDownCast(input))
+      {
+        return ds->GetCellData();
+      }
+      else if (auto htg = vtkHyperTreeGrid::SafeDownCast(input))
+      {
+        return htg->GetCellData();
+      }
+      else
+      {
+        vtkErrorMacro("Unsupported input type: " << input->GetClassName());
+        return nullptr;
+      }
+    }
     case vtkDataObject::FIELD_ASSOCIATION_NONE:
       return input->GetFieldData();
     case vtkDataObject::FIELD_ASSOCIATION_VERTICES:
@@ -164,8 +179,8 @@ public:
     ArrayT* array, int component, vtkUnsignedCharArray* ghostArray, unsigned char hiddenFlag)
     : Array(array)
     , GhostArray(ghostArray)
-    , Component(component)
     , HiddenFlag(hiddenFlag)
+    , Component(component)
   {
   }
 
@@ -509,8 +524,8 @@ public:
     : DataArray(dataArray)
     , Field(field)
     , BinValues(binValues)
-    , BinValuesArrayName(binValuesArrayName)
     , ArrayValues(arrayValues)
+    , BinValuesArrayName(binValuesArrayName)
     , BinCount(binCount)
     , Component(component)
     , Min(min)

@@ -161,7 +161,7 @@ public:
    * THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A SINGLE THREAD AND
    * THE DATASET IS NOT MODIFIED
    *
-   * @warning This method MUST be overriden for performance reasons.
+   * @warning This method MUST be overridden for performance reasons.
    * Default implementation is very unefficient.
    */
   virtual vtkIdType GetCellSize(vtkIdType cellId);
@@ -183,6 +183,21 @@ public:
    * THE DATASET IS NOT MODIFIED
    */
   virtual void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) = 0;
+
+  /**
+   * Topological inquiry to get points defining cell.
+   *
+   * This function MAY use ptIds, which is an object that is created by each thread,
+   * to guarantee thread safety.
+   *
+   * @warning Subsequent calls to this method may invalidate previous call
+   * results.
+   *
+   * THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A SINGLE THREAD AND
+   * THE DATASET IS NOT MODIFIED
+   */
+  virtual void GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts,
+    vtkIdList* ptIds) VTK_SIZEHINT(pts, npts);
 
   /**
    * Topological inquiry to get cells using point.
@@ -318,6 +333,13 @@ public:
    * THE DATASET IS NOT MODIFIED
    */
   double GetLength();
+
+  /**
+   * Return the squared length of the diagonal of the bounding box.
+   * THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A SINGLE THREAD AND
+   * THE DATASET IS NOT MODIFIED
+   */
+  double GetLength2();
 
   /**
    * Restore data object to initial state.

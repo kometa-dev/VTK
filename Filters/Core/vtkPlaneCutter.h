@@ -22,12 +22,14 @@
  * exploratory, fast workflow. It produces output polygons that result from
  * cutting the input dataset with the specified plane.
  *
- * This algorithm is fast because it is threaded, and may build (in a
+ * This algorithm is fast because it is threaded, it may delegate to a
+ * high-performance cutting algorithm, and/or it may build (in a
  * preprocessing step) a spatial search structure that accelerates the plane
  * cuts. The search structure, which is typically a sphere tree, is used to
- * quickly cull candidate cells.  (Note that certain types of input data are
- * delegated to other, internal classes; for example image data is delegated
- * to vtkFlyingEdgesPlaneCutter.)
+ * quickly cull candidate cells.  As mentioned, certain types of input data
+ * are delegated to other, internal classes--for example image data is
+ * delegated to vtkFlyingEdgesPlaneCutter, and convex vtkPolyData is
+ * delegated to vtkPolyDataPlaneCutter.
  *
  * Because this filter may build an initial data structure during a
  * preprocessing step, the first execution of the filter may take longer than
@@ -38,17 +40,26 @@
  * filter typically works well.
  *
  * @warning
- * This filter outputs a vtkMultiBlockeDataSet. Each piece in the multiblock
- * output corresponds to the output from one thread.
+ * This filter chooses the output type based on the input type.
+ * 1) if input is vtkDataSet, output is vtkPolyData.
+ * 2) if input is vtkPartitionedDataSet, output is vtkPartitionedDataSet.
+ * 3) if input is vtkPartitionedDataSetCollection, output is vtkPartitionedDataSetCollection.
+ * 4) if input is vtkUniformGridAMR, output is vtkPartitionedDataSetCollection.
+ * 5) if input is vtkMultiBlockDataSet, output is vtkMultiBlockDataSet.
  *
  * @warning
- * This filter produces non-merged, potentially coincident points for all
- * input dataset types except vtkImageData (which uses
- * vtkFlyingEdgesPlaneCutter under the hood - which does merge points).
+ * This filter produces may produce non-merged, potentially coincident points
+ * for all input dataset types except 1) vtkImageData (which uses
+ * vtkFlyingEdgesPlaneCutter under the hood - which does merge points); and
+ * 2) vtkPolyData if all input cells are convex polygons.
  *
  * @warning
  * This filter delegates to vtkFlyingEdgesPlaneCutter to process image
  * data, but output and input have been standardized when possible.
+ *
+ * @warning
+ * This filter delegates to vtkPolyDataPlaneCutter to process input
+ * vtkPolyData if all the input cells are convex polygons.
  *
  * @warning
  * This class has been threaded with vtkSMPTools. Using TBB or other
@@ -57,6 +68,7 @@
  *
  * @sa
  * vtkFlyingEdgesPlaneCutter vtk3DLinearGridPlaneCutter vtkCutter vtkPlane
+ * vtkPolyDataPlaneCutter
  */
 
 #ifndef vtkPlaneCutter_h
@@ -70,12 +82,17 @@
 class vtkCellArray;
 class vtkCellData;
 class vtkImageData;
+class vtkMultiBlockDataSet;
 class vtkMultiPieceDataSet;
+class vtkPartitionedDataSet;
+class vtkPartitionedDataSetCollection;
 class vtkPlane;
 class vtkPointData;
 class vtkPoints;
+class vtkPolyData;
 class vtkSphereTree;
 class vtkStructuredGrid;
+class vtkUniformGridAMR;
 class vtkUnstructuredGrid;
 
 class VTKFILTERSCORE_EXPORT vtkPlaneCutter : public vtkDataObjectAlgorithm
@@ -121,7 +138,7 @@ public:
   /**
    * Indicate whether to interpolate attribute data. By default this is
    * enabled. Note that both cell data and point data is interpolated and
-   * outputted, except for image data input where only point data are outputted.
+   * output, except for image data input where only point data are output.
    */
   vtkSetMacro(InterpolateAttributes, bool);
   vtkGetMacro(InterpolateAttributes, bool);
@@ -175,8 +192,30 @@ protected:
   bool BuildHierarchy;
 
   // Helpers
+  // Support delegation to vtkPolyDataPlaneCutter. Checking convexity can be
+  // time consuming.
+  bool DataChanged;
+  bool IsPolyDataConvex;
+
   vtkSphereTree* GetSphereTree(vtkDataSet*);
   std::map<vtkDataSet*, vtkSmartPointer<vtkSphereTree>> SphereTrees;
+  struct vtkInputInfo
+  {
+    vtkDataObject* Input;
+    vtkMTimeType LastMTime;
+
+    vtkInputInfo()
+      : Input(nullptr)
+      , LastMTime(0)
+    {
+    }
+    vtkInputInfo(vtkDataObject* input, vtkMTimeType mtime)
+      : Input(input)
+      , LastMTime(mtime)
+    {
+    }
+  };
+  vtkInputInfo InputInfo;
 
   // Pipeline-related methods
   int RequestDataObject(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
@@ -185,10 +224,15 @@ protected:
   int FillInputPortInformation(int port, vtkInformation* info) override;
   int FillOutputPortInformation(int port, vtkInformation* info) override;
 
-  virtual int ExecuteDataSet(vtkDataSet* input, vtkSphereTree* tree, vtkMultiPieceDataSet* output);
+  int ExecuteMultiBlockDataSet(vtkMultiBlockDataSet* input, vtkMultiBlockDataSet* output);
+  int ExecuteUniformGridAMR(vtkUniformGridAMR* input, vtkPartitionedDataSetCollection* output);
+  int ExecutePartitionedDataCollection(
+    vtkPartitionedDataSetCollection* input, vtkPartitionedDataSetCollection* output);
+  int ExecutePartitionedData(
+    vtkPartitionedDataSet* input, vtkPartitionedDataSet* output, bool copyStructure);
+  int ExecuteDataSet(vtkDataSet* input, vtkSphereTree* tree, vtkPolyData* output);
 
-  static void AddNormalArray(double* planeNormal, vtkDataSet* ds);
-  static void InitializeOutput(vtkMultiPieceDataSet* output);
+  static void AddNormalArray(double* planeNormal, vtkPolyData* polyData);
 
 private:
   vtkPlaneCutter(const vtkPlaneCutter&) = delete;

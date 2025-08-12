@@ -63,7 +63,7 @@ void vtkOpenXRRenderWindowInteractor::DoOneEvent(
 {
   this->ProcessXrEvents();
 
-  if (this->Done || !vtkOpenXRManager::GetInstance()->IsSessionRunning())
+  if (this->Done || !vtkOpenXRManager::GetInstance().IsSessionRunning())
   {
     return;
   }
@@ -77,21 +77,16 @@ void vtkOpenXRRenderWindowInteractor::DoOneEvent(
 
   // Start a render
   this->InvokeEvent(vtkCommand::RenderEvent);
-  auto ostate = renWin->GetState();
-  renWin->MakeCurrent();
-  ostate->Reset();
-  ostate->Push();
   renWin->Render();
-  ostate->Pop();
 }
 
 //------------------------------------------------------------------------------
 void vtkOpenXRRenderWindowInteractor::ProcessXrEvents()
 {
-  vtkOpenXRManager* xrManager = vtkOpenXRManager::GetInstance();
+  vtkOpenXRManager& xrManager = vtkOpenXRManager::GetInstance();
 
   XrEventDataBuffer eventData{};
-  while (xrManager->PollEvent(eventData))
+  while (xrManager.PollEvent(eventData))
   {
     switch (eventData.type)
     {
@@ -119,7 +114,7 @@ void vtkOpenXRRenderWindowInteractor::ProcessXrEvents()
       {
         const auto stateEvent =
           *reinterpret_cast<const XrEventDataSessionStateChanged*>(&eventData);
-        if (stateEvent.session != xrManager->GetSession())
+        if (stateEvent.session != xrManager.GetSession())
         {
           vtkErrorMacro(<< "OpenXR event [XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED] : session is "
                            "different than this->Session. Aborting.");
@@ -131,7 +126,7 @@ void vtkOpenXRRenderWindowInteractor::ProcessXrEvents()
           case XR_SESSION_STATE_READY:
           {
             vtkDebugMacro(<< "OpenXR event [XR_SESSION_STATE_READY] : Begin session");
-            xrManager->BeginSession();
+            xrManager.BeginSession();
             break;
           }
           case XR_SESSION_STATE_STOPPING:
@@ -171,8 +166,8 @@ void vtkOpenXRRenderWindowInteractor::ProcessXrEvents()
         for (uint32_t hand :
           { vtkOpenXRManager::ControllerIndex::Left, vtkOpenXRManager::ControllerIndex::Right })
         {
-          if (!xrManager->XrCheckWarn(xrGetCurrentInteractionProfile(xrManager->GetSession(),
-                                        xrManager->GetSubactionPaths()[hand], &state),
+          if (!xrManager.XrCheckWarn(xrGetCurrentInteractionProfile(xrManager.GetSession(),
+                                       xrManager.GetSubactionPaths()[hand], &state),
                 "Failed to get interaction profile for hand " + hand))
           {
             continue;
@@ -182,8 +177,8 @@ void vtkOpenXRRenderWindowInteractor::ProcessXrEvents()
 
           uint32_t strLength;
           char profileString[XR_MAX_PATH_LENGTH];
-          if (!xrManager->XrCheckWarn(
-                xrPathToString(xrManager->GetXrRuntimeInstance(), interactionProfile,
+          if (!xrManager.XrCheckWarn(
+                xrPathToString(xrManager.GetXrRuntimeInstance(), interactionProfile,
                   XR_MAX_PATH_LENGTH, &strLength, profileString),
                 "Failed to get interaction profile path string for hand " + hand))
           {
@@ -219,7 +214,7 @@ void vtkOpenXRRenderWindowInteractor::ConvertOpenXRPoseToWorldCoordinates(const 
 void vtkOpenXRRenderWindowInteractor::PollXrActions()
 {
   // Update the action states by syncing using the active action set
-  vtkOpenXRManager::GetInstance()->SyncActions();
+  vtkOpenXRManager::GetInstance().SyncActions();
 
   // Iterate over all actions and update their data
   MapAction::iterator it;
@@ -231,7 +226,7 @@ void vtkOpenXRRenderWindowInteractor::PollXrActions()
     for (uint32_t hand :
       { vtkOpenXRManager::ControllerIndex::Left, vtkOpenXRManager::ControllerIndex::Right })
     {
-      vtkOpenXRManager::GetInstance()->UpdateActionData(actionData->ActionStruct, hand);
+      vtkOpenXRManager::GetInstance().UpdateActionData(actionData->ActionStruct, hand);
     }
   }
 
@@ -499,7 +494,7 @@ void vtkOpenXRRenderWindowInteractor::Initialize()
 
   // All action sets have been created, so
   // We can now attach the action sets to the session
-  if (!vtkOpenXRManager::GetInstance()->AttachSessionActionSets())
+  if (!vtkOpenXRManager::GetInstance().AttachSessionActionSets())
   {
     this->Initialized = false;
     return;
@@ -536,13 +531,13 @@ bool vtkOpenXRRenderWindowInteractor::LoadActions(const std::string& actionFilen
 
   // Create an action set
   std::string localizedActionSetName = "VTK actions";
-  vtkOpenXRManager::GetInstance()->CreateActionSet(this->ActionSetName, localizedActionSetName);
+  vtkOpenXRManager::GetInstance().CreateActionSet(this->ActionSetName, localizedActionSetName);
 
   // We must select an action set to create actions
   // For instance only one action set so select it
   // Improvement: select each action set and create all actions
   // that belong to it
-  vtkOpenXRManager::GetInstance()->SelectActiveActionSet(0);
+  vtkOpenXRManager::GetInstance().SelectActiveActionSet(0);
 
   // Create actions
   Json::Value actions = root["actions"];
@@ -568,6 +563,18 @@ bool vtkOpenXRRenderWindowInteractor::LoadActions(const std::string& actionFilen
     std::string localizedName = localization[name].asString();
     std::string type = action["type"].asString();
 
+    // If the action is an output, add it so that it will
+    // connect to its binding without user having to specify.
+    // Vibration is the only supported output
+    if (type == "vibration")
+    {
+      if (this->MapActionStruct_Name.count(name) == 0)
+      {
+        ActionData* am = new ActionData();
+        this->MapActionStruct_Name[name] = am;
+      }
+    }
+
     // Check if the action is used by the interactor style
     // or ourself. If that's the case, create it
     // Else do nothing
@@ -591,7 +598,7 @@ bool vtkOpenXRRenderWindowInteractor::LoadActions(const std::string& actionFilen
     // Create the action using the selected action set
     Action_t actionStruct;
     actionStruct.ActionType = xrActionType;
-    if (!vtkOpenXRManager::GetInstance()->CreateOneAction(actionStruct, name, localizedName))
+    if (!vtkOpenXRManager::GetInstance().CreateOneAction(actionStruct, name, localizedName))
     {
       return false;
     }
@@ -739,7 +746,7 @@ bool vtkOpenXRRenderWindowInteractor::LoadDefaultBinding(const std::string& bind
         return;
       }
 
-      XrPath xrPath = vtkOpenXRManager::GetInstance()->GetXrPath(path);
+      XrPath xrPath = vtkOpenXRManager::GetInstance().GetXrPath(path);
       actionSuggestedBindings.push_back({ actionT.Action, xrPath });
     }
   };
@@ -772,8 +779,21 @@ bool vtkOpenXRRenderWindowInteractor::LoadDefaultBinding(const std::string& bind
     }
   }
 
+  // Look under haptics for any outputs
+  Json::Value haptics = actionSet["haptics"];
+  for (Json::Value::ArrayIndex i = 0; i < haptics.size(); i++)
+  {
+    Json::Value haptic = haptics[i];
+
+    // The path for this action
+    std::string path = haptic["path"].asString();
+
+    // Iterate over all outputs
+    fillActionSuggestedBindings(path, haptic);
+  }
+
   // Submit all suggested bindings
-  return vtkOpenXRManager::GetInstance()->SuggestActions(
+  return vtkOpenXRManager::GetInstance().SuggestActions(
     interactionProfile, actionSuggestedBindings);
 }
 
@@ -797,4 +817,21 @@ void vtkOpenXRRenderWindowInteractor::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "vtkOpenXRRenderWindowInteractor"
      << "\n";
   this->Superclass::PrintSelf(os, indent);
+}
+
+//------------------------------------------------------------------------------
+bool vtkOpenXRRenderWindowInteractor::ApplyVibration(const std::string& actionName, const int hand,
+  const float amplitude, const float duration, const float frequency)
+{
+  ActionData* actionData = GetActionDataFromName(actionName);
+  if (actionData == nullptr)
+  {
+    vtkWarningMacro(
+      << "vtkOpenXRRenderWindowInteractor: Attempt to ApplyVibration using action data with name"
+      << actionName << " that does not exist.");
+    return false;
+  }
+
+  return vtkOpenXRManager::GetInstance().ApplyVibration(
+    actionData->ActionStruct, hand, amplitude, duration, frequency);
 }

@@ -42,6 +42,7 @@ vtk_add_test_cxx(vtkInteractionWidgetsCxxTests tests
   TestLogoWidget.cxx
   TestLogoWidgetAlphaBlending.cxx
   TestLogoWidgetDepthPeeling.cxx
+  TestLineWidget2b.cxx,NO_VALID
   TestMeasurementCubeHandleRepresentation3D.cxx
   TestMultipleViewports.cxx
   TestOrientationMarkerWidget.cxx
@@ -70,12 +71,12 @@ vtk_add_test_cxx(vtkInteractionWidgetsCxxTests tests
   TestSphereWidgetZoomInOut.cxx
   TestSplineWidget.cxx
   TestTextWidget.cxx
-  TestEqualizerContextItem.cxx
   TestTextRepresentationWithBorders.cxx
   TestTextWidgetBackgroundInteractive.cxx
   )
 vtk_add_test_cxx(vtkInteractionWidgetsCxxTests no_valid_tests
   NO_VALID
+  TestEqualizerContextItem.cxx
   vtkAngleRepresentation2DTest1.cxx
   vtkAngleRepresentation3DTest1.cxx
   vtkAngleWidgetTest1.cxx

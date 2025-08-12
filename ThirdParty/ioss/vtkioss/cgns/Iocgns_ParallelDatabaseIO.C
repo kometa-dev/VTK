@@ -22,7 +22,8 @@
 #include <cgns/Iocgns_Utils.h>
 #include <cstddef>
 #include <ctime>
-#include <fmt/ostream.h>
+#include "vtk_fmt.h"
+#include VTK_FMT(fmt/ostream.h)
 #include <fstream>
 #include <iostream>
 #include <mpi.h>
@@ -142,7 +143,7 @@ namespace {
 namespace Iocgns {
 
   ParallelDatabaseIO::ParallelDatabaseIO(Ioss::Region *region, const std::string &filename,
-                                         Ioss::DatabaseUsage db_usage, MPI_Comm communicator,
+                                         Ioss::DatabaseUsage db_usage, Ioss_MPI_Comm communicator,
                                          const Ioss::PropertyManager &props)
       : Ioss::DatabaseIO(region, filename, db_usage, communicator, props)
   {
@@ -659,7 +660,7 @@ namespace Iocgns {
     }
 
     have_nodes = have_nodes == 0 ? MPI_UNDEFINED : 1;
-    MPI_Comm pcomm;
+    Ioss_MPI_Comm pcomm;
     MPI_Comm_split(util().communicator(), have_nodes, myProcessor, &pcomm);
 
     if (have_nodes == 1) {
@@ -895,7 +896,7 @@ namespace Iocgns {
           }
 
           int size = (int)common.size();
-          MPI_Bcast(&size, 1, MPI_INT, 0, util().communicator());
+          util().broadcast(size);
 
           if (size > 0) {
             // This 'cg_conn_write' should probably be a parallel
@@ -903,7 +904,7 @@ namespace Iocgns {
             // data on all processors.  Seems to work, but is klugy.
 
             common.resize(size);
-            MPI_Bcast(common.data(), 2 * size, MPI_INT, 0, util().communicator());
+            util().broadcast(common);
 
             CGNSIntVector point_list;
             CGNSIntVector point_list_donor;
@@ -2067,8 +2068,10 @@ namespace Iocgns {
 
         if (size[1] > 0) {
           CGNS_ENUMT(ElementType_t) type = Utils::map_topology_to_cgns(eb->topology()->name());
-          int sect                       = 0;
-          CGCHECKM(cgp_section_write(get_file_pointer(), base, zone, "HexElements", type, 1,
+          int         sect               = 0;
+          std::string element_type =
+              fmt::format("{}Elements", Ioss::Utils::shape_to_string(eb->topology()->shape()));
+          CGCHECKM(cgp_section_write(get_file_pointer(), base, zone, element_type.c_str(), type, 1,
                                      size[1], 0, &sect));
 
           int64_t start = 0;
@@ -2433,8 +2436,10 @@ namespace Iocgns {
         CGCHECKM(
             cg_goto(get_file_pointer(), base, "Zone_t", zone, "ZoneBC_t", 1, "BC_t", sect, "end"));
         CGCHECKM(cg_famname_write(name.c_str()));
-        CGCHECKM(cg_boco_gridlocation_write(get_file_pointer(), base, zone, sect,
-                                            CGNS_ENUMV(FaceCenter)));
+
+        int  phys_dimension = get_region()->get_property("spatial_dimension").get_int();
+        auto location       = phys_dimension == 2 ? CGNS_ENUMV(EdgeCenter) : CGNS_ENUMV(FaceCenter);
+        CGCHECKM(cg_boco_gridlocation_write(get_file_pointer(), base, zone, sect, location));
 
         CGCHECKM(cgp_section_write(get_file_pointer(), base, zone, sb_name.c_str(), type, cg_start,
                                    cg_end, 0, &sect));

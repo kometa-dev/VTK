@@ -90,6 +90,7 @@ public:
   int GetCellType(vtkIdType cellId) override;
   vtkIdType GetCellSize(vtkIdType cellId) override;
   vtkIdType GetNumberOfCells() override;
+  using vtkDataSet::GetCellPoints;
   void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override;
   void GetPointCells(vtkIdType ptId, vtkIdList* cellIds) override
   {
@@ -260,14 +261,6 @@ protected:
   void ComputeScalarRange() override;
 
 private:
-  /**
-   * For legacy compatibility. Do not use.
-   */
-  void GetCellNeighbors(vtkIdType cellId, vtkIdList& ptIds, vtkIdList& cellIds)
-  {
-    this->GetCellNeighbors(cellId, &ptIds, &cellIds);
-  }
-
   // Internal method used by DeepCopy and ShallowCopy.
   void InternalStructuredGridCopy(vtkStructuredGrid* src);
 

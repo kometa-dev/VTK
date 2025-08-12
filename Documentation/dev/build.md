@@ -1,5 +1,28 @@
 # Building VTK
 
+## Table of Contents
+
+1. [Linux Getting Started](#linux-getting-started)
+2. [Obtaining the source](#obtaining-the-source)
+3. [Building](#building)
+    1. [Prerequisites](#prerequisites)
+        1. [Installing CMake](#installing-cmake)
+        2. [Installing Qt](#installing-qt)
+    2. [Optional Additions](#optional-additions)
+        1. [Download And Install ffmpeg movie libraries](#download-and-install-ffmpeg-movie-libraries)
+        2. [MPI](#mpi)
+        3. [Python](#python)
+        4. [OSMesa](#osmesa)
+4. [Creating the Build Environment](#creating-the-build-environment)
+    1. [Linux (Ubuntu/Debian)](#linux-(ubuntu/debian))
+    2. [Windows](#windows)
+5. [Building](#building)
+    1. [Missing dependencies](#missing-dependencies)
+    2. [Build Settings](#build-settings)
+        1. [Mobile devices](#mobile-devices)
+        2. [Python wheels](#python-wheels)
+6. [Building documentation](#building-documentation)
+
 This page describes how to build and install VTK. It covers building for
 development, on both Unix-type systems (Linux, HP-UX, Solaris, macOS), and
 Windows. Note that Unix-like environments such as Cygwin and MinGW are not
@@ -11,6 +34,14 @@ A full-featured build of VTK depends on several open source tools and libraries
 such as Python, Qt, CGNS, HDF5, etc. Some of these are included in the VTK
 source itself (e.g., HDF5), while others are expected to be present on the
 machine on which VTK is being built (e.g., Python, Qt).
+
+## Linux Getting Started
+
+For new users of VTK or those wanting a quick setup on linux, these instructions will be useful:
+
+* [Getting Started Using Linux](<./getting_started_linux.md>). This will will lead you step by step through the process of setting up VTK in your home folder.
+
+Once you get everything working, don't forget to come back and read the rest of this document.
 
 ## Obtaining the source
 
@@ -71,7 +102,7 @@ compiler version used to build Qt.
 
 ### Optional Additions
 
-#### Download And Install ffmpeg (`.avi`) movie libraries
+#### Download And Install ffmpeg movie libraries
 
 When the ability to write `.avi` files is desired, and writing these files is
 not supported by the OS, VTK can use the ffmpeg library. This is generally
@@ -182,6 +213,8 @@ Less common, but variables which may be of interest to some:
     will be implemented by default. Must be either `Sequential`, `STDThread`,
     `OpenMP` or `TBB`. The backend can be changed at runtime if the desired
     backend has his option `VTK_SMP_ENABLE_<backend_name>` set to `ON`.
+  * `VTK_ENABLE_CATALYST` (default `OFF`): Enable the CatlystConduit module
+  and build the VTK Catalyst implementation. Depends on an external Catalyst.
 
 More advanced options:
 
@@ -229,6 +262,10 @@ More advanced options:
     deprecated APIs.
   * `VTK_LEGACY_SILENT` (default `OFF`; requires `VTK_LEGACY_REMOVE` to be
     `OFF`): If set, usage of legacy, deprecated APIs will not cause warnings.
+  * `VTK_USE_FUTURE_CONST` (default `OFF`): If set, the `VTK_FUTURE_CONST`
+    macro expands to `const`; otherwise it expands to nothing. This is used to
+    incrementally add more const correctness to the codebase while making it
+    opt-in for backwards compatibility.
   * `VTK_USE_TK` (default `OFF`; requires `VTK_WRAP_PYTHON`): If set, VTK will
     enable Tkinter support for VTK widgets.
   * `VTK_BUILD_COMPILE_TOOLS_ONLY` (default `OFF`): If set, VTK will compile
@@ -238,9 +275,14 @@ More advanced options:
     "${MPIEXEC_EXECUTABLE}" "${MPIEXEC_NUMPROC_FLAG}" "1" ${MPIEXEC_PREFLAGS}
   * `VTK_WINDOWS_PYTHON_DEBUGGABLE` (default `OFF`): Set to `ON` if using a
     debug build of Python.
-  * `VTK_DLL_PATHS` (default `""`): If set, these paths will be added via
-    Python 3.8's `os.add_dll_directory` mechanism in order to find dependent
-    DLLs when loading VTK's Python modules.
+  * `VTK_BUILD_PYI_FILES` (default `OFF`): Set to `ON` to build `.pyi` type
+    hint files for VTK's Python interfaces.
+  * `VTK_DLL_PATHS` (default `""` or `VTK_DLL_PATHS` from the environment): If
+    set, these paths will be added via Python 3.8's `os.add_dll_directory`
+    mechanism in order to find dependent DLLs when loading VTK's Python
+    modules. Note that when using the variable, paths are in CMake form (using
+    `/`) and in the environment are a path list in the platform's preferred
+    format.
   * `VTK_ENABLE_VR_COLLABORATION` (default `OFF`): If `ON`, includes support
     for multi client VR collaboration. Requires libzmq and cppzmq external libraries.
   * `VTK_SMP_ENABLE_<backend_name>` (default `OFF` if needs an external library otherwise `ON`):
@@ -270,7 +312,7 @@ More advanced options:
     `vtkObjectFactoryNewMacro` or `vtkAbstractObjectFactoryNewMacro`.
   * `VTK_ENABLE_VTKM_OVERRIDES` (default `OFF`): If `ON`, enables factory override
      of certain VTK filters by their VTK-m counterparts. There is also a runtime
-     switch that should also be turned on to enable this feature.
+     switch that can be used to enable/disable the overrides at run-time (on by default).
      It can be accessed using the static function `vtkmFilterOverrides::SetEnabled(bool)`.
 
 The VTK module system provides a number of variables to control modules which

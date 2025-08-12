@@ -133,13 +133,13 @@ becoming confused about what exactly the '`vtk`' module is.
 ## Classes Derived from vtkObjectBase {#vtkobject-classes}
 
 In C++, classes derived from `vtkObjectBase` are instantiated by calling
-`::New()`.  In Python, these classes are instantiated by simply calling the
+`New()`.  In Python, these classes are instantiated by simply calling the
 constructor:
 
     o = vtkObject()
 
 For factory classes, the returned object's type might be a subtype of the
-class.  This occurs because the Python wrappers are actually calling `::New()`
+class.  This occurs because the Python wrappers are actually calling `New()`
 for you, which allows the VTK factory overrides to occur:
 
     >>> a = vtkActor()
@@ -180,7 +180,7 @@ most important of these is `vtkVariant`, which can hold any type of object:
 
 The wrapping of these classes is fully automatic, but is done in a slightly
 different manner than `vtkObjectBase`-derived classes.  First, these classes
-have no `::New()` method, and instead the public C++ constructors are wrapped
+have no `New()` method, and instead the public C++ constructors are wrapped
 to create an equivalent Python contructor.  Second, the Python object
 contains its own copy of the C++ object, rather than containing just a
 pointer to the C++ object.  The vast majority of these classes are lightweight
@@ -202,7 +202,7 @@ on what `operator<<` produces.
 
 There are several C++ templates in VTK, which can be tricky to use from the
 wrappers since the Python language has no real concept of templates.  The
-the wrappers wrap templates as dictionary-like objects that map the template
+wrappers wrap templates as dictionary-like objects that map the template
 parameters to template instantiations:
 
     >>> vtkSOADataArrayTemplate
@@ -313,6 +313,8 @@ The wrappable parameter types are:
 * `T[N][M]` where `T` is a fundamental type, as nested `tuple` or `list`
 * `T*` where `T` is a fundamental type, as `tuple` or `list`
 * `vtkObjectBase*` and derived types, as their respective Python type
+* `vtkSmartPointer<T>` as the Python vtkObjectBase-derived type `T`
+* `std::vector<vtkSmartPointer<T>>` as a sequence of objects of type `T`
 * other wrapped classes (like `vtkVariant`), but not pointers to these types
 * `char*`, as Python `str` via utf-8 encoding/decoding
 * `void*`, as Python buffer (e.g. `bytes` or `bytearray`)
@@ -456,6 +458,30 @@ then the Python method can be passed a mutable sequence (e.g. `list`):
 The value type of the `std::vector<T>` must be `std::string` or a
 fundamental numeric type such as `double` or `int` (including
 `signed char` and `unsigned char` but excluding `char`).
+
+## Smart pointers {#smart-pointers}
+
+The wrappers will automatically convert between C++ `vtkSmartPointer<T>`
+and objects of type `T` (or `None`, if the smart pointer is empty):
+
+    C++: vtkSmartPointer<vtkObject> TakeObject()
+    Python: TakeObject() -> vtkObject
+
+In other words, in Python the smart pointer doesn't look any different
+from the object it points to.  Under the hood, however, the wrappers
+understand that the smart pointer carries a reference to the object and
+will take responsibility for deleting that reference.
+
+A C++ method can return a vector of smart pointers, which will be seen in
+Python as a tuple of objects:
+
+    C++: std::vector<vtkSmartPointer<vtkObject>> GetObjects()
+    Python: GetObject() -> Tuple[vtkObject]
+
+If a C++ method expects `std::vector<vtkSmartPointer<T>>` as a parameter,
+the wrappers will automatically construct the vector from any sequence that
+is passed from Python.  The objects in the sequence must be of type `T` (or
+a subclass of `T`, or `None`).  If not, a `TypeError` will be raised.
 
 ## Pass by Reference {#pass-by-reference}
 
@@ -1014,9 +1040,44 @@ also find the cmake documentation on VTK modules to be useful.
 
 # Experimental Features {#experimental-features}
 
+## Python Class Overrides {#override}
+
+VTK now supports overriding wrapped classes with Python subclasses.  This
+enables developers to provide more Python friendly interfaces for certain
+classes.  Here is a trivial example of an override:
+
+    from vtkmodules.vtkCommonCore import vtkPoints
+    @vtkPoints.override
+    class CustomPoints(vtkPoints):
+        pass
+
+Once the override is in place, any future `vtkPoints` Python object instances
+will be instances of the override class.  This behavior is global.
+
+    points = vtk.vtkPoints() # returns an instance of CustomPoints
+
+The override can be reversed by setting an override of `None`, but this will
+not impact instantions that have already occurred.
+
+    vtkPoints.override(None)
+
+If the class has already been overridden in C++ via VTK's object factory
+mechanism, then directly applying a Python override to that class will not
+work.  Instead, the Python override must be applied to the C++ factory
+override.  For example, on Windows,
+
+    @vtkWin32OpenGLRenderWindow.override
+    class CustomRenderWindow(vtkWin32OpenGLRenderWindow):
+        ...
+    window = vtkRenderWindow() # creates a CustomRenderWindow
+
+Please see [Subclassing a VTK Class](#subclassing) for restrictions on
+subclassing VTK classes through Python.
+
+
 ## Stub Files for Type Hinting {#stub-files}
 
-VTK includes a script called [`vtk_generate_pyi.py`][vtk_generate_pyi] that
+VTK includes a script called [`generate_pyi.py`][generate_pyi] that
 will generate pyi stub files for each wrapped VTK module.  The purpose of
 these files, as explained in [PEP 484][pep_484], is to provide type
 information for all constants, classes, and methods in the modules.
@@ -1046,19 +1107,19 @@ Each of these files contain blocks like this:
         def Allocate(self, numValues:int, ext:int=1000) -> int: ...
 
 Python consoles like ipython and IDEs like PyCharm can use the information in
-these files to provide hints while you edit the code.  In upcoming versions
-of VTK, these files will probably be included in the Python packages for VTK.
-But for now, they must be built by executing the `vtk_generate_pyi.py`
-script.  To do so, execute the script with the `vtkpython` executable (or with
-the regular python executable, if its paths are set for VTK):
+these files to provide hints while you edit the code.  These files are
+included in the Python packages for VTK, but they can also be built by
+executing the `generate_pyi.py` script.  To do so, execute the script
+with the `vtkpython` executable (or with the regular python executable,
+if its paths are set for VTK):
 
-    vtkpython vtk_generate_pyi.py
+    vtkpython -m vtkmodules.generate_pyi
 
 This will place build the pyi files and place them inside the `vtkmodules`
 package, where ipython and PyCharm should automatically find them.  The
 help for this script is as follows:
 
-    usage: python vtk_generate_pyi.py [-p package] [-o output_dir] [module ...]
+    usage: python generate_pyi.py [-p package] [-o output_dir] [module ...]
     options:
       -p NAME        Package name [vtkmodules by default].
       -o OUTPUT      Output directory [package directory by default].
@@ -1068,5 +1129,5 @@ help for this script is as follows:
 The pyi files are syntactically correct python files, so it is possible to
 load them as such in order to test them and inspect them.
 
-[vtk_generate_pyi]: https://gitlab.kitware.com/vtk/vtk/-/blob/release/Utilities/Maintenance/vtk_generate_pyi.py
+[generate_pyi]: https://gitlab.kitware.com/vtk/vtk/-/blob/release/Wrapping/Python/vtkmodules/generate_pyi.py
 [pep_484]: https://www.python.org/dev/peps/pep-0484/#stub-files

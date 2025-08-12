@@ -21,6 +21,7 @@
 #include "vtkCell.h"
 #include "vtkCellData.h"
 #include "vtkCellIterator.h"
+#include "vtkDataSetAttributes.h"
 #include "vtkIdList.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -28,6 +29,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
 #include <algorithm>
@@ -227,11 +229,25 @@ int vtkThreshold::RequestData(vtkInformation* vtkNotUsed(request),
   int fieldAssociation = this->GetInputArrayAssociation(0, inputVector);
   bool usePointScalars = fieldAssociation == vtkDataObject::FIELD_ASSOCIATION_POINTS;
 
+  vtkUnsignedCharArray* ghosts = input->GetCellData()->GetGhostArray();
+
   // Check that the scalars of each cell satisfy the threshold criterion
   vtkSmartPointer<vtkCellIterator> it =
     vtkSmartPointer<vtkCellIterator>::Take(input->NewCellIterator());
+  vtkIdType numberOfCells = input->GetNumberOfCells();
+  vtkIdType index = 0;
+  const vtkIdType tenth = numberOfCells / 10 + 1;
   for (it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
   {
+    if (index % tenth == 0)
+    {
+      this->UpdateProgress(index * 1.0 / numberOfCells);
+    }
+    if (ghosts && ghosts->GetValue(index++) & vtkDataSetAttributes::HIDDENCELL)
+    {
+      continue;
+    }
+
     int cellType = it->GetCellType();
     if (cellType == VTK_EMPTY_CELL)
     {

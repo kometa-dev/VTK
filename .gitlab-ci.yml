@@ -129,7 +129,7 @@ vtk:fedora34-cuda-mpi:test-ext:
         - fedora34-cuda-mpi:test
     variables:
         CTEST_MAX_PARALLELISM: 8
-    timeout: 2 hours
+    timeout: 150 minutes
 
 fedora34-mpi-offscreen-osmesa-python:build:
     extends:
@@ -162,6 +162,7 @@ vtk:fedora34-mpi-offscreen-osmesa-python:test-ext:
         - fedora34-mpi-offscreen-osmesa-python:test
     needs:
         - fedora34-mpi-offscreen-osmesa-python:test
+    timeout: 90 minutes
 
 # fedora34-java-mpi-qt-tbb:build:
 #     extends:
@@ -231,6 +232,27 @@ fedora34-mpi-python-qt-stdthread:test:
         - fedora34-mpi-python-qt-tbb:build
     needs:
         - fedora34-mpi-python-qt-tbb:build
+
+fedora34-mpi-python-vtkmoverride:build:
+    extends:
+        - .fedora34_mpi_python_vtkmoverride
+        - .cmake_build_linux
+        - .linux_qt_builder_tags
+        - .cmake_build_artifacts
+        - .run_manually
+    timeout: 90 minutes
+
+fedora34-mpi-python-vtkmoverride:test:
+    extends:
+        - .fedora34_mpi_python_vtkmoverride
+        - .cmake_test_linux
+        - .linux_qt_tester_tags
+        - .cmake_test_artifacts
+        - .run_automatically
+    dependencies:
+        - fedora34-mpi-python-vtkmoverride:build
+    needs:
+        - fedora34-mpi-python-vtkmoverride:build
 
 
 ## Python wheel builds
@@ -448,6 +470,65 @@ wheel:vtk:upload:
         - wheel-windows-python310-x86_64:build
         - wheel-windows-python310-x86_64:test
 
+wheel-sdk:upload:
+    extends:
+        - .rsync_upload_wheel_sdk
+        - .weekly_upload_only
+    dependencies:
+        - wheel-linux-python36-x86_64:build
+        - wheel-linux-python37-x86_64:build
+        - wheel-linux-python38-x86_64:build
+        - wheel-linux-python39-x86_64:build
+        - wheel-linux-python310-x86_64:build
+        - wheel-macos-python36-x86_64:build
+        - wheel-macos-python37-x86_64:build
+        - wheel-macos-python38-x86_64:build
+        - wheel-macos-python39-arm64:build
+        - wheel-macos-python39-x86_64:build
+        - wheel-macos-python310-arm64:build
+        - wheel-macos-python310-x86_64:build
+        - wheel-windows-python36-x86_64:build
+        - wheel-windows-python37-x86_64:build
+        - wheel-windows-python38-x86_64:build
+        - wheel-windows-python39-x86_64:build
+        - wheel-windows-python310-x86_64:build
+    needs:
+        - wheel-linux-python36-x86_64:build
+        - wheel-linux-python37-x86_64:build
+        - wheel-linux-python37-x86_64:test
+        - wheel-linux-python38-x86_64:build
+        - wheel-linux-python38-x86_64:test
+        - wheel-linux-python39-x86_64:build
+        - wheel-linux-python39-x86_64:test
+        - wheel-linux-python310-x86_64:build
+        - wheel-linux-python310-x86_64:test
+        - wheel-macos-python36-x86_64:build
+        - wheel-macos-python36-x86_64:test
+        - wheel-macos-python37-x86_64:build
+        - wheel-macos-python37-x86_64:test
+        - wheel-macos-python38-x86_64:build
+        - wheel-macos-python38-x86_64:test
+        - wheel-macos-python39-arm64:build
+        - wheel-macos-python39-arm64:test
+        - wheel-macos-python39-x86_64:build
+        - wheel-macos-python39-x86_64:test
+        - wheel-macos-python310-arm64:build
+        - wheel-macos-python310-arm64:test
+        - wheel-macos-python310-x86_64:build
+        - wheel-macos-python310-x86_64:test
+        - wheel-windows-python36-x86_64:build
+        - wheel-windows-python37-x86_64:build
+        - wheel-windows-python37-x86_64:test
+        - wheel-windows-python38-x86_64:build
+        - wheel-windows-python38-x86_64:test
+        - wheel-windows-python39-x86_64:build
+        - wheel-windows-python39-x86_64:test
+        - wheel-windows-python310-x86_64:build
+        - wheel-windows-python310-x86_64:test
+    variables:
+        RSYNC_SOURCE: build/vtk-wheel-sdk-*.tar.xz
+        RSYNC_DESTINATION: wheel-sdks/
+
 ## Static analysis builds
 
 fedora34-tidy:build:
@@ -457,9 +538,16 @@ fedora34-tidy:build:
         - .linux_qt_builder_tags
         - .cmake_tidy_artifacts
         - .run_manually
+    # Move it to the test stage so that the build stage can be required to be
+    # green. `clang-tidy` just takes too long to require for every MR prior to
+    # merging. See https://github.com/ejfitzgerald/clang-tidy-cache/issues/5
+    # which should help performance immensely.
+    stage: test
+    needs: []
+    dependencies: []
     # clang-tidy really hampers compilation cache improvements, so it takes
     # longer.
-    timeout: 150 minutes
+    timeout: 180 minutes
 
 ## Sanitizer builds
 
@@ -823,7 +911,7 @@ windows-vs2019-kits-mpi-python-qt-stdthread:test:
 # this `concurrent`-tagged job, it's just not going to work well. See
 # vtk/vtk-m#609 for tracking.
 #
-# Also, the `VTK_DLL_DIRS` ends up making a non-relocatable installation. See
+# Also, the `VTK_DLL_PATHS` ends up making a non-relocatable installation. See
 # `.gitlab/ci/configure_windows.cmake` for the relevant code.
 #
 # vtk:windows-vs2019-kits-mpi-python-qt:test-ext:

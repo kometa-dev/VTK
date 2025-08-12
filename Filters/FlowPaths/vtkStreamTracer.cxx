@@ -18,12 +18,13 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkAbstractInterpolatedVelocityField.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
-#include "vtkCellLocatorInterpolatedVelocityField.h"
+#include "vtkCellLocatorStrategy.h"
+#include "vtkClosestPointStrategy.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataPipeline.h"
 #include "vtkCompositeDataSet.h"
+#include "vtkCompositeInterpolatedVelocityField.h"
 #include "vtkDataSetAttributes.h"
-#include "vtkDataSetAttributesFieldList.h"
 #include "vtkDoubleArray.h"
 #include "vtkExecutive.h"
 #include "vtkGenericCell.h"
@@ -31,7 +32,6 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkIntArray.h"
-#include "vtkInterpolatedVelocityField.h"
 #include "vtkMath.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkNew.h"
@@ -44,10 +44,8 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkRungeKutta2.h"
 #include "vtkRungeKutta4.h"
 #include "vtkRungeKutta45.h"
-#include "vtkSMPThreadLocalObject.h"
 #include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
-#include "vtkStaticCellLocator.h"
 
 #include <vector>
 
@@ -169,26 +167,20 @@ void vtkStreamTracer::SetInterpolatorTypeToCellLocator()
 //------------------------------------------------------------------------------
 void vtkStreamTracer::SetInterpolatorType(int interpType)
 {
+  vtkNew<vtkCompositeInterpolatedVelocityField> cIVF;
   if (interpType == INTERPOLATOR_WITH_CELL_LOCATOR)
   {
     // create an interpolator equipped with a cell locator
-    vtkNew<vtkCellLocatorInterpolatedVelocityField> cellLoc;
-
-    // specify the type of the cell locator attached to the interpolator
-    constexpr double tolerance = 1e-6;
-    vtkNew<vtkStaticCellLocator> cellLocType;
-    cellLocType->SetTolerance(tolerance);
-    cellLocType->UseDiagonalLengthToleranceOn();
-
-    this->SetInterpolatorPrototype(cellLoc);
+    vtkNew<vtkCellLocatorStrategy> strategy;
+    cIVF->SetFindCellStrategy(strategy);
   }
   else
   {
     // create an interpolator equipped with a point locator (by default)
-    vtkSmartPointer<vtkInterpolatedVelocityField> pntLoc =
-      vtkSmartPointer<vtkInterpolatedVelocityField>::New();
-    this->SetInterpolatorPrototype(pntLoc);
+    vtkNew<vtkClosestPointStrategy> strategy;
+    cIVF->SetFindCellStrategy(strategy);
   }
+  this->SetInterpolatorPrototype(cIVF);
 }
 
 //------------------------------------------------------------------------------
@@ -596,7 +588,7 @@ int vtkStreamTracer::CheckInputs(vtkAbstractInterpolatedVelocityField*& func, in
     }
     else
     {
-      func = vtkInterpolatedVelocityField::New();
+      func = vtkCompositeInterpolatedVelocityField::New();
     }
   }
   else
@@ -616,16 +608,16 @@ int vtkStreamTracer::CheckInputs(vtkAbstractInterpolatedVelocityField*& func, in
   }
 
   // Tweak special cases.
-  if (vtkAMRInterpolatedVelocityField::SafeDownCast(func))
+  if (auto amrVelocityField = vtkAMRInterpolatedVelocityField::SafeDownCast(func))
   {
     assert(amrData);
-    vtkAMRInterpolatedVelocityField::SafeDownCast(func)->SetAMRData(amrData);
+    amrVelocityField->SetAMRData(amrData);
     if (maxCellSize)
     {
       *maxCellSize = 8;
     }
   }
-  else if (vtkCompositeInterpolatedVelocityField::SafeDownCast(func))
+  else if (auto compVelocityField = vtkCompositeInterpolatedVelocityField::SafeDownCast(func))
   {
     iter->GoToFirstItem();
     while (!iter->IsDoneWithTraversal())
@@ -638,7 +630,7 @@ int vtkStreamTracer::CheckInputs(vtkAbstractInterpolatedVelocityField*& func, in
         {
           *maxCellSize = cellSize;
         }
-        vtkCompositeInterpolatedVelocityField::SafeDownCast(func)->AddDataSet(inp);
+        compVelocityField->AddDataSet(inp);
       }
       iter->GoToNextItem();
     }
@@ -936,6 +928,7 @@ struct TracerIntegrator
       localOutput.VelocityVectors->SetName(this->VecName);
       localOutput.VelocityVectors->SetNumberOfComponents(3);
     }
+    this->LocalThreadOutput.Local().Weights.resize(this->MaxCellSize);
 
     // Note: We have to use a specific value (safe to employ the maximum number
     //       of steps) as the size of the initial memory allocation here. The
@@ -969,7 +962,6 @@ struct TracerIntegrator
     double& lastUsedStepSize = localOutput.LastUsedStepSize;
 
     // Initialize in preparation for stream tracer production
-    int maxCellSize = this->MaxCellSize;
     vtkDataArray* seedSource = this->SeedSource;
     vtkIdList* seedIds = this->SeedIds;
     vtkIntArray* integrationDirections = this->IntegrationDirections;
@@ -987,21 +979,14 @@ struct TracerIntegrator
     vtkDataArray* inVectors;
 
     int direction = 1;
-    double* weightsPtr = nullptr;
-    if (maxCellSize > 0)
-    {
-      weights.resize(maxCellSize);
-      weightsPtr = weights.data();
-    }
-
     // Associate the interpolation function with the integrator
     integrator->SetFunctionSet(func);
 
     // Check Surface option
-    vtkInterpolatedVelocityField* surfaceFunc = nullptr;
+    vtkCompositeInterpolatedVelocityField* surfaceFunc = nullptr;
     if (this->SurfaceStreamlines)
     {
-      surfaceFunc = vtkInterpolatedVelocityField::SafeDownCast(func);
+      surfaceFunc = vtkCompositeInterpolatedVelocityField::SafeDownCast(func);
       if (surfaceFunc)
       {
         surfaceFunc->SetForceSurfaceTangentVector(true);
@@ -1085,7 +1070,7 @@ struct TracerIntegrator
       inVectors = input->GetAttributesAsFieldData(vecType)->GetArray(vecName);
       // Convert intervals to arc-length unit
       input->GetCell(func->GetLastCellId(), cell);
-      cellLength = sqrt(static_cast<double>(cell->GetLength2()));
+      cellLength = std::sqrt(static_cast<double>(cell->GetLength2()));
       speed = vtkMath::Norm(velocity);
       // Never call conversion methods if speed == 0
       if (speed != 0.0)
@@ -1095,9 +1080,9 @@ struct TracerIntegrator
       }
 
       // Interpolate all point attributes on first point
-      func->GetLastWeights(weightsPtr);
-      InterpolatePoint(
-        outputPD, inputPD, nextPoint, cell->PointIds, weightsPtr, this->HasMatchingPointAttributes);
+      func->GetLastWeights(weights.data());
+      InterpolatePoint(outputPD, inputPD, nextPoint, cell->PointIds, weights.data(),
+        this->HasMatchingPointAttributes);
       // handle both point and cell velocity attributes.
       vtkDataArray* outputVelocityVectors = outputPD->GetArray(vecName);
       if (vecType != vtkDataObject::POINT)
@@ -1178,7 +1163,7 @@ struct TracerIntegrator
 
         // If, with the next step, propagation will be larger than
         // max, reduce it so that it is (approximately) equal to max.
-        aStep.Interval = fabs(stepSize.Interval);
+        aStep.Interval = std::abs(stepSize.Interval);
 
         if ((propagation + aStep.Interval) > this->MaximumPropagation)
         {
@@ -1245,7 +1230,7 @@ struct TracerIntegrator
 
         integrationTime += stepTaken / speed;
         // Calculate propagation (using the same units as MaximumPropagation
-        propagation += fabs(stepSize.Interval);
+        propagation += std::abs(stepSize.Interval);
 
         // Make sure we use the dataset found by the vtkAbstractInterpolatedVelocityField
         input = func->GetLastDataSet();
@@ -1254,7 +1239,7 @@ struct TracerIntegrator
 
         // Calculate cell length and speed to be used in unit conversions
         input->GetCell(func->GetLastCellId(), cell);
-        cellLength = sqrt(static_cast<double>(cell->GetLength2()));
+        cellLength = std::sqrt(static_cast<double>(cell->GetLength2()));
         speed = speed2;
 
         // Check if conversion to float will produce a point in same place
@@ -1273,8 +1258,8 @@ struct TracerIntegrator
           time->InsertNextValue(integrationTime);
 
           // Interpolate all point attributes on current point
-          func->GetLastWeights(weightsPtr);
-          InterpolatePoint(outputPD, inputPD, nextPoint, cell->PointIds, weightsPtr,
+          func->GetLastWeights(weights.data());
+          InterpolatePoint(outputPD, inputPD, nextPoint, cell->PointIds, weights.data(),
             this->HasMatchingPointAttributes);
 
           if (vecType != vtkDataObject::POINT)
@@ -1328,13 +1313,13 @@ struct TracerIntegrator
         // size (unless it is specified in arc-length unit)
         if (integrator->IsAdaptive())
         {
-          if (fabs(stepSize.Interval) < fabs(minStep))
+          if (std::abs(stepSize.Interval) < std::abs(minStep))
           {
-            stepSize.Interval = fabs(minStep) * stepSize.Interval / fabs(stepSize.Interval);
+            stepSize.Interval = std::abs(minStep) * stepSize.Interval / std::abs(stepSize.Interval);
           }
-          else if (fabs(stepSize.Interval) > fabs(maxStep))
+          else if (std::abs(stepSize.Interval) > std::abs(maxStep))
           {
-            stepSize.Interval = fabs(maxStep) * stepSize.Interval / fabs(stepSize.Interval);
+            stepSize.Interval = std::abs(maxStep) * stepSize.Interval / std::abs(stepSize.Interval);
           }
         }
         else
@@ -1387,7 +1372,6 @@ struct TracerIntegrator
     vtkIdType* CAOffsets;
     vtkIdType* CAConn;
     vtkPointData* OutPD;
-    vtkIdList* InputSeedIds;
     vtkIdList* SeedIds;
     int* OutSeedIds;
     int* OutRetVals;
@@ -1709,8 +1693,8 @@ void vtkStreamTracer::GenerateNormals(vtkPolyData* output, double* firstNormal, 
       vtkMath::Normalize(local2);
       // Rotate the normal with theta
       rotation->GetTuple(ptId, &theta);
-      costheta = cos(theta);
-      sintheta = sin(theta);
+      costheta = std::cos(theta);
+      sintheta = std::sin(theta);
       for (auto j = 0; j < 3; j++)
       {
         normal[j] = length * (costheta * local1[j] + sintheta * local2[j]);

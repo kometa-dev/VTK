@@ -13,7 +13,6 @@ set(classes
   vtkBoxClipDataSet
   vtkBrownianPoints
   vtkCellDerivatives
-  vtkCellTreeLocator
   vtkCellValidator
   vtkClipClosedSurface
   vtkClipConvexPolyData
@@ -45,6 +44,7 @@ set(classes
   vtkExtractGhostCells
   vtkExtractSelectedFrustum
   vtkExtractSelectionBase
+  vtkFiniteElementFieldDistributor
   vtkGradientFilter
   vtkGraphLayoutFilter
   vtkGraphToPoints

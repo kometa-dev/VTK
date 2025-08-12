@@ -289,7 +289,7 @@ int vtkHyperTreeGridContour::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
   this->InGhostArray = input->GetGhostCells();
 
   // Estimate output size as a multiple of 1024
-  vtkIdType numCells = input->GetNumberOfVertices();
+  vtkIdType numCells = input->GetNumberOfCells();
   vtkIdType numContours = this->ContourValues->GetNumberOfContours();
   vtkIdType estimatedSize = static_cast<vtkIdType>(pow(static_cast<double>(numCells), .75));
   estimatedSize *= numContours;
@@ -525,7 +525,7 @@ void vtkHyperTreeGridContour::RecursivelyProcessTree(
       // Retrieve sign with respect to contour value at current cursor
       bool sign = (this->CellSigns[c]->GetTuple1(id) != 0.0);
 
-      // Iterate over all cursors of Von Neumann neighborhood around center
+      // Iterate over all cursors of Moore neighborhood around center
       unsigned int nn = supercursor->GetNumberOfCursors() - 1;
       for (unsigned int neighbor = 0; neighbor < nn && !selected; ++neighbor)
       {

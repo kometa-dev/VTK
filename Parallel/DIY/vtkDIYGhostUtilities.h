@@ -52,6 +52,10 @@
  *   points if point global ids are not present, and point global ids are used instead if they are
  *   present.
  *
+ * Points at the interface between 2 partitions are edited depending on the ownership of the point
+ * after the ghost points are generated. One can keep track of which process owns a non-ghost copy
+ * of the point if an array associating each point with its process id is available in the input.
+ *
  * @note Currently, only `vtkImageData`, `vtkRectilinearGrid`, `vtkStructuredGrid`,
  * `vtkUnstructuredGrid` and `vtkPolyData` are
  * implemented. Unless there is determining structural data added to subclasses of those classes,
@@ -82,7 +86,9 @@
 
 // clang-format off
 #include "vtk_diy2.h" // Third party include
+#include VTK_DIY2(diy/assigner.hpp)
 #include VTK_DIY2(diy/master.hpp)
+#include VTK_DIY2(diy/partners/all-reduce.hpp)
 // clang-format on
 
 class vtkAbstractPointLocator;
@@ -97,6 +103,7 @@ class vtkImageData;
 class vtkMatrix3x3;
 class vtkMultiProcessController;
 class vtkPoints;
+class vtkPointSet;
 class vtkPolyData;
 class vtkRectilinearGrid;
 class vtkStructuredGrid;
@@ -124,7 +131,7 @@ public:
 
   /**
    * This helper structure owns a typedef to the block type of `DataSetT` used with diy to generate
-   * ghosts. This block type is defined as `DataSetTypeToBlockTypeConverter<DataSetT>::BlockType`.
+   * ghosts. This block type is defined as DataSetTypeToBlockTypeConverter<DataSetT>::BlockType.
    */
   template <class DataSetT>
   struct DataSetTypeToBlockTypeConverter;
@@ -137,6 +144,14 @@ protected:
   {
     vtkSmartPointer<vtkFieldData> GhostCellData = nullptr;
     vtkSmartPointer<vtkFieldData> GhostPointData = nullptr;
+  };
+
+  struct DataSetInformation
+  {
+    /**
+     * @warning This method does not work before the link map between blocks is computed.
+     */
+    virtual bool InputNeedsGhostsPeeledOff() const = 0;
   };
 
   /**
@@ -165,6 +180,8 @@ protected:
      */
     ExtentType ShiftedExtent;
 
+    ExtentType ReceivedGhostExtent = ExtentType{ 1, -1, 1, -1, 1, -1 };
+
     /**
      * Binary mask encoding the adjacency of the neighboring block w.r.t. current block.
      * This mask shall be written / read using Adjacency enumeration.
@@ -180,14 +197,26 @@ protected:
   /**
    * Structure storing information needed by a block on it's own grid structure.
    */
-  struct GridInformation
+  struct GridInformation : public DataSetInformation
   {
+    bool InputNeedsGhostsPeeledOff() const override { return this->Extent != this->InputExtent; }
+
     /**
      * Extent without ghost layers.
      */
     ExtentType Extent = ExtentType{ 1, -1, 1, -1, 1, -1 };
 
+    /**
+     * Input extent without any modification.
+     */
+    ExtentType InputExtent = ExtentType{ 1, -1, 1, -1, 1, -1 };
+
     ExtentType ExtentGhostThickness;
+  };
+
+  struct ImageDataInformation : public GridInformation
+  {
+    vtkImageData* Input;
   };
 
   /**
@@ -210,7 +239,7 @@ protected:
     /**
      * Copy constructor.
      */
-    ImageDataBlockStructure(vtkImageData* image, const GridInformation& info);
+    ImageDataBlockStructure(vtkImageData* image, const ImageDataInformation& info);
 
     /**
      * Origin of the neighboring `vtkImageData`.
@@ -245,6 +274,8 @@ protected:
      * the left side of the grid, the second the right side of the grid, and so on.
      */
     vtkSmartPointer<vtkDataArray> CoordinateGhosts[6];
+
+    vtkRectilinearGrid* Input;
   };
 
   /**
@@ -304,6 +335,8 @@ protected:
      * Handle on input points for current block.
      */
     vtkPoints* InputPoints;
+
+    vtkStructuredGrid* Input;
   };
 
   /**
@@ -386,6 +419,11 @@ protected:
 
   struct UnstructuredDataInformation
   {
+    bool InputNeedsGhostsPeeledOff() const
+    {
+      return this->OutputToInputCellIdRedirectionMap != nullptr;
+    };
+
     /**
      * Bounding box of input.
      */
@@ -428,7 +466,7 @@ protected:
     /**
      * Handle to the point ids of the input surface, if present.
      */
-    vtkIdTypeArray* InterfaceGlobalPointIds;
+    vtkSmartPointer<vtkIdTypeArray> InterfaceGlobalPointIds;
 
     ///@{
     /*
@@ -455,13 +493,13 @@ protected:
      * This lists the matching point ids to the interfacing points that are exchanged with current
      * neighboring block. Those ids correspond to local point ordering as indexed in the input.
      */
-    vtkNew<vtkIdTypeArray> MatchingReceivedPointIds;
+    vtkNew<vtkIdList> MatchingReceivedPointIds;
 
     /**
      * This array describes the same points as `MatchingReceivedPointIds`, but points are ordered
      * like in the current neighboring block. Point ids stored in this array map to the output.
      */
-    vtkNew<vtkIdTypeArray> RemappedMatchingReceivedPointIdsSortedLikeTarget;
+    vtkNew<vtkIdList> RemappedMatchingReceivedPointIdsSortedLikeTarget;
 
     /**
      * These are the interfacing points sent by the current neighboring block. They should match
@@ -513,6 +551,12 @@ protected:
      * block.
      */
     vtkNew<vtkIdList> CellIdsToSend;
+
+    /**
+     * Point data at the interface sent by our neighbor. We only receive point data from neighbors
+     * of lower block id than us.
+     */
+    vtkSmartPointer<vtkFieldData> InterfacingPointData;
   };
 
   struct UnstructuredGridInformation : public UnstructuredDataInformation
@@ -710,7 +754,7 @@ public:
   /**
    * Block typedefs.
    */
-  using ImageDataBlock = Block<ImageDataBlockStructure, GridInformation>;
+  using ImageDataBlock = Block<ImageDataBlockStructure, ImageDataInformation>;
   using RectilinearGridBlock = Block<RectilinearGridBlockStructure, RectilinearGridInformation>;
   using StructuredGridBlock = Block<StructuredGridBlockStructure, StructuredGridInformation>;
   using UnstructuredDataBlock = Block<UnstructuredDataBlockStructure, UnstructuredDataInformation>;
@@ -756,6 +800,11 @@ public:
 protected:
   vtkDIYGhostUtilities();
   ~vtkDIYGhostUtilities() override;
+
+  /**
+   * Reinitializes the bits that match the input bit mask in the input array to zero.
+   */
+  static void ReinitializeSelectedBits(vtkUnsignedCharArray* ghosts, unsigned char mask);
 
   /**
    * This method will set all ghosts points in `output` to zero. It will also
@@ -882,22 +931,31 @@ protected:
     const diy::Master::ProxyWithLink& cp, int gid, PolyDataBlockStructure& blockStructure);
   ///@}
 
+  /**
+   * Copy the inputs into the outputs. Shallow copying is performed if possible. If not,
+   * a deep copy is done.
+   */
+  template <class DataSetT>
+  static void CopyInputsAndAllocateGhosts(diy::Master& master, diy::Assigner& assigner,
+    diy::RegularAllReducePartners& partners, std::vector<DataSetT*>& inputs,
+    std::vector<DataSetT*>& outputs, int outputGhostLevels);
+
   ///@{
   /**
    * Method to be overloaded for each supported input data set type,
    * This method allocates ghosts in the output. At the point of calling this method,
    * ghosts should have already been exchanged (see `ExchangeGhosts`).
    */
-  static void DeepCopyInputsAndAllocateGhosts(const diy::Master& master,
-    std::vector<vtkImageData*>& inputs, std::vector<vtkImageData*>& outputs);
-  static void DeepCopyInputsAndAllocateGhosts(const diy::Master& master,
-    std::vector<vtkRectilinearGrid*>& inputs, std::vector<vtkRectilinearGrid*>& outputs);
-  static void DeepCopyInputsAndAllocateGhosts(const diy::Master& master,
-    std::vector<vtkStructuredGrid*>& inputs, std::vector<vtkStructuredGrid*>& outputs);
-  static void DeepCopyInputsAndAllocateGhosts(const diy::Master& master,
-    std::vector<vtkUnstructuredGrid*>& inputs, std::vector<vtkUnstructuredGrid*>& outputs);
-  static void DeepCopyInputsAndAllocateGhosts(const diy::Master& master,
-    std::vector<vtkPolyData*>& inputs, std::vector<vtkPolyData*>& outputs);
+  static void DeepCopyInputAndAllocateGhosts(
+    ImageDataBlock* block, vtkImageData* input, vtkImageData* outputs);
+  static void DeepCopyInputAndAllocateGhosts(
+    RectilinearGridBlock* block, vtkRectilinearGrid* input, vtkRectilinearGrid* outputs);
+  static void DeepCopyInputAndAllocateGhosts(
+    StructuredGridBlock* block, vtkStructuredGrid* input, vtkStructuredGrid* outputs);
+  static void DeepCopyInputAndAllocateGhosts(
+    UnstructuredGridBlock* block, vtkUnstructuredGrid* input, vtkUnstructuredGrid* outputs);
+  static void DeepCopyInputAndAllocateGhosts(
+    PolyDataBlock* block, vtkPolyData* input, vtkPolyData* outputs);
   ///@}
 
   /**
@@ -910,7 +968,8 @@ protected:
    * This methods allocate a point and cell ghost array and fills it with 0.
    */
   template <class DataSetT>
-  static void InitializeGhostArrays(diy::Master& master, std::vector<DataSetT*>& outputs);
+  static void InitializeGhostArrays(
+    diy::Master& master, std::vector<DataSetT*>& outputs, int outputGhostLevels);
 
   /**
    * Adds ghost arrays, which are present in blocks of `master`, to `outputs` point and / or cell
@@ -923,12 +982,16 @@ protected:
   /**
    * This method sets the ghost arrays in the output. Ghosts have to be already allocated.
    */
-  static void FillGhostArrays(const diy::Master& master, std::vector<vtkImageData*>& outputs);
-  static void FillGhostArrays(const diy::Master& master, std::vector<vtkRectilinearGrid*>& outputs);
-  static void FillGhostArrays(const diy::Master& master, std::vector<vtkStructuredGrid*>& outputs);
   static void FillGhostArrays(
-    const diy::Master& master, std::vector<vtkUnstructuredGrid*>& outputs);
-  static void FillGhostArrays(const diy::Master& master, std::vector<vtkPolyData*>& outputs);
+    const diy::Master& master, std::vector<vtkImageData*>& outputs, int outputGhostLevels);
+  static void FillGhostArrays(
+    const diy::Master& master, std::vector<vtkRectilinearGrid*>& outputs, int outputGhostLevels);
+  static void FillGhostArrays(
+    const diy::Master& master, std::vector<vtkStructuredGrid*>& outputs, int outputGhostLevels);
+  static void FillGhostArrays(
+    const diy::Master& master, std::vector<vtkUnstructuredGrid*>& outputs, int outputGhostLevels);
+  static void FillGhostArrays(
+    const diy::Master& master, std::vector<vtkPolyData*>& outputs, int outputGhostLevels);
   ///@}
 
 private:
@@ -943,12 +1006,9 @@ private:
    * @note This method only does something for vtkUnstructuredGrid and vtkPolyData. The vtkDataSet
    * version is empty;
    */
-  static void InflateBoundingBoxIfNecessary(vtkDataSet* vtkNotUsed(input),
-    const double* vtkNotUsed(bounds), vtkBoundingBox& vtkNotUsed(bb));
   static void InflateBoundingBoxIfNecessary(
-    vtkUnstructuredGrid* input, const double* bounds, vtkBoundingBox& bb);
-  static void InflateBoundingBoxIfNecessary(
-    vtkPolyData* input, const double* bounds, vtkBoundingBox& bb);
+    vtkDataSet* vtkNotUsed(input), vtkBoundingBox& vtkNotUsed(bb));
+  static void InflateBoundingBoxIfNecessary(vtkPointSet* input, vtkBoundingBox& bb);
   ///@}
 };
 

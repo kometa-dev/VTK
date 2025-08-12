@@ -69,8 +69,8 @@ public:
   vtkSetMacro(ExtentSplitMode, int);
   vtkGetMacro(ExtentSplitMode, int);
 
-  vtkGetMacro(DataOrigin, double*);
-  vtkGetMacro(DataSpacing, double*);
+  vtkGetMacro(DataOrigin, VTK_FUTURE_CONST double*);
+  vtkGetMacro(DataSpacing, VTK_FUTURE_CONST double*);
 
   /**
    * Array containing the name of all dimensions.

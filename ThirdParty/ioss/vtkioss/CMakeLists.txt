@@ -43,6 +43,7 @@ set(classes
   Ioss_EdgeBlock
   Ioss_EdgeSet
   Ioss_ElementBlock
+  Ioss_ElementPermutation
   Ioss_ElementSet
   Ioss_ElementTopology
   Ioss_EntityBlock
@@ -158,9 +159,6 @@ set(classes
   heartbeat/Iohb_Layout
 
   init/Ionit_Initializer
-
-  text_mesh/Iotm_DatabaseIO
-  text_mesh/Iotm_TextMesh
 
   transform/Iotr_Initializer
   transform/Iotr_MinMax
@@ -344,22 +342,6 @@ list(APPEND headers
   robin_set.h
   tokenize.h
 
-  private_copy_fmt/fmt/args.h
-  private_copy_fmt/fmt/chrono.h
-  private_copy_fmt/fmt/color.h
-  private_copy_fmt/fmt/compile.h
-  private_copy_fmt/fmt/core.h
-  private_copy_fmt/fmt/format-inl.h
-  private_copy_fmt/fmt/format.h
-  private_copy_fmt/fmt/locale.h
-  private_copy_fmt/fmt/os.h
-  private_copy_fmt/fmt/ostream.h
-  private_copy_fmt/fmt/printf.h
-  private_copy_fmt/fmt/ranges.h
-  private_copy_fmt/fmt/xchar.h
-
-  text_mesh/Iotm_TextMeshUtils.h
-
   vtk_ioss_mangle.h)
 
 vtk_module_find_package(PACKAGE Threads)
@@ -382,9 +364,6 @@ vtk_module_definitions(VTK::ioss
 vtk_module_link(VTK::ioss
   PRIVATE
     Threads::Threads)
-vtk_module_include(VTK::ioss
-  PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/private_copy_fmt")
 
 # for GetProcessMemoryInfo
 if (MINGW)

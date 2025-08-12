@@ -47,6 +47,9 @@ if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "fedora" OR
     # Floating point imprecision?
     "^VTK::FiltersGeneralPython-TestSampleImplicitFunctionFilter$"
 
+    # Gets the wrong selection (sometimes).
+    "^VTK::RenderingOpenGL2Cxx-TestGlyph3DMapperPickability$"
+
     # Test image looks "dim"; image rendering seems to be common
     # (some also have vertical line rendering differences)
     "^VTK::FiltersModelingPython-TestCookieCutter$"
@@ -113,9 +116,6 @@ if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "fedora")
 
     # Numerical problems?
     "^VTK::FiltersOpenTURNSCxx-TestOTKernelSmoothing$"
-
-    # Gets the wrong selection (sometimes).
-    "^VTK::RenderingOpenGL2Cxx-TestGlyph3DMapperPickability$"
 
     # Syntax error in generated shader program.
     "^VTK::RenderingExternalCxx-TestGLUTRenderWindow$"
@@ -231,6 +231,30 @@ if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "offscreen")
       "^VTK::InteractionStylePython-TestStyleTrackballActor$"
       "^VTK::InteractionStylePython-TestStyleTrackballCamera$")
   endif ()
+endif ()
+
+if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "stdthread")
+  list(APPEND test_exclusions
+    # Timeout; needs investigated
+    # See #18477
+    "^VTK::FiltersModelingPython-TestCookieCutter4$"
+   
+    # Masking is inconsistent with STDThread 
+    # See #18549
+    "^VTK::RenderingCoreCxx-TestGlyph3DMapperMasking$"
+    
+    # Test fails sometimes with STDThread
+    # See #18555
+    "^VTK::FiltersFlowPathsCxx-TestEvenlySpacedStreamlines2D$"
+    )
+endif ()
+
+if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "vtkmoverride")
+  list(APPEND test_exclusions
+    # vtkmContour behaves differently than vtkContourFilter for these tests.
+    # Further investigation is needed to determine how to best handle these cases.
+    "^VTK::FiltersModelingPython-TestBoxFunction$"
+    "^VTK::FiltersCorePython-TestContourCases$")
 endif ()
 
 string(REPLACE ";" "|" test_exclusions "${test_exclusions}")

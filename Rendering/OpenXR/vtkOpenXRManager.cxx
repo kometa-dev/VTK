@@ -14,6 +14,7 @@
 =========================================================================*/
 #include "vtkOpenXRManager.h"
 
+#include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkOpenXRUtilities.h"
@@ -28,6 +29,7 @@
 // Work-around to get forward declarations of C typedef of anonymous
 // structs working. We do not want to include XUtil.h in the header as
 // it populates the global namespace.
+#include "GL/glx.h"
 #include <X11/Xutil.h>
 struct vtkXVisualInfo : public XVisualInfo
 {
@@ -37,82 +39,65 @@ struct vtkXVisualInfo : public XVisualInfo
 #define VTK_CHECK_NULL_XRHANDLE(handle, msg)                                                       \
   if (handle == XR_NULL_HANDLE)                                                                    \
   {                                                                                                \
-    vtkErrorMacro(<< msg << " is a null handle.");                                                 \
+    vtkErrorWithObjectMacro(nullptr, << msg << " is a null handle.");                              \
     return false;                                                                                  \
   }
-
-vtkStandardNewMacro(vtkOpenXRManager);
-
-vtkOpenXRManager* vtkOpenXRManager::UniqueInstance = nullptr;
-
-//----------------------------------------------------------------------------
-vtkOpenXRManager* vtkOpenXRManager::GetInstance()
-{
-  if (!vtkOpenXRManager::UniqueInstance)
-  {
-    vtkOpenXRManager::UniqueInstance = new vtkOpenXRManager();
-  }
-
-  return vtkOpenXRManager::UniqueInstance;
-}
 
 //------------------------------------------------------------------------------
 bool vtkOpenXRManager::Initialize(vtkOpenGLRenderWindow* helperWindow)
 {
-  this->DebugOn();
-
   if (!this->CreateInstance())
   {
-    vtkWarningMacro("Initialize failed to CreateInstance");
+    vtkWarningWithObjectMacro(nullptr, "Initialize failed to CreateInstance");
     return false;
   }
 
   // Create the SubactionPaths (left / right hand and head)
   if (!this->CreateSubactionPaths())
   {
-    vtkWarningMacro("Initialize failed to CreateSubactionPaths");
+    vtkWarningWithObjectMacro(nullptr, "Initialize failed to CreateSubactionPaths");
     return false;
   }
 
   if (!this->CreateSystem())
   {
-    vtkWarningMacro("Initialize failed to CreateSystem");
+    vtkWarningWithObjectMacro(nullptr, "Initialize failed to CreateSystem");
     return false;
   }
 
   if (!this->CheckGraphicsRequirements())
   {
-    vtkWarningMacro("Initialize failed in CheckGraphicsRequirements");
+    vtkWarningWithObjectMacro(nullptr, "Initialize failed in CheckGraphicsRequirements");
     return false;
   }
 
   if (!this->CreateGraphicsBinding(helperWindow))
   {
-    vtkWarningMacro("Initialize failed to CreateGraphicsBinding");
+    vtkWarningWithObjectMacro(nullptr, "Initialize failed to CreateGraphicsBinding");
     return false;
   }
 
   if (!this->CreateSession())
   {
-    vtkWarningMacro("Initialize failed to CreateSession");
+    vtkWarningWithObjectMacro(nullptr, "Initialize failed to CreateSession");
     return false;
   }
 
   if (!this->CreateReferenceSpace())
   {
-    vtkWarningMacro("Initialize failed to CreateReferenceSpace");
+    vtkWarningWithObjectMacro(nullptr, "Initialize failed to CreateReferenceSpace");
     return false;
   }
 
   if (!this->CreateSwapchains())
   {
-    vtkWarningMacro("Initialize failed to CreateSwapChains");
+    vtkWarningWithObjectMacro(nullptr, "Initialize failed to CreateSwapChains");
     return false;
   }
 
   if (!this->LoadControllerModels())
   {
-    vtkWarningMacro("Initialize failed to LoadController Models");
+    vtkWarningWithObjectMacro(nullptr, "Initialize failed to LoadController Models");
     return false;
   }
 
@@ -129,7 +114,7 @@ void vtkOpenXRManager::Finalize()
 }
 
 //------------------------------------------------------------------------------
-std::tuple<uint32_t, uint32_t> vtkOpenXRManager::GetRecommandedImageRectSize()
+std::tuple<uint32_t, uint32_t> vtkOpenXRManager::GetRecommendedImageRectSize()
 {
   if (this->RenderResources->ConfigViews.size() == 0)
   {
@@ -176,7 +161,7 @@ bool vtkOpenXRManager::BeginSession()
     return false;
   }
 
-  vtkDebugMacro(<< "Session started.");
+  vtkDebugWithObjectMacro(nullptr, "Session started.");
 
   this->SessionRunning = true;
 
@@ -205,10 +190,6 @@ bool vtkOpenXRManager::WaitAndBeginFrame()
     return false;
   }
 
-  // This vector will contains the XrCompositionLayerProjection that need to be submitted in
-  // XrEndFrame through the frameEndInfo. We can submit multiple layers
-  this->LayersToSubmit.clear();
-
   // Store the value of shouldRender to avoid a render
   this->ShouldRenderCurrentFrame = frameState.shouldRender;
 
@@ -234,8 +215,9 @@ bool vtkOpenXRManager::WaitAndBeginFrame()
 
     if (viewCountOutput != viewCount)
     {
-      vtkWarningMacro(<< "ViewCountOutput (" << viewCountOutput << ") is different than ViewCount ("
-                      << viewCount << ") !");
+      vtkWarningWithObjectMacro(nullptr, << "ViewCountOutput (" << viewCountOutput
+                                         << ") is different than ViewCount (" << viewCount
+                                         << ") !");
     }
   }
 
@@ -295,14 +277,16 @@ bool vtkOpenXRManager::PrepareRendering(
   {
     if (colorSwapchain.Width != depthSwapchain.Width)
     {
-      vtkErrorMacro(<< "Color swapchain width (" << colorSwapchain.Width
-                    << ") differs from depth swapchain width (" << depthSwapchain.Width << ").");
+      vtkErrorWithObjectMacro(nullptr, << "Color swapchain width (" << colorSwapchain.Width
+                                       << ") differs from depth swapchain width ("
+                                       << depthSwapchain.Width << ").");
       return false;
     }
     if (colorSwapchain.Height != depthSwapchain.Height)
     {
-      vtkErrorMacro(<< "Color swapchain height (" << colorSwapchain.Height
-                    << ") differs from depth swapchain height (" << depthSwapchain.Height << ").");
+      vtkErrorWithObjectMacro(nullptr, << "Color swapchain height (" << colorSwapchain.Height
+                                       << ") differs from depth swapchain height ("
+                                       << depthSwapchain.Height << ").");
       return false;
     }
   }
@@ -362,11 +346,13 @@ void vtkOpenXRManager::ReleaseSwapchainImage(const uint32_t eye)
 //------------------------------------------------------------------------------
 bool vtkOpenXRManager::EndFrame()
 {
+  // The projection layer consists of projection layer views.
+  XrCompositionLayerProjection layer{ XR_TYPE_COMPOSITION_LAYER_PROJECTION };
+  std::vector<XrCompositionLayerBaseHeader*> layers;
+
   // If the frame has been rendered, then we must submit the ProjectionLayerViews:
   if (this->ShouldRenderCurrentFrame)
   {
-    // The projection layer consists of projection layer views.
-    XrCompositionLayerProjection layer{ XR_TYPE_COMPOSITION_LAYER_PROJECTION };
     // Inform the runtime that the app's submitted alpha channel has valid data for use during
     // composition. The primary display on HoloLens has an additive environment blend mode. It will
     // ignore the alpha channel. However, mixed reality capture uses the alpha channel if this bit
@@ -378,7 +364,7 @@ bool vtkOpenXRManager::EndFrame()
     layer.views = this->RenderResources->ProjectionLayerViews.data();
 
     // Add the layer to the submitted layers
-    this->LayersToSubmit.push_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer));
+    layers.push_back(reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer));
   }
   // Reset should render state
   this->ShouldRenderCurrentFrame = false;
@@ -388,8 +374,8 @@ bool vtkOpenXRManager::EndFrame()
   XrFrameEndInfo frameEndInfo{ XR_TYPE_FRAME_END_INFO };
   frameEndInfo.displayTime = this->PredictedDisplayTime;
   frameEndInfo.environmentBlendMode = this->EnvironmentBlendMode;
-  frameEndInfo.layerCount = (uint32_t)this->LayersToSubmit.size();
-  frameEndInfo.layers = this->LayersToSubmit.data();
+  frameEndInfo.layerCount = (uint32_t)layers.size();
+  frameEndInfo.layers = layers.data();
   xrEndFrame(this->Session, &frameEndInfo);
 
   return true;
@@ -429,7 +415,7 @@ bool vtkOpenXRManager::XrCheckError(const XrResult& result, const std::string& m
   {
     char xRResultString[XR_MAX_RESULT_STRING_SIZE];
     xrResultToString(this->Instance, result, xRResultString);
-    vtkErrorMacro(<< message << " [" << xRResultString << "].");
+    vtkErrorWithObjectMacro(nullptr, << message << " [" << xRResultString << "].");
     return false;
   }
   return true;
@@ -442,7 +428,7 @@ bool vtkOpenXRManager::XrCheckWarn(const XrResult& result, const std::string& me
   {
     char xRResultString[XR_MAX_RESULT_STRING_SIZE];
     xrResultToString(this->Instance, result, xRResultString);
-    vtkWarningMacro(<< message << " [" << xRResultString << "].");
+    vtkWarningWithObjectMacro(nullptr, << message << " [" << xRResultString << "].");
     return false;
   }
   return true;
@@ -492,10 +478,6 @@ void vtkOpenXRManager::PrintSystemProperties(XrSystemProperties* systemPropertie
     {
       XrSystemHandTrackingPropertiesEXT* ht =
         static_cast<XrSystemHandTrackingPropertiesEXT*>(systemProperties->next);
-      if (!this->Debug)
-      {
-        (void)ht;
-      }
       std::cout << "\tHand Tracking       : " << ht->supportsHandTracking << std::endl;
     }
     next = next->next;
@@ -537,10 +519,6 @@ void vtkOpenXRManager::PrintViewConfigViewInfo(
   for (size_t i = 0; i < viewconfigViews.size(); ++i)
   {
     const auto& vcfgv = viewconfigViews[i];
-    if (!this->Debug)
-    {
-      (void)vcfgv;
-    }
     std::cout << "View Configuration View " << i << std::endl;
     std::cout << "\tResolution       : Recommended: " << vcfgv.recommendedImageRectWidth << "x"
               << vcfgv.recommendedImageRectHeight << ", Max: " << vcfgv.maxImageRectWidth << "x"
@@ -605,7 +583,7 @@ std::vector<const char*> vtkOpenXRManager::SelectExtensions()
   auto EnableExtensionIfSupported = [&](const char* extensionName) {
     for (uint32_t i = 0; i < extensionCount; i++)
     {
-      if (std::strcmp(extensionProperties[i].extensionName, extensionName) == 0)
+      if (strcmp(extensionProperties[i].extensionName, extensionName) == 0)
       {
         enabledExtensions.push_back(extensionName);
         return true;
@@ -661,7 +639,7 @@ bool vtkOpenXRManager::CreateInstance()
   // For instance, only OpenGL extension is supported so is mandatory
   if (!this->HasOpenGLExtension)
   {
-    vtkErrorMacro(<< "OpenGL extension is not supported. Aborting.");
+    vtkErrorWithObjectMacro(nullptr, << "OpenGL extension is not supported. Aborting.");
     return false;
   }
 
@@ -730,8 +708,8 @@ bool vtkOpenXRManager::CreateSystem()
   this->XrCheckError(xrGetSystem(this->Instance, &system_get_info, &this->SystemId),
     "Failed to get system for HMD form factor.");
 
-  vtkDebugMacro(<< "Successfully got XrSystem with id " << this->SystemId
-                << " for HMD form factor.");
+  vtkDebugWithObjectMacro(
+    nullptr, "Successfully got XrSystem with id " << this->SystemId << " for HMD form factor.");
 
   // checking system properties is generally  optional, but we are interested in hand tracking
   // support
@@ -778,7 +756,8 @@ bool vtkOpenXRManager::CreateSystem()
       "Failed to get environment blend modes count");
     if (count == 0)
     {
-      vtkErrorMacro("A system must support at least one environment blend mode.");
+      vtkErrorWithObjectMacro(
+        nullptr, "A system must support at least one environment blend mode.");
     }
 
     std::vector<XrEnvironmentBlendMode> environmentBlendModes(count);
@@ -803,8 +782,8 @@ bool vtkOpenXRManager::CheckGraphicsRequirements()
   XrGraphicsRequirementsOpenGLKHR openGLReqs = {
     XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR, // .type
     nullptr,                                  // .next
-    { 0 },                                    // .minApiVersionSupported
-    { 0 }                                     // .maxApiVersionSupported
+    0,                                        // .minApiVersionSupported
+    0                                         // .maxApiVersionSupported
   };
 
   // this function pointer was loaded with xrGetInstanceProcAddr (see XrExtensions.h)
@@ -832,20 +811,29 @@ bool vtkOpenXRManager::CreateGraphicsBinding(vtkOpenGLRenderWindow* helperWindow
       nullptr,                                  // .next
       nullptr,                                  // .xDisplay. a valid X11 display
       0,                                        // .visualid. a valid X11 visual id
-      { 0 },                                    // .glxFBConfig. a valid X11 OpenGL GLX GLXFBConfig
-      { 0 },                                    // .glxDrawable. a valid X11 OpenGL GLX GLXDrawable
-      { 0 }                                     // .glxContext. a valid X11 OpenGL GLX GLXContext
+      0,                                        // .glxFBConfig. a valid X11 OpenGL GLX GLXFBConfig
+      0,                                        // .glxDrawable. a valid X11 OpenGL GLX GLXDrawable
+      0                                         // .glxContext. a valid X11 OpenGL GLX GLXContext
     });
   this->GraphicsBinding = graphicsBindingGLX;
 
-  graphicsBindingGLX->xDisplay = reinterpret_cast<Display*>(helperWindow->GetGenericDisplayId());
-  graphicsBindingGLX->glxDrawable =
-    reinterpret_cast<GLXDrawable>(helperWindow->GetGenericDrawable());
-  graphicsBindingGLX->glxContext = reinterpret_cast<GLXContext>(helperWindow->GetGenericContext());
+  vtkNew<vtkXOpenGLRenderWindow> xoglRenWin;
+  vtkXOpenGLRenderWindow* glxHelperWindow = vtkXOpenGLRenderWindow::SafeDownCast(helperWindow);
 
-  auto glxHelperWindow = vtkXOpenGLRenderWindow::SafeDownCast(helperWindow);
-  vtkXVisualInfo* visualInfo = glxHelperWindow->GetDesiredVisualInfo();
-  graphicsBindingGLX->visualid = visualInfo->visualid;
+  if (glxHelperWindow == nullptr)
+  {
+    xoglRenWin->InitializeFromCurrentContext();
+    glxHelperWindow = xoglRenWin;
+  }
+
+  vtkXVisualInfo* v = glxHelperWindow->GetDesiredVisualInfo();
+  GLXFBConfig* fbConfig = reinterpret_cast<GLXFBConfig*>(glxHelperWindow->GetGenericFBConfig());
+
+  graphicsBindingGLX->xDisplay = glxHelperWindow->GetDisplayId();
+  graphicsBindingGLX->glxDrawable = glxHelperWindow->GetWindowId();
+  graphicsBindingGLX->glxContext = glXGetCurrentContext();
+  graphicsBindingGLX->visualid = v->visualid;
+  graphicsBindingGLX->glxFBConfig = *fbConfig;
 
 #elif _WIN32
   auto graphicsBindingGLWin32 =
@@ -861,7 +849,7 @@ bool vtkOpenXRManager::CreateGraphicsBinding(vtkOpenGLRenderWindow* helperWindow
   graphicsBindingGLWin32->hGLRC = wglGetCurrentContext();
 
 #else
-  vtkErrorMacro(<< "Only X11 and Win32 are supported at the moment.");
+  vtkErrorWithObjectMacro(nullptr, << "Only X11 and Win32 are supported at the moment.");
   return false;
 #endif
 
@@ -879,7 +867,7 @@ bool vtkOpenXRManager::CreateSession()
   XrSessionCreateInfo sessionCreateInfo = {
     XR_TYPE_SESSION_CREATE_INFO, // .type
     this->GraphicsBinding.get(), // .next
-    { 0 },                       // .createFlags
+    0,                           // .createFlags
     this->SystemId               // .systemId
   };
 
@@ -890,9 +878,9 @@ bool vtkOpenXRManager::CreateSession()
   }
 
 #ifdef XR_USE_GRAPHICS_API_OPENGL
-  vtkDebugMacro(<< "Successfully created a session with OpenGL!");
+  vtkDebugWithObjectMacro(nullptr, "Successfully created a session with OpenGL!");
 #elif XR_USE_GRAPHICS_API_D3D11
-  vtkDebugMacro(<< "Successfully created a session with DirectX!");
+  vtkDebugWithObjectMacro(nullptr, "Successfully created a session with DirectX!");
 #endif
 
   return true;
@@ -912,10 +900,10 @@ bool vtkOpenXRManager::CreateReferenceSpace()
   }
 
   XrReferenceSpaceCreateInfo refSpaceCreateInfo = {
-    XR_TYPE_REFERENCE_SPACE_CREATE_INFO, // .type
-    nullptr,                             // .next
-    this->ReferenceSpaceType,            // .referenceSpaceType
-    vtkOpenXRUtilities::IdentityPose     // .poseInReferenceSpace
+    XR_TYPE_REFERENCE_SPACE_CREATE_INFO,  // .type
+    nullptr,                              // .next
+    this->ReferenceSpaceType,             // .referenceSpaceType
+    vtkOpenXRUtilities::GetIdentityPose() // .poseInReferenceSpace
   };
 
   this->XrCheckError(
@@ -951,7 +939,8 @@ std::tuple<int64_t, int64_t> vtkOpenXRManager::SelectSwapchainPixelFormats()
   this->XrCheckError(xrEnumerateSwapchainFormats(this->Session, 0, &swapchainFormatsCount, nullptr),
     "Failed to get number of supported swapchain formats");
 
-  vtkDebugMacro(<< "Runtime supports " << swapchainFormatsCount << " swapchain formats");
+  vtkDebugWithObjectMacro(
+    nullptr, "Runtime supports " << swapchainFormatsCount << " swapchain formats");
 
   std::vector<int64_t> swapchainFormats(swapchainFormatsCount);
   this->XrCheckError(xrEnumerateSwapchainFormats(this->Session, swapchainFormatsCount,
@@ -967,8 +956,8 @@ std::tuple<int64_t, int64_t> vtkOpenXRManager::SelectSwapchainPixelFormats()
         std::begin(applicationSupportedFormats), std::end(applicationSupportedFormats));
     if (found == std::end(runtimePreferredFormats))
     {
-      vtkErrorMacro(<< "No runtime swapchain " << formatName
-                    << " format in the list is supported.");
+      vtkErrorWithObjectMacro(
+        nullptr, << "No runtime swapchain " << formatName << " format in the list is supported.");
       return (int64_t)-1;
     }
     return *found;
@@ -983,7 +972,8 @@ std::tuple<int64_t, int64_t> vtkOpenXRManager::SelectSwapchainPixelFormats()
       selectPixelFormat(swapchainFormats, this->GetSupportedDepthFormats(), "depth");
     if (depthSwapchainFormat == -1)
     {
-      vtkDebugMacro(<< "Disabling depth extension as no depth format are supported");
+      vtkDebugWithObjectMacro(
+        nullptr, "Disabling depth extension as no depth format are supported");
       this->OptionalExtensions.DepthExtensionSupported = false;
     }
   }
@@ -1093,8 +1083,8 @@ bool vtkOpenXRManager::CreateConfigViews()
     "Failed to get view configuration view count!");
   if (viewCount != this->StereoViewCount)
   {
-    vtkWarningMacro(<< "StereoViewCount (" << this->StereoViewCount
-                    << ") is different than viewCount (" << viewCount << ")");
+    vtkWarningWithObjectMacro(nullptr, << "StereoViewCount (" << this->StereoViewCount
+                                       << ") is different than viewCount (" << viewCount << ")");
   }
 
   this->RenderResources->ConfigViews.resize(viewCount, { XR_TYPE_VIEW_CONFIGURATION_VIEW });
@@ -1116,7 +1106,8 @@ bool vtkOpenXRManager::CreateConfigViews()
 bool vtkOpenXRManager::CreateActionSet(
   const std::string& actionSetName, const std::string& localizedActionSetName)
 {
-  vtkDebugMacro(<< "Create action set " << actionSetName << ": " << localizedActionSetName);
+  vtkDebugWithObjectMacro(
+    nullptr, "Create action set " << actionSetName << ": " << localizedActionSetName);
 
   XrActionSetCreateInfo actionSetInfo{ XR_TYPE_ACTION_SET_CREATE_INFO };
 
@@ -1139,13 +1130,13 @@ bool vtkOpenXRManager::SelectActiveActionSet(unsigned int index)
 {
   if (this->ActionSets.size() == 0)
   {
-    vtkErrorMacro(<< "An action set must be created prior to select one.");
+    vtkErrorWithObjectMacro(nullptr, << "An action set must be created prior to select one.");
     return false;
   }
   if (index >= this->ActionSets.size())
   {
-    vtkWarningMacro(<< "The selected action set at index : " << index
-                    << " does not exist. Pick the first one");
+    vtkWarningWithObjectMacro(nullptr,
+      << "The selected action set at index : " << index << " does not exist. Pick the first one");
     index = 0;
   }
 
@@ -1230,11 +1221,11 @@ bool vtkOpenXRManager::CreateOneAction(
       { vtkOpenXRManager::ControllerIndex::Left, vtkOpenXRManager::ControllerIndex::Right })
     {
       if (!this->CreateOneActionSpace(actionT.Action, this->SubactionPaths[hand],
-            vtkOpenXRUtilities::IdentityPose, actionT.PoseSpaces[hand]))
+            vtkOpenXRUtilities::GetIdentityPose(), actionT.PoseSpaces[hand]))
       {
-        vtkErrorMacro(<< "Failed to create pose action space for "
-                      << (hand == vtkOpenXRManager::ControllerIndex::Left ? "left" : "right")
-                      << " hand");
+        vtkErrorWithObjectMacro(nullptr,
+          << "Failed to create pose action space for "
+          << (hand == vtkOpenXRManager::ControllerIndex::Left ? "left" : "right") << " hand");
         return false;
       };
     }
@@ -1264,7 +1255,7 @@ bool vtkOpenXRManager::CreateOneActionSpace(const XrAction& action, const XrPath
 bool vtkOpenXRManager::SuggestActions(
   const std::string& profile, std::vector<XrActionSuggestedBinding>& actionSuggestedBindings)
 {
-  vtkDebugMacro(<< "SuggestActions for profile : " << profile);
+  vtkDebugWithObjectMacro(nullptr, "SuggestActions for profile : " << profile);
   VTK_CHECK_NULL_XRHANDLE(this->Instance, "vtkOpenXRManager::SuggestActions, Instance");
 
   XrPath interactionProfilePath;
@@ -1391,16 +1382,17 @@ bool vtkOpenXRManager::UpdateActionData(Action_t& action_t, const int hand)
 }
 
 //------------------------------------------------------------------------------
-bool vtkOpenXRManager::ApplyVibration(
-  const Action_t& actionT, const int hand, const float amplitude)
+bool vtkOpenXRManager::ApplyVibration(const Action_t& actionT, const int hand,
+  const float amplitude, const float duration, const float frequency)
 {
   VTK_CHECK_NULL_XRHANDLE(this->Session, "vtkOpenXRManager::ApplyVibration, Session");
 
   if (actionT.ActionType != XR_ACTION_TYPE_VIBRATION_OUTPUT)
   {
-    vtkErrorMacro(<< "vtkOpenXRManager::ApplyVibration must be called for an action of type "
-                     "XR_ACTION_TYPE_VIBRATION_OUTPUT, not a "
-                  << vtkOpenXRUtilities::GetActionTypeAsString(actionT.ActionType));
+    vtkErrorWithObjectMacro(
+      nullptr, << "vtkOpenXRManager::ApplyVibration must be called for an action of type "
+                  "XR_ACTION_TYPE_VIBRATION_OUTPUT, not a "
+               << vtkOpenXRUtilities::GetActionTypeAsString(actionT.ActionType));
     return false;
   }
 
@@ -1410,8 +1402,8 @@ bool vtkOpenXRManager::ApplyVibration(
 
   XrHapticVibration vibration{ XR_TYPE_HAPTIC_VIBRATION };
   vibration.amplitude = amplitude;
-  vibration.duration = XR_MIN_HAPTIC_DURATION;
-  vibration.frequency = XR_FREQUENCY_UNSPECIFIED;
+  vibration.duration = duration;
+  vibration.frequency = frequency;
 
   if (!this->XrCheckError(
         xrApplyHapticFeedback(this->Session, &actionInfo, (XrHapticBaseHeader*)&vibration),

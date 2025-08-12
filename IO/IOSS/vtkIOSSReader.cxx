@@ -78,6 +78,7 @@
 #include <array>
 #include <cassert>
 #include <cctype>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -102,7 +103,6 @@ using DatabaseHandle = std::pair<std::string, int>;
 
 namespace
 {
-
 template <typename T>
 bool Synchronize(vtkMultiProcessController* controller, T& data, T& result)
 {
@@ -188,21 +188,8 @@ vtkSmartPointer<vtkAbstractArray> JoinArrays(
   assert(offset == numTuples);
   return result;
 }
-}
 
-struct DGInformation
-{
-  // list of element types ordered with blocks
-  // assumes each block will have a single element type
-  std::map<std::string, std::string> elementTypes;
-
-  // list of fields present on each block
-  std::map<std::string, std::vector<std::string>> fields;
-
-  bool BlockIsDG(std::string name) { return elementTypes.count(name); }
-};
-
-std::vector<std::string> split(const std::string& inString, const std::string& delimeter)
+std::vector<std::string> Split(const std::string& inString, const std::string& delimeter)
 {
   std::vector<std::string> subStrings;
   size_t sIdx = 0;
@@ -219,36 +206,14 @@ std::vector<std::string> split(const std::string& inString, const std::string& d
   return subStrings;
 }
 
-void parseDGInfo(DGInformation& dgInfo, const std::vector<std::string>& info_records)
-{
-  for (auto& record : info_records)
-  {
-    auto data = split(record, "::");
-    // check if the row in the record is a DG callout
-    if (data.size() < 4 || data[0] != "DG")
-    {
-      continue;
-    }
-
-    // get the block associated with that callout
-    std::string name = data[1];
-
-    // get if its a basis or a field
-    if (data[2] == "basis")
-    {
-      dgInfo.elementTypes[name] = data[3];
-    }
-    else if (data[2] == "field")
-    {
-      dgInfo.fields[name].push_back(data[3]);
-    }
-  }
-}
+} // end of namespace {}
 
 class vtkIOSSReader::vtkInternals
 {
   // it's okay to instantiate this multiple times.
   Ioss::Init::Initializer io;
+
+  double DisplacementMagnitude = 1.;
 
   using DatabaseNamesType = std::map<std::string, DatabaseParitionInfo>;
   DatabaseNamesType UnfilteredDatabaseNames;
@@ -277,8 +242,6 @@ class vtkIOSSReader::vtkInternals
   vtkSmartPointer<vtkDataAssembly> Assembly;
   vtkTimeStamp AssemblyMTime;
 
-  DGInformation DGInfo;
-
 public:
   vtkInternals(vtkIOSSReader* reader)
     : IOSSReader(reader)
@@ -293,6 +256,9 @@ public:
 
   const std::vector<double>& GetTimeSteps() const { return this->TimestepValues; }
   vtkIOSSUtilities::DatabaseFormatType GetFormat() const { return this->Format; }
+
+  void SetDisplacementMagnitude(double s) { this->DisplacementMagnitude = s; }
+  double GetDisplacementMagnitude() { return this->DisplacementMagnitude; }
 
   //@{
   /**
@@ -456,6 +422,13 @@ public:
   }
 
   /**
+   * Little more aggressive than `ReleaseHandles` but less intense than `Reset`,
+   * releases all IOSS regions and thus all the meta-data IOSS may have cached
+   * as well.
+   */
+  void ReleaseRegions() { this->RegionMap.clear(); }
+
+  /**
    * Clear all regions, databases etc.
    */
   void Reset()
@@ -556,46 +529,6 @@ private:
    */
   bool GenerateEntityIdArray(vtkDataSet* grid, const std::string& blockname,
     vtkIOSSReader::EntityType vtk_entity_type, const DatabaseHandle& handle);
-
-  /**
-   * @brief FieldIsDG
-   *
-   * @param blockname = name of the block this field is on
-   * @param fieldname = name of the field
-   * @return true if the field is a DG field
-   */
-  bool FieldIsDG(std::string blockname, std::string fieldname);
-  /**
-   * @brief like GetFields and GetNodalFields, but uses DG info records to parse
-   * which fields are DG fields, and properly reinterprets these fields as nodal
-   * fields on the DG mesh
-   *
-   * @param ds = output mesh
-   * @param selection = selection of arrays to parse
-   * @param region = the region of the mesh to read data on
-   * @param group_entity = the Ioss entity in question
-   * @param handle = database handle
-   * @param timestep = time step to read from
-   * @return true on successful parsing of field
-   */
-  bool GetDGFields(vtkUnstructuredGrid* ds, vtkDataArraySelection* selection, Ioss::Region* region,
-    Ioss::GroupingEntity* group_entity, const DatabaseHandle& handle, int timestep);
-
-  /**
-   * @brief takes a continuous mesh and explodes the point set such that each element has
-   *        its own collection of points unshared by any other element. This also
-   *        converts the mesh into potentially a higher order mesh if the DG fields require it
-   *
-   * @param dataset: the vtkDataSet to explode. new points/connectivity will be allocated and set to
-   * this dataset
-   * @param dg_field_name: the name of the DG field on this block which will dicate how the elements
-   * are allocated
-   * @param remove_unused_points: unused
-   * @return true: mesh explosion success
-   * @return false: mesh explosion failed
-   */
-  bool ExplodeDGMesh(
-    vtkUnstructuredGrid* dataset, const std::string& dg_field_name, bool remove_unused_points);
 
   /**
    * Reads selected field arrays for the given entity block or set.
@@ -989,7 +922,7 @@ bool vtkIOSSReader::vtkInternals::UpdateTimeInformation(vtkIOSSReader* self)
   {
     std::transform(pair.second.begin(), pair.second.end(),
       std::inserter(times_set, times_set.end()),
-      [](const std::pair<int, double>& pair) { return pair.second; });
+      [](const std::pair<int, double>& otherPair) { return otherPair.second; });
   }
   this->TimestepValues.resize(times_set.size());
   std::copy(times_set.begin(), times_set.end(), this->TimestepValues.begin());
@@ -1096,7 +1029,7 @@ bool vtkIOSSReader::vtkInternals::UpdateEntityAndFieldSelections(vtkIOSSReader* 
 
   if (numRanks > 1)
   {
-    //// sync selections across all ranks.
+    // sync selections across all ranks.
     ::Synchronize(controller, entity_names, entity_names);
     ::Synchronize(controller, field_names, field_names);
 
@@ -1112,9 +1045,14 @@ bool vtkIOSSReader::vtkInternals::UpdateEntityAndFieldSelections(vtkIOSSReader* 
   for (int cc = ENTITY_START; cc < ENTITY_END; ++cc)
   {
     auto entitySelection = self->GetEntitySelection(cc);
+    auto& entityIdMap = self->EntityIdMap[cc];
     for (auto& name : entity_names[cc])
     {
       entitySelection->AddArray(name.second.c_str(), vtkIOSSReader::GetEntityTypeIsBlock(cc));
+      if (name.first != 0)
+      {
+        entityIdMap[name.second] = name.first;
+      }
     }
 
     auto fieldSelection = self->GetFieldSelection(cc);
@@ -1381,6 +1319,16 @@ Ioss::Region* vtkIOSSReader::vtkInternals::GetRegion(const std::string& dbasenam
     // see https://github.com/gsjaardema/seacas/issues/265
     properties.add(Ioss::Property("FIELD_STRIP_TRAILING_UNDERSCORE", "on"));
 
+    // Do not convert variable names to lower case. The default is on.
+    // For ex: this resolves a misunderstanding b/w T (temperature) vs t (time)
+    properties.add(Ioss::Property("LOWER_CASE_VARIABLE_NAMES", "off"));
+
+    // Do not treat numeric suffixes for a variable as vector components.
+    properties.add(Ioss::Property("IGNORE_REALN_FIELDS", "on"));
+
+    // Only read timestep information from 0th file.
+    properties.add(Ioss::Property("EXODUS_CALL_GET_ALL_TIMES", processor == 0 ? "on" : "off"));
+
     // Fillup with user-specified properties.
     Ioss::NameList names;
     this->DatabaseProperties.describe(&names);
@@ -1412,7 +1360,7 @@ Ioss::Region* vtkIOSSReader::vtkInternals::GetRegion(const std::string& dbasenam
     auto dbase = std::unique_ptr<Ioss::DatabaseIO>(Ioss::IOFactory::create(
       this->IOSSReader->DatabaseTypeOverride ? std::string(this->IOSSReader->DatabaseTypeOverride)
                                              : dtype,
-      dbasename, Ioss::READ_RESTART, MPI_COMM_WORLD, properties));
+      dbasename, Ioss::READ_RESTART, Ioss::ParallelUtils::comm_world(), properties));
     if (dbase == nullptr || !dbase->ok(/*write_message=*/true))
     {
       throw std::runtime_error(
@@ -1455,7 +1403,7 @@ std::vector<DatabaseHandle> vtkIOSSReader::vtkInternals::GetDatabaseHandles(
     {
       const auto& vector = pair.second;
       auto iter = std::find_if(vector.begin(), vector.end(),
-        [&time](const std::pair<int, double>& pair) { return pair.second == time; });
+        [&time](const std::pair<int, double>& otherPair) { return otherPair.second == time; });
       if (iter != vector.end())
       {
         // if multiple databases provide the same timestep, we opt to choose
@@ -1553,8 +1501,6 @@ std::vector<vtkSmartPointer<vtkDataSet>> vtkIOSSReader::vtkInternals::GetExodusD
   assert(fieldSelection != nullptr);
   this->GetFields(dataset->GetCellData(), fieldSelection, region, group_entity, handle, timestep,
     self->GetReadIds());
-
-  this->GetDGFields(dataset, fieldSelection, region, group_entity, handle, timestep);
 
   auto nodeFieldSelection = self->GetNodeBlockFieldSelection();
   assert(nodeFieldSelection != nullptr);
@@ -1715,318 +1661,6 @@ std::vector<vtkSmartPointer<vtkDataSet>> vtkIOSSReader::vtkInternals::GetCGNSDat
 }
 
 //----------------------------------------------------------------------------
-bool vtkIOSSReader::vtkInternals::ExplodeDGMesh(vtkUnstructuredGrid* dataset,
-  const std::string& dg_field_name, bool vtkNotUsed(remove_unused_points))
-{
-  auto old_points = dataset->GetPoints();
-  vtkNew<vtkPoints> exploded_points;
-  vtkNew<vtkCellArray> exploded_cells;
-  vtkNew<vtkIdList> original_ids;
-  int type = dataset->GetCellType(0);
-  const vtkIdType nCells = dataset->GetCells()->GetNumberOfCells();
-  vtkIdType nPts;
-  std::vector<std::string> field_props = split(dg_field_name, "_");
-
-  // naive check to make sure we have all the properties in expected order
-  // i.e. Intrepid2_HGRAD_QUAD_C2_FEM
-  if (field_props.size() != 5)
-  {
-    return false;
-  }
-
-  bool isDGLinear = field_props[3] == "C1";
-  std::string DGCellType = field_props[2];
-
-  // if the DG basis used is linear, then we don't need to interpolate new mesh points
-  if (isDGLinear)
-  {
-    const vtkIdType nPtsPerCell = dataset->GetCells()->GetCellSize(0);
-    nPts = nCells * nPtsPerCell;
-
-    exploded_points->SetNumberOfPoints(nPts);
-    exploded_cells->AllocateExact(nCells, nPtsPerCell);
-    original_ids->SetNumberOfIds(nPts);
-
-    // loop over cell connectivity, redo the connectivity so that each cell is
-    // disconnected from other cells and then copy associated points into the
-    // point array
-    vtkIdType ind = 0;
-    auto iter = vtk::TakeSmartPointer(dataset->GetCells()->NewIterator());
-    for (iter->GoToFirstCell(); !iter->IsDoneWithTraversal(); iter->GoToNextCell())
-    {
-      // get next cell in original dataset
-      vtkIdList* cellIds = iter->GetCurrentCell();
-      exploded_cells->InsertNextCell(nPtsPerCell);
-      for (vtkIdType i = 0; i < nPtsPerCell; ++i)
-      {
-        vtkVector3d coords{ 0.0 };
-        vtkIdType o_id = cellIds->GetId(i);
-        original_ids->SetId(ind, o_id);
-        old_points->GetPoint(o_id, coords.GetData());
-        exploded_points->InsertPoint(ind, coords.GetData());
-        exploded_cells->InsertCellPoint(ind);
-        ind++;
-      }
-    }
-  }
-  else // higher order elements (only quadratic is supported)
-  {
-    if (DGCellType == "HEX" && type == VTK_HEXAHEDRON)
-    {
-      type = VTK_LAGRANGE_HEXAHEDRON;
-      const vtkIdType nPtsPerCell = 27;
-      nPts = nCells * nPtsPerCell;
-      exploded_points->SetNumberOfPoints(nPts);
-      exploded_cells->AllocateExact(nCells, nPtsPerCell);
-      original_ids->SetNumberOfIds(nPts);
-
-      // get parametric coords of a quadratic hex element
-      std::vector<double> pcoords{ // vertices
-        0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1,
-        // edges
-        0.5, 0, 0, 1, 0.5, 0, 0.5, 1, 0, 0, 0.5, 0, 0.5, 0, 1, 1, 0.5, 1, 0.5, 1, 1, 0, 0.5, 1, 0,
-        0, 0.5, 1, 0, 0.5, 1, 1, 0.5, 0, 1, 0.5,
-        // faces
-        0, 0.5, 0.5, 1, 0.5, 0.5, 0.5, 0, 0.5, 0.5, 1, 0.5, 0.5, 0.5, 0, 0.5, 0.5, 1,
-        // volume
-        0.5, 0.5, 0.5
-      };
-
-      // loop over cell connectivity, redo the connectivity so that each cell is
-      // disconnected from other cells and then copy associated points into the
-      // point array
-      vtkIdType ind = 0;
-      double weights[4];
-      int subId = 0;
-      vtkVector3d coord{ 0.0 };
-      vtkIdType o_id = 0;
-
-      vtkCellArray* cells = dataset->GetCells();
-      vtkIdType npts;
-      const vtkIdType* idx;
-      for (vtkIdType cc = 0; cc < nCells; ++cc)
-      {
-        // get next cell in original dataset
-        cells->GetCellAtId(cc, npts, idx);
-        exploded_cells->InsertNextCell(nPtsPerCell);
-
-        // build a vtkHexahedron to evaluate new points on
-        vtkNew<vtkHexahedron> element;
-        element->Initialize(8, idx, old_points);
-
-        for (vtkIdType i = 0; i < 8; ++i)
-        {
-          o_id = idx[i];
-          old_points->GetPoint(o_id, coord.GetData());
-          exploded_points->InsertPoint(ind, coord.GetData());
-          exploded_cells->InsertCellPoint(ind);
-          original_ids->SetId(ind, o_id);
-          ind++;
-        }
-
-        // loop over edge/face/volume nodes
-        for (vtkIdType i = 8; i < nPtsPerCell; ++i)
-        {
-          element->EvaluateLocation(subId, &pcoords[3 * i], coord.GetData(), weights);
-          exploded_points->InsertPoint(ind, coord.GetData());
-          exploded_cells->InsertCellPoint(ind);
-          original_ids->SetId(ind, -1);
-          ind++;
-        }
-      }
-    }
-    else if (DGCellType == "TET" && type == VTK_TETRA)
-    {
-      vtkErrorWithObjectMacro(this->IOSSReader, "High order tetrahedra not currently supported.");
-      return false;
-    }
-    else if (DGCellType == "QUAD" && type == VTK_QUAD)
-    {
-      type = VTK_LAGRANGE_QUADRILATERAL;
-      const vtkIdType nPtsPerCell = 9; // quadratic quadrilateral
-      nPts = nCells * nPtsPerCell;
-      exploded_points->SetNumberOfPoints(nPts);
-      exploded_cells->AllocateExact(nCells, nPtsPerCell);
-      original_ids->SetNumberOfIds(nPts);
-
-      // loop over cell connectivity, redo the connectivity so that each cell is
-      // disconnected from other cells and then copy associated points into the
-      // point array
-      vtkIdType ind = 0;
-      auto iter = vtk::TakeSmartPointer(dataset->GetCells()->NewIterator());
-      for (iter->GoToFirstCell(); !iter->IsDoneWithTraversal(); iter->GoToNextCell())
-      {
-        // get next cell in original dataset
-        vtkIdList* cellIds = iter->GetCurrentCell();
-        exploded_cells->InsertNextCell(nPtsPerCell);
-        vtkVector3d coord{ 0.0 };
-        vtkIdType o_id = 0;
-
-        // build a vtkQuad to evaluate new points on
-        vtkNew<vtkQuad> element;
-        element->Initialize(4, cellIds->begin(), old_points);
-
-        // insert points on corners
-        for (vtkIdType i = 0; i < 4; ++i)
-        {
-          o_id = cellIds->GetId(i);
-          old_points->GetPoint(o_id, coord.GetData());
-          exploded_points->InsertPoint(ind, coord.GetData());
-          exploded_cells->InsertCellPoint(ind);
-          original_ids->SetId(ind, o_id);
-          ind++;
-        }
-
-        double pcoord[3];
-        double weights[4];
-        int subId = 0;
-        // add point on edge between 0 1
-        pcoord[0] = 0.5;
-        pcoord[1] = 0;
-        pcoord[2] = 0;
-
-        element->EvaluateLocation(subId, pcoord, coord.GetData(), weights);
-        exploded_points->InsertPoint(ind, coord.GetData());
-        exploded_cells->InsertCellPoint(ind);
-        original_ids->SetId(ind, 0);
-        ind++;
-        // add point on edge between 1 2
-        pcoord[0] = 1;
-        pcoord[1] = 0.5;
-        pcoord[2] = 0;
-
-        element->EvaluateLocation(subId, pcoord, coord.GetData(), weights);
-        exploded_points->InsertPoint(ind, coord.GetData());
-        exploded_cells->InsertCellPoint(ind);
-        original_ids->SetId(ind, 0);
-        ind++;
-
-        // add point on edge between 2 3
-        pcoord[0] = 0.5;
-        pcoord[1] = 1;
-        pcoord[2] = 0;
-
-        element->EvaluateLocation(subId, pcoord, coord.GetData(), weights);
-        exploded_points->InsertPoint(ind, coord.GetData());
-        exploded_cells->InsertCellPoint(ind);
-        original_ids->SetId(ind, 0);
-        ind++;
-
-        // add point on edge between 3 0
-        pcoord[0] = 0;
-        pcoord[1] = 0.5;
-        pcoord[2] = 0;
-
-        element->EvaluateLocation(subId, pcoord, coord.GetData(), weights);
-        exploded_points->InsertPoint(ind, coord.GetData());
-        exploded_cells->InsertCellPoint(ind);
-        original_ids->SetId(ind, 0);
-        ind++;
-        // add point in center of cell
-        pcoord[0] = 0.5;
-        pcoord[1] = 0.5;
-        pcoord[2] = 0;
-
-        element->EvaluateLocation(subId, pcoord, coord.GetData(), weights);
-        exploded_points->InsertPoint(ind, coord.GetData());
-        exploded_cells->InsertCellPoint(ind);
-        original_ids->SetId(ind, 0);
-        ind++;
-      }
-    }
-    else if (DGCellType == "TRI" && type == VTK_TRIANGLE)
-    {
-      type = VTK_LAGRANGE_TRIANGLE;
-      const vtkIdType nPtsPerCell = 6; // quadratic triangle
-      nPts = nCells * nPtsPerCell;
-      exploded_points->SetNumberOfPoints(nPts);
-      exploded_cells->AllocateExact(nCells, nPtsPerCell);
-      original_ids->SetNumberOfIds(nPts);
-
-      // loop over cell connectivity, redo the connectivity so that each cell is
-      // disconnected from other cells and then copy associated points into the
-      // point array
-      vtkIdType ind = 0;
-      auto iter = vtk::TakeSmartPointer(dataset->GetCells()->NewIterator());
-      for (iter->GoToFirstCell(); !iter->IsDoneWithTraversal(); iter->GoToNextCell())
-      {
-        // get next cell in original dataset
-        vtkIdList* cellIds = iter->GetCurrentCell();
-        exploded_cells->InsertNextCell(nPtsPerCell);
-        vtkVector3d coord{ 0.0 };
-        vtkIdType o_id = 0;
-
-        // build a vtkQuad to evaluate new points on
-        vtkNew<vtkTriangle> element;
-        element->Initialize(3, cellIds->begin(), old_points);
-
-        // insert points on corners
-        for (vtkIdType i = 0; i < 3; ++i)
-        {
-          o_id = cellIds->GetId(i);
-          old_points->GetPoint(o_id, coord.GetData());
-          exploded_points->InsertPoint(ind, coord.GetData());
-          exploded_cells->InsertCellPoint(ind);
-          original_ids->SetId(ind, o_id);
-          ind++;
-        }
-
-        double pcoord[3];
-        double weights[4];
-        int subId = 0;
-        // add point on edge between 0 1
-        pcoord[0] = 0.5;
-        pcoord[1] = 0;
-        pcoord[2] = 0;
-
-        element->EvaluateLocation(subId, pcoord, coord.GetData(), weights);
-        exploded_points->InsertPoint(ind, coord.GetData());
-        exploded_cells->InsertCellPoint(ind);
-        original_ids->SetId(ind, 0);
-        ind++;
-        // add point on edge between 1 2
-        pcoord[0] = 0.5;
-        pcoord[1] = 0.5;
-        pcoord[2] = 0;
-
-        element->EvaluateLocation(subId, pcoord, coord.GetData(), weights);
-        exploded_points->InsertPoint(ind, coord.GetData());
-        exploded_cells->InsertCellPoint(ind);
-        original_ids->SetId(ind, 0);
-        ind++;
-
-        // add point on edge between 2 0
-        pcoord[0] = 0;
-        pcoord[1] = 0.5;
-        pcoord[2] = 0;
-
-        element->EvaluateLocation(subId, pcoord, coord.GetData(), weights);
-        exploded_points->InsertPoint(ind, coord.GetData());
-        exploded_cells->InsertCellPoint(ind);
-        original_ids->SetId(ind, 0);
-        ind++;
-      }
-    }
-    else
-    {
-      vtkErrorWithObjectMacro(
-        this->IOSSReader, "Unexpected high order element not currently supported.");
-      return false;
-    }
-  }
-
-  dataset->Reset();
-  dataset->SetPoints(exploded_points);
-  dataset->SetCells(type, exploded_cells);
-
-  vtkNew<vtkIdTypeArray> opids;
-  opids->SetName("__vtk_mesh_original_pt_ids__");
-  opids->SetArray(original_ids->Release(), nPts, /*save=*/0, vtkIdTypeArray::VTK_DATA_ARRAY_DELETE);
-  dataset->GetPointData()->AddArray(opids);
-  return true;
-}
-
-//----------------------------------------------------------------------------
 bool vtkIOSSReader::vtkInternals::GetMesh(vtkUnstructuredGrid* dataset,
   const std::string& blockname, vtkIOSSReader::EntityType vtk_entity_type,
   const DatabaseHandle& handle, bool remove_unused_points)
@@ -2053,22 +1687,7 @@ bool vtkIOSSReader::vtkInternals::GetMesh(vtkUnstructuredGrid* dataset,
     return false;
   }
 
-  // if the block is a DG block, we explode the connectivity and points array so each
-  // cell is disconnected from every other cell
-  if (this->DGInfo.BlockIsDG(blockname))
-  {
-    this->ExplodeDGMesh(dataset, this->DGInfo.elementTypes[blockname], remove_unused_points);
-
-    if (remove_unused_points)
-    {
-      if (auto originalIds = dataset->GetPointData()->GetArray("__vtk_mesh_original_pt_ids__"))
-      {
-        cache.Insert(group_entity, "__vtk_mesh_original_pt_ids__", originalIds);
-      }
-    }
-  }
-
-  if (remove_unused_points && !this->DGInfo.BlockIsDG(blockname))
+  if (remove_unused_points)
   {
     // let's prune unused points.
     vtkNew<vtkRemoveUnusedPoints> pruner;
@@ -2445,9 +2064,11 @@ bool vtkIOSSReader::vtkInternals::GetFields(vtkDataSetAttributes* dsa,
       case Ioss::EntityType::EDGEBLOCK:
       case Ioss::EntityType::FACEBLOCK:
       case Ioss::EntityType::ELEMENTBLOCK:
-      case Ioss::EntityType::NODESET:
         fieldnames.emplace_back("ids");
         globalIdsFieldName = "ids";
+        break;
+
+      case Ioss::EntityType::NODESET:
         break;
 
       case Ioss::EntityType::STRUCTUREDBLOCK:
@@ -2476,8 +2097,7 @@ bool vtkIOSSReader::vtkInternals::GetFields(vtkDataSetAttributes* dsa,
   }
   for (int cc = 0; selection != nullptr && cc < selection->GetNumberOfArrays(); ++cc)
   {
-    if (selection->GetArraySetting(cc) &&
-      !this->FieldIsDG(group_entity->name(), selection->GetArrayName(cc)))
+    if (selection->GetArraySetting(cc))
     {
       fieldnames.emplace_back(selection->GetArrayName(cc));
     }
@@ -2495,117 +2115,6 @@ bool vtkIOSSReader::vtkInternals::GetFields(vtkDataSetAttributes* dsa,
       {
         dsa->AddArray(array);
       }
-    }
-  }
-
-  return true;
-}
-
-//----------------------------------------------------------------------------
-// nodalData <out>: nodal DG field interpolated from dgData
-// dgData <in>: cell centered, 1 component per nodal dof
-// ds <in>: the mesh dataset. idk if we need this here
-// rule <in>: this string indicates what element type is being used in this
-//            DG block
-void interpolateDGFieldToNodes(
-  vtkDataArray* nodalData, vtkDataArray* dgData, const std::string& dg_field_name)
-{
-  std::vector<std::string> field_props = split(dg_field_name, "_");
-
-  // naive check to make sure we have all the properties in expected order
-  // i.e. Intrepid2_HGRAD_QUAD_C2_FEM
-  if (field_props.size() != 5)
-  {
-    return;
-  }
-
-  int fieldOrder = field_props[3].at(1) - '0';
-  std::string DGCellType = field_props[2];
-
-  const vtkIdType nNodes = dgData->GetNumberOfComponents();
-  const vtkIdType nCells = dgData->GetNumberOfTuples();
-
-  // get the ordering of the nodes for special cases
-  std::vector<int> intrepid2vtk;
-  if (DGCellType == "HEX" && fieldOrder == 2)
-  {
-    intrepid2vtk = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 12, 13, 14, 15, 26, 24,
-      25, 20, 21, 22, 23 };
-  }
-  else
-  {
-    intrepid2vtk.resize(nNodes);
-    std::iota(intrepid2vtk.begin(), intrepid2vtk.end(), 0);
-  }
-
-  for (vtkIdType i = 0; i < nNodes; ++i)
-  {
-    int ii = intrepid2vtk[i];
-    for (vtkIdType j = 0; j < nCells; ++j)
-    {
-      const vtkIdType ptId = ii + nNodes * j;
-      nodalData->SetTuple1(ptId, dgData->GetComponent(j, i));
-    }
-  }
-}
-
-//----------------------------------------------------------------------------
-bool vtkIOSSReader::vtkInternals::FieldIsDG(std::string blockname, std::string fieldname)
-{
-  auto dgFields = this->DGInfo.fields[blockname];
-  for (const auto& field : dgFields)
-  {
-    if (fieldname.find(field) != std::string::npos)
-    {
-      return true;
-    }
-    // fields with uppercase characters sometimes get set to lower case in the
-    // selection array
-    std::string lowerCaseField = field;
-    std::transform(lowerCaseField.begin(), lowerCaseField.end(), lowerCaseField.begin(),
-      [](unsigned char c) { return std::tolower(c); });
-    if (fieldname.find(lowerCaseField) != std::string::npos)
-    {
-      return true;
-    }
-  }
-  return false;
-}
-
-//----------------------------------------------------------------------------
-bool vtkIOSSReader::vtkInternals::GetDGFields(vtkUnstructuredGrid* ds,
-  vtkDataArraySelection* selection, Ioss::Region* region, Ioss::GroupingEntity* group_entity,
-  const DatabaseHandle& handle, int timestep)
-{
-  std::vector<std::string> fieldnames;
-  for (int cc = 0; selection != nullptr && cc < selection->GetNumberOfArrays(); ++cc)
-  {
-    if (selection->GetArraySetting(cc) &&
-      this->FieldIsDG(group_entity->name(), selection->GetArrayName(cc)))
-    {
-      fieldnames.emplace_back(selection->GetArrayName(cc));
-    }
-  }
-
-  for (const auto& fieldname : fieldnames)
-  {
-    vtkSmartPointer<vtkDataArray> dgData = vtkDataArray::SafeDownCast(
-      this->GetField(fieldname, region, group_entity, handle, timestep, nullptr, std::string()));
-    if (dgData != nullptr)
-    {
-      // create a new vtkDataArray to store the single processed DG field
-      vtkNew<vtkDoubleArray> nodalData;
-      // each dgData field has nNodes components and components of
-      // vector fields are broken into individual scalar fields
-      // we start by interpolating all scalar fields individually
-      nodalData->SetNumberOfComponents(1);
-      nodalData->SetNumberOfTuples(ds->GetNumberOfPoints());
-      nodalData->SetName(fieldname.c_str());
-      // interpolate the dg data onto the nodes
-      interpolateDGFieldToNodes(nodalData, dgData, this->DGInfo.elementTypes[group_entity->name()]);
-
-      // add the nodal field array
-      ds->GetPointData()->AddArray(nodalData);
     }
   }
 
@@ -2703,7 +2212,8 @@ bool vtkIOSSReader::vtkInternals::ApplyDisplacements(vtkPointSet* grid, Ioss::Re
   }
 
   auto& cache = this->Cache;
-  const auto xformPtsCacheKey = "__vtk_xformed_pts_" + std::to_string(timestep);
+  const auto xformPtsCacheKey = "__vtk_xformed_pts_" + std::to_string(timestep) +
+    std::to_string(std::hash<double>{}(this->DisplacementMagnitude));
   if (auto xformedPts = vtkPoints::SafeDownCast(cache.Find(group_entity, xformPtsCacheKey)))
   {
     assert(xformedPts->GetNumberOfPoints() == grid->GetNumberOfPoints());
@@ -2764,6 +2274,10 @@ bool vtkIOSSReader::vtkInternals::ApplyDisplacements(vtkPointSet* grid, Ioss::Re
     {
       pts->GetPoint(cc, coords.GetData());
       array->GetTuple(cc, displ.GetData());
+      for (int i = 0; i < 3; ++i)
+      {
+        displ[i] *= this->DisplacementMagnitude;
+      }
       xformedPts->SetPoint(cc, (coords + displ).GetData());
     }
 
@@ -2807,9 +2321,6 @@ bool vtkIOSSReader::vtkInternals::GetQAAndInformationRecords(
   {
     info_records->InsertNextValue(n);
   }
-
-  // parse potential info about DG blocks
-  parseDGInfo(this->DGInfo, info);
 
   fd->AddArray(info_records);
   fd->AddArray(qa_records);
@@ -2882,6 +2393,22 @@ int vtkIOSSReader::FillOutputPortInformation(int vtkNotUsed(port), vtkInformatio
 {
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkPartitionedDataSetCollection");
   return 1;
+}
+
+//----------------------------------------------------------------------------
+void vtkIOSSReader::SetDisplacementMagnitude(double magnitude)
+{
+  const double oldMagnitude = this->Internals->GetDisplacementMagnitude();
+  this->Internals->SetDisplacementMagnitude(magnitude);
+  if (magnitude != oldMagnitude)
+  {
+    this->Modified();
+  }
+}
+//----------------------------------------------------------------------------
+double vtkIOSSReader::GetDisplacementMagnitude()
+{
+  return this->Internals->GetDisplacementMagnitude();
 }
 
 //----------------------------------------------------------------------------
@@ -2968,6 +2495,8 @@ int vtkIOSSReader::GetNumberOfFileNames() const
 int vtkIOSSReader::ReadMetaData(vtkInformation* metadata)
 {
   vtkLogScopeF(TRACE, "ReadMetaData");
+  vtkIOSSUtilities::CaptureNonErrorMessages captureMessagesRAII;
+
   auto& internals = (*this->Internals);
   if (!internals.UpdateDatabaseNames(this))
   {
@@ -3020,6 +2549,7 @@ int vtkIOSSReader::ReadMesh(
   int piece, int npieces, int vtkNotUsed(nghosts), int timestep, vtkDataObject* output)
 {
   auto& internals = (*this->Internals);
+  vtkIOSSUtilities::CaptureNonErrorMessages captureMessagesRAII;
 
   if (!internals.UpdateDatabaseNames(this))
   {
@@ -3145,6 +2675,7 @@ int vtkIOSSReader::ReadMesh(
   }
 
   internals.ClearCacheUnused();
+  internals.ReleaseRegions();
   return 1;
 }
 
@@ -3174,6 +2705,47 @@ vtkDataArraySelection* vtkIOSSReader::GetFieldSelection(int type)
     return nullptr;
   }
   return this->EntityFieldSelection[type];
+}
+
+//----------------------------------------------------------------------------
+const std::map<std::string, vtkTypeInt64>& vtkIOSSReader::GetEntityIdMap(int type) const
+{
+  if (type < 0 || type >= NUMBER_OF_ENTITY_TYPES)
+  {
+    vtkErrorMacro("Invalid type '" << type
+                                   << "'. Supported values are "
+                                      "vtkIOSSReader::NODEBLOCK (0), ... vtkIOSSReader::SIDESET ("
+                                   << vtkIOSSReader::SIDESET << ").");
+    return this->EntityIdMap[NUMBER_OF_ENTITY_TYPES];
+  }
+
+  return this->EntityIdMap[type];
+}
+
+//----------------------------------------------------------------------------
+vtkStringArray* vtkIOSSReader::GetEntityIdMapAsString(int type) const
+{
+  if (type < 0 || type >= NUMBER_OF_ENTITY_TYPES)
+  {
+    vtkErrorMacro("Invalid type '" << type
+                                   << "'. Supported values are "
+                                      "vtkIOSSReader::NODEBLOCK (0), ... vtkIOSSReader::SIDESET ("
+                                   << vtkIOSSReader::SIDESET << ").");
+    return this->EntityIdMapStrings[NUMBER_OF_ENTITY_TYPES];
+  }
+
+  const auto& map = this->GetEntityIdMap(type);
+  auto& strings = this->EntityIdMapStrings[type];
+  strings->SetNumberOfTuples(map.size() * 2);
+
+  vtkIdType index = 0;
+  for (const auto& pair : map)
+  {
+    strings->SetValue(index++, pair.first);
+    strings->SetValue(index++, std::to_string(pair.second));
+  }
+
+  return strings;
 }
 
 //----------------------------------------------------------------------------
@@ -3428,6 +3000,7 @@ void vtkIOSSReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ReadIds: " << this->ReadIds << endl;
   os << indent << "RemoveUnusedPoints: " << this->RemoveUnusedPoints << endl;
   os << indent << "ApplyDisplacements: " << this->ApplyDisplacements << endl;
+  os << indent << "DisplacementMagnitude: " << this->Internals->GetDisplacementMagnitude() << endl;
   os << indent << "ReadGlobalFields: " << this->ReadGlobalFields << endl;
   os << indent << "ReadQAAndInformationRecords: " << this->ReadQAAndInformationRecords << endl;
   os << indent << "DatabaseTypeOverride: "

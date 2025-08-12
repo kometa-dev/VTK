@@ -60,8 +60,8 @@ file(GENERATE
 # Generate the qmltypes file for the VTK QML plugin
 
 # First, find the qmlplugindump executable
-get_target_property(qt_core_location "Qt${vtk_qt_major_version}::Core" LOCATION)
-get_filename_component(qt_bin_dir "${qt_core_location}" PATH)
+get_target_property(qt_qmake_location "Qt${vtk_qt_major_version}::qmake" LOCATION)
+get_filename_component(qt_bin_dir "${qt_qmake_location}" PATH)
 if (APPLE)
   get_filename_component(qt_bin_dir "${qt_bin_dir}" PATH)
 endif ()
@@ -97,12 +97,13 @@ endif ()
 
 if (NOT copy_qmlplugintypes)
   if (WIN32 AND ("DEBUG" IN_LIST qt_config) AND ("RELEASE" IN_LIST qt_config))
-    message(AUTHOR_WARNING
-      "Qt5 is configured in both Debug and Release modes. Due to Qt issue "
-      "47774 (https://bugreports.qt.io/browse/QTBUG-47774), skipping "
-      "generation of qmltypes file. Using the one provided with the source "
-      "tree instead.")
-  
+    if (NOT VTK_DISABLE_QT_MULTICONFIG_WINDOWS_WARNING)
+      message(AUTHOR_WARNING
+        "Qt5 is configured in both Debug and Release modes. Due to Qt issue "
+        "47774 (https://bugreports.qt.io/browse/QTBUG-47774), skipping "
+        "generation of qmltypes file. Using the one provided with the source "
+        "tree instead.")
+    endif ()
     set(copy_qmlplugintypes TRUE)
   else ()
     add_custom_command(

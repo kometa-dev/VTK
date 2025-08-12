@@ -24,12 +24,12 @@
  * @par vtkSmartVolumeMapper::DefaultRenderMode:
  *          Allow the vtkSmartVolumeMapper to select the best mapper based on
  *          rendering parameters and hardware support. If GPU ray casting is
- *          supported, this mapper will be used for all rendering. If not,
- *          then the vtkFixedPointRayCastMapper will be used exclusively.
- *          This is the default requested render mode, and is generally the
- *          best option. When you use this option, your volume will always
- *          be rendered, but the method used to render it may vary based
- *          on parameters and platform.
+ *          supported, the vtkGPUVolumeRayCastMapper mapper will be used for
+ *          all rendering. If not, then the vtkFixedPointVolumeRayCastMapper
+ *          will be used exclusively. This is the default requested render
+ *          mode, and is generally the best option. When you use this option,
+ *          your volume will always be rendered, but the method used to render
+ *          it may vary based on parameters and platform.
  *
  * @par vtkSmartVolumeMapper::RayCastRenderMode:
  *          Use the vtkFixedPointVolumeRayCastMapper for both interactive and
@@ -293,6 +293,28 @@ public:
   vtkGetMacro(SampleDistance, float);
   ///@}
 
+  ///@{
+  /**
+   * @copydoc vtkGPUVolumeRayCastMapper::SetGlobalIlluminationReach(float)
+   *
+   * This parameter is only used when the underlying mapper
+   * is a vtkGPUVolumeRayCastMapper.
+   */
+  vtkSetClampMacro(GlobalIlluminationReach, float, 0.0f, 1.0f);
+  vtkGetMacro(GlobalIlluminationReach, float);
+  ///@}
+
+  ///@{
+  /**
+   * @copydoc vtkGPUVolumeRayCastMapper::SetVolumetricScatteringBlending(float)
+   *
+   * This parameter is only used when the underlying mapper
+   * is a vtkGPUVolumeRayCastMapper.
+   */
+  vtkSetClampMacro(VolumetricScatteringBlending, float, 0.0f, 2.0f);
+  vtkGetMacro(VolumetricScatteringBlending, float);
+  ///@}
+
   /**
    * WARNING: INTERNAL METHOD - NOT INTENDED FOR GENERAL USE
    * Initialize rendering for this volume.
@@ -457,6 +479,16 @@ protected:
   float SampleDistance;
 
   /**
+   * Secondary rays ambient/global adjustment coefficient
+   */
+  float GlobalIlluminationReach = 0.0;
+
+  /**
+   * Blending coefficient between surfacic and volumetric models in GPU Mapper
+   */
+  float VolumetricScatteringBlending = 0.0;
+
+  /**
    * Set whether or not the sample distance should be automatically calculated
    * within the internal volume mapper
    */
@@ -493,7 +525,7 @@ protected:
 
   ///@{
   /**
-   * Keep a cache of the last input to the mapper so that input data changes can be propogated to
+   * Keep a cache of the last input to the mapper so that input data changes can be propagated to
    * the resample filter and internal mappers.
    */
   vtkDataSet* LastInput;

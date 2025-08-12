@@ -61,7 +61,7 @@ public:
   bool set_scalar_field(std::valarray<uint64_t>&, const char*);
   bool set_scalar_field(std::valarray<double>&, const char*);
   bool set_vector_field(std::valarray<std::valarray<double>>&, const char*);
-  inline bool good_read() { return (pio_field != 0) ? true : false; }
+  inline bool good_read() { return (pio_field != nullptr) ? true : false; }
   VAR_MAP VarMMap; // Multimap from pio_name to a PIO_FIELD class
   const char* get_name() const { return name; }
   bool get_reverse_endian() const { return reverse_endian; }
@@ -83,6 +83,8 @@ public:
   void GetPIOData(const char*, const char*&);
   const double* GetPIOData(const char*);
   double GetPIOData(const char*, int);
+  bool reconstruct_chunk_field(int64_t numcell, std::valarray<double>& va, const char* prefix,
+    const char* var, int materialId);
   void AddRealData(const char* _name)
   {
     if (RealData.find(_name) == RealData.end())

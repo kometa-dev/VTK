@@ -982,15 +982,10 @@ int vtkPyramid::JacobianInverse(const double pcoords[3], double** inverse, doubl
   // now find the inverse
   if (vtkMath::InvertMatrix(m, inverse, 3) == 0)
   {
-#define VTK_MAX_WARNS 3
-    static int numWarns = 0;
-    if (numWarns++ < VTK_MAX_WARNS)
-    {
-      vtkErrorMacro(<< "Jacobian inverse not found");
-      vtkErrorMacro(<< "Matrix:" << m[0][0] << " " << m[0][1] << " " << m[0][2] << m[1][0] << " "
-                    << m[1][1] << " " << m[1][2] << m[2][0] << " " << m[2][1] << " " << m[2][2]);
-      return 0;
-    }
+    vtkErrorMacro(<< "Jacobian inverse not found"
+                  << "Matrix:" << m[0][0] << " " << m[0][1] << " " << m[0][2] << m[1][0] << " "
+                  << m[1][1] << " " << m[1][2] << m[2][0] << " " << m[2][1] << " " << m[2][2]);
+    return 0;
   }
 
   return 1;
@@ -1050,9 +1045,9 @@ vtkIdType vtkPyramid::GetFacePoints(vtkIdType faceId, const vtkIdType*& pts)
   return numberOfPointsInFace[faceId];
 }
 
-// The choice of the parametric coord for the top coner of the pyramid
+// The choice of the parametric coord for the top corner of the pyramid
 // is not unique and is defined by (a, b, 1.), where a, b in [0., 1.].
-// In the current implementation, it is arbitrary definied to (0., 0., 1.).
+// In the current implementation, it is arbitrary defined to (0., 0., 1.).
 static double vtkPyramidCellPCoords[15] = {
   0.0, 0.0, 0.0, //
   1.0, 0.0, 0.0, //

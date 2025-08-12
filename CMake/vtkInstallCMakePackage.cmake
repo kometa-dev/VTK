@@ -6,6 +6,15 @@ if (NOT (DEFINED vtk_cmake_dir AND
     "vtkInstallCMakePackage is missing input variables.")
 endif ()
 
+set(vtk_has_catalyst 0)
+set(vtk_catalyst_directory "")
+if (TARGET VTK::catalyst-vtk)
+  set(vtk_has_catalyst 1)
+  get_property(vtk_catalyst_directory GLOBAL
+    PROPERTY vtk_catalyst_directory)
+endif ()
+
+
 set(vtk_all_components)
 foreach (vtk_module IN LISTS vtk_modules)
   string(REPLACE "VTK::" "" vtk_component "${vtk_module}")
@@ -86,6 +95,7 @@ set(vtk_cmake_module_files
   FindLibXml2.cmake
   FindLZ4.cmake
   FindLZMA.cmake
+  FindMEMKIND.cmake
   Findmpi4py.cmake
   FindMySQL.cmake
   FindNetCDF.cmake

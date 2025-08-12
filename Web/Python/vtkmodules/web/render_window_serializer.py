@@ -13,7 +13,7 @@ from vtkmodules.web import (
 
 from vtkmodules.vtkCommonCore import vtkTypeUInt32Array
 from vtkmodules.vtkFiltersGeometry import vtkCompositeDataGeometryFilter
-from vtkmodules.vtkFiltersGeometry import vtkGeometryFilter
+from vtkmodules.vtkFiltersGeometry import vtkDataSetSurfaceFilter
 from vtkmodules.vtkRenderingCore import vtkColorTransferFunction
 
 
@@ -220,7 +220,7 @@ def initializeSerializers():
     # LookupTables/TransferFunctions
     registerInstanceSerializer("vtkLookupTable", lookupTableSerializer2)
     registerInstanceSerializer(
-        "vtkPVDiscretizableColorTransferFunction", colorTransferFunctionSerializer
+        "vtkPVDiscretizableColorTransferFunction", discretizableColorTransferFunctionSerializer
     )
     registerInstanceSerializer(
         "vtkColorTransferFunction", colorTransferFunctionSerializer
@@ -1002,7 +1002,7 @@ def mergeToPolydataSerializer(parent, dataObject, dataObjectId, context, depth, 
         gf.Update()
         dataset = gf.GetOutput()
     elif dataObject.IsA("vtkUnstructuredGrid"):
-        gf = vtkGeometryFilter()
+        gf = vtkDataSetSurfaceFilter()
         gf.SetInputData(dataObject)
         gf.Update()
         dataset = gf.GetOutput()
@@ -1046,6 +1046,12 @@ def colorTransferFunctionSerializer(parent, instance, objId, context, depth):
             "nodes": nodes,
         },
     }
+
+def discretizableColorTransferFunctionSerializer(parent, instance, objId, context, depth):
+    ctf = colorTransferFunctionSerializer(parent, instance, objId, context, depth)
+    ctf["properties"]["discretize"] = instance.GetDiscretize()
+    ctf["properties"]["numberOfValues"] = instance.GetNumberOfValues()
+    return ctf
 
 # -----------------------------------------------------------------------------
 

@@ -10,7 +10,8 @@
 #include <Ioss_Utils.h> // for IOSS_ERROR
 #include <Ioss_Version.h>
 #include <cstddef> // for nullptr
-#include <fmt/ostream.h>
+#include "vtk_fmt.h"
+#include VTK_FMT(fmt/ostream.h)
 #include <map>     // for _Rb_tree_iterator, etc
 #include <ostream> // for basic_ostream, etc
 #include <set>
@@ -66,7 +67,7 @@ namespace Ioss {
  *  \returns A pointer to the newly-constructed Ioss::DatabaseIO object, or NULL if unsuccessful.
  */
 Ioss::DatabaseIO *Ioss::IOFactory::create(const std::string &type, const std::string &filename,
-                                          Ioss::DatabaseUsage db_usage, MPI_Comm communicator,
+                                          Ioss::DatabaseUsage db_usage, Ioss_MPI_Comm communicator,
                                           const Ioss::PropertyManager &properties)
 {
   IOSS_FUNC_ENTER(m_);

@@ -14,6 +14,7 @@
 =========================================================================*/
 #include "vtkPolygon.h"
 
+#include "vtkBoundingBox.h"
 #include "vtkBox.h"
 #include "vtkCellArray.h"
 #include "vtkDataSet.h"
@@ -36,6 +37,8 @@
 #include <vector>
 
 vtkStandardNewMacro(vtkPolygon);
+
+#define VTK_POLYGON_TOL 1.e-08 // Absolute tolerance for testing near polygon boundary
 
 //------------------------------------------------------------------------------
 // Instantiate polygon.
@@ -260,7 +263,7 @@ void vtkPolygon::ComputeNormal(int numPts, double* pts, double n[3])
 // Determine whether or not a polygon is convex from a points list and a list
 // of point ids that index into the points list. Parameter pts can be nullptr,
 // indicating that the polygon indexing is {0, 1, ..., numPts-1}.
-bool vtkPolygon::IsConvex(vtkPoints* p, int numPts, vtkIdType* pts)
+bool vtkPolygon::IsConvex(vtkPoints* p, int numPts, const vtkIdType* pts)
 {
   int i;
   double v[3][3], *v0 = v[0], *v1 = v[1], *v2 = v[2], *tmp, a[3], aMag, b[3], bMag;
@@ -352,7 +355,7 @@ int vtkPolygon::EvaluatePosition(const double x[3], double closestPoint[3], int&
 {
   int i;
   double p0[3], p10[3], l10, p20[3], l20, n[3], cp[3];
-  double ray[3];
+  double ray[3], bounds[6];
 
   subId = 0;
   this->ParameterizePolygon(p0, p10, l10, p20, l20, n);
@@ -367,9 +370,16 @@ int vtkPolygon::EvaluatePosition(const double x[3], double closestPoint[3], int&
   pcoords[1] = vtkMath::Dot(ray, p20) / (l20 * l20);
   pcoords[2] = 0.0;
 
+  // Make sure that the bounding box has non-zero volume, so that all
+  // bounding box sides have non-zero thickness. This prevents tolerancing
+  // issues when the polygon lies exactly on a coordinate plane.
+  vtkBoundingBox bbox(this->GetBounds());
+  bbox.InflateSlice(VTK_POLYGON_TOL);
+  bbox.GetBounds(bounds);
+
   if (pcoords[0] >= 0.0 && pcoords[0] <= 1.0 && pcoords[1] >= 0.0 && pcoords[1] <= 1.0 &&
     (vtkPolygon::PointInPolygon(cp, this->Points->GetNumberOfPoints(),
-       static_cast<vtkDoubleArray*>(this->Points->GetData())->GetPointer(0), this->GetBounds(),
+       static_cast<vtkDoubleArray*>(this->Points->GetData())->GetPointer(0), bounds,
        n) == VTK_POLYGON_INSIDE))
   {
     if (closestPoint)
@@ -671,8 +681,6 @@ inline double PointLocation(int axis0, int axis1, double* p0, double* p1, double
 }
 }
 
-#define VTK_POLYGON_TOL 1.e-08 // Tolerance for testing on polygon boundary
-
 //------------------------------------------------------------------------------
 // Determine whether a point is inside a polygon. The function uses a winding
 // number calculation generalized to the 3D plane one which the polygon
@@ -728,7 +736,7 @@ int vtkPolygon::PointInPolygon(double x[3], int numPts, double* pts, double boun
   // If here, begin computation of the winding number. This method works for
   // points/polygons arbitrarily oriented in 3D space.  Hence a projection
   // onto one of the x-y-z coordinate planes using the maximum normal
-  // component. The computation will be peformed in the (axis0,axis1) plane.
+  // component. The computation will be performed in the (axis0,axis1) plane.
   int axis0, axis1;
   if (fabs(n[0]) > fabs(n[1]))
   {

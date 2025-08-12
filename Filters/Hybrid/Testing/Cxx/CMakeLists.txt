@@ -8,12 +8,14 @@ vtk_add_test_cxx(vtkFiltersHybridCxxTests tests
   TestBSplineTransform.cxx
   TestDepthSortPolyData.cxx
   TestForceTime.cxx
+  TestGenerateTimeSteps.cxx,NO_VALID
   TestPolyDataSilhouette.cxx
   TestProcrustesAlignmentFilter.cxx,NO_VALID
   TestTemporalArrayOperatorFilter.cxx,NO_VALID
   TestTemporalCacheSimple.cxx,NO_VALID
   TestTemporalCacheTemporal.cxx,NO_VALID
   TestTemporalCacheMemkind.cxx,NO_VALID
+  TestTemporalCacheUndefinedTimeStep.cxx
   TestTemporalFractal.cxx
   TestTemporalInterpolator.cxx
   )

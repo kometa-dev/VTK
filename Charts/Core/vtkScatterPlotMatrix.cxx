@@ -25,6 +25,7 @@
 #include "vtkContext2D.h"
 #include "vtkContextMouseEvent.h"
 #include "vtkContextScene.h"
+#include "vtkDataSetAttributes.h"
 #include "vtkFloatArray.h"
 #include "vtkIntArray.h"
 #include "vtkMathUtilities.h"
@@ -226,12 +227,13 @@ bool PopulateHistograms(vtkTable* input, vtkTable* output, vtkStringArray* s, in
   for (vtkIdType i = 0; i < s->GetNumberOfTuples(); ++i)
   {
     double minmax[2] = { 0.0, 0.0 };
-    vtkStdString name(s->GetValue(i));
-    vtkDataArray* in = vtkArrayDownCast<vtkDataArray>(input->GetColumnByName(name.c_str()));
-    if (in)
+    vtkDataSetAttributes* rowData = input->GetRowData();
+    const char* nameVal = s->GetValue(i);
+    if (rowData->GetRange(nameVal, minmax))
     {
+      vtkDataArray* in = rowData->GetArray(nameVal);
+      std::string name(nameVal);
       // The bin values are the centers, extending +/- half an inc either side
-      in->GetRange(minmax);
       if (minmax[0] == minmax[1])
       {
         minmax[1] = minmax[0] + 1.0;
@@ -366,7 +368,7 @@ vtkScatterPlotMatrix::vtkScatterPlotMatrix()
   this->Private = new PIMPL;
   this->TitleProperties = vtkSmartPointer<vtkTextProperty>::New();
   this->TitleProperties->SetFontSize(12);
-  this->SelectionMode = vtkContextScene::SELECTION_NONE;
+  this->SelectionMode = vtkContextScene::SELECTION_DEFAULT;
   this->ActivePlot = vtkVector2i(0, -2);
   this->ActivePlotValid = false;
   this->Animating = false;
@@ -1303,16 +1305,15 @@ void vtkScatterPlotMatrix::UpdateAxes()
   {
     double range[2] = { 0, 0 };
     std::string name(this->VisibleColumns->GetValue(i));
-    vtkDataArray* arr = vtkArrayDownCast<vtkDataArray>(this->Input->GetColumnByName(name.c_str()));
-    if (arr)
+    if (this->Input->GetRowData()->GetRange(name.c_str(), range))
     {
       PIMPL::ColumnSetting settings;
-      arr->GetRange(range);
       // Apply a little padding either side of the ranges.
-      range[0] = range[0] - (0.01 * range[0]);
-      range[1] = range[1] + (0.01 * range[1]);
+      float padding = this->Padding * (range[1] - range[0]);
+      range[0] = range[0] - padding;
+      range[1] = range[1] + padding;
+
       axis->SetUnscaledRange(range);
-      axis->AutoScale();
       settings.min = axis->GetUnscaledMinimum();
       settings.max = axis->GetUnscaledMaximum();
       settings.nTicks = axis->GetNumberOfTicks();
@@ -1417,11 +1418,35 @@ void vtkScatterPlotMatrix::UpdateLayout()
         vtkAxis* axis = chart->GetAxis(vtkAxis::TOP);
         axis->SetTitle(name);
         axis->SetLabelsVisible(false);
+
         // Show the labels on the right for populations of bins.
         axis = chart->GetAxis(vtkAxis::RIGHT);
         axis->SetLabelsVisible(true);
-        axis->SetBehavior(vtkAxis::AUTO);
-        axis->AutoScale();
+        std::string rowName = name + "_pops";
+        auto arr = this->Private->Histogram->GetRowData()->GetArray(rowName.c_str());
+        if (arr)
+        {
+          int max = INT_MIN;
+
+          for (int id = 0; id < arr->GetNumberOfValues(); id++)
+          {
+            if (arr->GetVariantValue(id) > max)
+            {
+              max = arr->GetVariantValue(id).ToInt();
+            }
+          }
+
+          // Apply manually the padding
+          max += this->Padding * max;
+
+          axis->SetRange(0, max);
+        }
+        else
+        {
+          axis->SetBehavior(vtkAxis::AUTO);
+          axis->AutoScale();
+        }
+
         // Set the plot corner to the top-right
         vtkChartXY* xy = vtkChartXY::SafeDownCast(chart);
         if (xy)
@@ -1437,6 +1462,7 @@ void vtkScatterPlotMatrix::UpdateLayout()
       {
         // This big plot in the top-right
         this->Private->BigChart = this->GetChart(pos);
+        this->ApplyAxisSetting(this->Private->BigChart, column, row);
         this->Private->BigChartPos = pos;
         this->Private->BigChart->SetAnnotationLink(this->Private->Link);
         this->Private->BigChart->AddObserver(vtkCommand::SelectionChangedEvent, this,
@@ -1795,7 +1821,7 @@ void vtkScatterPlotMatrix::UpdateChartSettings(int plotType)
 //------------------------------------------------------------------------------
 void vtkScatterPlotMatrix::SetSelectionMode(int selMode)
 {
-  if (this->SelectionMode == selMode || selMode < vtkContextScene::SELECTION_NONE ||
+  if (this->SelectionMode == selMode || selMode < vtkContextScene::SELECTION_DEFAULT ||
     selMode > vtkContextScene::SELECTION_TOGGLE)
   {
     return;

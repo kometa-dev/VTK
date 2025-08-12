@@ -22,6 +22,7 @@
 #include "vtkWeakPointer.h"
 
 #include <algorithm>
+#include <sstream>
 #include <vector>
 
 // Initialize static member that controls warning display
@@ -140,7 +141,7 @@ public:
   // "iterators" being used need to be invalidated. So we keep a stack (a
   // vector) of indicators if the list has been modified. When something
   // modifies the list the entire vector is marked as true (modified). Each
-  // depth of recusion then resets its entry in LostModified to false as it
+  // depth of recursion then resets its entry in LostModified to false as it
   // resets its iteration.
   std::vector<bool> ListModified;
 
@@ -504,7 +505,7 @@ int vtkSubjectHelper::InvokeEvent(unsigned long event, void* callData, vtkObject
   // also do something that causes another event to be invoked in this object.
   // That means that this method will be called recursively, which is why we use
   // a std::vector to store ListModified where the size of the vector is equal
-  // to the depth of recusion. We always push upon entry to this method and
+  // to the depth of recursion. We always push upon entry to this method and
   // pop before returning.
   this->ListModified.push_back(false);
 
@@ -980,4 +981,30 @@ unsigned long vtkObject::AddTemplatedObserver(
   unsigned long id = this->AddObserver(event, command, priority);
   command->Delete();
   return id;
+}
+
+//------------------------------------------------------------------------------
+void vtkObject::SetObjectName(const std::string& objectName)
+{
+  vtkDebugMacro(<< vtkObjectBase::GetObjectDescription() << "set object name to '" << objectName
+                << "'");
+  this->ObjectName = objectName;
+}
+
+//------------------------------------------------------------------------------
+std::string vtkObject::GetObjectName() const
+{
+  return this->ObjectName;
+}
+
+//------------------------------------------------------------------------------
+std::string vtkObject::GetObjectDescription() const
+{
+  std::stringstream s;
+  s << this->Superclass::GetObjectDescription();
+  if (!this->ObjectName.empty())
+  {
+    s << " '" << this->ObjectName << "'";
+  }
+  return s.str();
 }

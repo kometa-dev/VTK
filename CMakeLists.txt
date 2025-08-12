@@ -141,6 +141,11 @@ endif()
 option(VTK_ENABLE_LOGGING "Enable logging support." ON)
 mark_as_advanced(VTK_ENABLE_LOGGING)
 
+#-----------------------------------------------------------------------------
+# Add an option to enable/disable catalyst2 support.
+option(VTK_ENABLE_CATALYST "Build IOCatalystConduit module and VTK catalyst implementation." OFF)
+mark_as_advanced(VTK_ENABLE_CATALYST)
+
 include(vtkEncodeString)
 
 # Set up our directory structure for output libraries and binaries
@@ -175,10 +180,22 @@ set("_vtk_module_reason_VTK::Java"
   "via `VTK_WRAP_JAVA`")
 # For vtkTkRenderWidget (only useful with Python, since WRAP_TCL is gone)
 if (VTK_USE_TK)
-  set(VTK_GROUP_ENABLE_Tk YES)
+  if (VTK_GROUP_ENABLE_Tk STREQUAL "DEFAULT")
+    set(VTK_GROUP_ENABLE_Tk "WANT")
+  elseif (VTK_GROUP_ENABLE_Tk STREQUAL "NO")
+    message(FATAL_ERROR "VTK_USE_TK=ON is not compatible with VTK_GROUP_ENABLE_Tk=NO")
+  endif ()
 endif ()
 if (VTK_USE_MPI)
-  set(VTK_GROUP_ENABLE_MPI YES)
+  if (VTK_GROUP_ENABLE_MPI STREQUAL "DEFAULT")
+    set(VTK_GROUP_ENABLE_MPI "WANT")
+  elseif (VTK_GROUP_ENABLE_MPI STREQUAL "NO")
+    message(FATAL_ERROR "VTK_USE_MPI=ON is not compatible with VTK_GROUP_ENABLE_MPI=NO")
+  endif ()
+  list(APPEND vtk_requested_modules
+    VTK::ParallelMPI)
+  set("_vtk_module_reason_VTK::ParallelMPI"
+    "via `VTK_USE_MPI`")
 else ()
   # Reject `VTK::mpi`, but allow those which happen to be part of the group to
   # be built.
@@ -194,6 +211,15 @@ if (VTK_ENABLE_LOGGING)
   set("_vtk_module_reason_VTK::loguru"
     "via `VTK_ENABLE_LOGGING`")
 endif ()
+if (VTK_ENABLE_CATALYST)
+  list(APPEND vtk_request_modules
+    VTK::IOCatalystConduit)
+else()
+  list(APPEND vtk_rejected_modules
+    VTK::IOCatalystConduit)
+endif()
+set("_vtk_module_reason_VTK::IOCatalystConduit"
+  "via `VTK_ENABLE_CATALYST`")
 
 if (VTK_BUILD_TESTING)
   list(APPEND vtk_requested_modules
@@ -361,6 +387,12 @@ if (NOT DEFINED vtk_cmake_destination)
 endif ()
 install(TARGETS vtkbuild EXPORT "${vtk_install_export}")
 
+if (NOT DEFINED vtk_hierarchy_destination_args)
+  set(vtk_hierarchy_destination_args
+    HIERARCHY_DESTINATION
+    "${CMAKE_INSTALL_LIBDIR}/vtk${vtk_version_suffix}/hierarchy/VTK")
+endif ()
+
 set(VTK_CUSTOM_LIBRARY_SUFFIX "<DEFAULT>"
   CACHE STRING "Custom library file name suffix (defaults to the version number)")
 mark_as_advanced(VTK_CUSTOM_LIBRARY_SUFFIX)
@@ -399,6 +431,7 @@ vtk_module_build(
   TARGET_SPECIFIC_COMPONENTS  "${VTK_TARGET_SPECIFIC_COMPONENTS}"
   TEST_INPUT_DATA_DIRECTORY   "${CMAKE_CURRENT_SOURCE_DIR}/Testing"
   TEST_OUTPUT_DATA_DIRECTORY  "${CMAKE_CURRENT_BINARY_DIR}/ExternalData/Testing")
+
 include(vtkModuleJson)
 vtk_module_json(
   MODULES ${vtk_modules}
@@ -424,6 +457,9 @@ if (VTK_WRAP_PYTHON)
   cmake_dependent_option(VTK_WINDOWS_PYTHON_DEBUGGABLE "Append `_d` to Python module names" OFF
     "WIN32;VTK_WRAP_PYTHON" OFF)
   mark_as_advanced(VTK_WINDOWS_PYTHON_DEBUGGABLE)
+  cmake_dependent_option(VTK_BUILD_PYI_FILES "Build `.pyi` files for VTK's Python modules" OFF
+    "VTK_WRAP_PYTHON" OFF)
+  mark_as_advanced(VTK_BUILD_PYI_FILES)
 
   if (APPLE AND VTK_WHEEL_BUILD)
     list(APPEND CMAKE_INSTALL_RPATH
@@ -440,6 +476,7 @@ if (VTK_WRAP_PYTHON)
     MODULE_DESTINATION  "${VTK_PYTHON_SITE_PACKAGES_SUFFIX}"
     CMAKE_DESTINATION   "${vtk_cmake_destination}"
     INSTALL_HEADERS     "${VTK_INSTALL_SDK}"
+    BUILD_PYI_FILES     "${VTK_BUILD_PYI_FILES}"
     SOABI               "${vtk_soabi}"
     USE_DEBUG_SUFFIX    "${VTK_WINDOWS_PYTHON_DEBUGGABLE}"
     UTILITY_TARGET      "VTK::vtkbuild"

@@ -37,6 +37,7 @@ set(classes
   vtkCellLinks
   vtkCellLocator
   vtkCellLocatorStrategy
+  vtkCellTreeLocator
   vtkCellTypes
   vtkClosestNPointsStrategy
   vtkClosestPointStrategy
@@ -267,6 +268,7 @@ set(headers
   vtkHyperTreeGridScales.h
   vtkHyperTreeGridTools.h
   vtkIntersectionCounter.h
+  vtkLabelMapLookup.h
   vtkRect.h
   vtkVector.h
   vtkVectorOperators.h)

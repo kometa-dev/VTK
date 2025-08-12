@@ -28,10 +28,11 @@
 #ifndef vtkUnstructuredGrid_h
 #define vtkUnstructuredGrid_h
 
-#include "vtkCellArray.h"             //inline GetCellPoints()
+#include "vtkAbstractCellLinks.h"     // For vtkAbstractCellLinks
+#include "vtkCellArray.h"             // inline GetCellPoints()
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDeprecation.h"           // For deprecation
-#include "vtkIdTypeArray.h"           //inline GetCellPoints()
+#include "vtkIdTypeArray.h"           // inline GetCellPoints()
 #include "vtkUnstructuredGridBase.h"
 
 #include "vtkSmartPointer.h" // for smart pointer
@@ -215,10 +216,33 @@ public:
    * results.
    *
    * The @a pts pointer must not be modified.
+   *
+   * Note: This method MAY NOT be thread-safe. (See GetCellAtId at vtkCellArray)
    */
   void GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts)
   {
     this->Connectivity->GetCellAtId(cellId, npts, pts);
+  }
+
+  /**
+   * A higher-performing variant of the virtual vtkDataSet::GetCellPoints()
+   * for unstructured grids. Given a cellId, return the number of defining
+   * points and the list of points defining the cell.
+   *
+   * This function MAY use ptIds, which is an object that is created by each thread,
+   * to guarantee thread safety.
+   *
+   * @warning Subsequent calls to this method may invalidate previous call
+   * results.
+   *
+   * The @a pts pointer must not be modified.
+   *
+   * Note: This method is thread-safe.
+   */
+  void GetCellPoints(
+    vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts, vtkIdList* ptIds) override
+  {
+    this->Connectivity->GetCellAtId(cellId, npts, pts, ptIds);
   }
 
   ///@{
@@ -259,6 +283,14 @@ public:
    * See vtkAbstractCellLinks for more information.
    */
   void BuildLinks();
+
+  ///@{
+  /**
+   * Set/Get the links that you created possibly without using BuildLinks.
+   */
+  vtkSetSmartPointerMacro(Links, vtkAbstractCellLinks);
+  vtkGetSmartPointerMacro(Links, vtkAbstractCellLinks);
+  ///@}
 
   /**
    * Get the cell links. The cell links will be one of nullptr=0;
@@ -331,11 +363,13 @@ public:
    * a boundary entity of a specified cell (indicated by cellId). A boundary
    * entity is a topological feature used by exactly one cell. This method is
    * related to GetCellNeighbors() except that it simply indicates whether a
-   * topological feature is boundary - hence the method is faster.  THIS
-   * METHOD IS THREAD SAFE IF FIRST CALLED FROM A SINGLE THREAD AND THE
-   * DATASET IS NOT MODIFIED.
+   * topological feature is boundary - hence the method is faster. CellIds in the
+   * second version are used as a temp buffer to avoid allocation internally, and
+   * it's faster. THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A
+   * SINGLE THREAD AND THE DATASET IS NOT MODIFIED.
    */
   bool IsCellBoundary(vtkIdType cellId, vtkIdType npts, const vtkIdType* ptIds);
+  bool IsCellBoundary(vtkIdType cellId, vtkIdType npts, const vtkIdType* ptIds, vtkIdList* cellIds);
   ///@}
 
   ///@{
@@ -581,7 +615,7 @@ protected:
   // Attribute data (i.e., point and cell data (i.e., scalars, vectors, normals, tcoords)
   // derived from vtkDataSet.
 
-  // The heart of the data represention. The points are managed by the
+  // The heart of the data representation. The points are managed by the
   // superclass vtkPointSet. A cell is defined by its connectivity (i.e., the
   // point ids that define the cell) and the cell type, represented by the
   // Connectivity and Types arrays.

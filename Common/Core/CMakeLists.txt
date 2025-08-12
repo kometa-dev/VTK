@@ -12,6 +12,9 @@ endif ()
 option(VTK_USE_64BIT_IDS "Build VTK with 64 bit ids" "${vtk_use_64bit_ids_default}")
 mark_as_advanced(VTK_USE_64BIT_IDS)
 
+option(VTK_USE_FUTURE_CONST "Adds more const to APIs. Opt-in because it may break compatibility" OFF)
+mark_as_advanced(VTK_USE_FUTURE_CONST)
+
 option(VTK_DEBUG_LEAKS "Build leak checking support into VTK." OFF)
 mark_as_advanced(VTK_DEBUG_LEAKS)
 
@@ -56,9 +59,15 @@ if (VTK_USE_MEMKIND)
     PACKAGE MEMKIND)
   list(APPEND vtk_memkind_libraries
     MEMKIND::MEMKIND)
-  get_target_property(memkind_version_minor MEMKIND::MEMKIND MEMKIND_VERSION_MINOR)
-  list(APPEND vtk_object_base_defines "MEMKIND_VERSION_MINOR=${memkind_version_minor}")
-endif()
+  # XXX(memkind-1.10): Once 1.10 is required, this is always true.
+  file(READ "${MEMKIND_INCLUDE_DIR}/memkind.h" memkind_h_contents)
+  set(memkind_has_dax_kmem 0)
+  # Look for the symbol in the header.
+  if (memkind_h_contents MATCHES " MEMKIND_DAX_KMEM[ ;\n]")
+    set(memkind_has_dax_kmem 1)
+  endif ()
+  list(APPEND vtk_object_base_defines "VTK_MEMKIND_HAS_DAX_KMEM=$<BOOL:${memkind_has_dax_kmem}>")
+endif ()
 
 # Generate the vtkTypeList_Create macros:
 include("${CMAKE_CURRENT_SOURCE_DIR}/vtkCreateTypeListMacros.cmake")
@@ -135,6 +144,7 @@ set(classes
   vtkArrayRange
   vtkArraySort
   vtkArrayWeights
+  vtkAtomicMutex
   vtkBitArray
   vtkBitArrayIterator
   vtkBoxMuellerRandomSequence
@@ -224,8 +234,6 @@ set(classes
   vtkStringOutputWindow
   vtkTimePointUtility
   vtkTimeStamp
-  vtkUnicodeString
-  vtkUnicodeStringArray
   vtkUnsignedCharArray
   vtkUnsignedIntArray
   vtkUnsignedLongArray
@@ -266,10 +274,6 @@ set(nowrap_template_classes
 set(sources
   vtkArrayIteratorTemplateInstantiate.cxx
   vtkGenericDataArray.cxx
-  # A separate file that hides some deprecated usages from headers to avoid
-  # spamming users of `vtkVariant*.h` headers with noisy warnings. Remove with
-  # `VTK_DEPRECATED_IN_9_1_0()`.
-  vtkVariantCast.cxx
   ${instantiation_sources}
   ${vtk_smp_sources})
 
@@ -319,6 +323,7 @@ set(headers
   vtkWin32Header.h
   vtkWindows.h
   vtkWrappingHints.h
+  ${vtk_smp_headers}
   "${CMAKE_CURRENT_BINARY_DIR}/vtkArrayDispatchArrayList.h"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkMathConfigure.h"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkTypeListMacros.h"
@@ -427,8 +432,7 @@ set(nowrap_headers
   vtkDataArrayValueRange_AOS.h
   vtkDataArrayValueRange_Generic.h
   vtkMathPrivate.hxx
-  ${vtk_smp_nowrap_headers}
-  ${vtk_smp_headers})
+  ${vtk_smp_nowrap_headers})
 set(generated_headers
   vtkBuild.h
   vtkDebug.h
@@ -460,19 +464,6 @@ if (NOT VTK_LEGACY_REMOVE)
     vtkConfigure.h
     vtkToolkits.h)
 endif ()
-
-add_custom_command(
-  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/CaseFolding.txt"
-  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/vtkUnicodeString.cmake"
-  COMMAND "${CMAKE_COMMAND}"
-          "-Dsource_dir=${CMAKE_CURRENT_SOURCE_DIR}"
-          "-Dbinary_dir=${CMAKE_CURRENT_BINARY_DIR}"
-          -P "${CMAKE_CURRENT_SOURCE_DIR}/vtkUnicodeString.cmake"
-  OUTPUT  "${CMAKE_CURRENT_BINARY_DIR}/vtkUnicodeCaseFoldData.h")
-
-set_source_files_properties(vtkUnicodeString.cxx
-  PROPERTIES
-    OBJECT_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/vtkUnicodeCaseFoldData.h")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/vtkTypeArrays.cmake")
 
@@ -532,11 +523,6 @@ endif()
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/vtkFloatingPointExceptionsConfigure.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkFloatingPointExceptionsConfigure.h")
-
-# Allow work arounds for lack of thread_local on odd compilers
-if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0) )
-  list(APPEND vtk_object_base_defines "VTK_HAS_THREADLOCAL")
-endif ()
 
 set_property(SOURCE vtkObjectBase.cxx
   PROPERTY

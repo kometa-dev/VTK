@@ -8,10 +8,11 @@
         GIT_SUBMODULE_STRATEGY: none
 
 .manylinux2014_x86_64:
-    image: "quay.io/pypa/manylinux2014_x86_64:latest"
+    image: "quay.io/pypa/manylinux2014_x86_64@sha256:9b463efac479efbcab6dec77eca28c5cfa0c5ef64f13ac184eb7117dc1f8edda"
 
     variables:
         GIT_CLONE_PATH: $CI_BUILDS_DIR/gitlab-kitware-sciviz-ci
+        VTK_INSTALL: 1
 
 .wheel_linux36_x86_64:
     extends: .manylinux2014_x86_64
@@ -50,7 +51,7 @@
 
 .fedora34:
     extends: .linux
-    image: "kitware/vtk:ci-fedora34-20211020"
+    image: "kitware/vtk:ci-fedora34-20220310"
 
 .el8_icc:
     extends: .linux
@@ -189,6 +190,14 @@
 
     variables:
         CMAKE_CONFIGURATION: fedora34_mpi_python_qt_stdthread
+
+.fedora34_mpi_python_vtkmoverride:
+    extends:
+        - .fedora34
+        - .fedora_mpich_addon
+
+    variables:
+        CMAKE_CONFIGURATION: fedora34_mpi_python_vtkmoverride
 
 .fedora34_tidy:
     extends:
@@ -394,6 +403,8 @@
         - auditwheel repair dist/*.whl >> $GIT_CLONE_PATH/wheel_output.log
         - mv -v dist/ dist-orig/
         - mv -v wheelhouse/ dist/
+        - "$PYTHON_PREFIX/bin/python $GIT_CLONE_PATH/.gitlab/ci/create_wheel_sdk_archive.py"
+
     interruptible: true
 
 .cmake_test_wheel_linux:
@@ -406,6 +417,7 @@
         - venv/bin/twine check build/dist/*.whl
         - venv/bin/pip install build/dist/*.whl
         - venv/bin/python -c "import vtk"
+        - if [ "$VTK_DISABLE_PYI_TESTING" != "1" ]; then venv/bin/python -m vtkmodules.generate_pyi --test -p vtkmodules; else echo "pyi test is disabled."; fi
     interruptible: true
 
 .cmake_source_tarballs:

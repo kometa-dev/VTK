@@ -616,7 +616,9 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderEdges(
       "float emix = clamp(0.5 + 0.5*lineWidth - min( min( edist[0], edist[1]), edist[2]), 0.0, "
       "1.0);\n";
 
-    if (actor->GetProperty()->GetRenderLinesAsTubes())
+    bool canRenderLinesAsTube =
+      actor->GetProperty()->GetRenderLinesAsTubes() && ren->GetLights()->GetNumberOfItems() > 0;
+    if (canRenderLinesAsTube)
     {
       fsimpl += "  diffuseColor = mix(diffuseColor, diffuseIntensity*edgeColor, emix);\n"
                 "  ambientColor = mix(ambientColor, ambientIntensity*edgeColor, emix);\n"
@@ -634,7 +636,7 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderEdges(
 
     // even more fake tubes, for surface with edges this implementation
     // just adjusts the normal calculation but not the zbuffer
-    if (actor->GetProperty()->GetRenderLinesAsTubes())
+    if (canRenderLinesAsTube)
     {
       vtkShaderProgram::Substitute(FSSource, "//VTK::Normal::Impl",
         "//VTK::Normal::Impl\n"
@@ -842,7 +844,7 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderLight(
           albedo = true;
           toString << "vec4 albedoSample = texture(albedoTex, tcoordVCVSOutput);\n"
                       "  vec3 albedo = albedoSample.rgb * diffuseColor;\n"
-                      "  opacity = albedoSample.a;\n";
+                      "  opacity = opacityUniform * albedoSample.a;\n";
         }
         else if (t.second == "materialTex")
         {
@@ -1100,7 +1102,7 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderLight(
       }
       else
       {
-        toString << "  float df = max(0.0,normalVCVSOutput.z);\n"
+        toString << "  float df = max(0.000001, normalVCVSOutput.z);\n"
                     "  float sf = pow(df, specularPower);\n"
                     "  vec3 diffuse = df * diffuseColor * lightColor0;\n"
                     "  vec3 specular = sf * specularColor * lightColor0;\n"
@@ -2764,7 +2766,8 @@ void vtkOpenGLPolyDataMapper::SetMapperShaderParameters(
     for (int i = 0; i < numClipPlanes; i++)
     {
       double planeEquation[4];
-      this->GetClippingPlaneInDataCoords(actor->GetMatrix(), i, planeEquation);
+      actor->GetModelToWorldMatrix(this->TempMatrix4);
+      this->GetClippingPlaneInDataCoords(this->TempMatrix4, i, planeEquation);
 
       // multiply by shift scale if set
       planeEquations[i][0] = planeEquation[0] / scale[0];
@@ -3940,7 +3943,7 @@ void vtkOpenGLPolyDataMapper::BuildIBO(vtkRenderer* ren, vtkActor* act, vtkPolyD
     (prop->GetEdgeVisibility() && prop->GetRepresentation() == VTK_SURFACE);
 
   // do we really need to rebuild the IBO? Since the operation is costly we
-  // construst a string of values that impact the IBO and see if that string has
+  // construct a string of values that impact the IBO and see if that string has
   // changed
 
   // So...polydata can return a dummy CellArray when there are no lines

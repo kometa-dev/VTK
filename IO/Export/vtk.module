@@ -24,8 +24,9 @@ PRIVATE_DEPENDS
   VTK::IOImage
   VTK::IOGeometry
   VTK::ImagingCore
-  VTK::jsoncpp
+  VTK::nlohmannjson
   VTK::libharu
+  VTK::utf8
 TEST_DEPENDS
   VTK::ChartsCore
   VTK::CommonColor

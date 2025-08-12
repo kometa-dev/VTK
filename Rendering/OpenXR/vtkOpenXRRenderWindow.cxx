@@ -11,7 +11,7 @@ This software is distributed WITHOUT ANY WARRANTY; without even
 the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE.  See the above copyright notice for more information.
 
-Parts Copyright Valve Coproration from hellovr_opengl_main.cpp
+Parts Copyright Valve Corporation from hellovr_opengl_main.cpp
 under their BSD license found here:
 https://github.com/ValveSoftware/openvr/blob/master/LICENSE
 
@@ -29,9 +29,11 @@ https://github.com/ValveSoftware/openvr/blob/master/LICENSE
 #include "vtkVRCamera.h"
 
 // include what we need for the helper window
-#ifdef _WIN32
+#if defined(_WIN32)
 #include "vtkWin32OpenGLRenderWindow.h"
-#elif VTK_USE_X
+#endif
+
+#if defined(VTK_USE_X)
 #include "vtkXOpenGLRenderWindow.h"
 #endif
 
@@ -79,12 +81,9 @@ vtkRenderWindowInteractor* vtkOpenXRRenderWindow::MakeRenderWindowInteractor()
 //------------------------------------------------------------------------------
 bool vtkOpenXRRenderWindow::GetSizeFromAPI()
 {
-  vtkOpenXRManager* xrManager = vtkOpenXRManager::GetInstance();
-  if (!xrManager)
-  {
-    return false;
-  }
-  std::tie(this->Size[0], this->Size[1]) = xrManager->GetRecommandedImageRectSize();
+  vtkOpenXRManager& xrManager = vtkOpenXRManager::GetInstance();
+
+  std::tie(this->Size[0], this->Size[1]) = xrManager.GetRecommendedImageRectSize();
 
   return true;
 }
@@ -119,9 +118,11 @@ void vtkOpenXRRenderWindow::Initialize()
   this->MakeCurrent();
   this->OpenGLInit();
 
-  vtkOpenXRManager* xrManager = vtkOpenXRManager::GetInstance();
-  if (!xrManager->Initialize(this->HelperWindow))
+  vtkOpenXRManager& xrManager = vtkOpenXRManager::GetInstance();
+  if (!xrManager.Initialize(this->HelperWindow))
   {
+    // Set to false because the above init of the HelperWindow sets it to true
+    this->Initialized = false;
     vtkErrorMacro(<< "Failed to initialize OpenXRManager");
     return;
   }
@@ -129,11 +130,11 @@ void vtkOpenXRRenderWindow::Initialize()
   // Create one framebuffer per view
   this->CreateFramebuffers();
 
-  std::tie(this->Size[0], this->Size[1]) = xrManager->GetRecommandedImageRectSize();
+  std::tie(this->Size[0], this->Size[1]) = xrManager.GetRecommendedImageRectSize();
 
   vtkDebugMacro(<< "Size : " << this->Size[0] << ", " << this->Size[1]);
 
-  std::string strWindowTitle = "VTK - " + xrManager->GetOpenXRPropertiesAsString();
+  std::string strWindowTitle = "VTK - " + xrManager.GetOpenXRPropertiesAsString();
   this->SetWindowName(strWindowTitle.c_str());
 
   this->Initialized = true;
@@ -146,7 +147,7 @@ void vtkOpenXRRenderWindow::Finalize()
 {
   this->ReleaseGraphicsResources(this);
 
-  vtkOpenXRManager::GetInstance()->Finalize();
+  vtkOpenXRManager::GetInstance().Finalize();
 
   if (this->HelperWindow && this->HelperWindow->GetGenericContext())
   {
@@ -157,9 +158,9 @@ void vtkOpenXRRenderWindow::Finalize()
 //------------------------------------------------------------------------------
 void vtkOpenXRRenderWindow::Render()
 {
-  vtkOpenXRManager* xrManager = vtkOpenXRManager::GetInstance();
+  vtkOpenXRManager& xrManager = vtkOpenXRManager::GetInstance();
 
-  if (!xrManager->WaitAndBeginFrame())
+  if (!xrManager.WaitAndBeginFrame())
   {
     return;
   }
@@ -169,7 +170,7 @@ void vtkOpenXRRenderWindow::Render()
     this->UpdateHMDMatrixPose();
   }
 
-  if (xrManager->GetShouldRenderCurrentFrame())
+  if (xrManager.GetShouldRenderCurrentFrame())
   {
     // Start rendering
     this->Superclass::Render();
@@ -179,7 +180,7 @@ void vtkOpenXRRenderWindow::Render()
     vtkWarningMacro(<< "Not rendered");
   }
 
-  xrManager->EndFrame();
+  xrManager.EndFrame();
 }
 
 //------------------------------------------------------------------------------
@@ -192,7 +193,7 @@ void vtkOpenXRRenderWindow::UpdateHMDMatrixPose()
   // use left eye as stand in for HMD right now
   // todo add event for head pose
 
-  const XrPosef* xrPose = vtkOpenXRManager::GetInstance()->GetViewPose(LEFT_EYE);
+  const XrPosef* xrPose = vtkOpenXRManager::GetInstance().GetViewPose(LEFT_EYE);
   if (xrPose == nullptr)
   {
     vtkErrorMacro(<< "No pose for left eye");
@@ -251,10 +252,10 @@ void vtkOpenXRRenderWindow::StereoRenderComplete()
 //------------------------------------------------------------------------------
 void vtkOpenXRRenderWindow::RenderOneEye(const uint32_t eye)
 {
-  vtkOpenXRManager* xrManager = vtkOpenXRManager::GetInstance();
+  vtkOpenXRManager& xrManager = vtkOpenXRManager::GetInstance();
 
   FramebufferDesc& eyeFramebufferDesc = this->FramebufferDescs[eye];
-  if (!xrManager->PrepareRendering(
+  if (!xrManager.PrepareRendering(
         eye, eyeFramebufferDesc.ResolveColorTextureId, eyeFramebufferDesc.ResolveDepthTextureId))
   {
     return;
@@ -271,7 +272,7 @@ void vtkOpenXRRenderWindow::RenderOneEye(const uint32_t eye)
   this->RenderFramebuffer(eyeFramebufferDesc);
 
   // Release this swapchain image
-  xrManager->ReleaseSwapchainImage(eye);
+  xrManager.ReleaseSwapchainImage(eye);
 }
 
 //------------------------------------------------------------------------------
@@ -318,8 +319,8 @@ bool vtkOpenXRRenderWindow::CreateFramebuffers(uint32_t vtkNotUsed(viewCount))
   // So we call glFrameBufferTexture2D at each frame with the texture provided by
   // the runtime
   // That's why we only generate framebuffers here
-  vtkOpenXRManager* xrManager = vtkOpenXRManager::GetInstance();
-  uint32_t viewCount = xrManager->GetViewCount();
+  vtkOpenXRManager& xrManager = vtkOpenXRManager::GetInstance();
+  uint32_t viewCount = xrManager.GetViewCount();
   this->FramebufferDescs.resize(viewCount);
   for (size_t i = 0; i < viewCount; ++i)
   {
@@ -338,7 +339,7 @@ bool vtkOpenXRRenderWindow::BindTextureToFramebuffer(FramebufferDesc& framebuffe
   glFramebufferTexture2D(
     GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferDesc.ResolveColorTextureId, 0);
 
-  if (vtkOpenXRManager::GetInstance()->IsDepthExtensionSupported())
+  if (vtkOpenXRManager::GetInstance().IsDepthExtensionSupported())
   {
     glFramebufferTexture2D(
       GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, framebufferDesc.ResolveDepthTextureId, 0);
@@ -369,7 +370,7 @@ void vtkOpenXRRenderWindow::RenderFramebuffer(FramebufferDesc& framebufferDesc)
   glBlitFramebuffer(0, 0, this->Size[0], this->Size[1], 0, 0, this->Size[0], this->Size[1],
     GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
-  if (vtkOpenXRManager::GetInstance()->IsDepthExtensionSupported())
+  if (vtkOpenXRManager::GetInstance().IsDepthExtensionSupported())
   {
     glBlitFramebuffer(0, 0, this->Size[0], this->Size[1], 0, 0, this->Size[0], this->Size[1],
       GL_DEPTH_BUFFER_BIT, GL_NEAREST);

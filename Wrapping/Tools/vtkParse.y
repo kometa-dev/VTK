@@ -129,6 +129,7 @@ to the more usual form y x; without parentheses.
 #include "vtkParse.h"
 #include "vtkParseData.h"
 #include "vtkParsePreprocess.h"
+#include "vtkParseSystem.h"
 
 /* Define the kinds of [[attributes]] to collect */
 enum
@@ -1652,9 +1653,9 @@ static unsigned int add_indirection_to_array(unsigned int type)
    and five from '(' constructor_args ')' in initializer */
 %expect 10
 
-/* Expect 111 reduce/reduce conflicts, these can be cleared by removing
+/* Expect 110 reduce/reduce conflicts, these can be cleared by removing
    either '<' or angle_brackets_sig from constant_expression_item. */
-%expect-rr 111
+%expect-rr 110
 
 /* The parser will shift/reduce values <str> or <integer>, where
    <str> is for IDs and <integer> is for types, modifiers, etc. */
@@ -1671,7 +1672,6 @@ static unsigned int add_indirection_to_array(unsigned int type)
 %token <str> VTK_ID
 %token <str> QT_ID
 %token <str> StdString
-%token <str> UnicodeString
 %token <str> OSTREAM
 %token <str> ISTREAM
 
@@ -1854,6 +1854,7 @@ namespace_definition:
     NAMESPACE '{' ignored_items '}'
   | NAMESPACE identifier { pushNamespace($<str>2); }
     '{' opt_declaration_seq '}' { popNamespace(); }
+  | INLINE NAMESPACE identifier '{' opt_declaration_seq '}'
 
 namespace_alias_definition:
     NAMESPACE identifier '=' qualified_id ';'
@@ -2890,7 +2891,6 @@ simple_id:
   | ISTREAM { postSig($<str>1); }
   | OSTREAM { postSig($<str>1); }
   | StdString { postSig($<str>1); }
-  | UnicodeString { postSig($<str>1); }
   | NULLPTR_T { postSig($<str>1); }
   | SIZE_T { postSig($<str>1); }
   | SSIZE_T { postSig($<str>1); }
@@ -2906,7 +2906,6 @@ identifier:
   | ISTREAM
   | OSTREAM
   | StdString
-  | UnicodeString
 
 /*
  * Declaration specifiers
@@ -3025,7 +3024,6 @@ simple_type_specifier:
 
 type_name:
     StdString { typeSig($<str>1); $<integer>$ = VTK_PARSE_STRING; }
-  | UnicodeString { typeSig($<str>1); $<integer>$ = VTK_PARSE_UNICODE_STRING;}
   | OSTREAM { typeSig($<str>1); $<integer>$ = VTK_PARSE_OSTREAM; }
   | ISTREAM { typeSig($<str>1); $<integer>$ = VTK_PARSE_ISTREAM; }
   | ID { typeSig($<str>1); $<integer>$ = VTK_PARSE_UNKNOWN; }
@@ -4081,10 +4079,6 @@ static unsigned int guess_id_type(const char* cp)
     {
       t = VTK_PARSE_STRING;
     }
-    else if (strcmp(dp, "vtkUnicodeString") == 0)
-    {
-      t = VTK_PARSE_UNICODE_STRING;
-    }
     else if (strncmp(dp, "vtk", 3) == 0)
     {
       t = VTK_PARSE_OBJECT;
@@ -4749,7 +4743,7 @@ static void dump_macros(const char* filename)
 
   if (filename)
   {
-    ofile = fopen(filename, "w");
+    ofile = vtkParse_FileOpen(filename, "w");
     if (!ofile)
     {
       fprintf(stderr, "Error opening output file %s\n", filename);

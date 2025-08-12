@@ -21,15 +21,15 @@ more efficient and flexible that the original PyArg_ParseTuple() code,
 resulting in wrapper code that is faster and more compact.
 -----------------------------------------------------------------------*/
 
-// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 // Keep vtkPythonArgs.h from declaring externs for templates we instantiate
 #define vtkPythonArgs_cxx
 
 #include "vtkPythonArgs.h"
 #include "PyVTKReference.h"
 #include "vtkPythonUtil.h"
+
+#include "vtkObject.h"
+#include "vtkSmartPointerBase.h"
 
 //------------------------------------------------------------------------------
 // Extract various C++ types from python objects.  The rules are
@@ -205,6 +205,9 @@ static bool vtkPythonGetValue(PyObject* o, const void*& a, Py_buffer* view, char
   PyBufferProcs* b = Py_TYPE(o)->tp_as_buffer;
 #endif
 
+#if PY_VERSION_HEX < 0x02060000
+  (void)view;
+#else
 #ifdef VTK_PY3K
   PyObject* bytes = nullptr;
   if (PyUnicode_Check(o))
@@ -248,8 +251,12 @@ static bool vtkPythonGetValue(PyObject* o, const void*& a, Py_buffer* view, char
     }
   }
 #ifndef VTK_PY3K
+  else
+#endif
+#endif
+#ifndef VTK_PY3K
   // use the old buffer interface
-  else if (b && b->bf_getreadbuffer && b->bf_getsegcount)
+  if (b && b->bf_getreadbuffer && b->bf_getsegcount)
   {
     if (b->bf_getsegcount(o, nullptr) == 1)
     {
@@ -266,8 +273,8 @@ static bool vtkPythonGetValue(PyObject* o, const void*& a, Py_buffer* view, char
 #ifdef VTK_PY3K
   if (bytes && btype == '\0')
 #else
-  if (p && sz >= 0 && sz <= VTK_INT_MAX && btype == '\0' &&
-    (format == nullptr || format[0] == 'c' || format[0] == 'B'))
+    if (p && sz >= 0 && sz <= VTK_INT_MAX && btype == '\0' &&
+      (format == nullptr || format[0] == 'c' || format[0] == 'B'))
 #endif
   {
     // check for pointer mangled as string
@@ -321,18 +328,6 @@ inline bool vtkPythonGetValue(PyObject* o, const char*& a)
 inline bool vtkPythonGetValue(PyObject* o, std::string& a)
 {
   return vtkPythonGetStdStringValue(o, a, "string is required");
-}
-
-inline bool vtkPythonGetValue(PyObject* o, vtkUnicodeString& a)
-{
-  PyObject* s = PyUnicode_AsUTF8String(o);
-  if (s)
-  {
-    a = vtkUnicodeString::from_utf8(PyBytes_AS_STRING(s));
-    Py_DECREF(s);
-    return true;
-  }
-  return false;
 }
 
 inline bool vtkPythonGetValue(PyObject* o, char& a)
@@ -951,7 +946,50 @@ VTK_PYTHON_BUILD_TUPLE(unsigned long)
 VTK_PYTHON_BUILD_TUPLE(long long)
 VTK_PYTHON_BUILD_TUPLE(unsigned long long)
 VTK_PYTHON_BUILD_TUPLE(std::string)
-VTK_PYTHON_BUILD_TUPLE(vtkUnicodeString)
+
+// For an array of smart pointers
+PyObject* vtkPythonArgs::BuildTuple(vtkSmartPointerBase* a, size_t n)
+{
+  if (a)
+  {
+    Py_ssize_t m = static_cast<Py_ssize_t>(n);
+    PyObject* t = PyTuple_New(m);
+    for (Py_ssize_t i = 0; i < m; i++)
+    {
+      vtkObjectBase* ob = a[i].GetPointer();
+      if (ob)
+      {
+        PyTuple_SET_ITEM(t, i, vtkPythonUtil::GetObjectFromPointer(ob));
+      }
+      else
+      {
+        PyTuple_SET_ITEM(t, i, Py_None);
+        Py_INCREF(Py_None);
+      }
+    }
+    return t;
+  }
+
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+//------------------------------------------------------------------------------
+
+void vtkPythonArgs::DeleteVTKObject(void* v)
+{
+  return static_cast<vtkObjectBase*>(v)->Delete();
+}
+
+PyObject* vtkPythonArgs::BuildVTKObject(const void* v)
+{
+  return vtkPythonUtil::GetObjectFromPointer(static_cast<vtkObjectBase*>(const_cast<void*>(v)));
+}
+
+PyObject* vtkPythonArgs::BuildVTKObject(vtkSmartPointerBase& v)
+{
+  return vtkPythonUtil::GetObjectFromPointer(v.GetPointer());
+}
 
 //------------------------------------------------------------------------------
 
@@ -1080,6 +1118,23 @@ int vtkPythonArgs::GetArgAsEnum(PyObject* o, const char* enumname, bool& valid)
 }
 
 //------------------------------------------------------------------------------
+// Define GetVTKObject methods for smart pointers
+
+bool vtkPythonArgs::GetVTKObject(vtkSmartPointerBase& v, const char* classname)
+{
+  bool b;
+  v = this->GetArgAsVTKObject(classname, b);
+  return b;
+}
+
+bool vtkPythonArgs::GetVTKObject(PyObject* o, vtkSmartPointerBase& v, const char* classname)
+{
+  bool b;
+  v = vtkPythonArgs::GetArgAsVTKObject(o, classname, b);
+  return b;
+}
+
+//------------------------------------------------------------------------------
 // Define all the "GetValue" methods in the class.
 
 #define VTK_PYTHON_GET_ARG(T)                                                                      \
@@ -1102,7 +1157,6 @@ int vtkPythonArgs::GetArgAsEnum(PyObject* o, const char* enumname, bool& valid)
 
 VTK_PYTHON_GET_ARG(const char*)
 VTK_PYTHON_GET_ARG(std::string)
-VTK_PYTHON_GET_ARG(vtkUnicodeString)
 VTK_PYTHON_GET_ARG(char)
 VTK_PYTHON_GET_ARG(bool)
 VTK_PYTHON_GET_ARG(float)
@@ -1172,7 +1226,45 @@ VTK_PYTHON_GET_ARRAY_ARG(unsigned long)
 VTK_PYTHON_GET_ARRAY_ARG(long long)
 VTK_PYTHON_GET_ARRAY_ARG(unsigned long long)
 VTK_PYTHON_GET_ARRAY_ARG(std::string)
-VTK_PYTHON_GET_ARRAY_ARG(vtkUnicodeString)
+
+// For an array of smart pointers
+bool vtkPythonArgs::GetArray(vtkSmartPointerBase* a, size_t n, const char* classname)
+{
+  PyObject* o = PyTuple_GET_ITEM(this->Args, this->I++);
+  if (a)
+  {
+    Py_ssize_t m = static_cast<Py_ssize_t>(n);
+
+    if (PySequence_Check(o))
+    {
+      m = PySequence_Size(o);
+      if (m == static_cast<Py_ssize_t>(n))
+      {
+        bool r = true;
+        for (Py_ssize_t i = 0; i < m && r; i++)
+        {
+          r = false;
+          PyObject* s = PySequence_GetItem(o, i);
+          if (s)
+          {
+            vtkObjectBase* ob = vtkPythonUtil::GetPointerFromObject(s, classname);
+            if (ob || s == Py_None)
+            {
+              r = true;
+              a[i] = ob;
+            }
+            Py_DECREF(s);
+          }
+        }
+        return r;
+      }
+    }
+
+    return vtkPythonSequenceError(o, n, m);
+  }
+
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Define all the GetNArray methods in the class.
@@ -1332,7 +1424,6 @@ VTK_PYTHON_GET_BUFFER(unsigned long long, 'Q')
   }
 
 VTK_PYTHON_SET_ARG(const std::string&)
-VTK_PYTHON_SET_ARG(const vtkUnicodeString&)
 VTK_PYTHON_SET_ARG(char)
 VTK_PYTHON_SET_ARG(bool)
 VTK_PYTHON_SET_ARG(float)

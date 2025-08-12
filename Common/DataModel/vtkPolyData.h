@@ -149,7 +149,7 @@ public:
    * not return the same bounds as before. This behavior is probably the one you want
    * when using bounds.
    *
-   * The previous behavior is still availble through vtkPolyData::ComputeCellsBounds()
+   * The previous behavior is still available through vtkPolyData::ComputeCellsBounds()
    * and vtkPolyData::GetCellsBounds(). This is mainly used for rendering purpose.
    */
   void ComputeCellsBounds();
@@ -379,6 +379,16 @@ public:
    */
   void BuildLinks(int initialSize = 0);
 
+  ///@{
+  /**
+   * Set/Get the links that you created possibly without using BuildLinks.
+   *
+   * Note: Only vtkCellLinks are currently supported.
+   */
+  virtual void SetLinks(vtkAbstractCellLinks* links);
+  vtkGetSmartPointerMacro(Links, vtkAbstractCellLinks);
+  ///@}
+
   /**
    * Release data structure that allows random access of the cells. This must
    * be done before a 2nd call to BuildLinks(). DeleteCells implicitly deletes
@@ -415,9 +425,28 @@ public:
    * results.
    *
    * The @a pts pointer must not be modified.
+   *
+   * Note: This method MAY NOT be thread-safe. (See GetCellAtId at vtkCellArray)
    */
   unsigned char GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts)
     VTK_SIZEHINT(pts, npts);
+
+  /**
+   * Get a list of point ids that define a cell.
+   * Requires the the cells have been built with BuildCells.
+   *
+   * This function MAY use ptIds, which is an object that is created by each thread,
+   * to guarantee thread safety.
+   *
+   * @warning Subsequent calls to this method may invalidate previous call
+   * results.
+   *
+   * The @a pts pointer must not be modified.
+   *
+   * Note: This method is thread-safe.
+   */
+  void GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts, vtkIdList* ptIds)
+    VTK_SIZEHINT(pts, npts) override;
 
   /**
    * Given three vertices, determine whether it's a triangle. Make sure
@@ -711,16 +740,6 @@ protected:
   vtkTimeStamp CellsBoundsTime;
 
 private:
-  // Hide these from the user and the compiler.
-
-  /**
-   * For legacy compatibility. Do not use.
-   */
-  void GetCellNeighbors(vtkIdType cellId, vtkIdList& ptIds, vtkIdList& cellIds)
-  {
-    this->GetCellNeighbors(cellId, &ptIds, &cellIds);
-  }
-
   void Cleanup();
 
 private:
@@ -930,6 +949,26 @@ inline unsigned char vtkPolyData::GetCellPoints(
   vtkCellArray* cells = this->GetCellArrayInternal(tag);
   cells->GetCellAtId(tag.GetCellId(), npts, pts);
   return tag.GetCellType();
+}
+
+//------------------------------------------------------------------------------
+inline void vtkPolyData::GetCellPoints(
+  vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts, vtkIdList* ptIds)
+{
+  if (!this->Cells)
+  {
+    this->BuildCells();
+  }
+
+  const TaggedCellId tag = this->Cells->GetTag(cellId);
+  if (tag.IsDeleted())
+  {
+    npts = 0;
+    pts = nullptr;
+  }
+
+  vtkCellArray* cells = this->GetCellArrayInternal(tag);
+  cells->GetCellAtId(tag.GetCellId(), npts, pts, ptIds);
 }
 
 #endif

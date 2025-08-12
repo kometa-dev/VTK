@@ -83,7 +83,7 @@ public:
 
   /**
    * Create an interactor to control renderers in this window. Must be
-   * overriden to instantiate a specific interactor depending on the API
+   * overridden to instantiate a specific interactor depending on the API
    */
   vtkRenderWindowInteractor* MakeRenderWindowInteractor() override = 0;
 
@@ -163,15 +163,15 @@ public:
    * the location of the device in world coordinates.
    * Return true if the query is valid, else false.
    */
-  virtual bool GetDeviceToWorldMatrixForDevice(
-    vtkEventDataDevice device, vtkMatrix4x4* deviceToWorldMatrix);
+  bool GetDeviceToWorldMatrixForDevice(
+    vtkEventDataDevice device, vtkMatrix4x4* deviceToWorldMatrix) override;
   virtual bool GetDeviceToWorldMatrixForDeviceHandle(
     uint32_t handle, vtkMatrix4x4* deviceToWorldMatrix);
 
   /**
    * Initialize the HMD to World setting and camera settings so that the VR
    * world view most closely matched the view from the provided camera. This
-   * method is useful for initialing a VR world from an existing on screen
+   * method is useful for initializing a VR world from an existing on screen
    * window and camera. The Renderer and its camera must already be created
    * and set when this is called.
    */
@@ -244,7 +244,7 @@ public:
    * Get physical to world transform matrix. Members used to calculate the matrix:
    * \sa PhysicalViewDirection, \sa PhysicalViewUp, \sa PhysicalTranslation, \sa PhysicalScale
    */
-  void GetPhysicalToWorldMatrix(vtkMatrix4x4* matrix);
+  void GetPhysicalToWorldMatrix(vtkMatrix4x4* matrix) override;
 
   /**
    * Add a renderer to the list of renderers.
@@ -385,6 +385,11 @@ public:
    * Update the HMD pose.
    */
   virtual void UpdateHMDMatrixPose(){};
+
+  /**
+   * Get whether the window has been initialized successfully.
+   */
+  vtkGetMacro(Initialized, bool);
 
 protected:
   vtkVRRenderWindow();

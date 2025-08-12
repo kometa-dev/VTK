@@ -73,7 +73,7 @@ static const char* raw_string(const char* begin);
 static void preprocessor_directive(const char* text, size_t l);
 static void print_preprocessor_error(int result, const char* cp, size_t n);
 static char* get_macro_arguments(void);
-static char* skip_macro_arguments(void);
+static void skip_macro_arguments(void);
 
 static void push_buffer(void);
 static int pop_buffer(void);
@@ -291,11 +291,6 @@ ID [a-zA-Z_\x80-\xff][0-9a-zA-Z_\x80-\xff]*
 "vtkStdString" {
       yylval.str = vtkstrndup(yytext, yyleng);
       return(StdString);
-    }
-
-"vtkUnicodeString" {
-      yylval.str = vtkstrndup(yytext, yyleng);
-      return(UnicodeString);
     }
 
 "Qt::"{ID} {
@@ -1712,7 +1707,7 @@ void preprocessor_directive(const char* text, size_t l)
           (*cp != '\"' ? VTK_PARSE_SYSTEM_INCLUDE : VTK_PARSE_SOURCE_INCLUDE), &already_loaded);
         if (dp)
         {
-          yyin = fopen(dp, "r");
+          yyin = vtkParse_FileOpen(dp, "r");
           if (yyin)
           {
             push_include(dp);

@@ -9,6 +9,7 @@
 #include "vtk_ioss_mangle.h"
 
 #include <Ioss_CodeTypes.h>
+#include <Ioss_ElementTopology.h>
 #include <Ioss_Field.h>
 #include <Ioss_Property.h>
 #include <Ioss_Sort.h>
@@ -80,27 +81,31 @@ namespace Ioss {
     /** \brief set the stream for all streams (output, debug, and warning) to the specified
      * `out_stream`
      */
-    static void set_all_streams(std::ostream &out_stream)
-    {
-      m_outputStream  = &out_stream;
-      m_debugStream   = &out_stream;
-      m_warningStream = &out_stream;
-    }
+    static void set_all_streams(std::ostream &out_stream);
+
+    /** \brief get the debug stream.
+     */
+    static std::ostream& get_debug_stream();
+
+    /** \brief get the warning stream.
+     */
+    static std::ostream& get_warning_stream();
+
+    /** \brief get the output stream.
+     */
+    static std::ostream& get_output_stream();
 
     /** \brief set the output stream to the specified `output_stream`
      */
-    static void set_output_stream(std::ostream &output_stream) { m_outputStream = &output_stream; }
+    static void set_output_stream(std::ostream &output_stream);
 
     /** \brief set the debug stream to the specified `debug_stream`
      */
-    static void set_debug_stream(std::ostream &debug_stream) { m_debugStream = &debug_stream; }
+    static void set_debug_stream(std::ostream &debug_stream);
 
     /** \brief set the warning stream to the specified `warning_stream`
      */
-    static void set_warning_stream(std::ostream &warning_stream)
-    {
-      m_warningStream = &warning_stream;
-    }
+    static void set_warning_stream(std::ostream &warning_stream);
 
     /** \brief set the pre-warning text
      * Sets the text output prior to a warning to the specified text.
@@ -108,6 +113,8 @@ namespace Ioss {
      */
     static void set_pre_warning_text(const std::string &text) { m_preWarningText = text; }
     /** @}*/
+
+    static void copyright(std::ostream &out, const std::string &year_range);
 
     static void check_dynamic_cast(const void *ptr)
     {
@@ -190,7 +197,7 @@ namespace Ioss {
 
     template <size_t size> static void copy_string(char (&output)[size], const char *source)
     {
-      // Copy the string — don’t copy too many bytes.
+      // Copy the string don't copy too many bytes.
       copy_string(output, source, size);
     }
 
@@ -208,7 +215,7 @@ namespace Ioss {
      * (1,234,567,890 would return 13)
      * Typically used with the `fmt::print()` functions as:
      * ```
-     * fmt::print("{:{}L}", number, number_width(number,true))
+     * fmt::print("{:{}}", number, number_width(number,true))
      * fmt::print("{:{}d}", number, number_width(number,false))
      * ```
      */
@@ -353,6 +360,13 @@ namespace Ioss {
      */
     static std::string fixup_type(const std::string &base, int nodes_per_element, int spatial);
 
+    /** \brief Uppercase the first letter of the string
+     *
+     *  \param[in] name The string to convert.
+     *  \returns The converted string.
+     */
+    static std::string capitalize(std::string name);
+
     /** \brief Convert a string to upper case.
      *
      *  \param[in] name The string to convert.
@@ -420,7 +434,7 @@ namespace Ioss {
     static int field_warning(const Ioss::GroupingEntity *ge, const Ioss::Field &field,
                              const std::string &inout);
 
-    static void calculate_sideblock_membership(IntVector &face_is_member, const SideBlock *ef_blk,
+    static void calculate_sideblock_membership(IntVector &face_is_member, const SideBlock *sb,
                                                size_t int_byte_size, const void *element,
                                                const void *sides, int64_t number_sides,
                                                const Region *region);
@@ -481,6 +495,8 @@ namespace Ioss {
     //! It also converts name to lowercase and converts spaces to `_`
     static std::string variable_name_kluge(const std::string &name, size_t component_count,
                                            size_t copies, size_t max_var_len);
+
+    static std::string shape_to_string(const Ioss::ElementShape &shape);
 
     /** \brief Create a nominal mesh for use in history databases.
      *

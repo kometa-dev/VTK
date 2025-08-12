@@ -165,8 +165,14 @@ public:
   /**
    * Load points from a dataset to construct an octree for point location.
    * This function resorts to InitPointInsertion() to fulfill some of the work.
+   * This will NOT do anything if UseExistingSearchStructure is on.
    */
   void BuildLocator() override;
+
+  /**
+   * Build the locator from the input dataset (even if UseExistingSearchStructure is on).
+   */
+  void ForceBuildLocator() override;
 
   /**
    * Given a point x, return the id of the closest point. BuildLocator() should
@@ -309,7 +315,7 @@ public:
    * InitPointInsertion() should have been called prior to this function. In
    * addition, IsInsertedPoint() should have been called in advance to ensure
    * that the given point has not been inserted unless point duplication is
-   * allowed (in this case, this function invovles a repeated leaf container
+   * allowed (in this case, this function involves a repeated leaf container
    * location). vtkPoints::InsertNextPoint() is invoked.
    */
   vtkIdType InsertNextPoint(const double x[3]) override;
@@ -346,6 +352,8 @@ private:
   vtkPoints* LocatorPoints;
   vtkIncrementalOctreeNode* OctreeRootNode;
   int NumberOfNodes;
+
+  void BuildLocatorInternal() override;
 
   /**
    * Delete all descendants of a node.

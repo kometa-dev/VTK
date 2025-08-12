@@ -30,11 +30,11 @@
 #include "vtkIdList.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
-#include "vtkLagrangeHexahedron.h"
 #include "vtkLagrangeQuadrilateral.h"
 #include "vtkLagrangeWedge.h"
 #include "vtkMath.h"
 #include "vtkPointData.h"
+#include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
 #include "vtkStructuredData.h"
 
@@ -106,36 +106,78 @@ vtkCellIterator* vtkDataSet::NewCellIterator()
 }
 
 //------------------------------------------------------------------------------
+struct ComputeBoundsFunctor
+{
+  vtkDataSet* DataSet;
+  vtkSMPThreadLocal<std::array<double, 6>> TLBounds;
+  std::array<double, 6> Bounds{};
+
+  ComputeBoundsFunctor(vtkDataSet* dataset)
+    : DataSet(dataset)
+  {
+  }
+
+  void Initialize()
+  {
+    auto& bounds = this->TLBounds.Local();
+    bounds[0] = bounds[2] = bounds[4] = VTK_DOUBLE_MAX;
+    bounds[1] = bounds[3] = bounds[5] = VTK_DOUBLE_MIN;
+  }
+
+  void operator()(vtkIdType begin, vtkIdType end)
+  {
+    double x[3];
+    uint8_t j;
+    auto& bounds = this->TLBounds.Local();
+    for (vtkIdType pointId = begin; pointId < end; ++pointId)
+    {
+      this->DataSet->GetPoint(pointId, x);
+      for (j = 0; j < 3; j++)
+      {
+        if (x[j] < bounds[2 * j])
+        {
+          bounds[2 * j] = x[j];
+        }
+        if (x[j] > bounds[2 * j + 1])
+        {
+          bounds[2 * j + 1] = x[j];
+        }
+      }
+    }
+  }
+
+  void Reduce()
+  {
+    this->Bounds[0] = this->Bounds[2] = this->Bounds[4] = VTK_DOUBLE_MAX;
+    this->Bounds[1] = this->Bounds[3] = this->Bounds[5] = VTK_DOUBLE_MIN;
+    for (const auto& bounds : this->TLBounds)
+    {
+      for (uint8_t j = 0; j < 3; j++)
+      {
+        if (bounds[2 * j] < this->Bounds[2 * j])
+        {
+          this->Bounds[2 * j] = bounds[2 * j];
+        }
+        if (bounds[2 * j + 1] > this->Bounds[2 * j + 1])
+        {
+          this->Bounds[2 * j + 1] = bounds[2 * j + 1];
+        }
+      }
+    }
+  }
+};
+
+//------------------------------------------------------------------------------
 // Compute the data bounding box from data points.
 void vtkDataSet::ComputeBounds()
 {
-  int j;
-  vtkIdType i;
-  double* x;
-
   if (this->GetMTime() > this->ComputeTime)
   {
     if (this->GetNumberOfPoints())
     {
-      x = this->GetPoint(0);
-      this->Bounds[0] = this->Bounds[1] = x[0];
-      this->Bounds[2] = this->Bounds[3] = x[1];
-      this->Bounds[4] = this->Bounds[5] = x[2];
-      for (i = 1; i < this->GetNumberOfPoints(); i++)
-      {
-        x = this->GetPoint(i);
-        for (j = 0; j < 3; j++)
-        {
-          if (x[j] < this->Bounds[2 * j])
-          {
-            this->Bounds[2 * j] = x[j];
-          }
-          if (x[j] > this->Bounds[2 * j + 1])
-          {
-            this->Bounds[2 * j + 1] = x[j];
-          }
-        }
-      }
+      ComputeBoundsFunctor functor(this);
+      vtkSMPTools::For(0, this->GetNumberOfPoints(), functor);
+      std::copy(functor.Bounds.begin(), functor.Bounds.end(), this->Bounds);
     }
     else
     {
@@ -157,21 +199,29 @@ void vtkDataSet::ComputeScalarRange()
     ptScalars = this->PointData->GetScalars();
     cellScalars = this->CellData->GetScalars();
 
+    vtkUnsignedCharArray* ptGhosts = this->PointData->GetGhostArray();
+    const unsigned char* ptGhostsPtr = ptGhosts ? ptGhosts->GetPointer(0) : nullptr;
+    unsigned char ptGhostsToSkip = this->PointData->GetGhostsToSkip();
+
+    vtkUnsignedCharArray* cellGhosts = this->CellData->GetGhostArray();
+    const unsigned char* cellGhostsPtr = cellGhosts ? cellGhosts->GetPointer(0) : nullptr;
+    unsigned char cellGhostsToSkip = this->CellData->GetGhostsToSkip();
+
+    double r1[2], r2[2];
     if (ptScalars && cellScalars)
     {
-      double r1[2], r2[2];
-      ptScalars->GetRange(r1, 0);
-      cellScalars->GetRange(r2, 0);
+      ptScalars->GetRange(r1, 0, ptGhostsPtr, ptGhostsToSkip);
+      cellScalars->GetRange(r2, 0, cellGhostsPtr, cellGhostsToSkip);
       this->ScalarRange[0] = (r1[0] < r2[0] ? r1[0] : r2[0]);
       this->ScalarRange[1] = (r1[1] > r2[1] ? r1[1] : r2[1]);
     }
     else if (ptScalars)
     {
-      ptScalars->GetRange(this->ScalarRange, 0);
+      ptScalars->GetRange(this->ScalarRange, 0, ptGhostsPtr, ptGhostsToSkip);
     }
     else if (cellScalars)
     {
-      cellScalars->GetRange(this->ScalarRange, 0);
+      cellScalars->GetRange(this->ScalarRange, 0, cellGhostsPtr, cellGhostsToSkip);
     }
     else
     {
@@ -242,6 +292,13 @@ void vtkDataSet::GetCenter(double center[3])
 // Return the length of the diagonal of the bounding box.
 double vtkDataSet::GetLength()
 {
+  return std::sqrt(this->GetLength2());
+}
+
+//------------------------------------------------------------------------------
+// Return the squared length of the diagonal of the bounding box.
+double vtkDataSet::GetLength2()
+{
   if (this->GetNumberOfPoints() == 0)
   {
     return 0;
@@ -256,8 +313,7 @@ double vtkDataSet::GetLength()
     diff = static_cast<double>(this->Bounds[2 * i + 1]) - static_cast<double>(this->Bounds[2 * i]);
     l += diff * diff;
   }
-  diff = sqrt(l);
-  return diff;
+  return l;
 }
 
 //------------------------------------------------------------------------------
@@ -293,8 +349,7 @@ vtkCell* vtkDataSet::FindAndGetCell(double x[3], vtkCell* cell, vtkIdType cellId
 //------------------------------------------------------------------------------
 void vtkDataSet::GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds)
 {
-  vtkIdType i, numPts;
-  vtkIdList* otherCells = vtkIdList::New();
+  vtkNew<vtkIdList> otherCells;
   otherCells->Allocate(VTK_CELL_SIZE);
 
   // load list with candidate cells, remove current cell
@@ -304,14 +359,12 @@ void vtkDataSet::GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList*
   // now perform multiple intersections on list
   if (cellIds->GetNumberOfIds() > 0)
   {
-    for (numPts = ptIds->GetNumberOfIds(), i = 1; i < numPts; i++)
+    for (vtkIdType numPts = ptIds->GetNumberOfIds(), i = 1; i < numPts; i++)
     {
       this->GetPointCells(ptIds->GetId(i), otherCells);
-      cellIds->IntersectWith(*otherCells);
+      cellIds->IntersectWith(otherCells);
     }
   }
-
-  otherCells->Delete();
 }
 
 //------------------------------------------------------------------------------
@@ -329,6 +382,15 @@ void vtkDataSet::GetCellTypes(vtkCellTypes* types)
       types->InsertNextType(type);
     }
   }
+}
+
+//------------------------------------------------------------------------------
+void vtkDataSet::GetCellPoints(
+  vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts, vtkIdList* ptIds)
+{
+  this->GetCellPoints(cellId, ptIds);
+  npts = ptIds->GetNumberOfIds();
+  pts = ptIds->GetPointer(0);
 }
 
 //------------------------------------------------------------------------------
@@ -1010,18 +1072,62 @@ vtkUnsignedCharArray* vtkDataSet::AllocateCellGhostArray()
   return this->CellGhostArray;
 }
 
+namespace
+{
+struct IsAnyBitSetFunctor
+{
+  unsigned char* BitSet;
+  int BitFlag;
+  int IsAnyBit;
+  vtkSMPThreadLocal<unsigned char> TLIsAnyBit;
+
+  IsAnyBitSetFunctor(vtkUnsignedCharArray* BitSet, int BitFlag)
+    : BitSet(BitSet->GetPointer(0))
+    , BitFlag(BitFlag)
+  {
+  }
+
+  void Initialize() { this->TLIsAnyBit.Local() = 0; }
+
+  void operator()(vtkIdType begin, vtkIdType end)
+  {
+    if (this->TLIsAnyBit.Local())
+    {
+      return;
+    }
+    for (vtkIdType i = begin; i < end; ++i)
+    {
+      if (this->BitSet[i] & this->BitFlag)
+      {
+        this->TLIsAnyBit.Local() = 1;
+        return;
+      }
+    }
+  }
+
+  void Reduce()
+  {
+    this->IsAnyBit = 0;
+    for (auto& isAnyBit : this->TLIsAnyBit)
+    {
+      if (isAnyBit)
+      {
+        this->IsAnyBit = 1;
+        break;
+      }
+    }
+  }
+};
+}
+
 //------------------------------------------------------------------------------
 bool vtkDataSet::IsAnyBitSet(vtkUnsignedCharArray* a, int bitFlag)
 {
   if (a)
   {
-    for (vtkIdType i = 0; i < a->GetNumberOfTuples(); ++i)
-    {
-      if (a->GetValue(i) & bitFlag)
-      {
-        return true;
-      }
-    }
+    IsAnyBitSetFunctor isAnyBitSetFunctor(a, bitFlag);
+    vtkSMPTools::For(0, a->GetNumberOfTuples(), isAnyBitSetFunctor);
+    return isAnyBitSetFunctor.IsAnyBit;
   }
   return false;
 }

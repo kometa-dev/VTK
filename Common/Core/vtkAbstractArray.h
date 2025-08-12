@@ -152,7 +152,7 @@ public:
   bool HasAComponentName() const;
 
   /**
-   * Copies the component names from the inputed array to the current array
+   * Copies the component names from the inputted array to the current array
    * make sure that the current array has the same number of components as the input array
    */
   int CopyComponentNames(vtkAbstractArray* da);
@@ -668,6 +668,11 @@ public:
    * vtkArrayDownCast.
    */
   virtual int GetArrayType() const { return AbstractArray; }
+
+  /**
+   * Get the name for the array type as string
+   */
+  const char* GetArrayTypeAsString() const;
 
 protected:
   // Construct object with default tuple dimension (number of components) of 1.

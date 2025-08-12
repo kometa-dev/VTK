@@ -23,11 +23,13 @@ set(VTK_MODULE_ENABLE_VTK_RenderingOpenXR NO CACHE STRING "") # openxr
 set(VTK_MODULE_ENABLE_VTK_RenderingRayTracing NO CACHE STRING "") # ospray
 set(VTK_MODULE_ENABLE_VTK_fides NO CACHE STRING "") # adios
 set(VTK_MODULE_ENABLE_VTK_xdmf3 NO CACHE STRING "") # boost
+set(VTK_ENABLE_CATALYST OFF CACHE BOOL "") # catalyst
 
 # Windows-only features
 set(VTK_USE_MICROSOFT_MEDIA_FOUNDATION ON CACHE BOOL "")
 set(VTK_USE_VIDEO_FOR_WINDOWS ON CACHE BOOL "")
 set(VTK_USE_VIDEO_FOR_WINDOWS_CAPTURE ON CACHE BOOL "")
+set(VTK_DISABLE_QT_MULTICONFIG_WINDOWS_WARNING ON CACHE BOOL "")
 
 # Set some flags to avoid copious warnings.
 #   - /wd4251: warnings about dll-interface of inherited classes

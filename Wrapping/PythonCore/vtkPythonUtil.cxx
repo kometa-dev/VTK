@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkPythonUtil.h"
 #include "vtkPythonOverload.h"
 
@@ -25,9 +22,7 @@
 
 #include "vtkObject.h"
 #include "vtkPythonCommand.h"
-#include "vtkSmartPointerBase.h"
 #include "vtkStdString.h"
-#include "vtkUnicodeString.h"
 #include "vtkVariant.h"
 #include "vtkWeakPointer.h"
 #include "vtkWindows.h"
@@ -468,7 +463,7 @@ const char* vtkPythonUtil::PythonicClassName(const char* classname)
   if (*cp != '\0')
   {
     /* look up class and get its pythonic name */
-    PyTypeObject* pytype = vtkPythonUtil::FindClassTypeObject(classname);
+    PyTypeObject* pytype = vtkPythonUtil::FindBaseTypeObject(classname);
     if (pytype)
     {
       classname = vtkPythonUtil::StripModule(pytype->tp_name);
@@ -872,6 +867,27 @@ PyTypeObject* vtkPythonUtil::FindEnum(const char* name)
 }
 
 //------------------------------------------------------------------------------
+PyTypeObject* vtkPythonUtil::FindBaseTypeObject(const char* name)
+{
+  PyVTKClass* info = vtkPythonUtil::FindClass(name);
+  if (info)
+  {
+    // in case of override, drill down to get the original (non-override) type,
+    // that's what we need to use for the base class of other wrapped classes
+    for (PyTypeObject* pytype = info->py_type; pytype != nullptr; pytype = pytype->tp_base)
+    {
+      if (strcmp(vtkPythonUtil::StripModule(pytype->tp_name), name) == 0)
+      {
+        return pytype;
+      }
+    }
+    return info->py_type;
+  }
+
+  return nullptr;
+}
+
+//------------------------------------------------------------------------------
 PyTypeObject* vtkPythonUtil::FindClassTypeObject(const char* name)
 {
   PyVTKClass* info = vtkPythonUtil::FindClass(name);
@@ -1034,21 +1050,6 @@ Py_hash_t vtkPythonUtil::VariantHash(const vtkVariant* v)
     case VTK_OBJECT:
     {
       h = _Py_HashPointer(v->ToVTKObject());
-      break;
-    }
-
-    case VTK_UNICODE_STRING:
-    {
-      vtkUnicodeString u = v->ToUnicodeString();
-      const char* s = u.utf8_str();
-      PyObject* tmp = PyUnicode_DecodeUTF8(s, strlen(s), "strict");
-      if (tmp == nullptr)
-      {
-        PyErr_Clear();
-        return 0;
-      }
-      h = PyObject_Hash(tmp);
-      Py_DECREF(tmp);
       break;
     }
 

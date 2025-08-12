@@ -10,14 +10,15 @@ vtk_add_test_cxx(vtkFiltersGeneralCxxTests tests
   BoxClipTetrahedra.cxx
   BoxClipTriangulate.cxx,NO_VALID
   BoxClipTriangulateAndInterpolate.cxx
-  CellTreeLocator.cxx,NO_VALID
   TestAppendLocationAttributes.cxx,NO_VALID
   TestAppendPoints.cxx,NO_VALID
   TestBooleanOperationPolyDataFilter.cxx
   TestBooleanOperationPolyDataFilter2.cxx
   TestCellValidator.cxx,NO_VALID
   TestContourTriangulator.cxx
+  TestContourTriangulatorBadData.cxx
   TestContourTriangulatorCutter.cxx
+  TestContourTriangulatorHoles.cxx
   TestContourTriangulatorMarching.cxx
   TestCountFaces.cxx,NO_VALID
   TestCountVertices.cxx,NO_VALID

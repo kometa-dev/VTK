@@ -74,7 +74,7 @@ public:
 
   ///@{
   /**
-   * Standard methdos for type information and printing.
+   * Standard methods for type information and printing.
    */
   vtkTypeMacro(vtkPointSet, vtkDataSet);
   void PrintSelf(ostream& os, vtkIndent indent) override;
@@ -138,6 +138,7 @@ public:
   /**
    * This method resets parameter idList, as there is no cell in a `vtkPointSet`.
    */
+  using vtkDataSet::GetCellPoints;
   void GetCellPoints(vtkIdType, vtkIdList* idList) override { idList->Reset(); }
   void GetPointCells(vtkIdType, vtkIdList* idList) override { idList->Reset(); }
   ///@}

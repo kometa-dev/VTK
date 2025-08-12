@@ -41,7 +41,6 @@ class vtkPythonNamespaceMap;
 class vtkPythonEnumMap;
 class vtkPythonModuleList;
 class vtkStdString;
-class vtkUnicodeString;
 class vtkVariant;
 
 extern "C" void vtkPythonUtilDelete();
@@ -187,6 +186,15 @@ public:
    * Return an enum type object, or NULL if it doesn't exist.
    */
   static PyTypeObject* FindEnum(const char* name);
+
+  /**
+   * Find the PyTypeObject for a wrapped VTK class, excluding overrides.
+   * When the extension modules for the wrappers are loading, this ensures
+   * that the extension types are properly linked to their base classes,
+   * regardless of what pure python overrides have been applied to those
+   * classes.
+   */
+  static PyTypeObject* FindBaseTypeObject(const char* name);
 
   /**
    * Find the PyTypeObject for a wrapped VTK class.

@@ -17,16 +17,18 @@
  * @brief   Singleton class that holds a collection of utility functions
  *          and member variables to communicate with the OpenXR runtime
  *
- * vtkOpenXRManager
+ * vtkOpenXRManager is not a vtkObject, the singleton unique instance gets
+ * allocated on the stack the first time vtkOpenXRManager::GetInstance() is
+ * called.
  */
 
 #ifndef vtkOpenXRManager_h
 #define vtkOpenXRManager_h
 
-#include "vtkObject.h"
 #include "vtkRenderingOpenXRModule.h" // needed for exports
 
 #include "vtkOpenXR.h"
+#include "vtkSystemIncludes.h"
 
 #include <array>
 #include <memory>
@@ -35,17 +37,18 @@
 
 class vtkOpenGLRenderWindow;
 
-class VTKRENDERINGOPENXR_EXPORT vtkOpenXRManager : public vtkObject
+class VTKRENDERINGOPENXR_EXPORT vtkOpenXRManager
 {
 public:
-  static vtkOpenXRManager* New();
-  vtkTypeMacro(vtkOpenXRManager, vtkObject);
-
   //@{
   /**
-   * Return the singleton instance with no reference counting.
+   * Return the singleton instance.
    */
-  static vtkOpenXRManager* GetInstance();
+  static vtkOpenXRManager& GetInstance()
+  {
+    static vtkOpenXRManager UniqueInstance;
+    return UniqueInstance;
+  }
   //@}
 
   //@{
@@ -66,7 +69,7 @@ public:
 
   //@{
   /**
-   * Utility functions to print informations about OpenXR manager internal structures.
+   * Utility functions to print information about OpenXR manager internal structures.
    */
   void PrintInstanceProperties();
   void PrintSystemProperties(XrSystemProperties* system_properties);
@@ -93,9 +96,9 @@ public:
 
   //@{
   /**
-   * Return as a tuple the OpenXR recommanded texture size to be sent to the device.
+   * Return as a tuple the OpenXR recommended texture size to be sent to the device.
    */
-  std::tuple<uint32_t, uint32_t> GetRecommandedImageRectSize();
+  std::tuple<uint32_t, uint32_t> GetRecommendedImageRectSize();
   //@}
 
   /**
@@ -127,7 +130,7 @@ public:
     {
       return nullptr;
     }
-    return &(this->RenderResources->ProjectionLayerViews[eye].pose);
+    return &(this->RenderResources->Views[eye].pose);
   }
   //@}
 
@@ -143,7 +146,7 @@ public:
     {
       return nullptr;
     }
-    return &(this->RenderResources->ProjectionLayerViews[eye].fov);
+    return &(this->RenderResources->Views[eye].fov);
   }
   //@}
 
@@ -207,7 +210,7 @@ public:
    * Prepare the rendering resources for the specified eye and store in \p colorTextureId and
    * in \p depthTextureId (if the depth extension is supported) the OpenGL texture in which
    * we need to draw pixels.
-   * Return true if no error occured.
+   * Return true if no error occurred.
    */
   bool PrepareRendering(uint32_t eye, GLuint& colorTextureId, GLuint& depthTextureId);
   //@}
@@ -312,13 +315,13 @@ public:
   bool UpdateActionData(Action_t& action_t, const int hand);
   //@}
 
-  //@{
   /**
-   * Apply haptic vibration of given amplitude to controller associated with
-   * specified hand
+   * Apply haptic vibration
+   * \p action to emit vibration on \p hand to emit on \p amplitude 0.0 to 1.0.
+   * \p duration nanoseconds, default 25ms \p frequency (hz)
    */
-  bool ApplyVibration(const Action_t& actionT, const int hand, const float amplitude = 0.5f);
-  //@}
+  bool ApplyVibration(const Action_t& actionT, const int hand, const float amplitude = 0.5f,
+    const float duration = 25000000.0f, const float frequency = XR_FREQUENCY_UNSPECIFIED);
 
   enum ControllerIndex
   {
@@ -349,7 +352,7 @@ public:
 
 protected:
   vtkOpenXRManager() = default;
-  ~vtkOpenXRManager() override = default;
+  ~vtkOpenXRManager() = default;
 
   //@{
   /**
@@ -542,7 +545,7 @@ protected:
 
   //@{
   /**
-   * This struct stores all needed informations to render the images
+   * This struct stores all needed information to render the images
    * and send it to the user
    * We can't make a vector of struct because OpenXR SDK needs
    * an array of XrXXX for xrEnumerate functions
@@ -571,13 +574,7 @@ protected:
   XrActionSet* ActiveActionSet = nullptr;
 
   /**
-   * This vector contains the XrCompositionLayer that need to be
-   * submitted in XrEndFrame
-   */
-  std::vector<XrCompositionLayerBaseHeader*> LayersToSubmit;
-
-  /**
-   * Store the frame predicted dispay time in WaitAndBeginFrame
+   * Store the frame predicted display time in WaitAndBeginFrame
    * To get the action data at this time and to submit it in EndFrame
    */
   XrTime PredictedDisplayTime;
@@ -593,8 +590,6 @@ protected:
 private:
   vtkOpenXRManager(const vtkOpenXRManager&) = delete;
   void operator=(const vtkOpenXRManager&) = delete;
-
-  static vtkOpenXRManager* UniqueInstance;
 };
 
 #endif

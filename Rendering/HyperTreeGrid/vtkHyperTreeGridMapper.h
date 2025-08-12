@@ -41,9 +41,8 @@
 
 #include "vtkRenderingHyperTreeGridModule.h" // For export macro
 
-class vtkAdaptiveDataSetSurfaceFilter;
 class vtkHyperTreeGrid;
-class vtkHyperTreeGridGeometry;
+class vtkCompositeDataSet;
 class vtkPolyData;
 class vtkPolyDataMapper;
 class vtkRenderWindow;
@@ -64,16 +63,11 @@ public:
    * filter.  Setting the connection with this method removes all
    * other connections from the port.  To add more than one connection
    * use AddInputConnection().
-
    * The input for the connection is the output port of another
    * filter, which is obtained with GetOutputPort().  Typical usage is
-
    * filter2->SetInputConnection(0, filter1->GetOutputPort(0)).
-
-   * \link vtkAlgorithm
    */
   using Superclass::SetInputConnection;
-  void SetInputConnection(vtkAlgorithmOutput* input) override;
   void SetInputDataObject(int port, vtkDataObject* input) override;
   void SetInputDataObject(vtkDataObject* input) override;
   //@}
@@ -92,7 +86,7 @@ public:
   /**
    * This boolean control whether or not the mapping should adapt
    * to the Camera frustum during the rendering. Setting this variable
-   * to true (default) should provide increased preformances.
+   * to true (default) should provide increased performances.
    */
   vtkGetMacro(UseAdaptiveDecimation, bool);
   vtkSetMacro(UseAdaptiveDecimation, bool);
@@ -107,50 +101,32 @@ public:
    */
   void Render(vtkRenderer* ren, vtkActor* act) override;
 
-  //@{
-  /**
-   * Bring this algorithm's outputs up-to-date.
-   * \link vtkAlgorithm
-   */
-  using Superclass::Update;
-  void Update(int port) override;
-  //@}
-
   /**
    * Fill the input port information objects for this algorithm.  This
    * is invoked by the first call to GetInputPortInformation for each
    * port so subclasses can specify what they can handle.
-   * \link vtkAlgorithm
    */
   int FillInputPortInformation(int port, vtkInformation* info) override;
-
-  /**
-   * Get the underlying suface filter, used to transfom the input HTG
-   * to a PolyData that will be rendered using the PDMapper.
-   */
-  vtkAlgorithm* GetSurfaceFilter();
 
 protected:
   vtkHyperTreeGridMapper();
   ~vtkHyperTreeGridMapper() override;
 
   /**
-   * The input exposed here is the output of the SurfaceFilter.
-   * It is the piece of PolyData to map and render on the screen.
+   * Generate a new composite were each leave is decimated if required
    */
-  vtkPolyData* GetSurfaceFilterInput();
+  vtkSmartPointer<vtkCompositeDataSet> UpdateWithDecimation(
+    vtkCompositeDataSet* htg, vtkRenderer* ren);
 
   // In 2D mode, these variables control the mapper oprimisations
   bool UseAdaptiveDecimation = false;
-  vtkNew<vtkHyperTreeGridGeometry> GeometryFilter;
-  vtkNew<vtkAdaptiveDataSetSurfaceFilter> Adaptive2DGeometryFilter;
 
   // render the extracted surface,
   // need to be created in device specific subclass
-  vtkSmartPointer<vtkPolyDataMapper> PDMapper2D;
-  // fallback to the usual mapper in 3D mode,
-  // need to be created in device specific subclass
-  vtkSmartPointer<vtkPolyDataMapper> Mapper3D;
+  vtkSmartPointer<vtkPolyDataMapper> Mapper;
+
+  // Internal object to render
+  vtkSmartPointer<vtkCompositeDataSet> Input;
 
 private:
   vtkHyperTreeGridMapper(const vtkHyperTreeGridMapper&) = delete;

@@ -91,6 +91,19 @@ public:
   vtkTypeBool HasTranslucentPolygonalGeometry() override;
   ///@}
 
+  /**
+   * Set the text position, by enumeration (
+   * vtkBorderRepresentation::AnyLocation = 0,
+   * vtkBorderRepresentation::LowerLeftCorner,
+   * vtkBorderRepresentation::LowerRightCorner,
+   * vtkBorderRepresentation::LowerCenter,
+   * vtkBorderRepresentation::UpperLeftCorner,
+   * vtkBorderRepresentation::UpperRightCorner,
+   * vtkBorderRepresentation::UpperCenter)
+   * related to the render window
+   */
+  void SetWindowLocation(int enumLocation) override;
+
   ///@{
   /**
    * Set the text position, by overriding the same function of
@@ -156,24 +169,6 @@ public:
    */
   void SetPadding(int padding);
   ///@}
-
-  /**
-   * Set the visibility of the interior lines when Matplotlib is used for the rendering.
-   * Transfer call to vtkMathTextFreeTypeTextRenderer. Default is false.
-   */
-  void SetInteriorLinesVisibility(bool visibility);
-
-  /**
-   * Set the width (in pixels) of the interior lines when Matplotlib is used for the rendering.
-   * Transfer call to vtkMathTextFreeTypeTextRenderer. Default is 1.
-   */
-  void SetInteriorLinesWidth(int width);
-
-  /**
-   * Set the color of the interior lines when Matplotlib is used for the rendering.
-   * Transfer call to vtkMathTextFreeTypeTextRenderer. Default is black (0.0, 0.0, 0.0).
-   */
-  void SetInteriorLinesColor(double colorR, double colorG, double colorB);
 
 protected:
   vtkTextRepresentation();

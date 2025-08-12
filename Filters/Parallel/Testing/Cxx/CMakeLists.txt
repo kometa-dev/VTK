@@ -1,4 +1,5 @@
 vtk_add_test_cxx(vtkFiltersParallelCxxTests testsStd
+  TestAlignImageDataSetFilter.cxx,NO_VALID
   TestAngularPeriodicFilter.cxx
   TestPOutlineFilter.cxx, NO_VALID
   )
@@ -23,6 +24,7 @@ if (TARGET VTK::ParallelMPI)
     PCellDataToPointData.cxx
     UnitTestPMaskPoints.cxx
     TestPOutlineFilter.cxx, NO_VALID
+    TestHyperTreeGridGhostCellsGenerator.cxx,NO_VALID
     )
 
   # We want 4 processes to test the vtkAggregateDataSetFilter
