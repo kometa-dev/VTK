@@ -474,8 +474,16 @@ void WriteMaterial(Json::Value& materials, int textureIndex, bool haveTexture, v
   model["baseColorFactor"].append(dcolor[1]);
   model["baseColorFactor"].append(dcolor[2]);
   model["baseColorFactor"].append(prop->GetOpacity());
-  model["metallicFactor"] = prop->GetSpecular();
-  model["roughnessFactor"] = 1.0 / (1.0 + prop->GetSpecular() * 0.2 * prop->GetSpecularPower());
+  if (prop->GetInterpolation() == VTK_PBR)
+  {
+    model["metallicFactor"] = prop->GetMetallic();
+    model["roughnessFactor"] = prop->GetRoughness();
+  }
+  else
+  {
+    model["metallicFactor"] = prop->GetSpecular();
+    model["roughnessFactor"] = 1.0 / (1.0 + prop->GetSpecular() * 0.2 * prop->GetSpecularPower());
+  }
   mat["pbrMetallicRoughness"] = model;
   materials.append(mat);
 }
@@ -545,14 +553,20 @@ void vtkGLTFExporter::WriteToStream(ostream& output)
     }
 
     // setup the camera data in case we need to use it later
+    // the glTF "nodes" list stores global transformations for objects in the
+    // scene, so we need to invert the ModelViewTransformMatrix of the camera
+    // (by a copy, to avoid mutating the renderer's camera)
     Json::Value anode;
     anode["camera"] = cameras.size(); // camera node
     vtkMatrix4x4* mat = ren->GetActiveCamera()->GetModelViewTransformMatrix();
+    vtkNew<vtkMatrix4x4> inv;
+    inv->DeepCopy(mat);
+    inv->Invert();
     for (int i = 0; i < 4; ++i)
     {
       for (int j = 0; j < 4; ++j)
       {
-        anode["matrix"].append(mat->GetElement(j, i));
+        anode["matrix"].append(inv->GetElement(j, i));
       }
     }
     anode["name"] = "Camera Node";

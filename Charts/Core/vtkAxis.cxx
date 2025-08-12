@@ -91,14 +91,14 @@ vtkAxis::vtkAxis()
   this->RangeLabelFormat = "%g";
   this->Notation = vtkAxis::STANDARD_NOTATION;
   this->Behavior = vtkAxis::AUTO;
-  this->Pen = vtkPen::New();
   this->TitleAppended = false;
   this->ScalingFactor = 1.0;
   this->Shift = 0.0;
 
+  this->Pen = vtkSmartPointer<vtkPen>::New();
   this->Pen->SetColor(0, 0, 0);
   this->Pen->SetWidth(1.0);
-  this->GridPen = vtkPen::New();
+  this->GridPen = vtkSmartPointer<vtkPen>::New();
   this->GridPen->SetColor(242, 242, 242);
   this->GridPen->SetWidth(1.0);
   this->TickPositions = vtkSmartPointer<vtkDoubleArray>::New();
@@ -118,8 +118,6 @@ vtkAxis::~vtkAxis()
 {
   this->TitleProperties->Delete();
   this->LabelProperties->Delete();
-  this->Pen->Delete();
-  this->GridPen->Delete();
 }
 
 void vtkAxis::SetPosition(int position)
@@ -1136,7 +1134,7 @@ void vtkAxis::UpdateLogScaleActive(bool alwaysUpdateMinMaxFromUnscaled)
 //------------------------------------------------------------------------------
 void vtkAxis::GenerateTickLabels(double min, double max)
 {
-  if (this->CustomTickLabels == true)
+  if (this->CustomTickLabels)
   {
     // Never generate new tick labels if custom tick labels are being used.
     return;
@@ -1875,14 +1873,7 @@ inline bool vtkAxis::InRange(double value)
     min = max;
     max = this->Minimum;
   }
-  if (value < min || value > max)
-  {
-    return false;
-  }
-  else
-  {
-    return true;
-  }
+  return min <= value && value <= max;
 }
 
 //------------------------------------------------------------------------------

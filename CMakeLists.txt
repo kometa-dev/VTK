@@ -325,6 +325,12 @@ if ("VTK::Python" IN_LIST vtk_modules)
   endif ()
 endif ()
 
+# Handle the requirement of `sqlitebin` for `proj`.
+set(vtk_sqlite_build_binary 0)
+if ("VTK::libproj" IN_LIST vtk_modules)
+  set(vtk_sqlite_build_binary 1)
+endif ()
+
 cmake_dependent_option(VTK_ENABLE_KITS "Enable kits compilation" OFF
   # Static builds don't make sense with kits. Ignore the flag if shared
   # libraries aren't being built.
@@ -544,11 +550,6 @@ install(
 if (VTK_WHEEL_BUILD)
   include(vtkWheelFinalization)
 endif ()
-
-# Setup compiler flags for dynamic analysis. This is included late to avoid
-# interfering with any `try_compile` or other things involved with a normal
-# configuration.
-include(vtkSanitizeFlags)
 
 # Some generated code has some warnings that we need to exclude for now.
 configure_file(

@@ -13,7 +13,7 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
+// Hide VTK_DEPRECATED_IN_9_2_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkUnstructuredGrid.h"
@@ -448,6 +448,12 @@ int vtkUnstructuredGrid::GetCellType(vtkIdType cellId)
 {
   vtkDebugMacro(<< "Returning cell type " << static_cast<int>(this->Types->GetValue(cellId)));
   return static_cast<int>(this->Types->GetValue(cellId));
+}
+
+//------------------------------------------------------------------------------
+vtkIdType vtkUnstructuredGrid::GetCellSize(vtkIdType cellId)
+{
+  return this->Connectivity ? this->Connectivity->GetCellSize(cellId) : 0;
 }
 
 //------------------------------------------------------------------------------
@@ -1482,15 +1488,6 @@ void vtkUnstructuredGrid::GetPointCells(vtkIdType ptId, vtkIdType& ncells, vtkId
 }
 
 //------------------------------------------------------------------------------
-void vtkUnstructuredGrid::GetPointCells(vtkIdType ptId, unsigned short& ncells, vtkIdType*& cells)
-{
-  VTK_LEGACY_BODY(vtkUnstructuredGrid::GetPointCells, "VTK 9.0");
-  vtkIdType nc;
-  this->GetPointCells(ptId, nc, cells);
-  ncells = static_cast<unsigned short>(nc);
-}
-
-//------------------------------------------------------------------------------
 void vtkUnstructuredGrid::GetCellPoints(vtkIdType cellId, vtkIdList* ptIds)
 {
   this->Connectivity->GetCellAtId(cellId, ptIds);
@@ -1544,10 +1541,21 @@ public:
 //------------------------------------------------------------------------------
 void vtkUnstructuredGrid::GetCellTypes(vtkCellTypes* types)
 {
+  VTK_LEGACY_BODY(vtkCellTypes::GetCellTypes, "VTK 9.2");
+  this->GetDistinctCellTypesArray();
+  types->DeepCopy(this->DistinctCellTypes);
+}
+
+//------------------------------------------------------------------------------
+vtkUnsignedCharArray* vtkUnstructuredGrid::GetDistinctCellTypesArray()
+{
   if (this->Types == nullptr)
   {
-    // No cell types
-    return;
+    if (this->DistinctCellTypes == nullptr)
+    {
+      this->DistinctCellTypes = vtkSmartPointer<vtkCellTypes>::New();
+    }
+    return this->DistinctCellTypes->GetCellTypesArray();
   }
 
   if (this->DistinctCellTypes == nullptr ||
@@ -1577,7 +1585,7 @@ void vtkUnstructuredGrid::GetCellTypes(vtkCellTypes* types)
     this->DistinctCellTypesUpdateMTime = this->Types->GetMTime();
   }
 
-  types->DeepCopy(this->DistinctCellTypes);
+  return this->DistinctCellTypes->GetCellTypesArray();
 }
 
 //------------------------------------------------------------------------------

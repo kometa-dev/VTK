@@ -762,9 +762,13 @@ void vtkFreeTypeTools::MapTextPropertyToId(vtkTextProperty* tprop, size_t* id)
   // We're dropping a bit here, but that should be okay.
   *id |= hash << 1;
 
-  // Insert the TextProperty into the lookup table
+  // Insert a copy of the TextProperty into the lookup table
   if (!this->TextPropertyLookup->contains(*id))
-    (*this->TextPropertyLookup)[*id] = tprop;
+  {
+    vtkNew<vtkTextProperty> cprop;
+    cprop->ShallowCopy(tprop);
+    (*this->TextPropertyLookup)[*id] = cprop;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -834,7 +838,7 @@ bool vtkFreeTypeTools::GetSize(FTC_Scaler scaler, FT_Size* size)
     vtkErrorMacro(<< "Failed looking up a FreeType Size");
   }
 
-  return error ? false : true;
+  return !error;
 }
 
 //------------------------------------------------------------------------------
@@ -882,7 +886,7 @@ bool vtkFreeTypeTools::GetFace(size_t tprop_cache_id, FT_Face* face)
     vtkErrorMacro(<< "Failed looking up a FreeType Face");
   }
 
-  return error ? false : true;
+  return !error;
 }
 
 //------------------------------------------------------------------------------
@@ -927,7 +931,7 @@ bool vtkFreeTypeTools::GetGlyphIndex(size_t tprop_cache_id, FT_UInt32 c, FT_UInt
   // Lookup the glyph index
   *gindex = FTC_CMapCache_Lookup(*cmap_cache, face_id, 0, c);
 
-  return *gindex ? true : false;
+  return *gindex != 0;
 }
 
 //------------------------------------------------------------------------------
@@ -988,7 +992,7 @@ bool vtkFreeTypeTools::GetGlyph(
   // Lookup the glyph
   FT_Error error = FTC_ImageCache_Lookup(*image_cache, &image_type_rec, gindex, glyph, nullptr);
 
-  return error ? false : true;
+  return !error;
 }
 
 //------------------------------------------------------------------------------
@@ -1025,7 +1029,7 @@ bool vtkFreeTypeTools::GetGlyph(FTC_Scaler scaler, FT_UInt gindex, FT_Glyph* gly
   FT_Error error =
     FTC_ImageCache_LookupScaler(*image_cache, scaler, loadFlags, gindex, glyph, nullptr);
 
-  return error ? false : true;
+  return !error;
 }
 
 //------------------------------------------------------------------------------

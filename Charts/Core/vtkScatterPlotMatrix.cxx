@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkScatterPlotMatrix.h"
 
 #include "vtkAnnotationLink.h"
@@ -1159,7 +1156,7 @@ bool vtkScatterPlotMatrix::MouseButtonReleaseEvent(const vtkContextMouseEvent& m
       return true;
     }
     this->Private->AnimationPath.clear();
-    bool horizontalFirst = pos[0] > this->ActivePlot[0] ? false : true;
+    bool horizontalFirst = pos[0] <= this->ActivePlot[0];
     if (horizontalFirst)
     {
       if (pos[0] != this->ActivePlot[0])
@@ -1774,8 +1771,8 @@ void vtkScatterPlotMatrix::UpdateChartSettings(int plotType)
         if (this->GetPlotType(i, j) == SCATTERPLOT)
         {
           vtkChart* chart = this->GetChart(vtkVector2i(i, j));
-          bool updateleft = i == 0 ? true : false;
-          bool updatebottom = j == 0 ? true : false;
+          bool updateleft = i == 0;
+          bool updatebottom = j == 0;
           this->Private->UpdateAxis(
             chart->GetAxis(vtkAxis::LEFT), this->Private->ChartSettings[SCATTERPLOT], updateleft);
           this->Private->UpdateAxis(chart->GetAxis(vtkAxis::BOTTOM),

@@ -7,15 +7,15 @@ endif()
 
 vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   NO_DATA NO_VALID NO_OUTPUT
-  TestDataArrayDispatcher.cxx
-  TestDispatchers.cxx
   ${memkind_tests}
   LagrangeHexahedron.cxx
   BezierInterpolation.cxx
   TestBezier.cxx
   TestAngularPeriodicDataArray.cxx
+  TestArrayListTemplate.cxx
   TestCellInflation.cxx
   TestColor.cxx
+  TestCoordinateFrame.cxx
   TestVector.cxx
   TestVectorOperators.cxx
   TestAMRBox.cxx
@@ -82,6 +82,7 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   otherRectilinearGrid.cxx
   otherStructuredGrid.cxx
   otherUniformGrid.cxx
+  otherUnstructuredGrid.cxx
   quadCellConsistency.cxx
   quadraticEvaluation.cxx
   TestBoundingBox.cxx

@@ -106,9 +106,6 @@
 //
 // ---------------------------------------------------------------------------
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 // Hijack the CRC routine of zlib to omit CRC check for gzipped files
 // (on OSes other than Windows where the mechanism doesn't work due
 // to pre-bound DLL symbols) if set to 1, or not (set to 0). Affects
@@ -207,7 +204,6 @@
 #include "vtkTypeUInt8Array.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkVertex.h"
-#include "vtkWeakPointer.h"
 #include "vtkWedge.h"
 
 #if !(defined(_WIN32) && !defined(__CYGWIN__) || defined(__LIBCATAMOUNT__))
@@ -4245,7 +4241,7 @@ void vtkFoamEntryValue::ReadDimensionSet(vtkFoamIOobject& io)
     {
       // Some unknown token type (eg, encountered human-readable units)
       // - skip until ']'
-      while ((goodInput = io.Read(tok)) == true)
+      while ((goodInput = io.Read(tok)))
       {
         if (tok.IsPunctuation() && (tok == expectEnding))
         {
@@ -10575,7 +10571,7 @@ int vtkOpenFOAMReaderPrivate::RequestData(vtkMultiBlockDataSet* output)
   if (createEulerians && recreateInternalMesh && this->Parent->GetReadZones())
   {
     vtkSmartPointer<vtkPoints> tmpPoints; // Localized vtkPoints storage
-    vtkWeakPointer<vtkPoints> points;
+    vtkPoints* points;
 
     if (this->InternalMesh != nullptr)
     {
@@ -10670,7 +10666,7 @@ int vtkOpenFOAMReaderPrivate::RequestData(vtkMultiBlockDataSet* output)
   if (createEulerians && moveInternalPoints)
   {
     vtkSmartPointer<vtkPoints> tmpPoints; // Localized vtkPoints storage
-    vtkWeakPointer<vtkPoints> points;
+    vtkPoints* points;
 
     if (this->InternalMesh != nullptr)
     {

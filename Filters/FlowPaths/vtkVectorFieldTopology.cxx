@@ -94,6 +94,7 @@ void vtkVectorFieldTopology::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "UseIterativeSeeding =  " << this->UseIterativeSeeding << "\n";
   os << indent << "InterpolatorType = " << this->InterpolatorType << "\n";
   os << indent << "ComputeSurfaces =  " << this->ComputeSurfaces << "\n";
+  os << indent << "EpsilonCriticalPoint = " << this->EpsilonCriticalPoint << "\n";
   os << indent << "vtkStreamSurface: \n";
   this->StreamSurface->PrintSelf(os, indent.GetNextIndent());
 }
@@ -711,13 +712,14 @@ int vtkVectorFieldTopology::ComputeSurface(int numberOfSeparatingSurfaces, bool 
   circle->GetOutput()->GetPoints()->InsertNextPoint(circle->GetOutput()->GetPoint(0));
   vtkNew<vtkPolyData> currentCircle;
   currentCircle->SetPoints(circle->GetOutput()->GetPoints());
-  // vtkNew<vtkDoubleArray> integrationTimeArray;
-  // integrationTimeArray->SetName("IntegrationTime");
-  // currentCircle->GetPointData()->AddArray(integrationTimeArray);
-  // for (int i = 0; i < currentCircle->GetNumberOfPoints(); ++i)
-  // {
-  //   integrationTimeArray->InsertNextTuple1(0);
-  // }
+  vtkNew<vtkDoubleArray> integrationTimeArray;
+  integrationTimeArray->SetName("IntegrationTime");
+  currentCircle->GetPointData()->AddArray(integrationTimeArray);
+  integrationTimeArray->Resize(currentCircle->GetNumberOfPoints());
+  for (int i = 0; i < currentCircle->GetNumberOfPoints(); ++i)
+  {
+    integrationTimeArray->SetTuple1(i, (double)0);
+  }
 
   this->StreamSurface->SetInputData(0, dataset);
   this->StreamSurface->SetInputData(1, currentCircle);
@@ -732,7 +734,6 @@ int vtkVectorFieldTopology::ComputeSurface(int numberOfSeparatingSurfaces, bool 
   this->StreamSurface->SetMaximumPropagation(dist * maxNumSteps);
   this->StreamSurface->SetInputArrayToProcess(
     0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, this->NameOfVectorArray);
-
   this->StreamSurface->Update();
 
   vtkNew<vtkDoubleArray> indexArray;
@@ -1430,11 +1431,11 @@ int vtkVectorFieldTopology::ComputeSeparatrices(vtkPolyData* criticalPoints,
         countComplex++;
       }
 
-      if (real(eigenS.eigenvalues()[i]) < -epsilon)
+      if (real(eigenS.eigenvalues()[i]) < -this->EpsilonCriticalPoint)
       {
         countNeg++;
       }
-      else if (real(eigenS.eigenvalues()[i]) > epsilon)
+      else if (real(eigenS.eigenvalues()[i]) > this->EpsilonCriticalPoint)
       {
         countPos++;
       }
@@ -1811,8 +1812,7 @@ int vtkVectorFieldTopology::RequestData(vtkInformation* vtkNotUsed(request),
   {
     if (this->GetInputArrayInformation(0)->Get(vtkDataObject::FIELD_NAME()) != nullptr &&
       dataset->GetPointData()->GetArray(
-        std::string(this->GetInputArrayInformation(0)->Get(vtkDataObject::FIELD_NAME())).c_str()) ==
-        nullptr)
+        this->GetInputArrayInformation(0)->Get(vtkDataObject::FIELD_NAME())) == nullptr)
       vtkWarningMacro("The array chosen via GetInputArrayToProcess was not found. The algorithm "
                       "tries to use vectors instead.");
 
@@ -1820,16 +1820,18 @@ int vtkVectorFieldTopology::RequestData(vtkInformation* vtkNotUsed(request),
 
     if (!vectors)
     {
-      bool VectorNotFound = true;
+      bool vectorNotFound = true;
       for (int i = 0; i < dataset->GetPointData()->GetNumberOfArrays(); i++)
         if (dataset->GetPointData()->GetArray(i)->GetNumberOfComponents() == 3)
         {
           vectors = dataset->GetPointData()->GetArray(i);
-          VectorNotFound = false;
+          vectorNotFound = false;
+          // program stops
+          vtkErrorMacro("A possible vector found in point data.");
           break;
         }
 
-      if (VectorNotFound)
+      if (vectorNotFound)
       {
         vtkErrorMacro("The input field does not contain any vectors as pointdata.");
         return 0;
@@ -1837,6 +1839,7 @@ int vtkVectorFieldTopology::RequestData(vtkInformation* vtkNotUsed(request),
     }
   }
 
+  // save the name so that it does not need to call GetInputArrayToProcess many times
   this->NameOfVectorArray = vectors->GetName();
 
   // Users might set the name that belongs to an existing array that is not a vector array.

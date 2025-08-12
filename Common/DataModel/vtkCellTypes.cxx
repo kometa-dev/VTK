@@ -12,25 +12,34 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
+
+// Hide VTK_DEPRECATED_IN_9_2_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkCellTypes.h"
+#include "vtkIdTypeArray.h"
+#include "vtkIntArray.h"
 #include "vtkObjectFactory.h"
+#include "vtkUnsignedCharArray.h"
 
 vtkStandardNewMacro(vtkCellTypes);
 
+namespace
+{
 // This list should contain the cell class names in
 // the same order as the enums in vtkCellType.h. Make sure
 // this list is nullptr terminated.
-static const char* vtkCellTypesStrings[] = { "vtkEmptyCell", "vtkVertex", "vtkPolyVertex",
-  "vtkLine", "vtkPolyLine", "vtkTriangle", "vtkTriangleStrip", "vtkPolygon", "vtkPixel", "vtkQuad",
-  "vtkTetra", "vtkVoxel", "vtkHexahedron", "vtkWedge", "vtkPyramid", "vtkPentagonalPrism",
-  "vtkHexagonalPrism", "UnknownClass", "UnknownClass", "UnknownClass", "UnknownClass",
-  "vtkQuadraticEdge", "vtkQuadraticTriangle", "vtkQuadraticQuad", "vtkQuadraticTetra",
-  "vtkQuadraticHexahedron", "vtkQuadraticWedge", "vtkQuadraticPyramid", "vtkBiQuadraticQuad",
-  "vtkTriQuadraticHexahedron", "vtkQuadraticLinearQuad", "vtkQuadraticLinearWedge",
-  "vtkBiQuadraticQuadraticWedge", "vtkBiQuadraticQuadraticHexahedron", "vtkBiQuadraticTriangle",
-  "vtkCubicLine", "vtkQuadraticPolygon", "vtkTriQuadraticPyramid", "UnknownClass", "UnknownClass",
-  "UnknownClass", "vtkConvexPointSet", "vtkPolyhedron", "UnknownClass", "UnknownClass",
-  "UnknownClass", "UnknownClass", "UnknownClass", "UnknownClass", "UnknownClass", "UnknownClass",
+const char* vtkCellTypesStrings[] = { "vtkEmptyCell", "vtkVertex", "vtkPolyVertex", "vtkLine",
+  "vtkPolyLine", "vtkTriangle", "vtkTriangleStrip", "vtkPolygon", "vtkPixel", "vtkQuad", "vtkTetra",
+  "vtkVoxel", "vtkHexahedron", "vtkWedge", "vtkPyramid", "vtkPentagonalPrism", "vtkHexagonalPrism",
+  "UnknownClass", "UnknownClass", "UnknownClass", "UnknownClass", "vtkQuadraticEdge",
+  "vtkQuadraticTriangle", "vtkQuadraticQuad", "vtkQuadraticTetra", "vtkQuadraticHexahedron",
+  "vtkQuadraticWedge", "vtkQuadraticPyramid", "vtkBiQuadraticQuad", "vtkTriQuadraticHexahedron",
+  "vtkQuadraticLinearQuad", "vtkQuadraticLinearWedge", "vtkBiQuadraticQuadraticWedge",
+  "vtkBiQuadraticQuadraticHexahedron", "vtkBiQuadraticTriangle", "vtkCubicLine",
+  "vtkQuadraticPolygon", "vtkTriQuadraticPyramid", "UnknownClass", "UnknownClass", "UnknownClass",
+  "vtkConvexPointSet", "vtkPolyhedron", "UnknownClass", "UnknownClass", "UnknownClass",
+  "UnknownClass", "UnknownClass", "UnknownClass", "UnknownClass", "UnknownClass",
   "vtkParametricCurve", "vtkParametricSurface", "vtkParametricTriSurface",
   "vtkParametricQuadSurface", "vtkParametricTetraRegion", "vtkParametricHexRegion", "UnknownClass",
   "UnknownClass", "UnknownClass", "vtkHigherOrderEdge", "vtkHigherOrderTriangle",
@@ -40,6 +49,7 @@ static const char* vtkCellTypesStrings[] = { "vtkEmptyCell", "vtkVertex", "vtkPo
   "vtkLagrangeWedge", "vtkLagrangePyramid", "vtkBezierCurve", "vtkBezierQuadrilateral",
   "vtkBezierTriangle", "vtkBezierTetra", "vtkBezierHexahedron", "vtkBezierWedge",
   "vtkBezierPyramid", nullptr };
+} // anonymous namespace
 
 //------------------------------------------------------------------------------
 const char* vtkCellTypes::GetClassNameFromTypeId(int type)
@@ -86,59 +96,28 @@ int vtkCellTypes::GetTypeIdFromClassName(const char* classname)
 
 //------------------------------------------------------------------------------
 vtkCellTypes::vtkCellTypes()
-  : TypeArray(vtkUnsignedCharArray::New())
-  , LocationArray(vtkIdTypeArray::New())
-  , Size(0)
+  : TypeArray(vtkSmartPointer<vtkUnsignedCharArray>::New())
+  , LocationArray(vtkSmartPointer<vtkIdTypeArray>::New())
   , MaxId(-1)
-  , Extend(1000)
 {
-  this->TypeArray->Register(this);
-  this->TypeArray->Delete();
-
-  this->LocationArray->Register(this);
-  this->LocationArray->Delete();
 }
 
 //------------------------------------------------------------------------------
-vtkCellTypes::~vtkCellTypes()
-{
-  if (this->TypeArray)
-  {
-    this->TypeArray->UnRegister(this);
-  }
-
-  if (this->LocationArray)
-  {
-    this->LocationArray->UnRegister(this);
-  }
-}
-
-//------------------------------------------------------------------------------
-// Allocate memory for this array. Delete old storage only if necessary.
 int vtkCellTypes::Allocate(vtkIdType sz, vtkIdType ext)
 {
-
-  this->Size = (sz > 0 ? sz : 1);
-  this->Extend = (ext > 0 ? ext : 1);
   this->MaxId = -1;
 
-  if (this->TypeArray)
+  if (!this->TypeArray)
   {
-    this->TypeArray->UnRegister(this);
+    this->TypeArray = vtkSmartPointer<vtkUnsignedCharArray>::New();
   }
-  this->TypeArray = vtkUnsignedCharArray::New();
   this->TypeArray->Allocate(sz, ext);
-  this->TypeArray->Register(this);
-  this->TypeArray->Delete();
 
-  if (this->LocationArray)
+  if (!this->LocationArray)
   {
-    this->LocationArray->UnRegister(this);
+    this->LocationArray = vtkSmartPointer<vtkIdTypeArray>::New();
   }
-  this->LocationArray = vtkIdTypeArray::New();
   this->LocationArray->Allocate(sz, ext);
-  this->LocationArray->Register(this);
-  this->LocationArray->Delete();
 
   return 1;
 }
@@ -172,16 +151,22 @@ vtkIdType vtkCellTypes::InsertNextCell(unsigned char type, vtkIdType loc)
 void vtkCellTypes::SetCellTypes(
   vtkIdType ncells, vtkUnsignedCharArray* cellTypes, vtkIntArray* cellLocations)
 {
-  vtkIdTypeArray* cellLocations64 = vtkIdTypeArray::New();
-  cellLocations64->SetName(cellLocations->GetName());
-  cellLocations64->SetNumberOfComponents(cellLocations->GetNumberOfComponents());
-  cellLocations64->SetNumberOfTuples(cellLocations->GetNumberOfTuples());
-  for (vtkIdType i = 0, iend = cellLocations->GetNumberOfValues(); i < iend; ++i)
+  VTK_LEGACY_BODY(vtkCellTypes::SetCellTypes, "VTK 9.2");
+  this->TypeArray = cellTypes;
+  if (!this->LocationArray)
   {
-    cellLocations64->SetValue(i, cellLocations->GetValue(i));
+    this->LocationArray = vtkSmartPointer<vtkIdTypeArray>::New();
   }
-  this->SetCellTypes(ncells, cellTypes, cellLocations64);
-  cellLocations64->Delete();
+  this->LocationArray->DeepCopy(cellLocations);
+  this->MaxId = ncells - 1;
+}
+
+//------------------------------------------------------------------------------
+// Specify a group of cell types.
+void vtkCellTypes::SetCellTypes(vtkIdType ncells, vtkUnsignedCharArray* cellTypes)
+{
+  this->TypeArray = cellTypes;
+  this->MaxId = ncells - 1;
 }
 
 //------------------------------------------------------------------------------
@@ -189,23 +174,9 @@ void vtkCellTypes::SetCellTypes(
 void vtkCellTypes::SetCellTypes(
   vtkIdType ncells, vtkUnsignedCharArray* cellTypes, vtkIdTypeArray* cellLocations)
 {
-  this->Size = ncells;
-
-  if (this->TypeArray)
-  {
-    this->TypeArray->Delete();
-  }
-
+  VTK_LEGACY_BODY(vtkCellTypes::SetCellTypes, "VTK 9.2");
   this->TypeArray = cellTypes;
-  cellTypes->Register(this);
-
-  if (this->LocationArray)
-  {
-    this->LocationArray->Delete();
-  }
   this->LocationArray = cellLocations;
-  cellLocations->Register(this);
-
   this->MaxId = ncells - 1;
 }
 
@@ -245,33 +216,18 @@ unsigned long vtkCellTypes::GetActualMemorySize()
 //------------------------------------------------------------------------------
 void vtkCellTypes::DeepCopy(vtkCellTypes* src)
 {
-  if (this->TypeArray)
+  if (!this->TypeArray)
   {
-    this->TypeArray->UnRegister(this);
-    this->TypeArray = nullptr;
+    this->TypeArray = vtkSmartPointer<vtkUnsignedCharArray>::New();
   }
-  if (src->TypeArray)
-  {
-    this->TypeArray = vtkUnsignedCharArray::New();
-    this->TypeArray->DeepCopy(src->TypeArray);
-    this->TypeArray->Register(this);
-    this->TypeArray->Delete();
-  }
+  this->TypeArray->DeepCopy(src->TypeArray);
 
-  if (this->LocationArray)
+  if (!this->LocationArray)
   {
-    this->LocationArray->UnRegister(this);
-    this->LocationArray = nullptr;
+    this->LocationArray = vtkSmartPointer<vtkIdTypeArray>::New();
   }
-  if (src->LocationArray)
-  {
-    this->LocationArray = vtkIdTypeArray::New();
-    this->LocationArray->DeepCopy(src->LocationArray);
-    this->LocationArray->Register(this);
-    this->LocationArray->Delete();
-  }
-  this->Size = src->Size;
-  this->Extend = src->Extend;
+  this->LocationArray->DeepCopy(src->LocationArray);
+
   this->MaxId = src->MaxId;
 }
 
@@ -285,7 +241,5 @@ void vtkCellTypes::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "LocationArray:\n";
   this->LocationArray->PrintSelf(os, indent.GetNextIndent());
 
-  os << indent << "Size: " << this->Size << "\n";
   os << indent << "MaxId: " << this->MaxId << "\n";
-  os << indent << "Extend: " << this->Extend << "\n";
 }

@@ -8,6 +8,7 @@ set(classes
   vtkAppendPolyData
   vtkAppendSelection
   vtkArrayCalculator
+  vtkArrayRename
   vtkAssignAttribute
   vtkAttributeDataToFieldDataFilter
   vtkBinCellDataFilter
@@ -26,6 +27,7 @@ set(classes
   vtkContourHelper
   vtkConvertToMultiBlockDataSet
   vtkConvertToPartitionedDataSetCollection
+  vtkConvertToPolyhedra
   vtkCutter
   vtkDataObjectGenerator
   vtkDataObjectToDataSetFilter
@@ -40,6 +42,7 @@ set(classes
   vtkExecutionTimer
   vtkExplicitStructuredGridCrop
   vtkExplicitStructuredGridToUnstructuredGrid
+  vtkExtractCellsAlongPolyLine
   vtkFeatureEdges
   vtkFieldDataToAttributeDataFilter
   vtkFlyingEdges2D
@@ -88,6 +91,7 @@ set(classes
   vtkSmoothPolyDataFilter
   vtkSphereTreeFilter
   vtkStaticCleanPolyData
+  vtkStaticCleanUnstructuredGrid
   vtkStreamerBase
   vtkStreamingTessellator
   vtkStripper

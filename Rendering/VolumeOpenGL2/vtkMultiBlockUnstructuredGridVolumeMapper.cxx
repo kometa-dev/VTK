@@ -47,7 +47,8 @@ vtkStandardNewMacro(vtkMultiBlockUnstructuredGridVolumeMapper);
 
 //------------------------------------------------------------------------------
 vtkMultiBlockUnstructuredGridVolumeMapper::vtkMultiBlockUnstructuredGridVolumeMapper()
-  : BlockLoadingTime(0)
+  : UseFloatingPointFrameBuffer(false)
+  , BlockLoadingTime(0)
   , BoundsComputeTime(0)
 {
 #ifdef MB_DEBUG

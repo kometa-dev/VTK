@@ -44,6 +44,7 @@
 
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkAMRSliceFilter);
+vtkCxxSetObjectMacro(vtkAMRSliceFilter, Controller, vtkMultiProcessController);
 
 //------------------------------------------------------------------------------
 vtkAMRSliceFilter::vtkAMRSliceFilter()
@@ -52,8 +53,15 @@ vtkAMRSliceFilter::vtkAMRSliceFilter()
   this->SetNumberOfOutputPorts(1);
   this->OffsetFromOrigin = 0.0;
   this->Normal = X_NORMAL;
-  this->Controller = vtkMultiProcessController::GetGlobalController();
+  this->Controller = nullptr;
+  this->SetController(vtkMultiProcessController::GetGlobalController());
   this->MaxResolution = 1;
+}
+
+//------------------------------------------------------------------------------
+vtkAMRSliceFilter::~vtkAMRSliceFilter()
+{
+  this->SetController(nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -81,12 +89,7 @@ bool vtkAMRSliceFilter::IsAMRData2D(vtkOverlappingAMR* input)
 {
   assert("pre: Input AMR dataset is nullptr" && (input != nullptr));
 
-  if (input->GetGridDescription() != VTK_XYZ_GRID)
-  {
-    return true;
-  }
-
-  return false;
+  return input->GetGridDescription() != VTK_XYZ_GRID;
 }
 
 //------------------------------------------------------------------------------

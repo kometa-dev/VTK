@@ -268,6 +268,10 @@ More advanced options:
     `vtkStandardNewMacro` will use `vtkObjectFactoryNewMacro` allowing
     overrides to be available even when not explicitly requested through
     `vtkObjectFactoryNewMacro` or `vtkAbstractObjectFactoryNewMacro`.
+  * `VTK_ENABLE_VTKM_OVERRIDES` (default `OFF`): If `ON`, enables factory override
+     of certain VTK filters by their VTK-m counterparts. There is also a runtime
+     switch that should also be turned on to enable this feature.
+     It can be accessed using the static function `vtkmFilterOverrides::SetEnabled(bool)`.
 
 The VTK module system provides a number of variables to control modules which
 are not otherwise controlled by the other options provided.
@@ -339,7 +343,8 @@ Python3 (Python2 wheels are no longer supported). This is supported by setting
 the `VTK_WHEEL_BUILD` flag. This changes the build directory structure around
 to match that expected by wheels. Once configured, the build tree may be built
 as it would be normally and then the generated `setup.py` file used to create
-the wheel.
+the wheel. Note that the `bdist_wheel` command requires that the `wheel`
+package is available (`pip install wheel`).
 
 ```sh
 cmake -GNinja -DVTK_WHEEL_BUILD=ON -DVTK_WRAP_PYTHON=ON path/to/vtk/source

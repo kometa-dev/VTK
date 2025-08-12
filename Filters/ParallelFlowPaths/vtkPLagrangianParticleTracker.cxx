@@ -73,7 +73,7 @@ public:
   MessageStream& operator>>(T& t)
   {
     size_t size = sizeof(T);
-    t = *reinterpret_cast<T*>(this->Head);
+    memcpy(&t, this->Head, size);
     this->Head += size;
     return *this;
   }
@@ -552,14 +552,18 @@ private:
 };
 
 vtkStandardNewMacro(vtkPLagrangianParticleTracker);
+vtkCxxSetObjectMacro(vtkPLagrangianParticleTracker, Controller, vtkMPIController);
 
 //------------------------------------------------------------------------------
 vtkPLagrangianParticleTracker::vtkPLagrangianParticleTracker()
-  : Controller(vtkMPIController::SafeDownCast(vtkMultiProcessController::GetGlobalController()))
+  : Controller(nullptr)
   , StreamManager(nullptr)
   , TransferredParticleIdManager(nullptr)
   , FeedManager(nullptr)
 {
+  this->SetController(
+    vtkMPIController::SafeDownCast(vtkMultiProcessController::GetGlobalController()));
+
   // To get a correct progress update
   if (this->Controller && this->Controller->GetNumberOfProcesses() > 1)
   {
@@ -573,6 +577,7 @@ vtkPLagrangianParticleTracker::~vtkPLagrangianParticleTracker()
   delete StreamManager;
   delete TransferredParticleIdManager;
   delete FeedManager;
+  this->SetController(nullptr);
 }
 
 //------------------------------------------------------------------------------

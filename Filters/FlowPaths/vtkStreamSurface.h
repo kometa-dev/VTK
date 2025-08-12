@@ -41,10 +41,11 @@ public:
 
   ///@{
   /**
-   * Specify/see if the simple (fast) or iterative (correct) version is called
+   * Specify/determine if the simple (fast) or iterative (correct) version is called.
    */
   vtkSetMacro(UseIterativeSeeding, bool);
   vtkGetMacro(UseIterativeSeeding, bool);
+  vtkBooleanMacro(UseIterativeSeeding, bool);
   ///@}
 
 protected:
@@ -64,7 +65,7 @@ private:
    * output is the final streamsurface
    * @return 1 if successful, 0 if empty
    */
-  int AdvectSimple(vtkDataSet* field, vtkPolyData* seeds, vtkPolyData* output);
+  int AdvectSimple(vtkDataObject* field, vtkPolyData* seeds, vtkPolyData* output);
 
   /**
    * loop: 1.advect one step at a time
@@ -80,7 +81,7 @@ private:
    * @return 1 if successful, 0 if not
    */
   int AdvectIterative(
-    vtkDataSet* field, vtkPolyData* seeds, int integrationDirection, vtkPolyData* output);
+    vtkDataObject* field, vtkPolyData* seeds, int integrationDirection, vtkPolyData* output);
 
   /**
    * depending on this boolen the simple (fast) or iterative (correct) version is called

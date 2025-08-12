@@ -7,6 +7,7 @@ set(classes
   QVTKOpenGLStereoWidget
   QVTKOpenGLWindow
   QVTKRenderWindowAdapter
+  QVTKTableModelAdapter
   vtkEventQtSlotConnect
   vtkQWidgetRepresentation
   vtkQWidgetTexture
@@ -37,7 +38,6 @@ if (VTK_USE_X AND VTK_USE_TDX)
 endif ()
 
 set(headers
-  QVTKOpenGLWidget.h
   QVTKRenderWidget.h
   QVTKWin32Header.h)
 

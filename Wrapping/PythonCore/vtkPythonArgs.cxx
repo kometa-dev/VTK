@@ -31,8 +31,6 @@ resulting in wrapper code that is faster and more compact.
 #include "PyVTKReference.h"
 #include "vtkPythonUtil.h"
 
-#include "vtkObjectBase.h"
-
 //------------------------------------------------------------------------------
 // Extract various C++ types from python objects.  The rules are
 // identical to PyArg_ParseTuple except that range checking is done
@@ -322,11 +320,7 @@ inline bool vtkPythonGetValue(PyObject* o, const char*& a)
 
 inline bool vtkPythonGetValue(PyObject* o, std::string& a)
 {
-  if (vtkPythonGetStdStringValue(o, a, "string is required"))
-  {
-    return true;
-  }
-  return false;
+  return vtkPythonGetStdStringValue(o, a, "string is required");
 }
 
 inline bool vtkPythonGetValue(PyObject* o, vtkUnicodeString& a)

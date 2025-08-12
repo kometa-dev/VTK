@@ -39,6 +39,12 @@
     variables:
         CMAKE_CONFIGURATION: wheel_windows39_x86_64
 
+.wheel_windows310_x86_64:
+    extends: .wheel_windows_x86_64
+
+    variables:
+        CMAKE_CONFIGURATION: wheel_windows310_x86_64
+
 ### Build and test
 
 .windows_build:
@@ -150,10 +156,11 @@
 ## Windows-specific scripts
 
 .before_script_windows: &before_script_windows
-    - Invoke-Expression -Command .gitlab/ci/cmake.ps1
-    - Invoke-Expression -Command .gitlab/ci/ninja.ps1
     - $pwdpath = $pwd.Path
-    - Set-Item -Force -Path "env:PATH" -Value "$pwdpath\.gitlab;$pwdpath\.gitlab\cmake\bin;$env:PATH"
+    - powershell -File ".gitlab/ci/cmake.ps1"
+    - Set-Item -Force -Path "env:PATH" -Value "$pwdpath\.gitlab\cmake\bin;$env:PATH"
+    - powershell -File ".gitlab/ci/ninja.ps1"
+    - Set-Item -Force -Path "env:PATH" -Value "$pwdpath\.gitlab;$env:PATH"
     - cmake --version
     - ninja --version
     # Support submodule references to the user's fork.

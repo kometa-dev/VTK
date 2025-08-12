@@ -22,7 +22,7 @@
 #ifndef vtkDeprecation_h
 #define vtkDeprecation_h
 
-#include "vtkVersion.h"
+#include "vtkVersionMacros.h"
 
 //----------------------------------------------------------------------------
 // These macros may be used to deprecate APIs in VTK. They act as attributes on
@@ -70,8 +70,8 @@
 #define VTK_DEPRECATION_LEVEL VTK_VERSION_NUMBER
 #endif
 
-// API deprecated before 8.2.0 have already been removed.
-#define VTK_MINIMUM_DEPRECATION_LEVEL VTK_VERSION_CHECK(8, 2, 0)
+// API deprecated before 9.0.0 have already been removed.
+#define VTK_MINIMUM_DEPRECATION_LEVEL VTK_VERSION_CHECK(9, 0, 0)
 
 // Force the deprecation level to be at least that of VTK's build
 // configuration.
@@ -112,6 +112,15 @@
 
 // APIs deprecated in the next release.
 #if defined(__VTK_WRAP__)
+#define VTK_DEPRECATED_IN_9_2_0(reason) [[vtk::deprecated(reason, "9.2.0")]]
+#elif VTK_DEPRECATION_LEVEL >= VTK_VERSION_CHECK(9, 1, 20211001)
+#define VTK_DEPRECATED_IN_9_2_0(reason) VTK_DEPRECATION(reason)
+#else
+#define VTK_DEPRECATED_IN_9_2_0(reason)
+#endif
+
+// APIs deprecated in 9.1.0.
+#if defined(__VTK_WRAP__)
 #define VTK_DEPRECATED_IN_9_1_0(reason) [[vtk::deprecated(reason, "9.1.0")]]
 #elif VTK_DEPRECATION_LEVEL >= VTK_VERSION_CHECK(9, 1, 0)
 #define VTK_DEPRECATED_IN_9_1_0(reason) VTK_DEPRECATION(reason)
@@ -119,16 +128,13 @@
 #define VTK_DEPRECATED_IN_9_1_0(reason)
 #endif
 
-// APIs deprecated in 9.0.0.
+// APIs deprecated in the older release always warn.
 #if defined(__VTK_WRAP__)
 #define VTK_DEPRECATED_IN_9_0_0(reason) [[vtk::deprecated(reason, "9.0.0")]]
-#elif VTK_DEPRECATION_LEVEL >= VTK_VERSION_CHECK(9, 0, 0)
-#define VTK_DEPRECATED_IN_9_0_0(reason) VTK_DEPRECATION(reason)
 #else
-#define VTK_DEPRECATED_IN_9_0_0(reason)
+#define VTK_DEPRECATED_IN_9_0_0(reason) VTK_DEPRECATION(reason)
 #endif
 
-// APIs deprecated in the older release always warn.
 #if defined(__VTK_WRAP__)
 #define VTK_DEPRECATED_IN_8_2_0(reason) [[vtk::deprecated(reason, "8.2.0")]]
 #else

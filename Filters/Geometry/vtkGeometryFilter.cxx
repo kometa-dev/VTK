@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkGeometryFilter.h"
 
 #include "vtkArrayDispatch.h"
@@ -111,6 +108,8 @@ vtkGeometryFilter::vtkGeometryFilter()
 vtkGeometryFilter::~vtkGeometryFilter()
 {
   this->SetLocator(nullptr);
+  this->SetOriginalCellIdsName(nullptr);
+  this->SetOriginalPointIdsName(nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -1450,7 +1449,7 @@ struct IdRecorder
     }
   }
   vtkIdType* GetPointer() { return this->Ids->GetPointer(0); }
-  vtkTypeBool PassThru() { return (this->Ids.Get() == nullptr ? false : true); }
+  vtkTypeBool PassThru() { return this->Ids.Get() != nullptr; }
   void Allocate(vtkIdType num)
   {
     if (this->Ids.Get() != nullptr)
@@ -2093,9 +2092,11 @@ int vtkGeometryFilter::UnstructuredGridExecute(vtkDataSet* dataSetInput, vtkPoly
   // Depending on the outcome, we may process the data ourselves, or send over
   // to the faster vtkGeometryFilter.
   bool mayDelegate = (info == nullptr && this->Delegation);
+  bool info_owned = false;
   if (info == nullptr)
   {
     info = vtkGeometryFilterHelper::CharacterizeUnstructuredGrid(input);
+    info_owned = true;
   }
 
   // Nonlinear cells are handled by vtkDataSetSurfaceFilter
@@ -2107,6 +2108,10 @@ int vtkGeometryFilter::UnstructuredGridExecute(vtkDataSet* dataSetInput, vtkPoly
     dssf->UnstructuredGridExecute(dataSetInput, output, info);
     delete info;
     return 1;
+  }
+  if (info_owned)
+  {
+    delete info;
   }
 
   auto cellIter = vtk::TakeSmartPointer(input->NewCellIterator());

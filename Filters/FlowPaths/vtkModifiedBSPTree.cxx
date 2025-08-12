@@ -112,7 +112,7 @@ public:
   }
 };
 
-extern "C" int _compareMin(const void* pA, const void* B)
+extern "C" int CompareMin(const void* pA, const void* B)
 {
   const cell_extents* tA = static_cast<const cell_extents*>(pA);
   const cell_extents* tB = static_cast<const cell_extents*>(B);
@@ -126,7 +126,7 @@ extern "C" int _compareMin(const void* pA, const void* B)
   }
 }
 
-extern "C" int _compareMax(const void* pA, const void* B)
+extern "C" int CompareMax(const void* pA, const void* B)
 {
   const cell_extents* tA = static_cast<const cell_extents*>(pA);
   const cell_extents* tB = static_cast<const cell_extents*>(B);
@@ -227,8 +227,8 @@ void vtkModifiedBSPTree::BuildLocatorInternal()
       lists->Maxs[i][j].cell_ID = j;
     }
     // Sort
-    qsort(lists->Mins[i], numCells, sizeof(cell_extents), _compareMin);
-    qsort(lists->Maxs[i], numCells, sizeof(cell_extents), _compareMax);
+    qsort(lists->Mins[i], numCells, sizeof(cell_extents), CompareMin);
+    qsort(lists->Maxs[i], numCells, sizeof(cell_extents), CompareMax);
   }
   //
   // call the recursive subdivision routine
@@ -1448,20 +1448,13 @@ bool BSPNode::RayMinMaxT(
 //------------------------------------------------------------------------------
 bool BSPNode::Inside(double point[3]) const
 {
-  if (point[0] < this->Bounds[0] || point[0] > this->Bounds[1] || point[1] < this->Bounds[2] ||
-    point[1] > this->Bounds[3] || point[2] < this->Bounds[4] || point[2] > this->Bounds[5])
-  {
-    return false;
-  }
-  return true;
+  return this->Bounds[0] <= point[0] && point[0] <= this->Bounds[1] &&
+    this->Bounds[2] <= point[1] && point[1] <= this->Bounds[3] && this->Bounds[4] <= point[2] &&
+    point[2] <= this->Bounds[5];
 }
 //------------------------------------------------------------------------------
 bool vtkModifiedBSPTree_Inside(double bounds[6], double point[3])
 {
-  if (point[0] < bounds[0] || point[0] > bounds[1] || point[1] < bounds[2] ||
-    point[1] > bounds[3] || point[2] < bounds[4] || point[2] > bounds[5])
-  {
-    return false;
-  }
-  return true;
+  return bounds[0] <= point[0] && point[0] <= bounds[1] && bounds[2] <= point[1] &&
+    point[1] <= bounds[3] && bounds[4] <= point[2] && point[2] <= bounds[5];
 }

@@ -10,7 +10,11 @@ endif ()
 
 if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "macos")
   if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "x86_64")
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.10" CACHE STRING "")
+    if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "python31.") # 3.10+ binaries target at least 11.0
+      set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "")
+    else ()
+      set(CMAKE_OSX_DEPLOYMENT_TARGET "10.10" CACHE STRING "")
+    endif ()
   elseif ("$ENV{CMAKE_CONFIGURATION}" MATCHES "arm64")
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "")
   endif ()
@@ -48,6 +52,7 @@ set(VTK_MODULE_ENABLE_VTK_InfovisBoost NO CACHE STRING "") # Boost
 set(VTK_MODULE_ENABLE_VTK_InfovisBoostGraphAlgorithms NO CACHE STRING "") # Boost
 set(VTK_MODULE_ENABLE_VTK_RenderingFreeTypeFontConfig NO CACHE STRING "") # fontconfig
 set(VTK_MODULE_ENABLE_VTK_RenderingOpenVR NO CACHE STRING "") # OpenVR
+set(VTK_MODULE_ENABLE_VTK_RenderingOpenXR NO CACHE STRING "") # OpenXR
 set(VTK_MODULE_ENABLE_VTK_RenderingRayTracing NO CACHE STRING "") # OSPRay
 set(VTK_MODULE_ENABLE_VTK_fides NO CACHE STRING "") # ADIOS2
 set(VTK_MODULE_ENABLE_VTK_xdmf3 NO CACHE STRING "") # Boost

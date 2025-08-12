@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkChartXY.h"
 
 #include "vtkAnnotationLink.h"
@@ -184,7 +181,7 @@ vtkChartXY::vtkChartXY()
   {
     this->ChartPrivate->axes.push_back(vtkAxis::New());
     // By default just show the left and bottom axes
-    this->ChartPrivate->axes.back()->SetVisible(i < 2 ? true : false);
+    this->ChartPrivate->axes.back()->SetVisible(i < 2);
     this->AttachAxisRangeListener(this->ChartPrivate->axes.back());
     this->AddItem(this->ChartPrivate->axes.back());
   }
@@ -223,6 +220,10 @@ vtkChartXY::vtkChartXY()
   this->ForceAxesToBounds = false;
   this->IgnoreNanInBounds = false;
   this->ZoomWithMouseWheel = true;
+  for (int i = 0; i < 4; ++i)
+  {
+    this->AxisZoom[i] = true;
+  }
   this->AdjustLowerBoundForLogPlot = false;
 
   this->DragPoint = false;
@@ -453,22 +454,27 @@ bool vtkChartXY::Paint(vtkContext2D* painter)
 
   // Now that plot transforms, including whether to use log scaling and the
   // shift-scale factors, have been updated, we give the vtkPlot instances an
-  // opportunity to update caches.
+  // opportunity to update their internal caches.
   for (size_t i = 0; i < this->ChartPrivate->plots.size(); ++i)
   {
-    this->ChartPrivate->plots[i]->UpdateCache();
+    this->ChartPrivate->plots[i]->Update();
   }
 
   // Update the clipping if necessary
-  this->ChartPrivate->Clip->SetClip(this->Point1[0], this->Point1[1],
-    this->Point2[0] - this->Point1[0], this->Point2[1] - this->Point1[1]);
+  // An extra padding of 1 pixel is taken into account such that lines near
+  // the edge of the chart's patch are correctly shown.
+  const double pad = 1;
+  this->ChartPrivate->Clip->SetClip(this->Point1[0] - pad, this->Point1[1] - pad,
+    this->Point2[0] - this->Point1[0] + 2 * pad, this->Point2[1] - this->Point1[1] + 2 * pad);
 
   // draw background
   if (this->BackgroundBrush)
   {
     painter->GetPen()->SetLineType(vtkPen::NO_PEN);
     painter->ApplyBrush(this->BackgroundBrush);
-    painter->DrawRect(this->Point1[0], this->Point1[1], this->Geometry[0], this->Geometry[1]);
+    // Take borders into account:
+    painter->DrawRect(this->Point1[0] - this->Borders[0], this->Point1[1] - this->Borders[1],
+      this->Geometry[0], this->Geometry[1]);
   }
 
   // Use the scene to render most of the chart.
@@ -736,7 +742,7 @@ void vtkChartXY::RecalculatePlotBounds()
   double bounds[4] = { 0.0, 0.0, 0.0, 0.0 };
   for (it = this->ChartPrivate->plots.begin(); it != this->ChartPrivate->plots.end(); ++it)
   {
-    if ((*it)->GetVisible() == false)
+    if (!(*it)->GetVisible())
     {
       continue;
     }
@@ -1556,11 +1562,19 @@ void vtkChartXY::SetAxis(int axisIndex, vtkAxis* axis)
 {
   if ((axisIndex < 4) && (axisIndex >= 0))
   {
+    // Retrieve plot corners for all plots.
+    std::vector<int> corners;
+    corners.reserve(this->GetNumberOfPlots());
+    std::transform(this->ChartPrivate->plots.begin(), this->ChartPrivate->plots.end(),
+      std::back_inserter(corners),
+      [this](vtkPlot* plot) -> int { return this->GetPlotCorner(plot); });
+
     vtkAxis* old_axis = this->ChartPrivate->axes[axisIndex];
     this->ChartPrivate->axes[axisIndex] = axis;
     this->ChartPrivate->axes[axisIndex]->SetVisible(old_axis->GetVisible());
 
     // remove the old axis
+    old_axis->RemoveObservers(vtkChartXY::UpdateRange);
     this->RemoveItem(old_axis);
 
     this->AttachAxisRangeListener(this->ChartPrivate->axes[axisIndex]);
@@ -1584,6 +1598,12 @@ void vtkChartXY::SetAxis(int axisIndex, vtkAxis* axis)
       case vtkAxis::RIGHT:
         grid2->SetYAxis(this->ChartPrivate->axes[vtkAxis::RIGHT]);
         break;
+    }
+
+    // Reset plot corner for all plots (which will update the plot's reference to the new axis)
+    for (int i = 0; i < this->GetNumberOfPlots(); i++)
+    {
+      this->SetPlotCorner(this->ChartPrivate->plots[i], corners[i]);
     }
   }
 }
@@ -1645,6 +1665,25 @@ void vtkChartXY::RemovePlotSelections()
 }
 
 //------------------------------------------------------------------------------
+void vtkChartXY::SetAxisZoom(int index, bool v)
+{
+  if ((index >= 0) && (index < 4))
+  {
+    this->AxisZoom[index] = v;
+  }
+}
+
+//------------------------------------------------------------------------------
+bool vtkChartXY::GetAxisZoom(int index)
+{
+  if ((index >= 0) && (index < 4))
+  {
+    return this->AxisZoom[index];
+  }
+  return false;
+}
+
+//------------------------------------------------------------------------------
 bool vtkChartXY::Hit(const vtkContextMouseEvent& mouse)
 {
   if (!this->Interactive)
@@ -1652,15 +1691,8 @@ bool vtkChartXY::Hit(const vtkContextMouseEvent& mouse)
     return false;
   }
   vtkVector2i pos(mouse.GetScreenPos());
-  if (pos[0] > this->Point1[0] && pos[0] < this->Point2[0] && pos[1] > this->Point1[1] &&
-    pos[1] < this->Point2[1])
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+  return pos[0] > this->Point1[0] && pos[0] < this->Point2[0] && pos[1] > this->Point1[1] &&
+    pos[1] < this->Point2[1];
 }
 
 //------------------------------------------------------------------------------
@@ -2332,8 +2364,7 @@ bool vtkChartXY::MouseButtonReleaseEvent(const vtkContextMouseEvent& mouse)
                 int idx = 1; // y
                 vtkAbstractArray* column =
                   plot->GetData()->GetInputAbstractArrayToProcess(idx, plot->GetInput());
-                int columnID = -1;
-                plot->GetInput()->GetRowData()->GetAbstractArray(column->GetName(), columnID);
+                int columnID = plot->GetInput()->GetColumnIndex(column->GetName());
                 if (plotSelection->GetNumberOfTuples() != column->GetNumberOfTuples())
                 {
                   plotSelection->SetNumberOfTuples(0);
@@ -2457,6 +2488,11 @@ bool vtkChartXY::MouseWheelEvent(const vtkContextMouseEvent&, int delta)
   // Get the bounds of each plot.
   for (int i = 0; i < 4; ++i)
   {
+    if (!this->AxisZoom[i])
+    {
+      continue;
+    }
+
     vtkAxis* axis = this->ChartPrivate->axes[i];
     double min = axis->GetMinimum();
     double max = axis->GetMaximum();

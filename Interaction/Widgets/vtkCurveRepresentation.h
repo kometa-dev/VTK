@@ -28,6 +28,7 @@
 #ifndef vtkCurveRepresentation_h
 #define vtkCurveRepresentation_h
 
+#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"        // needed for vtkPolyDataAlgorithm
 #include "vtkWidgetRepresentation.h"
@@ -54,7 +55,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Used to manage the InteractionState of the widget
-  enum _InteractionState
+  enum InteractionStateType
   {
     Outside = 0,
     OnHandle,
@@ -66,6 +67,10 @@ public:
     Erasing,
     Pushing
   };
+#if !defined(VTK_LEGACY_REMOVE)
+  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
+  typedef InteractionStateType _InteractionState;
+#endif
 
   ///@{
   /**
@@ -290,6 +295,15 @@ public:
    **/
   bool IsTranslationConstrained() { return this->TranslationAxis != Axis::NONE; }
   ///@}
+
+  /**
+   * Methods to make this class behave as a vtkProp. They are repeated here (from the
+   * vtkProp superclass) as a reminder to the widget implementor. Failure to implement
+   * these methods properly may result in the representation not appearing in the scene
+   * (i.e., not implementing the Render() methods properly) or leaking graphics resources
+   * (i.e., not implementing ReleaseGraphicsResources() properly).
+   */
+  void GetActors(vtkPropCollection*) override;
 
 protected:
   vtkCurveRepresentation();

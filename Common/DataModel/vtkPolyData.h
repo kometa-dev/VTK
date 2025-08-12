@@ -63,7 +63,6 @@
 #define vtkPolyData_h
 
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // for VTK_DEPRECATED_IN_9_0_0
 #include "vtkPointSet.h"
 
 #include "vtkCellArray.h"         // Needed for inline methods
@@ -110,6 +109,7 @@ public:
   vtkCell* GetCell(vtkIdType cellId) override;
   void GetCell(vtkIdType cellId, vtkGenericCell* cell) override;
   int GetCellType(vtkIdType cellId) override;
+  vtkIdType GetCellSize(vtkIdType cellId) override;
   void GetCellBounds(vtkIdType cellId, double bounds[6]) override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   ///@}
@@ -397,9 +397,6 @@ public:
    * sure that BuildLinks() has been called).
    */
   void GetPointCells(vtkIdType ptId, vtkIdType& ncells, vtkIdType*& cells)
-    VTK_SIZEHINT(cells, ncells);
-  VTK_DEPRECATED_IN_9_0_0("Use vtkPolyData::GetPointCells::vtkIdType, vtkIdType&, vtkIdType*&)")
-  void GetPointCells(vtkIdType ptId, unsigned short& ncells, vtkIdType*& cells)
     VTK_SIZEHINT(cells, ncells);
   ///@}
 
@@ -738,13 +735,6 @@ inline void vtkPolyData::GetPointCells(vtkIdType ptId, vtkIdType& ncells, vtkIdT
   cells = this->Links->GetCells(ptId);
 }
 
-inline void vtkPolyData::GetPointCells(vtkIdType ptId, unsigned short& ncells, vtkIdType*& cells)
-{
-  VTK_LEGACY_BODY(vtkPolyData::GetPointCells, "VTK 9.0");
-  ncells = static_cast<unsigned short>(this->Links->GetNcells(ptId));
-  cells = this->Links->GetCells(ptId);
-}
-
 //------------------------------------------------------------------------------
 inline vtkIdType vtkPolyData::GetNumberOfCells()
 {
@@ -760,6 +750,39 @@ inline int vtkPolyData::GetCellType(vtkIdType cellId)
     this->BuildCells();
   }
   return static_cast<int>(this->Cells->GetTag(cellId).GetCellType());
+}
+
+//------------------------------------------------------------------------------
+inline vtkIdType vtkPolyData::GetCellSize(vtkIdType cellId)
+{
+  if (!this->Cells)
+  {
+    this->BuildCells();
+  }
+  switch (this->GetCellType(cellId))
+  {
+    case VTK_EMPTY_CELL:
+      return 0;
+    case VTK_VERTEX:
+      return 1;
+    case VTK_LINE:
+      return 2;
+    case VTK_TRIANGLE:
+      return 3;
+    case VTK_QUAD:
+      return 4;
+    case VTK_POLY_VERTEX:
+      return this->Verts ? this->Verts->GetCellSize(this->GetCellIdRelativeToCellArray(cellId)) : 0;
+    case VTK_POLY_LINE:
+      return this->Lines ? this->Lines->GetCellSize(this->GetCellIdRelativeToCellArray(cellId)) : 0;
+    case VTK_POLYGON:
+      return this->Polys ? this->Polys->GetCellSize(this->GetCellIdRelativeToCellArray(cellId)) : 0;
+    case VTK_TRIANGLE_STRIP:
+      return this->Strips ? this->Strips->GetCellSize(this->GetCellIdRelativeToCellArray(cellId))
+                          : 0;
+  }
+  vtkWarningMacro(<< "Cell type not supported.");
+  return 0;
 }
 
 //------------------------------------------------------------------------------

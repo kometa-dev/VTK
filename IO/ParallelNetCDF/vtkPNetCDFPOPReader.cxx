@@ -326,7 +326,7 @@ int vtkPNetCDFPOPReader::RequestData(vtkInformation* request,
           &varidp);
       }
 
-      if (firstPass == true)
+      if (firstPass)
       {
         firstPass = false;
         // Get the latitude, longitude & depth values: the first reader process
@@ -737,12 +737,10 @@ bool vtkPNetCDFPOPReader::IsFirstReaderRank()
 //
 void vtkPNetCDFPOPReader::SetController(vtkMPIController* controller)
 {
-  if (this->Controller != controller)
+  vtkSetObjectBodyMacro(Controller, vtkMultiProcessController, controller);
+
+  if (this->Controller != nullptr)
   {
-    this->Controller = controller;
-    if (this->Controller != nullptr)
-    {
-      this->SetReaderRanks(nullptr);
-    }
+    this->SetReaderRanks(nullptr);
   }
 }

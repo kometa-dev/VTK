@@ -52,10 +52,17 @@
  *   points if point global ids are not present, and point global ids are used instead if they are
  *   present.
  *
- * @note Currently, only `vtkImageData`, `vtkRectilinearGrid`, `vtkStructuredGrid` and
- * `vtkUnstructuredGrid` are
+ * @note Currently, only `vtkImageData`, `vtkRectilinearGrid`, `vtkStructuredGrid`,
+ * `vtkUnstructuredGrid` and `vtkPolyData` are
  * implemented. Unless there is determining structural data added to subclasses of those classes,
  * this filter should work well on subclasses of supported types.
+ *
+ * @warning This warning only applies for `vtkUnstructuredGrid` and `vtkPolyData` inputs. If
+ * there are duplicate points in the outer shell of an input partition, then this filter cannot
+ * decide on how to connect the cells properly when generating ghosts. The same phenomenon occurs
+ * when the outer shell of the partition has 2 points with the same global id. In such
+ * circumstances, use the `vtkStaticCleanUnstructuredGrid`
+ * or `vtkStaticCleanPolyData` filter first in order to have a clean input.
  */
 #ifndef vtkDIYGhostUtilities_h
 #define vtkDIYGhostUtilities_h
@@ -145,7 +152,7 @@ protected:
     /**
      * Extent of neighboring block with no ghosts.
      */
-    ExtentType Extent;
+    ExtentType Extent = ExtentType{ 1, -1, 1, -1, 1, -1 };
 
     /**
      * Extent of neighboring block that include ghost layers, shifted to match our mapping of the
@@ -178,7 +185,7 @@ protected:
     /**
      * Extent without ghost layers.
      */
-    ExtentType Extent;
+    ExtentType Extent = ExtentType{ 1, -1, 1, -1, 1, -1 };
 
     ExtentType ExtentGhostThickness;
   };
@@ -723,6 +730,29 @@ public:
   static int GenerateGhostCells(std::vector<DataSetT*>& inputsDS, std::vector<DataSetT*>& outputsDS,
     int outputGhostLevels, vtkMultiProcessController* controller);
 
+  ///@{
+  /**
+   * Method that can be used to avoid the compile-time overhead of the templated method
+   * `GenerateGhostCells`. All this method does is call `GenerateGhostCells` with the appropriate
+   * template parameter.
+   */
+  static int GenerateGhostCellsImageData(std::vector<vtkImageData*>& inputs,
+    std::vector<vtkImageData*>& outputs, int outputGhostLevels,
+    vtkMultiProcessController* controller);
+  static int GenerateGhostCellsRectilinearGrid(std::vector<vtkRectilinearGrid*>& inputs,
+    std::vector<vtkRectilinearGrid*>& outputs, int outputGhostLevels,
+    vtkMultiProcessController* controller);
+  static int GenerateGhostCellsStructuredGrid(std::vector<vtkStructuredGrid*>& inputs,
+    std::vector<vtkStructuredGrid*>& outputs, int outputGhostLevels,
+    vtkMultiProcessController* controller);
+  static int GenerateGhostCellsPolyData(std::vector<vtkPolyData*>& inputs,
+    std::vector<vtkPolyData*>& outputs, int outputGhostLevels,
+    vtkMultiProcessController* controller);
+  static int GenerateGhostCellsUnstructuredGrid(std::vector<vtkUnstructuredGrid*>& inputs,
+    std::vector<vtkUnstructuredGrid*>& outputs, int outputGhostLevels,
+    vtkMultiProcessController* controller);
+  ///@}
+
 protected:
   vtkDIYGhostUtilities();
   ~vtkDIYGhostUtilities() override;
@@ -904,6 +934,22 @@ protected:
 private:
   vtkDIYGhostUtilities(const vtkDIYGhostUtilities&) = delete;
   void operator=(const vtkDIYGhostUtilities&) = delete;
+
+  ///@{
+  /**
+   * Internal method that inflates exchanged bounding boxes to better treat floating point precision
+   * for points that are on the boundary of the bounding box.
+   *
+   * @note This method only does something for vtkUnstructuredGrid and vtkPolyData. The vtkDataSet
+   * version is empty;
+   */
+  static void InflateBoundingBoxIfNecessary(vtkDataSet* vtkNotUsed(input),
+    const double* vtkNotUsed(bounds), vtkBoundingBox& vtkNotUsed(bb));
+  static void InflateBoundingBoxIfNecessary(
+    vtkUnstructuredGrid* input, const double* bounds, vtkBoundingBox& bb);
+  static void InflateBoundingBoxIfNecessary(
+    vtkPolyData* input, const double* bounds, vtkBoundingBox& bb);
+  ///@}
 };
 
 #include "vtkDIYGhostUtilities.txx" // for template implementations

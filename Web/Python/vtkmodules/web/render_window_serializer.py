@@ -254,11 +254,13 @@ def initializeSerializers():
     registerInstanceSerializer("vtkWin32OpenGLRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkEGLRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkOpenVRRenderWindow", renderWindowSerializer)
+    registerInstanceSerializer("vtkOpenXRRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkGenericOpenGLRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkOSOpenGLRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkOpenGLRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkIOSRenderWindow", renderWindowSerializer)
     registerInstanceSerializer("vtkExternalOpenGLRenderWindow", renderWindowSerializer)
+    registerInstanceSerializer("vtkOffscreenOpenGLRenderWindow", renderWindowSerializer)
 
     # Renderers
     registerInstanceSerializer("vtkRenderer", rendererSerializer)
@@ -400,7 +402,7 @@ def extractRequiredFields(
             arrays_to_export.add(dataset.GetPointData().GetScalars())
 
         arrays_to_export.update(
-            [getattr(dataset.GetPointData(), "Get" + requestedField, lambda : None) for requestedField in requestedFields]
+            [getattr(dataset.GetPointData(), "Get" + requestedField, lambda : None)() for requestedField in requestedFields]
         )
 
     # Browse all arrays

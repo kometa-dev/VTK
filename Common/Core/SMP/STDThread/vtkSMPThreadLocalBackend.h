@@ -63,7 +63,7 @@ struct Slot
   StoragePointerType Storage;
 
   Slot();
-  ~Slot();
+  ~Slot() = default;
 
 private:
   // not copyable
@@ -87,11 +87,11 @@ private:
   void operator=(const HashTableArray&);
 };
 
-class VTKCOMMONCORE_EXPORT ThreadSpecific
+class VTKCOMMONCORE_EXPORT ThreadSpecific final
 {
 public:
   explicit ThreadSpecific(unsigned numThreads);
-  virtual ~ThreadSpecific();
+  ~ThreadSpecific();
 
   StoragePointerType& GetStorage();
   size_t GetSize() const;

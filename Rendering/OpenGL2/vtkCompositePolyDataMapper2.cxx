@@ -167,16 +167,6 @@ void vtkCompositeMapperHelper2::SetShaderValues(
 void vtkCompositeMapperHelper2::UpdateShaders(
   vtkOpenGLHelper& cellBO, vtkRenderer* ren, vtkActor* act)
 {
-  // in cases where LegacyShaderProperty is not nullptr, it means someone has used
-  // legacy shader replacement functions, so we make sure the actor uses the same
-  // shader property. NOTE: this implies that it is not possible to use both legacy
-  // and new functionality on the same actor/mapper.
-  if (this->Parent->LegacyShaderProperty &&
-    act->GetShaderProperty() != this->Parent->LegacyShaderProperty)
-  {
-    act->SetShaderProperty(this->Parent->LegacyShaderProperty);
-  }
-
   Superclass::UpdateShaders(cellBO, ren, act);
   if (cellBO.Program && this->Parent)
   {
@@ -399,7 +389,7 @@ void vtkCompositeMapperHelper2::DrawIBO(vtkRenderer* ren, vtkActor* actor, int p
     //   prog->SetUniform3f("ambientColorUniform", ambientColor);
     // }
 
-    bool selecting = (this->CurrentSelector ? true : false);
+    bool selecting = this->CurrentSelector != nullptr;
     bool tpass = actor->IsRenderingTranslucentPolygonalGeometry();
 
     for (dataIter it = this->Data.begin(); it != this->Data.end(); ++it)
@@ -459,7 +449,7 @@ void vtkCompositeMapperHelper2::RenderPieceDraw(vtkRenderer* ren, vtkActor* acto
                                   : vtkOpenGLPolyDataMapper::PrimitiveEnd);
        i++)
   {
-    this->DrawingVertices = (i > vtkOpenGLPolyDataMapper::PrimitiveTriStrips ? true : false);
+    this->DrawingVertices = i > vtkOpenGLPolyDataMapper::PrimitiveTriStrips;
     this->DrawingSelection = false;
     GLenum mode = this->GetOpenGLMode(representation, i);
     this->DrawIBO(ren, actor, i, this->Primitives[i], mode,

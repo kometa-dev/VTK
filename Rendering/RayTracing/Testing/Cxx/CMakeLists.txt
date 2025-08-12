@@ -15,6 +15,7 @@ if (VTK_ENABLE_OSPRAY)
     TestOSPRayMultiBlockPartialArrayFieldData.cxx
     TestOSPRayOrthographic.cxx
     TestOSPRayPass.cxx
+    TestOSPRayPointGaussianMapper.cxx
     TestOSPRayRenderMesh.cxx
     TestOSPRayRotatedNormals.cxx
     TestOSPRayScalarBar.cxx
@@ -52,6 +53,12 @@ if (VTK_ENABLE_OSPRAY)
     # Miscellaneous tests
     TestOSPRayCache.cxx
     TestOSPRayTiling.cxx
+    # Widgets tests
+    TestOSPRayBoxWidget2.cxx
+    TestOSPRayImplicitPlaneWidget2.cxx
+    TestOSPRayPointCloudWidget.cxx
+    TestOSPRayPointHandleRepresentation3D.cxx
+    TestOSPRaySplineWidget2.cxx
   )
 endif()
 

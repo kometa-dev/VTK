@@ -39,10 +39,13 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
 
-#include "vtkCellType.h"          // Needed for VTK_EMPTY_CELL
+#include "vtkCellType.h"          // Needed for inline methods
+#include "vtkDeprecation.h"       // Needed for deprecation
 #include "vtkIdTypeArray.h"       // Needed for inline methods
-#include "vtkIntArray.h"          // Needed for inline methods
+#include "vtkSmartPointer.h"      // Needed for internals
 #include "vtkUnsignedCharArray.h" // Needed for inline methods
+
+class vtkIntArray;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkCellTypes : public vtkObject
 {
@@ -68,19 +71,28 @@ public:
 
   /**
    * Specify a group of cell types.
+   *
+   * \deprecated Please use method version that doesn't use `cellLocations` instead.
    */
+  VTK_DEPRECATED_IN_9_2_0("Please use version without cellLocations.")
   void SetCellTypes(
     vtkIdType ncells, vtkUnsignedCharArray* cellTypes, vtkIdTypeArray* cellLocations);
 
   /**
-   * Specify a group of cell types. This version is provided to maintain
-   * backwards compatibility and does a copy of the cellLocations
+   * Specify a group of cell types.
    */
+  void SetCellTypes(vtkIdType ncells, vtkUnsignedCharArray* cellTypes);
+
+  VTK_DEPRECATED_IN_9_2_0("Please use version without cellLocations.")
   void SetCellTypes(vtkIdType ncells, vtkUnsignedCharArray* cellTypes, vtkIntArray* cellLocations);
 
   /**
    * Return the location of the cell in the associated vtkCellArray.
+   *
+   * \deprecated This method will go away in future releases. Please do not realy on `CellLocation`
+   * in this class.
    */
+  VTK_DEPRECATED_IN_9_2_0("The Location API will disappear.")
   vtkIdType GetCellLocation(vtkIdType cellId) { return this->LocationArray->GetValue(cellId); }
 
   /**
@@ -164,13 +176,16 @@ public:
 
 protected:
   vtkCellTypes();
-  ~vtkCellTypes() override;
+  ~vtkCellTypes() override = default;
 
-  vtkUnsignedCharArray* TypeArray; // pointer to types array
-  vtkIdTypeArray* LocationArray;   // pointer to array of offsets
-  vtkIdType Size;                  // allocated size of data
-  vtkIdType MaxId;                 // maximum index inserted thus far
-  vtkIdType Extend;                // grow array by this point
+  vtkSmartPointer<vtkUnsignedCharArray> TypeArray; // pointer to types array
+
+  // DEPRECATION_IN_9_2_0 Note for whoever is in deprecation duties:
+  // The attribute LocationArray needs to be deleted, and any code in this class that would fail
+  // compiling because of its removal deleted as well.
+  vtkSmartPointer<vtkIdTypeArray> LocationArray; // pointer to array of offsets
+
+  vtkIdType MaxId; // maximum index inserted thus far
 
 private:
   vtkCellTypes(const vtkCellTypes&) = delete;

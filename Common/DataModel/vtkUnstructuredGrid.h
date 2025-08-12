@@ -30,7 +30,7 @@
 
 #include "vtkCellArray.h"             //inline GetCellPoints()
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // for VTK_DEPRECATED_IN_9_0_0
+#include "vtkDeprecation.h"           // For deprecation
 #include "vtkIdTypeArray.h"           //inline GetCellPoints()
 #include "vtkUnstructuredGridBase.h"
 
@@ -174,6 +174,11 @@ public:
   int GetCellType(vtkIdType cellId) override;
 
   /**
+   * Get the size of the cell with given cellId.
+   */
+  vtkIdType GetCellSize(vtkIdType cellId) override;
+
+  /**
    * Get a list of types of cells in a dataset. The list consists of an array
    * of types (not necessarily in any order), with a single entry per type.
    * For example a dataset with 5 triangles, 3 lines, and 100 hexahedra would
@@ -184,7 +189,22 @@ public:
    * THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A SINGLE THREAD AND
    * THE DATASET IS NOT MODIFIED
    */
+  VTK_DEPRECATED_IN_9_2_0("Please use GetDistinctCellTypesArray() instead.")
   void GetCellTypes(vtkCellTypes* types) override;
+
+  /**
+   * Get a list of types of cells in a dataset. The list consists of an array
+   * of types (not necessarily in any order), with a single entry per type.
+   * For example a dataset with 5 triangles, 3 lines, and 100 hexahedra would
+   * result in a list of three entries, corresponding to the types VTK_TRIANGLE,
+   * VTK_LINE, and VTK_HEXAHEDRON. This override implements an optimization that
+   * recomputes cell types only when the types of cells may have changed.
+   * This method never returns `nullptr`.
+   *
+   * THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A SINGLE THREAD AND
+   * THE DATASET IS NOT MODIFIED
+   */
+  vtkUnsignedCharArray* GetDistinctCellTypesArray();
 
   /**
    * A higher-performing variant of the virtual vtkDataSet::GetCellPoints()
@@ -208,10 +228,6 @@ public:
    * has been called).
    */
   void GetPointCells(vtkIdType ptId, vtkIdType& ncells, vtkIdType*& cells)
-    VTK_SIZEHINT(cells, ncells);
-  VTK_DEPRECATED_IN_9_0_0(
-    "Use vtkUnstructuredGrid::GetPointCells::vtkIdType, vtkIdType&, vtkIdType*&)")
-  void GetPointCells(vtkIdType ptId, unsigned short& ncells, vtkIdType*& cells)
     VTK_SIZEHINT(cells, ncells);
   ///@}
 

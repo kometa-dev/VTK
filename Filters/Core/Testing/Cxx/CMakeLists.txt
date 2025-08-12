@@ -7,6 +7,7 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestAppendPolyData.cxx,NO_VALID
   TestAppendSelection.cxx,NO_VALID
   TestArrayCalculator.cxx,NO_VALID
+  TestArrayRename.cxx,NO_VALID
   TestAssignAttribute.cxx,NO_VALID
   TestBinCellDataFilter.cxx,NO_VALID
   TestCategoricalPointDataToCellData.cxx,NO_VALID
@@ -30,6 +31,7 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestExplicitStructuredGridCrop.cxx
   TestExplicitStructuredGridToUnstructuredGrid.cxx
   TestExecutionTimer.cxx,NO_VALID
+  TestExtractCellsAlongPolyLine.cxx,NO_VALID
   TestFeatureEdges.cxx,NO_VALID
   TestFlyingEdges.cxx
   TestGlyph3D.cxx
@@ -42,6 +44,7 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestMaskPointsModes.cxx
   TestNamedComponents.cxx,NO_VALID
   TestPartitionedDataSetCollectionConvertors.cxx,NO_VALID
+  TestPlaneCutter.cxx,NO_VALID
   TestPointDataToCellData.cxx,NO_VALID
   TestPolyDataConnectivityFilter.cxx,NO_VALID
   TestPolyDataTangents.cxx
@@ -57,6 +60,7 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestSmoothPolyDataFilter.cxx,NO_VALID
   TestSMPPipelineContour.cxx,NO_VALID
   TestSlicePlanePrecision.cxx,NO_VALID
+  TestStaticCleanPolyData.cxx,NO_VALID
   TestStripper.cxx,NO_VALID
   TestStructuredGridAppend.cxx,NO_VALID
   TestThreshold.cxx,NO_VALID

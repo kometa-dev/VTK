@@ -512,8 +512,7 @@ vtkAbstractArray* vtkAlgorithm::GetInputAbstractArrayToProcess(
         vtkErrorMacro("Attempt to get row data from a non-table");
         return nullptr;
       }
-      vtkFieldData* fd = inputT->GetRowData();
-      return fd->GetAbstractArray(name);
+      return inputT->GetColumnByName(name);
     }
 
     if (fieldAssoc == vtkDataObject::FIELD_ASSOCIATION_VERTICES ||
@@ -923,18 +922,6 @@ vtkExecutive* vtkAlgorithm::CreateDefaultExecutive()
     return vtkAlgorithm::DefaultExecutivePrototype->NewInstance();
   }
   return vtkCompositeDataPipeline::New();
-}
-
-//------------------------------------------------------------------------------
-void vtkAlgorithm::Register(vtkObjectBase* o)
-{
-  this->RegisterInternal(o, 1);
-}
-
-//------------------------------------------------------------------------------
-void vtkAlgorithm::UnRegister(vtkObjectBase* o)
-{
-  this->UnRegisterInternal(o, 1);
 }
 
 //------------------------------------------------------------------------------
@@ -1795,11 +1782,4 @@ void vtkAlgorithm::AddInputDataObject(int port, vtkDataObject* input)
     this->AddInputConnection(port, tp->GetOutputPort());
     tp->Delete();
   }
-}
-
-//------------------------------------------------------------------------------
-void vtkAlgorithm::SetProgress(double val)
-{
-  VTK_LEGACY_REPLACED_BODY(vtkAlgorithm::SetProgress, "VTK 9.0", vtkAlgorithm::UpdateProgress);
-  this->UpdateProgress(val);
 }

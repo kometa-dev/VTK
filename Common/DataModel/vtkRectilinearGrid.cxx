@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkRectilinearGrid.h"
 
 #include "vtkCellData.h"
@@ -830,6 +827,36 @@ int vtkRectilinearGrid::GetCellType(vtkIdType vtkNotUsed(cellId))
 
     case VTK_XYZ_GRID:
       return VTK_VOXEL;
+
+    default:
+      vtkErrorMacro(<< "Bad data description!");
+      return VTK_EMPTY_CELL;
+  }
+}
+
+//------------------------------------------------------------------------------
+vtkIdType vtkRectilinearGrid::GetCellSize(vtkIdType vtkNotUsed(cellId))
+{
+  switch (this->DataDescription)
+  {
+    case VTK_EMPTY:
+      return 0;
+
+    case VTK_SINGLE_POINT:
+      return 1;
+
+    case VTK_X_LINE:
+    case VTK_Y_LINE:
+    case VTK_Z_LINE:
+      return 2;
+
+    case VTK_XY_PLANE:
+    case VTK_YZ_PLANE:
+    case VTK_XZ_PLANE:
+      return 4;
+
+    case VTK_XYZ_GRID:
+      return 8;
 
     default:
       vtkErrorMacro(<< "Bad data description!");

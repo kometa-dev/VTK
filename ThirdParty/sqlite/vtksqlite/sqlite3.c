@@ -1210,7 +1210,7 @@ extern "C" {
 */
 #define SQLITE_VERSION        "3.36.0"
 #define SQLITE_VERSION_NUMBER 3036000
-#define SQLITE_SOURCE_ID      " 1f0a06d7f621b65191c6ed415b39827a30f8d5182d1069c3f49eda6bd41851f8"
+#define SQLITE_SOURCE_ID      " d120e632a349c042d69388c408ca6cc16dde5280b456dcd250180dcc643dfdb2"
 
 /*
 ** CAPI3REF: Run-Time Library Version Numbers
@@ -230585,7 +230585,7 @@ static void fts5SourceIdFunc(
 ){
   assert( nArg==0 );
   UNUSED_PARAM2(nArg, apUnused);
-  sqlite3_result_text(pCtx, "fts5: 3.33 3.33.0-vtk", -1, SQLITE_TRANSIENT);
+  sqlite3_result_text(pCtx, "fts5: 3.36 3.36.0-vtk", -1, SQLITE_TRANSIENT);
 }
 
 /*
@@ -235513,7 +235513,7 @@ SQLITE_API int sqlite3_stmt_init(
 /************** End of stmt.c ************************************************/
 #if __LINE__!=235514
 #undef SQLITE_SOURCE_ID
-#define SQLITE_SOURCE_ID      " 1f0a06d7f621b65191c6ed415b39827a30f8d5182d1069c3f49eda6bd418alt2"
+#define SQLITE_SOURCE_ID      " d120e632a349c042d69388c408ca6cc16dde5280b456dcd250180dcc643dalt2"
 #endif
 /* Return the source-id for this library */
 SQLITE_API const char *sqlite3_sourceid(void){ return SQLITE_SOURCE_ID; }

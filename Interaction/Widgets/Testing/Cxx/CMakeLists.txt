@@ -20,7 +20,9 @@ vtk_add_test_cxx(vtkInteractionWidgetsCxxTests tests
   TestCoincidentHandleWidgets.cxx
   TestConstrainedHandleWidget.cxx
   TestContourWidget2.cxx
+  TestCoordinateFrameWidget.cxx
   TestDijkstraImageGeodesicPath.cxx
+  TestDisplaySizedImplicitPlaneWidget.cxx
   TestDistanceWidget.cxx
   TestDistanceWidget3D.cxx
   TestFinitePlaneWidget.cxx
@@ -134,6 +136,7 @@ set(all_tests
   ${ogl_tests}
   )
 vtk_test_cxx_executable(vtkInteractionWidgetsCxxTests all_tests
+  DISABLE_FLOATING_POINT_EXCEPTIONS
   RENDERING_FACTORY
   )
 

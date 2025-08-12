@@ -39,6 +39,7 @@
 
 vtkStandardNewMacro(vtkAMRCutPlane);
 
+vtkCxxSetObjectMacro(vtkAMRCutPlane, Controller, vtkMultiProcessController);
 //------------------------------------------------------------------------------
 vtkAMRCutPlane::vtkAMRCutPlane()
 {
@@ -51,13 +52,15 @@ vtkAMRCutPlane::vtkAMRCutPlane()
     this->Center[i] = 0.0;
     this->Normal[i] = 0.0;
   }
-  this->Controller = vtkMultiProcessController::GetGlobalController();
+  this->Controller = nullptr;
+  this->SetController(vtkMultiProcessController::GetGlobalController());
   this->UseNativeCutter = true;
 }
 
 //------------------------------------------------------------------------------
 vtkAMRCutPlane::~vtkAMRCutPlane()
 {
+  this->SetController(nullptr);
   this->BlocksToLoad.clear();
 }
 
@@ -529,10 +532,5 @@ bool vtkAMRCutPlane::IsAMRData2D(vtkOverlappingAMR* input)
 {
   assert("pre: Input AMR dataset is nullptr" && (input != nullptr));
 
-  if (input->GetGridDescription() != VTK_XYZ_GRID)
-  {
-    return true;
-  }
-
-  return false;
+  return input->GetGridDescription() != VTK_XYZ_GRID;
 }

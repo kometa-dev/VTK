@@ -17,22 +17,14 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkActor.h"
 #include "vtkCallbackCommand.h"
 #include "vtkCamera.h"
-#include "vtkCellArray.h"
 #include "vtkLineSource.h"
-#include "vtkPoints.h"
-#include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
-#include "vtkProperty.h"
-#include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
-#include "vtkSmartPointer.h"
 #include "vtkTextActor3D.h"
 #include "vtkTextProperty.h"
 #include "vtkTransform.h"
-#include "vtkVRModel.h"
 #include "vtkVRRenderWindow.h"
-#include "vtkWindow.h"
 
 //------------------------------------------------------------------------------
 vtkVRControlsHelper::vtkVRControlsHelper()
@@ -163,7 +155,7 @@ void vtkVRControlsHelper::UpdateRepresentation()
     vtkEventDataDevice controller = this->Device;
 
     // Hide controls tooltips if the controller is off
-    vtkVRModel* mod = renWin->GetTrackedDeviceModel(controller);
+    vtkVRModel* mod = renWin->GetModelForDevice(controller);
     if (!mod)
     {
       this->LabelVisible = false;

@@ -14,6 +14,7 @@ set(classes
   vtkExtractGeometry
   vtkExtractGrid
   vtkExtractLevel
+  vtkExtractParticlesOverTime
   vtkExtractPolyDataGeometry
   vtkExtractRectilinearGrid
   vtkExtractSelectedArraysOverTime
@@ -24,7 +25,6 @@ set(classes
   vtkExtractSelectedRows
   vtkExtractSelectedThresholds
   vtkExtractSelection
-  vtkExtractTemporalFieldData
   vtkExtractTensorComponents
   vtkExtractTimeSteps
   vtkExtractUnstructuredGrid

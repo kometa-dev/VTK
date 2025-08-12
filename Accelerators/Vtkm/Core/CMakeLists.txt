@@ -14,19 +14,19 @@
 ##
 ##=============================================================================
 
+set(VTKm_NO_DEPRECATED_VIRTUAL ON)
+
 list(INSERT CMAKE_MODULE_PATH 0
   "${VTK_SOURCE_DIR}/ThirdParty/vtkm/vtkvtkm/vtk-m/CMake")
 
 set(private_headers
+  vtkmFilterPolicy.h
   vtkmlib/DataArrayConverters.hxx
   vtkmlib/Portals.hxx
   vtkmlib/PortalTraits.h)
 
-set(impl_classes
-  vtkmDataArray
-  )
-
 set(nowrap_classes
+  vtkmDataArray
   vtkmlib/DataArrayConverters
   vtkmlib/Portals)
 
@@ -38,7 +38,7 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/vtkmConfigCore.h"
   @ONLY)
 
-list(APPEND headers
+set(headers
   "${CMAKE_CURRENT_BINARY_DIR}/vtkmConfigCore.h")
 
 if (TARGET vtkm::cuda)
@@ -51,37 +51,35 @@ if (TARGET vtkm::cuda)
   string(APPEND CMAKE_CUDA_FLAGS " -Xnvlink -w")
 endif ()
 
-set(force_static)
-if (TARGET vtkm::cuda AND BUILD_SHARED_LIBS)
-  set(force_static FORCE_STATIC)
-endif ()
-
 vtk_module_add_module(VTK::AcceleratorsVTKmCore
-  ${force_static}
   HEADER_DIRECTORIES
   SOURCES ${sources}
   HEADERS ${headers}
-  CLASSES ${impl_classes}
   NOWRAP_HEADERS  ${nowrap_headers}
   NOWRAP_CLASSES  ${nowrap_classes}
   PRIVATE_HEADERS ${private_headers})
 _vtk_module_real_target(vtkm_accel_target VTK::AcceleratorsVTKmCore)
 vtkm_add_target_information(${vtkm_accel_target}
+                            DROP_UNUSED_SYMBOLS
                             EXTENDS_VTKM
                             MODIFY_CUDA_FLAGS
                             DEVICE_SOURCES ${sources})
-
 vtk_module_set_property(VTK::AcceleratorsVTKmCore
   PROPERTY  JOB_POOL_COMPILE
   VALUE     vtkm_pool)
 
 if (TARGET vtkm::cuda)
-  vtk_module_set_property(VTK::AcceleratorsVTKmCore
-    PROPERTY  CUDA_SEPARABLE_COMPILATION
-    VALUE     ON)
-  vtk_module_compile_options(VTK::AcceleratorsVTKmCore
-    PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:-Xcudafe --diag_suppress=extra_semicolon>)
-endif ()
+  list(TRANSFORM nowrap_classes APPEND ".cxx" OUTPUT_VARIABLE cuda_impl)
+  set(cuda_impl vtkmDataArray.cxx ${nowrap_classes})
+  set_source_files_properties(${cuda_impl} PROPERTIES
+    LANGUAGE CUDA
+    CUDA_SOURCE_PROPERTY_FORMAT OBJ
+    CUDA_SEPARABLE_COMPILATION ON)
+
+  vtk_module_set_properties(VTK::AcceleratorsVTKmCore
+    LANGUAGE CUDA
+    CUDA_SEPARABLE_COMPILATION ON)
+endif()
 
 if (MSVC)
   set(msvc_warning_flags

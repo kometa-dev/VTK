@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkContour3DLinearGrid.h"
 
 #include "vtk3DLinearGridInternal.h"
@@ -1393,14 +1390,14 @@ void vtkContour3DLinearGrid::ProcessPiece(
     // Determine the size/type of point and cell ids needed to index points
     // and cells. Using smaller ids results in a greatly reduced memory footprint
     // and faster processing.
-    this->LargeIds = (numPts >= VTK_INT_MAX || numCells >= VTK_INT_MAX ? true : false);
+    this->LargeIds = numPts >= VTK_INT_MAX || numCells >= VTK_INT_MAX;
 
     // Generate all of the merged points and triangles at once (for multiple
     // contours) and then produce the normals if requested.
     for (int vidx = 0; vidx < numContours; vidx++)
     {
       value = values[vidx];
-      if (this->LargeIds == false)
+      if (!this->LargeIds)
       {
         if (!ProcessMerged<int>(numCells, inPts, cellIter, sType, sPtr, value, outPts, newPolys,
               this->InterpolateAttributes, this->ComputeScalars, inScalars, inPD, outPD, &arrays,
@@ -1640,16 +1637,17 @@ bool vtkContour3DLinearGrid::CanFullyProcessDataObject(
     }
 
     // Get list of cell types in the unstructured grid
-    vtkNew<vtkCellTypes> cellTypes;
-    ug->GetCellTypes(cellTypes);
-    for (vtkIdType i = 0; i < cellTypes->GetNumberOfTypes(); ++i)
+    if (vtkUnsignedCharArray* cellTypes = ug->GetDistinctCellTypesArray())
     {
-      unsigned char cellType = cellTypes->GetCellType(i);
-      if (cellType != VTK_VOXEL && cellType != VTK_TETRA && cellType != VTK_HEXAHEDRON &&
-        cellType != VTK_WEDGE && cellType != VTK_PYRAMID)
+      for (vtkIdType i = 0; i < cellTypes->GetNumberOfValues(); ++i)
       {
-        // Unsupported cell type, can't process data
-        return false;
+        unsigned char cellType = cellTypes->GetValue(i);
+        if (cellType != VTK_VOXEL && cellType != VTK_TETRA && cellType != VTK_HEXAHEDRON &&
+          cellType != VTK_WEDGE && cellType != VTK_PYRAMID)
+        {
+          // Unsupported cell type, can't process data
+          return false;
+        }
       }
     }
 

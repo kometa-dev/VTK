@@ -671,7 +671,7 @@ void fillVectorsFromVars(std::vector<CGNSRead::CGNSVariable>& vars,
         }
         break;
     }
-    if (vars[n].isComponent == true)
+    if (vars[n].isComponent)
     {
       strcpy(name, vars[n].name);
       name[len] = '\0';
@@ -715,7 +715,7 @@ void fillVectorsFromVars(std::vector<CGNSRead::CGNSVariable>& vars,
     }
     // Check if a variable is present with a similar
     // name as the vector being built
-    if (CGNSRead::isACGNSVariable(vars, iter.name) == true)
+    if (CGNSRead::isACGNSVariable(vars, iter.name))
     {
       // vtkWarningMacro ( "Warning, vector " << iter->name
       //                  << " can't be assembled." << std::endl );
@@ -750,7 +750,7 @@ void fillVectorsFromVars(std::vector<CGNSRead::CGNSVariable>& vars,
     }
   }
   // Remove invalid vectors
-  if (invalid == true)
+  if (invalid)
   {
     vectors.erase(
       std::remove_if(vectors.begin(), vectors.end(), CGNSRead::testValidVector), vectors.end());
@@ -760,7 +760,6 @@ void fillVectorsFromVars(std::vector<CGNSRead::CGNSVariable>& vars,
 //------------------------------------------------------------------------------
 bool vtkCGNSMetaData::Parse(const char* cgnsFileName)
 {
-
   if (!cgnsFileName)
   {
     return false;
@@ -861,10 +860,10 @@ bool vtkCGNSMetaData::Parse(const char* cgnsFileName)
       this->baseList[numBase].times.push_back(0.0);
     }
 
-    if (nzones > 0)
+    // Read variable name and more from each zone
+    for (nn = 0; nn < nzones; ++nn)
     {
-      // variable name and more, based on first zone only
-      readZoneInfo(cgioNum, baseChildId[0], this->baseList[numBase]);
+      readZoneInfo(cgioNum, baseChildId[nn], this->baseList[numBase]);
     }
   }
 
@@ -919,6 +918,11 @@ void vtkCGNSMetaData::PrintSelf(std::ostream& os)
     {
       os << "      Cell :: ";
       os << this->baseList[b].CellDataArraySelection.GetArrayName(i) << std::endl;
+    }
+    for (int i = 0; i < this->baseList[b].FaceDataArraySelection.GetNumberOfArrays(); ++i)
+    {
+      os << "      Face :: ";
+      os << this->baseList[b].FaceDataArraySelection.GetArrayName(i) << std::endl;
     }
 
     os << "    Family Number: " << this->baseList[b].family.size() << std::endl;
@@ -1083,7 +1087,7 @@ static void BroadcastFamilies(vtkMultiProcessController* controller,
     int flags = 0;
     if (rank == 0)
     {
-      if (ite.isBC == true)
+      if (ite.isBC)
       {
         flags = 1;
       }
@@ -1165,11 +1169,11 @@ void vtkCGNSMetaData::Broadcast(vtkMultiProcessController* controller, int rank)
     int flags = 0;
     if (rank == 0)
     {
-      if (ite.useGridPointers == true)
+      if (ite.useGridPointers)
       {
         flags = 1;
       }
-      if (ite.useFlowPointers == true)
+      if (ite.useFlowPointers)
       {
         flags = (flags | 2);
       }
@@ -1194,6 +1198,7 @@ void vtkCGNSMetaData::Broadcast(vtkMultiProcessController* controller, int rank)
 
     CGNSRead::BroadcastSelection(controller, ite.PointDataArraySelection, rank);
     CGNSRead::BroadcastSelection(controller, ite.CellDataArraySelection, rank);
+    CGNSRead::BroadcastSelection(controller, ite.FaceDataArraySelection, rank);
 
     BroadcastIntVector(controller, ite.steps, rank);
     BroadcastDoubleVector(controller, ite.times, rank);

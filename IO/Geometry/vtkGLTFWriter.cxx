@@ -57,8 +57,6 @@
 #include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
-#include <fstream>
-
 vtkStandardNewMacro(vtkGLTFWriter);
 
 vtkGLTFWriter::vtkGLTFWriter()
@@ -250,7 +248,7 @@ std::string WriteBufferAndView(const char* gltfRelativeTexturePath, const char* 
     // otherwise we only refer to the image file.
     result = gltfRelativeTexturePath;
     // byte length
-    std::ifstream textureStream(texturePath, ios::binary);
+    vtksys::ifstream textureStream(texturePath, ios::binary);
     if (textureStream.fail())
     {
       return mimeType; /* empty mimeType signals error*/
@@ -327,10 +325,12 @@ void WriteMesh(Json::Value& accessors, Json::Value& buffers, Json::Value& buffer
   }
   if (saveNormal)
   {
-    vtkDataArray* a;
-    if ((a = pd->GetPointData()->GetArray("NORMAL")))
+    vtkDataArray* a = pd->GetPointData()->GetNormals();
+    if (a)
     {
-      arraysToSave.push_back(a);
+      normals->ShallowCopy(a);
+      normals->SetName("NORMAL");
+      arraysToSave.push_back(normals);
     }
   }
   int userAccessorsStart = accessors.size();

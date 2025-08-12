@@ -91,33 +91,6 @@ public:
   vtkTypeBool HasTranslucentPolygonalGeometry() override;
   ///@}
 
-  enum
-  {
-    AnyLocation = 0,
-    LowerLeftCorner,
-    LowerRightCorner,
-    LowerCenter,
-    UpperLeftCorner,
-    UpperRightCorner,
-    UpperCenter
-  };
-
-  ///@{
-  /**
-   * Set the text position, by enumeration (
-   * AnyLocation = 0,
-   * LowerLeftCorner,
-   * LowerRightCorner,
-   * LowerCenter,
-   * UpperLeftCorner,
-   * UpperRightCorner,
-   * UpperCenter)
-   * related to the render window
-   */
-  virtual void SetWindowLocation(int enumLocation);
-  vtkGetMacro(WindowLocation, int);
-  ///@}
-
   ///@{
   /**
    * Set the text position, by overriding the same function of
@@ -184,6 +157,24 @@ public:
   void SetPadding(int padding);
   ///@}
 
+  /**
+   * Set the visibility of the interior lines when Matplotlib is used for the rendering.
+   * Transfer call to vtkMathTextFreeTypeTextRenderer. Default is false.
+   */
+  void SetInteriorLinesVisibility(bool visibility);
+
+  /**
+   * Set the width (in pixels) of the interior lines when Matplotlib is used for the rendering.
+   * Transfer call to vtkMathTextFreeTypeTextRenderer. Default is 1.
+   */
+  void SetInteriorLinesWidth(int width);
+
+  /**
+   * Set the color of the interior lines when Matplotlib is used for the rendering.
+   * Transfer call to vtkMathTextFreeTypeTextRenderer. Default is black (0.0, 0.0, 0.0).
+   */
+  void SetInteriorLinesColor(double colorR, double colorG, double colorB);
+
 protected:
   vtkTextRepresentation();
   ~vtkTextRepresentation() override;
@@ -197,10 +188,6 @@ protected:
   // the text to manage
   vtkTextActor* TextActor;
   vtkTextProperty* TextProperty;
-
-  // Window location by enumeration
-  int WindowLocation;
-  virtual void UpdateWindowLocation();
 
   // observer to observe internal TextActor and TextProperty
   vtkTextRepresentationObserver* Observer;

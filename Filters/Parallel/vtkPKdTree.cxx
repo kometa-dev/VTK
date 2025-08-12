@@ -446,7 +446,7 @@ void vtkPKdTree::BuildLocator()
     this->AllCheckParameters(); // global operation to ensure same parameters
 
     double volBounds[6];
-    if (this->VolumeBounds(volBounds) == false) // global operation to get bounds
+    if (!this->VolumeBounds(volBounds)) // global operation to get bounds
     {
       goto doneError;
     }
@@ -608,7 +608,7 @@ void vtkPKdTree::SingleProcessBuildLocator()
   }
 }
 
-typedef struct _vtkNodeInfo
+typedef struct vtkNodeInfo_
 {
   vtkKdNode* kd;
   int L;
@@ -618,7 +618,7 @@ typedef struct _vtkNodeInfo
 
 #define ENQUEUE(a, b, c, d)                                                                        \
   {                                                                                                \
-    vtkNodeInfo rec = new struct _vtkNodeInfo;                                                     \
+    vtkNodeInfo rec = new struct vtkNodeInfo_;                                                     \
     rec->kd = a;                                                                                   \
     rec->L = b;                                                                                    \
     rec->level = c;                                                                                \

@@ -836,6 +836,12 @@ size_t vtkParse_ValueInfoFromString(ValueInfo* data, StringCache* cache, const c
         cp++;
       }
     }
+
+    /* update count if all array sizes are integer literals */
+    if (count)
+    {
+      data->Count = count;
+    }
   }
 
   /* add pointer indirection to correspond to first array dimension */

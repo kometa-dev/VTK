@@ -157,6 +157,16 @@ public:
   virtual int GetCellType(vtkIdType cellId) = 0;
 
   /**
+   * Get the size of cell with cellId such that: 0 <= cellId < NumberOfCells.
+   * THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A SINGLE THREAD AND
+   * THE DATASET IS NOT MODIFIED
+   *
+   * @warning This method MUST be overriden for performance reasons.
+   * Default implementation is very unefficient.
+   */
+  virtual vtkIdType GetCellSize(vtkIdType cellId);
+
+  /**
    * Get a list of types of cells in a dataset. The list consists of an array
    * of types (not necessarily in any order), with a single entry per type.
    * For example a dataset 5 triangles, 3 lines, and 100 hexahedra would
@@ -468,6 +478,12 @@ public:
    * Allocate ghost array for cells.
    */
   vtkUnsignedCharArray* AllocateCellGhostArray();
+  /**
+   * Returns the ghost array for the given type (point or cell).
+   * Takes advantage of the cache with the pointer to the array to save a string
+   * comparison.
+   */
+  vtkUnsignedCharArray* GetGhostArray(int type) override;
 
 protected:
   // Constructor with default bounds (0,1, 0,1, 0,1).

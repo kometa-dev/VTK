@@ -13,9 +13,6 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
-
 #include "vtkPyramid.h"
 
 #include "vtkCellArray.h"
@@ -248,7 +245,7 @@ int vtkPyramid::EvaluatePosition(const double x[3], double closestPoint[3], int&
   // Efficient point access
   vtkDoubleArray* pointArray = static_cast<vtkDoubleArray*>(this->Points->GetData());
   const double* pts = pointArray->GetPointer(0);
-  const double *pt0, *pt1, *pt, *tmp;
+  const double *pt0, *pt1, *tmp;
 
   // There are problems searching for the apex point so we check if
   // we are there first before doing the full parametric inversion.
@@ -322,13 +319,13 @@ int vtkPyramid::EvaluatePosition(const double x[3], double closestPoint[3], int&
            tcol[3] = { 0, 0, 0 };
     for (int i = 0; i < 5; i++)
     {
-      pt = pts + 3 * i;
       for (int j = 0; j < 3; j++)
       {
-        fcol[j] += pt[j] * weights[i];
-        rcol[j] += pt[j] * derivs[i];
-        scol[j] += pt[j] * derivs[i + 5];
-        tcol[j] += pt[j] * derivs[i + 10];
+        const double coord = pts[3 * i + j];
+        fcol[j] += coord * weights[i];
+        rcol[j] += coord * derivs[i];
+        scol[j] += coord * derivs[i + 5];
+        tcol[j] += coord * derivs[i + 10];
       }
     }
 
@@ -1036,24 +1033,6 @@ void vtkPyramid::GetEdgeToAdjacentFaces(vtkIdType edgeId, const vtkIdType*& pts)
 {
   assert(edgeId < vtkPyramid::NumberOfEdges && "edgeId too large");
   pts = edgeToAdjacentFaces[edgeId];
-}
-
-//------------------------------------------------------------------------------
-void vtkPyramid::GetEdgePoints(int edgeId, int*& pts)
-{
-  VTK_LEGACY_REPLACED_BODY(vtkPyramid::GetEdgePoints(int, int*&), "VTK 9.0",
-    vtkPyramid::GetEdgePoints(vtkIdType, const vtkIdType*&));
-  static std::vector<int> tmp(std::begin(faces[edgeId]), std::end(faces[edgeId]));
-  pts = tmp.data();
-}
-
-//------------------------------------------------------------------------------
-void vtkPyramid::GetFacePoints(int faceId, int*& pts)
-{
-  VTK_LEGACY_REPLACED_BODY(vtkPyramid::GetFacePoints(int, int*&), "VTK 9.0",
-    vtkPyramid::GetFacePoints(vtkIdType, const vtkIdType*&));
-  static std::vector<int> tmp(std::begin(faces[faceId]), std::end(faces[faceId]));
-  pts = tmp.data();
 }
 
 //------------------------------------------------------------------------------

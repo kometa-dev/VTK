@@ -136,11 +136,7 @@ public:
       double d1 = other.Corner[0][0] - Corner[2][0];
       double d2 = Corner[0][1] - other.Corner[2][1];
       double d3 = other.Corner[0][1] - Corner[2][1];
-      if (d0 < 0. && d1 < 0. && d2 < 0. && d3 < 0.)
-      {
-        return true;
-      }
-      return false;
+      return d0 < 0. && d1 < 0. && d2 < 0. && d3 < 0.;
     }
     else
     {
@@ -607,7 +603,6 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
     ((kdbounds[1] - kdbounds[0]) * (kdbounds[3] - kdbounds[2])) * this->MaximumLabelFraction);
   (void)allowableLabelArea;
   unsigned long renderedLabelArea = 0;
-  unsigned long iteratedLabelArea = 0;
   double camVec[3];
   if (this->PositionsAsNormals)
   {
@@ -827,8 +822,6 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
         vtkDebugMacro("Area: " << renderedLabelArea << "  /  " << allowableLabelArea);
       }
     }
-
-    iteratedLabelArea += static_cast<unsigned long>(sz[0] * sz[1]);
 
     double orient = tpropCopy->GetOrientation();
 

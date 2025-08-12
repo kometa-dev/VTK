@@ -26,37 +26,14 @@
             - build/build.ninja
             - build/rules.ninja
             - build/cmake_install.cmake
-            - build/*/cmake_install.cmake
-            - build/*/*/cmake_install.cmake
-            - build/*/*/*/cmake_install.cmake
-            - build/*/*/*/*/cmake_install.cmake
-            - build/*/*/*/*/*/cmake_install.cmake
-            - build/*/*/*/*/*/*/cmake_install.cmake
-            - build/*/*/*/*/*/*/*/cmake_install.cmake
-            - build/*/*/*/*/*/*/*/*/cmake_install.cmake
+            - build/**/cmake_install.cmake
 
             # CTest files.
             - build/CTestCustom.cmake
-            # XXX(globbing): Can be simplified with support from
-            # https://gitlab.com/gitlab-org/gitlab-runner/issues/4840
             - build/CTestTestfile.cmake
-            - build/*/CTestTestfile.cmake
-            - build/*/*/CTestTestfile.cmake
-            - build/*/*/*/CTestTestfile.cmake
-            - build/*/*/*/*/CTestTestfile.cmake
-            - build/*/*/*/*/*/CTestTestfile.cmake
-            - build/*/*/*/*/*/*/CTestTestfile.cmake
-            - build/*/*/*/*/*/*/*/CTestTestfile.cmake
-            - build/*/*/*/*/*/*/*/*/CTestTestfile.cmake
-            - build/*/*.h
-            - build/*/*/*.h
-            - build/*/*/*/*.h
-            - build/*/*/*/*/*.h
-            - build/*/*/*/*/*/*.h
-            - build/*/*/*/*/*/*/*.h
-            - build/*/*/*/*/*/*/*/*.h
-            - build/*/*/*/*/*/*/*/*/*.h
-            - build/*/*/*/*.hxx
+            - build/**/CTestTestfile.cmake
+            - build/**/*.h
+            - build/**/*.hxx
             - build/ExternalData/
             - build/Testing/
             - build/Testing/Temporary/
@@ -67,6 +44,14 @@
 
             # Virtual environment
             - build/ci-venv/
+
+            # proj.db
+            - build/share/vtk-*/proj/proj.db
+
+            # CMake logs
+            - build/CMakeFiles/CMakeError.log
+            - build/CMakeFiles/CMakeOutput.log
+            - build/CMakeFiles/rules.ninja
 
 .cmake_junit_artifacts:
     artifacts:

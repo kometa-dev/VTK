@@ -13,8 +13,7 @@
 
 =========================================================================*/
 
-// Hide VTK_DEPRECATED_IN_9_0_0() and VTK_DEPRECATED_IN_9_1_0() warnings for
-// this class.
+// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkHigherOrderHexahedron.h"
@@ -132,7 +131,7 @@ void vtkHigherOrderHexahedron::SetFaceIdsAndPoints(vtkHigherOrderQuadrilateral* 
   }
 
   // Do we need to flip the face to get an outward-pointing normal?
-  bool flipFace = (faceId % 2 == ((faceId / 2) % 2) ? true : false);
+  bool flipFace = faceId % 2 == ((faceId / 2) % 2);
 
   const int* order = this->GetOrder();
   vtkVector2i faceParams = vtkHigherOrderInterpolation::GetVaryingParametersOfHexFace(faceId);

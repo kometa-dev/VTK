@@ -154,6 +154,12 @@ public:
   int GetCellType(vtkIdType) override { return VTK_EMPTY_CELL; }
 
   /**
+   * This method always returns 1, as all cells are point in a pure
+   * `vtkPointSet`.
+   */
+  vtkIdType GetCellSize(vtkIdType) override { return 1; }
+
+  /**
    * See vtkDataSet for additional information.
    * WARNING: Just don't use this error-prone method, the returned pointer
    * and its values are only valid as long as another method invocation is not
@@ -195,7 +201,7 @@ public:
   ///@{
   /**
    * Set / get an instance of vtkAbstractCellLocator which may be used
-   * when a vtkCellLocatorStrategy is used during a FindCelloperation.
+   * when a vtkCellLocatorStrategy is used during a FindCell() operation.
    */
   virtual void SetCellLocator(vtkAbstractCellLocator*);
   vtkGetObjectMacro(CellLocator, vtkAbstractCellLocator);
@@ -246,8 +252,7 @@ public:
   /**
    * Overwritten to handle the data/locator loop
    */
-  void Register(vtkObjectBase* o) override;
-  void UnRegister(vtkObjectBase* o) override;
+  bool UsesGarbageCollector() const override { return true; }
   ///@}
 
   ///@{

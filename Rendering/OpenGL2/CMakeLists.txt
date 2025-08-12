@@ -33,6 +33,7 @@ set(classes
   vtkOpenGLGlyph3DMapper
   vtkOpenGLHardwareSelector
   vtkOpenGLHelper
+  vtkOpenGLHyperTreeGridMapper
   vtkOpenGLImageAlgorithmHelper
   vtkOpenGLImageMapper
   vtkOpenGLImageSliceMapper
@@ -186,6 +187,7 @@ set(opengl_overrides
   ImageMapper
   ImageSliceMapper
   Glyph3DMapper
+  HyperTreeGridMapper
   Light
   PointGaussianMapper
   PolyDataMapper
@@ -257,7 +259,8 @@ elseif (VTK_USE_COCOA)
     vtkCocoaRenderWindow.mm
     vtkCocoaGLView.mm)
   list(APPEND headers
-    vtkCocoaRenderWindow.h
+    vtkCocoaRenderWindow.h)
+  list(APPEND nowrap_headers
     vtkCocoaGLView.h)
   # Set specified Objective-C++ flags, if any.
   if (VTK_REQUIRED_OBJCXX_FLAGS)
