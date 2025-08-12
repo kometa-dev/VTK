@@ -74,6 +74,8 @@
 #ifndef vtkSphericalPointIterator_h
 #define vtkSphericalPointIterator_h
 
+#include <memory> // for std::unique_ptr
+
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataSet.h"               // the dataset and its points to iterate over
 #include "vtkDoubleArray.h"           // For axes
