@@ -137,13 +137,13 @@
   vtk_module: VTK::IONetCDF
 
 - extensions: [.mp4]
-  description: "H.264-encoded MP4 files (Windows only"
+  description: "H.264-encoded MP4 files (Windows only)"
   reader_class: null
   writer_class: vtkMP4Writer
   vtk_module: VTK::IOMovie
 
 - extensions: [.avi]
-  description: "AVI video files (Windows only"
+  description: "AVI video files (Windows only)"
   reader_class: null
   writer_class: vtkAVIWriter
   vtk_module: VTK::IOMovie
@@ -195,6 +195,12 @@
   description: "IOSS (Sierra IO System), writer supports only Exodus files"
   reader_class: vtkIOSSReader
   writer_class: vtkIOSSWriter
+  vtk_module: VTK::IOIOSS
+
+- extensions: [.exdg]
+  description: "IOSS (Sierra IO System) files as cell-grids"
+  reader_class: vtkIOSSCellGridReader
+  writer_class: null
   vtk_module: VTK::IOIOSS
 
 - extensions: [.bmp]
@@ -358,3 +364,27 @@
   reader_class: vtkGAMBITReader
   writer_class: null
   vtk_module: VTK::IOGeometry
+
+- extensions: [.h5]
+  description: "[CONVERGE CFD](https://convergecfd.com) format"
+  reader_class: vtkCONVERGECFDReader
+  writer_class: null
+  vtk_module: VTK::IOCONVERGECFD
+
+- extensions: [.cgns]
+  description: "[CONVERGE CFD](https://convergecfd.com) CGNS format"
+  reader_class: vtkCONVERGECFDCGNSReader
+  writer_class: null
+  vtk_module: VTK::IOCGNSReader
+
+- extensions: [.cgns]
+  description: "[CGNS](https://cgns.github.io/cgns-modern.github.io/index.html) format"
+  reader_class: vtkCGNSReader
+  writer_class: null
+  vtk_module: VTK::IOCGNSReader
+
+- extensions: [.abc]
+  description: "[Alembic](http://www.alembic.io/) scene format"
+  reader_class: null
+  writer_class: vtkAlembicExporter
+  vtk_module: VTK::IOAlembic

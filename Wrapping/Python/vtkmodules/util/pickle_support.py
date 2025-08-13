@@ -3,7 +3,7 @@ It needs to be imported specifically in order to work:
 
 >>> import vtkmodules.util.pickle_support
 
-Once imported however, the pickling of data objects is very straighforward. Here is an
+Once imported however, the pickling of data objects is very straightforward. Here is an
 example using poly data:
 
 >>> sphereSrc = vtkSphereSource()
@@ -22,7 +22,7 @@ objects in the global dispatch table used by pickle. NumPy is required as well s
 try:
     import copyreg, pickle, numpy
 except ImportError:
-    raise RuntimeError("This module depends on the pickle, copyreg, and numpy modules.\
+    raise ImportError("This module depends on the pickle, copyreg, and numpy modules.\
  Please make sure that it is installed properly.")
 
 from ..vtkParallelCore import vtkCommunicator
@@ -57,7 +57,7 @@ def unserialize_VTK_data_object(state):
 
 def serialize_VTK_data_object(data_object):
     """Returns a tuple with a reference to the unpickling function and a state dictionary
-    with entires:
+    with entries:
       - Type : a string with the class name for the data object
       - Serialized : a numpy array with the serialized data object
 
@@ -89,7 +89,7 @@ copyreg.pickle(vtkCommonDataModel.vtkStructuredPoints, serialize_VTK_data_object
 
 copyreg.pickle(vtkCommonDataModel.vtkUniformGridAMR, serialize_VTK_data_object)
 copyreg.pickle(vtkCommonDataModel.vtkOverlappingAMR, serialize_VTK_data_object)
-copyreg.pickle(vtkCommonDataModel.vtkHierarchicalBoxDataSet, serialize_VTK_data_object)
+copyreg.pickle(vtkCommonDataModel.vtkHierarchicalBoxDataSet, serialize_VTK_data_object) # VTK_DEPRECATED_IN_9_5_0
 copyreg.pickle(vtkCommonDataModel.vtkNonOverlappingAMR, serialize_VTK_data_object)
 
 copyreg.pickle(vtkCommonDataModel.vtkTable, serialize_VTK_data_object)

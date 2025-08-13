@@ -353,7 +353,6 @@ bool vtkOSPRayMaterialLibrary::InternalParseJSON(
       for (const std::string& vname : textures.getMemberNames())
       {
         const Json::Value nexttext = textures[vname];
-        const char* tfname = nexttext.asCString();
         vtkNew<vtkTexture> textr;
         std::string textureName, textureFilename;
         if (!this->ReadTextureFileOrData(
@@ -726,9 +725,9 @@ void vtkOSPRayMaterialLibrary::WriteFile(const std::string& filename, bool write
 
   if (!rstring.empty())
   {
-    vtksys::ofstream fstream(filename.c_str(), std::ios::out | std::ios::trunc);
-    fstream << rstring;
-    fstream.close();
+    vtksys::ofstream fileStream(filename.c_str(), std::ios::out | std::ios::trunc);
+    fileStream << rstring;
+    fileStream.close();
   }
 }
 

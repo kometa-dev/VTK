@@ -15,6 +15,7 @@
 #include "vtkQuadraticTriangle.h"
 #include "vtkWedge.h"
 
+#include <algorithm> //std::copy
 #include <cassert>
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -54,7 +55,7 @@ vtkBiQuadraticQuadraticWedge::~vtkBiQuadraticQuadraticWedge()
 
 //------------------------------------------------------------------------------
 // We are using 8 linear wedge
-static int LinearWedges[8][6] = {
+static vtkIdType LinearWedges[8][6] = {
   { 0, 6, 8, 12, 15, 17 },
   { 6, 7, 8, 15, 16, 17 },
   { 6, 1, 7, 15, 13, 16 },
@@ -67,11 +68,11 @@ static int LinearWedges[8][6] = {
 
 // We use 2 quadratic triangles and 3 quadratic-linear quads
 static constexpr vtkIdType WedgeFaces[5][9] = {
-  { 0, 1, 2, 6, 7, 8, 0, 0, 0 },     // first quad triangle
-  { 3, 5, 4, 11, 10, 9, 0, 0, 0 },   // second quad triangle
-  { 0, 3, 4, 1, 12, 9, 13, 6, 15 },  // 1. biquad quad
-  { 1, 4, 5, 2, 13, 10, 14, 7, 16 }, // 2. biquad quad
-  { 2, 5, 3, 0, 14, 11, 12, 8, 17 }, // 3. biquad quad
+  { 0, 2, 1, 8, 7, 6, 0, 0, 0 },     // first quad triangle
+  { 3, 4, 5, 9, 10, 11, 0, 0, 0 },   // second quad triangle
+  { 0, 1, 4, 3, 6, 13, 9, 12, 15 },  // 1. biquad quad
+  { 1, 2, 5, 4, 7, 14, 10, 13, 16 }, // 2. biquad quad
+  { 2, 0, 3, 5, 8, 12, 11, 14, 17 }, // 3. biquad quad
 };
 
 // We have 9 quadratic edges
@@ -447,21 +448,10 @@ int vtkBiQuadraticQuadraticWedge::IntersectWithLine(
 }
 
 //------------------------------------------------------------------------------
-int vtkBiQuadraticQuadraticWedge::Triangulate(
-  int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkBiQuadraticQuadraticWedge::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  pts->Reset();
-  ptIds->Reset();
-
-  for (int i = 0; i < 8; i++)
-  {
-    for (int j = 0; j < 6; j++)
-    {
-      ptIds->InsertId(6 * i + j, this->PointIds->GetId(LinearWedges[i][j]));
-      pts->InsertPoint(6 * i + j, this->Points->GetPoint(LinearWedges[i][j]));
-    }
-  }
-
+  ptIds->SetNumberOfIds(48);
+  std::copy(&LinearWedges[0][0], &LinearWedges[0][0] + 48, ptIds->begin());
   return 1;
 }
 

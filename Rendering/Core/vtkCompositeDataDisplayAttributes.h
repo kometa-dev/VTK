@@ -14,21 +14,26 @@
 
 #ifndef vtkCompositeDataDisplayAttributes_h
 #define vtkCompositeDataDisplayAttributes_h
-#include <functional>    // for std::function
-#include <unordered_map> // for std::unordered_map
 
-#include "vtkColor.h" // for vtkColor3d
 #include "vtkObject.h"
+
+#include "vtkColor.h"               // for vtkColor3d
 #include "vtkRenderingCoreModule.h" // for export macro
 #include "vtkSmartPointer.h"        // for arg
 #include "vtkVector.h"              // for vtkVector2d
+#include "vtkWrappingHints.h"       // For VTK_MARSHALMANUAL
+
+#include <functional>    // for std::function
+#include <unordered_map> // for std::unordered_map
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkBoundingBox;
 class vtkDataObject;
+class vtkDeserializer;
 class vtkScalarsToColors;
+class vtkSerializer;
 
-class VTKRENDERINGCORE_EXPORT vtkCompositeDataDisplayAttributes : public vtkObject
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALMANUAL vtkCompositeDataDisplayAttributes : public vtkObject
 {
 public:
   static vtkCompositeDataDisplayAttributes* New();
@@ -397,6 +402,8 @@ private:
   StringMap BlockArrayNames;
   LookupTableMap BlockLookupTables;
   VtkIdTypeMap BlockFieldDataTupleIds;
+
+  friend class vtkCompositeDataDisplayAttributesSerDesHelper;
 };
 
 VTK_ABI_NAMESPACE_END

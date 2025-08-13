@@ -22,11 +22,12 @@
 
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkEGLRenderWindow : public vtkOpenGLRenderWindow
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkEGLRenderWindow : public vtkOpenGLRenderWindow
 {
 public:
   static vtkEGLRenderWindow* New();
@@ -38,7 +39,9 @@ public:
    */
   void Frame() override;
 
-  // override as some EGL systems cannot show the window
+  /**
+   * Overridden because vtkEGLRenderWindow window cannot be shown onscreen, except on android
+   */
   void SetShowWindow(bool) override;
 
   /**
@@ -199,6 +202,8 @@ public:
    */
   bool IsPointSpriteBugPresent() override;
 
+  const char* ReportCapabilities() override;
+
 protected:
   vtkEGLRenderWindow();
   ~vtkEGLRenderWindow() override;
@@ -223,8 +228,6 @@ protected:
 private:
   vtkEGLRenderWindow(const vtkEGLRenderWindow&) = delete;
   void operator=(const vtkEGLRenderWindow&) = delete;
-
-  bool DeviceExtensionsPresent;
 };
 
 VTK_ABI_NAMESPACE_END

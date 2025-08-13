@@ -155,6 +155,24 @@ public:
   ///@}
 
   ///@{
+  /**
+   * Get/Set whether or not the filter should use implicit arrays.
+   * If set to true, probed values will not be copied to the output
+   * but retrieved from the source through indexation (thanks to indexed arrays).
+   * This can lower the memory consumption, especially if the probed source contains
+   * a lot of data arrays. Note that it will also increase the computation time.
+   *
+   * @attention
+   * This option only concern Hyper Tree Grids.
+   * This option has no effect for source or blocks (in the case of a composite input)
+   * that are not vtkHyperTreeGrid instances.
+   */
+  void SetUseImplicitArrays(bool arg);
+  bool GetUseImplicitArrays();
+  vtkBooleanMacro(UseImplicitArrays, bool);
+  ///@}
+
+  ///@{
   /*
    * Set/Get the prototype cell locator to use for probing the source dataset.
    * The value is forwarded to the underlying probe filter.
@@ -175,6 +193,9 @@ protected:
   int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
   int FillInputPortInformation(int, vtkInformation*) override;
   int FillOutputPortInformation(int, vtkInformation*) override;
+
+  // Garbage collection method
+  void ReportReferences(vtkGarbageCollector*) override;
 
   /**
    * Get the name of the valid-points mask array.

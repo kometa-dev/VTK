@@ -58,11 +58,11 @@ In general VTK tries to be as portable as possible; the specific configurations 
 
 VTK supports the following compilers:
 
-1. GCC 4.8 or newer
-2. Clang 3.3 or newer
-3. Apple Clang 5.0 (from Xcode 5.0) or newer
-4. Microsoft Visual Studio 2015 or newer
-5. Intel 14.0 or newer
+1. GCC 8.0 or newer
+2. Clang 5.0 or newer
+3. Apple Clang 10.0 or newer
+4. Microsoft Visual Studio 2017 or newer
+5. Intel 19.0 or newer
 
 VTK supports the following operating systems:
 
@@ -90,7 +90,7 @@ See [Copyright.txt][vtk-copyright] for details.
 [kitware]: https://www.kitware.com/
 [kitware-support]: https://www.kitware.com/support/
 [vtk-banner]: vtkBanner.gif
-[vtk-build]: Documentation/dev/build.md#building-vtk
+[vtk-build]: Documentation/docs/build_instructions/build.md
 [vtk-contributing]: CONTRIBUTING.md#contributing-to-vtk
 [vtk-copyright]: Copyright.txt
 [vtk-discourse]: https://discourse.vtk.org/

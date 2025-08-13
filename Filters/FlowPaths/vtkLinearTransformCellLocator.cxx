@@ -64,40 +64,6 @@ void vtkLinearTransformCellLocator::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //------------------------------------------------------------------------------
-static vtkSmartPointer<vtkPoints> GetPoints(vtkDataSet* ds)
-{
-  vtkSmartPointer<vtkPoints> points;
-  if (auto pointSet = vtkPointSet::SafeDownCast(ds))
-  {
-    points = pointSet->GetPoints();
-  }
-  else if (auto imageData = vtkImageData::SafeDownCast(ds))
-  {
-    points = vtkSmartPointer<vtkPoints>::New();
-    points->SetDataTypeToDouble();
-    points->SetNumberOfPoints(imageData->GetNumberOfPoints());
-    vtkSMPTools::For(0, imageData->GetNumberOfPoints(), [&](vtkIdType begin, vtkIdType end) {
-      double point[3];
-      for (vtkIdType i = begin; i < end; ++i)
-      {
-        imageData->GetPoint(i, point);
-        points->SetPoint(i, point);
-      }
-    });
-  }
-  else if (auto recGrid = vtkRectilinearGrid::SafeDownCast(ds))
-  {
-    points = vtkSmartPointer<vtkPoints>::New();
-    recGrid->GetPoints(points);
-  }
-  else
-  {
-    vtkGenericWarningMacro(<< "Unsupported dataset type: " << ds->GetClassName());
-  }
-  return points;
-}
-
-//------------------------------------------------------------------------------
 struct ComputeTransformationWorker
 {
   Eigen::Matrix3d RotationMatrix;
@@ -159,17 +125,19 @@ struct ComputeTransformationWorker
     Eigen::MatrixXd p1, p2;
     p1.resize(3, p1Range.size());
     p2.resize(3, p2Range.size());
-    vtkSMPTools::For(0, p1Range.size(), [&](vtkIdType begin, vtkIdType end) {
-      for (vtkIdType i = begin; i < end; i++)
+    vtkSMPTools::For(0, p1Range.size(),
+      [&](vtkIdType begin, vtkIdType end)
       {
-        p1(0, i) = p1Range[i][0];
-        p1(1, i) = p1Range[i][1];
-        p1(2, i) = p1Range[i][2];
-        p2(0, i) = p2Range[i][0];
-        p2(1, i) = p2Range[i][1];
-        p2(2, i) = p2Range[i][2];
-      }
-    });
+        for (vtkIdType i = begin; i < end; i++)
+        {
+          p1(0, i) = p1Range[i][0];
+          p1(1, i) = p1Range[i][1];
+          p1(2, i) = p1Range[i][2];
+          p2(0, i) = p2Range[i][0];
+          p2(1, i) = p2Range[i][1];
+          p2(2, i) = p2Range[i][2];
+        }
+      });
 
     // find the rotation and translation matrix between 2 sets of points
     Eigen::Vector3d p1BaryCenter = p1.rowwise().mean();
@@ -253,8 +221,8 @@ bool vtkLinearTransformCellLocator::ComputeTransformation()
     vtkErrorMacro("Number of points in the dataset is less than 2.");
     return false;
   }
-  auto initialPoints = GetPoints(this->CellLocator->GetDataSet());
-  auto newPoints = GetPoints(this->DataSet);
+  auto initialPoints = this->CellLocator->GetDataSet()->GetPoints();
+  auto newPoints = this->DataSet->GetPoints();
   vtkSmartPointer<vtkPoints> initialPointsSample, newPointsSample;
   vtkDataArray* initialPointsSampleData;
   vtkDataArray* newPointsSampleData;
@@ -375,12 +343,12 @@ void vtkLinearTransformCellLocator::ShallowCopy(vtkAbstractCellLocator* locator)
     vtkErrorMacro("Cannot cast " << locator->GetClassName() << " to " << this->GetClassName());
   }
   // we only copy what's actually used by vtkLinearTransformCellLocator
-  this->SetDataSet(cellLocator->GetDataSet());
   this->SetCellLocator(cellLocator->GetCellLocator());
   this->Transform = cellLocator->Transform;
   this->InverseTransform = cellLocator->InverseTransform;
   this->IsLinearTransformation = cellLocator->IsLinearTransformation;
   this->UseAllPoints = cellLocator->UseAllPoints;
+  this->BuildTime.Modified();
 }
 
 //------------------------------------------------------------------------------

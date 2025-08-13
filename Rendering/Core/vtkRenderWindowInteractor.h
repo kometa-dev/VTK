@@ -37,6 +37,7 @@
 #include "vtkObject.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkSmartPointer.h"        // For InteractorStyle
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkTimerIdMap;
@@ -60,7 +61,7 @@ class vtkObserverMediator;
 class vtkInteractorEventRecorder;
 class vtkPickingManager;
 
-class VTKRENDERINGCORE_EXPORT vtkRenderWindowInteractor : public vtkObject
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkRenderWindowInteractor : public vtkObject
 {
 
   friend class vtkInteractorEventRecorder;
@@ -141,7 +142,9 @@ public:
    * this->RenderWindow->Render().
    */
   vtkBooleanMacro(EnableRender, bool);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkSetMacro(EnableRender, bool);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkGetMacro(EnableRender, bool);
   ///@}
 
@@ -164,11 +167,12 @@ public:
   ///@}
 
   /**
-   * Event loop notification member for window size change.
-   * Window size is measured in pixels.
+   * When the event loop notifies the interactor that the window size has
+   * changed, this method is called to update the Size of the interactor
+   * and its vtkRenderWindow.
    *
-   * If the size has changed, this method will fire
-   * vtkCommand::WindowResizeEvent.
+   * The interactor will fire vtkCommand::ConfigureEvent after the size has
+   * updated.
    */
   virtual void UpdateSize(int x, int y);
 
@@ -186,7 +190,8 @@ public:
    * group, the create methods take a timer duration argument (in
    * milliseconds) and return a timer id. Thus the ResetTimer(timerId) and
    * DestroyTimer(timerId) methods take this timer id and operate on the
-   * timer as appropriate. Methods are also available for determining
+   * timer as appropriate. Make sure you run Initialize() before creating
+   * the timer in order for it to work.
    */
   virtual int CreateTimer(int timerType); // first group, for backward compatibility
   virtual int DestroyTimer();             // first group, for backward compatibility
@@ -354,7 +359,9 @@ public:
    * Set/Get the object used to perform operations through the interactor
    * By default, a valid but disabled picking manager is instantiated.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   virtual void SetPickingManager(vtkPickingManager*);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   vtkGetObjectMacro(PickingManager, vtkPickingManager);
   ///@}
 
@@ -514,6 +521,10 @@ public:
   ///@{
   /**
    * Set/get whether alt modifier key was pressed.
+   * On macOS, this corresponds to the Option key
+   * which may have unexpected effect on the KeyCode and KeySym.
+   *
+   * AltGr does NOT trigger this modifier.
    */
   vtkSetMacro(AltKey, int);
   vtkGetMacro(AltKey, int);
@@ -522,6 +533,8 @@ public:
   ///@{
   /**
    * Set/get whether control modifier key was pressed.
+   * On macOS, pressing either Cmd or Control turn this
+   * modifier on.
    */
   vtkSetMacro(ControlKey, int);
   vtkGetMacro(ControlKey, int);
@@ -537,7 +550,27 @@ public:
 
   ///@{
   /**
-   * Set/get the key code for the key that was pressed.
+   * Set/get the unicode value for the key that was pressed, as an 8-bit char value.
+   * This restricts the value to the Basic Latin and Latin1 blocks of unicode.
+   *
+   * Since the 'char' type may be signed, one should cast to 'unsigned char' before retrieving the
+   * code value.
+   *
+   * unsigned char keyCode = static_cast<unsigned char>(rwi->GetKeyCode())
+   *
+   * Please note KeyCode is impacted by modifiers:
+   *
+   * "A" -> 'a'
+   * "Shift" + "A" -> 'A'
+   * "Ctrl" + "A" -> 1
+   * "Alt" + "A" -> 'a'
+   *
+   * The behavior with Control modifier is related to C0 and C1 control codes.
+   *
+   * Please note KeyCode IS NOT reliable across platforms, especially for special characters with
+   * modifiers. Using KeySym should be more reliable.
+   *
+   * Default is 0.
    */
   vtkSetMacro(KeyCode, char);
   vtkGetMacro(KeyCode, char);
@@ -545,7 +578,7 @@ public:
 
   ///@{
   /**
-   * Set/get the repear count for the key or mouse event. This specifies how
+   * Set/get the repeat count for the key or mouse event. This specifies how
    * many times a key has been pressed.
    */
   vtkSetMacro(RepeatCount, int);
@@ -555,9 +588,23 @@ public:
   ///@{
   /**
    * Set/get the key symbol for the key that was pressed. This is the key
-   * symbol as defined by the relevant X headers. On X based platforms this
-   * corresponds to the installed X server, whereas on other platforms the
-   * native key codes are translated into a string representation.
+   * symbol as defined by the relevant X headers (xlib/X11/keysymdef.h).
+   * On X based platforms this corresponds to the installed X server, whereas on other platforms the
+   * native key codes are translated into a string representation using VTK defined tables.
+   *
+   * Please note the KeySym is impacted by modifiers:
+   *
+   * "A" -> "a"
+   * "Shift" + "A" -> "A"
+   * "Alt" + "A" -> "a"
+   * "Ctrl" + "A" -> "a"
+   *
+   * Please note KeySym may NOT be fully reliable across platforms, especially for special
+   * characters with modifiers. Please check the actual KeySym on supported platform before relying
+   * on it. However, KeySym is intended to always correspond to the key the user intended to press,
+   * even across layouts and platforms.
+   *
+   * Default is nullptr.
    */
   vtkSetStringMacro(KeySym);
   vtkGetStringMacro(KeySym);
@@ -791,6 +838,37 @@ public:
   int GetPointerIndexForExistingContact(size_t contactID);
   bool IsPointerIndexSet(int i);
   void ClearPointerIndex(int i);
+  ///@}
+
+  /**
+   * This flag is useful when you are integrating VTK in a larger system.
+   * In such cases, an application can lock up if the `Start()` method
+   * in vtkRenderWindowInteractor processes events indefinitely without
+   * giving the system a chance to execute anything.
+   * The default value for this flag is true. It currently only affects
+   * VTK webassembly applications.
+   *
+   * As an example with webassembly in the browser through emscripten SDK:
+   * 1. If your app has an `int main` entry point, leave this value enabled.
+   *    Emscripten will simulate an infinite event loop and avoid running code
+   *    after `interactor->Start()` which is usually the end of `main`.
+   *    Otherwise, all VTK objects will go out of scope immediately without
+   *    giving a chance for user interaction with the render window.
+   * 2. If your app does not have an `int main` entry point, disable this
+   *    behavior.
+   *    Otherwise, the webassembly application will not start up successfully.
+   */
+  static bool InteractorManagesTheEventLoop;
+
+  ///@{
+  /**
+   * Get the current gesture that was recognized when handling multitouch and VR events.
+   *
+   * \sa RecognizeGestures()
+   * \sa vtkVRRenderWindowInteractor::RecognizeComplexGesture()
+   */
+  virtual vtkCommand::EventIds GetCurrentGesture() const;
+  virtual void SetCurrentGesture(vtkCommand::EventIds eid);
   ///@}
 
 protected:

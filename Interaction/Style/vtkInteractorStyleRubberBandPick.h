@@ -23,11 +23,12 @@
 
 #include "vtkInteractionStyleModule.h" // For export macro
 #include "vtkInteractorStyleTrackballCamera.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkUnsignedCharArray;
 
-class VTKINTERACTIONSTYLE_EXPORT vtkInteractorStyleRubberBandPick
+class VTKINTERACTIONSTYLE_EXPORT VTK_MARSHALAUTO vtkInteractorStyleRubberBandPick
   : public vtkInteractorStyleTrackballCamera
 {
 public:
@@ -36,6 +37,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   void StartSelect();
+  void StopSelect();
 
   ///@{
   /**

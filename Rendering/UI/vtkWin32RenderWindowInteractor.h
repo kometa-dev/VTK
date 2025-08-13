@@ -21,6 +21,9 @@
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderingUIModule.h" // For export macro
 #include "vtkWindows.h"           // For windows API.
+#include "vtkWrappingHints.h"     // For VTK_MARSHALAUTO
+
+#include <memory> // for std::unique_ptr
 
 #include "vtkTDxConfigure.h" // defines VTK_USE_TDX
 #ifdef VTK_USE_TDX
@@ -30,7 +33,8 @@ VTK_ABI_NAMESPACE_END
 #endif
 
 VTK_ABI_NAMESPACE_BEGIN
-class VTKRENDERINGUI_EXPORT vtkWin32RenderWindowInteractor : public vtkRenderWindowInteractor
+class VTKRENDERINGUI_EXPORT VTK_MARSHALAUTO vtkWin32RenderWindowInteractor
+  : public vtkRenderWindowInteractor
 {
 public:
   /**
@@ -177,6 +181,9 @@ protected:
 private:
   vtkWin32RenderWindowInteractor(const vtkWin32RenderWindowInteractor&) = delete;
   void operator=(const vtkWin32RenderWindowInteractor&) = delete;
+
+  class vtkInternals;
+  std::unique_ptr<vtkInternals> Internals;
 };
 
 VTK_ABI_NAMESPACE_END

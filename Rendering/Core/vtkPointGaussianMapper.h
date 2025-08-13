@@ -64,6 +64,18 @@ public:
 
   ///@{
   /**
+   * If enabled, the gaussian can be stretched and oriented on some direction.
+   * A 3x3 covariance matrix is built using the scale array and the rotation array.
+   * Since a 3D vector is expected, the value in ScaleArrayComponent is ignored.
+   * Default value is false.
+   */
+  vtkSetMacro(Anisotropic, bool);
+  vtkGetMacro(Anisotropic, bool);
+  vtkBooleanMacro(Anisotropic, bool);
+  ///@}
+
+  ///@{
+  /**
    * Set the default scale factor of the point gaussians.  This
    * defaults to 1.0. All radius computations will be scaled by the factor
    * including the ScaleArray. If a vtkPiecewideFunction is used the
@@ -73,6 +85,17 @@ public:
    */
   vtkSetMacro(ScaleFactor, double);
   vtkGetMacro(ScaleFactor, double);
+  ///@}
+
+  ///@{
+  /**
+   * Set the array containing the rotation of each point.
+   * The array must contain quaternions (4 components).
+   * Must be specified is Anisotropic is true.
+   * Default value is nullptr.
+   */
+  vtkSetStringMacro(RotationArray);
+  vtkGetStringMacro(RotationArray);
   ///@}
 
   ///@{
@@ -135,10 +158,9 @@ public:
 
   ///@{
   /**
-   * When drawing triangles as opposed too point mode
-   * (triangles are for splats shaders that are bigger than a pixel)
-   * this controls how large the triangle will be. By default it
-   * is large enough to contain a cicle of radius 3.0*scale which works
+   * When drawing splats as opposed to point mode (splats are bigger than a pixel)
+   * this controls how large the splat bound primitive will be. By default it
+   * is large enough to contain a circle of radius 3.0*scale which works
    * well for gaussian splats as after 3.0 standard deviations the
    * opacity is near zero. For custom shader codes a different
    * value can be used. Generally you should use the lowest value you can
@@ -147,8 +169,22 @@ public:
    * to avoid sending many fragments to the shader that will just get
    * discarded.
    */
-  vtkSetMacro(TriangleScale, float);
-  vtkGetMacro(TriangleScale, float);
+  vtkSetMacro(BoundScale, float);
+  vtkGetMacro(BoundScale, float);
+  ///@}
+
+  ///@{
+  /**
+   * Once the 2D covariance matrix is computed, it's possible to add a custom
+   * low pass matrix to apply a convolution to the splat.
+   * It's useful to make sure the splat is at least one pixel wide for example.
+   * The 2x2 matrix to apply is stored as a 3D vector because it's symmetric.
+   * The first element is the first diagonal value, the second element is the
+   * off diagonal value, and the third element is the second diagonal value.
+   * Default is zero, meaning no convolution is applied.
+   */
+  vtkSetVector3Macro(LowpassMatrix, float);
+  vtkGetVector3Macro(LowpassMatrix, float);
   ///@}
 
   /**
@@ -178,11 +214,15 @@ protected:
   double ScaleFactor;
   vtkTypeBool Emissive;
 
-  float TriangleScale;
+  float BoundScale;
 
 private:
   vtkPointGaussianMapper(const vtkPointGaussianMapper&) = delete;
   void operator=(const vtkPointGaussianMapper&) = delete;
+
+  char* RotationArray = nullptr;
+  float LowpassMatrix[3] = { 0.f, 0.f, 0.f };
+  bool Anisotropic = false;
 };
 
 VTK_ABI_NAMESPACE_END

@@ -7,6 +7,7 @@ vtk_add_test_cxx(vtkFiltersGeometryCxxTests tests
   TestExplicitStructuredGridSurfaceFilter.cxx
   TestExtractSurfaceNonLinearSubdivision.cxx
   TestFastUnstructuredGridWithPolyDataGeometryFilter.cxx,NO_DATA
+  TestGeometryFilterDegeneratedCells.cxx
   TestImageDataToUniformGrid.cxx,NO_VALID
   TestLinearToQuadraticCellsFilter.cxx
   TestProjectSphereFilter.cxx,NO_VALID
@@ -23,10 +24,14 @@ vtk_add_test_cxx(vtkFiltersGeometryCxxTests no_data_tests
   TestStructuredGridConnectivity.cxx
   UnitTestDataSetSurfaceFilter.cxx
   UnitTestProjectSphereFilter.cxx
+  TestMatchBoundariesIgnoringCellOrder.cxx
+  TestUnstructuredGridGeometryFilterDegenerateCells.cxx
   )
 
 set(all_tests
   ${tests}
   ${no_data_tests}
   )
-vtk_test_cxx_executable(vtkFiltersGeometryCxxTests all_tests)
+vtk_test_cxx_executable(vtkFiltersGeometryCxxTests all_tests
+  RENDERING_FACTORY
+)

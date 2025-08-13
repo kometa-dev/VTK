@@ -76,7 +76,7 @@ public:
     T* GetContentPtr() override { return reinterpret_cast<T*>(this->Impl.GetStorage()); }
 
   protected:
-    ItImpl* CloneImpl() const override { return new ItImpl(*this); };
+    ItImpl* CloneImpl() const override { return new ItImpl(*this); }
 
   private:
     vtk::detail::smp::STDThread::ThreadSpecificStorageIterator Impl;
@@ -86,24 +86,18 @@ public:
 
   std::unique_ptr<ItImplAbstract> begin() override
   {
-    // XXX(c++14): use std::make_unique
-    auto it = std::unique_ptr<ItImpl>(new ItImpl());
+    auto it = std::make_unique<ItImpl>();
     it->Impl.SetThreadSpecificStorage(this->Backend);
     it->Impl.SetToBegin();
-    // XXX(c++14): remove std::move and cast variable
-    std::unique_ptr<ItImplAbstract> abstractIt(std::move(it));
-    return abstractIt;
+    return it;
   }
 
   std::unique_ptr<ItImplAbstract> end() override
   {
-    // XXX(c++14): use std::make_unique
-    auto it = std::unique_ptr<ItImpl>(new ItImpl());
+    auto it = std::make_unique<ItImpl>();
     it->Impl.SetThreadSpecificStorage(this->Backend);
     it->Impl.SetToEnd();
-    // XXX(c++14): remove std::move and cast variable
-    std::unique_ptr<ItImplAbstract> abstractIt(std::move(it));
-    return abstractIt;
+    return it;
   }
 
 private:

@@ -15,8 +15,10 @@
 #include <numeric> //std::accumulate
 #include <sstream>
 
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include "vtkMPI.h"
 #include "vtkMPICommunicator.h"
+#endif
 #include "vtkMultiProcessController.h"
 
 #include <vtksys/FStream.hxx>
@@ -28,6 +30,7 @@ namespace helper
 {
 VTK_ABI_NAMESPACE_BEGIN
 
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 MPI_Comm MPIGetComm()
 {
   MPI_Comm comm = MPI_COMM_NULL;
@@ -42,21 +45,30 @@ MPI_Comm MPIGetComm()
   }
   return comm;
 }
+#endif
 
 int MPIGetRank()
 {
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
   MPI_Comm comm = MPIGetComm();
   int rank;
   MPI_Comm_rank(comm, &rank);
   return rank;
+#else
+  return 0;
+#endif
 }
 
 int MPIGetSize()
 {
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
   MPI_Comm comm = MPIGetComm();
   int size;
   MPI_Comm_size(comm, &size);
   return size;
+#else
+  return 1;
+#endif
 }
 
 pugi::xml_document XMLDocument(
@@ -152,7 +164,7 @@ pugi::xml_attribute XMLAttribute(const std::string attributeName, const pugi::xm
 }
 
 types::DataSet XMLInitDataSet(
-  const pugi::xml_node& dataSetNode, const std::set<std::string>& specialNames, const bool persist)
+  const pugi::xml_node& dataSetNode, const std::set<std::string>& specialNames)
 {
   types::DataSet dataSet;
 
@@ -162,12 +174,6 @@ types::DataSet XMLInitDataSet(
       "Name", dataArrayNode, true, "when parsing Name attribute in ADIOS2 VTK XML schema", true);
     auto result = dataSet.emplace(xmlName.value(), types::DataArray());
     types::DataArray& dataArray = result.first->second;
-
-    // set if persist, overwritten by special names
-    if (persist)
-    {
-      dataArray.Persist = true;
-    }
 
     // handle special names
     const std::string name(xmlName.value());
@@ -179,12 +185,10 @@ types::DataSet XMLInitDataSet(
       if (specialName == "connectivity")
       {
         dataArray.IsIdType = true;
-        dataArray.Persist = true;
       }
       else if (specialName == "vertices")
       {
         dataArray.HasTuples = true;
-        dataArray.Persist = true;
 
         const pugi::xml_attribute xmlOrder = XMLAttribute("Ordering", dataArrayNode, true,
           "when parsing vertices \"Order\" attribute in ADIOS2 VTK XML schema", false);
@@ -197,7 +201,7 @@ types::DataSet XMLInitDataSet(
       }
       else if (specialName == "types")
       {
-        dataArray.Persist = true;
+        // Nothing to do
       }
     }
 
@@ -280,18 +284,8 @@ std::string SetToCSV(const std::set<std::string>& input) noexcept
 
 std::size_t TotalElements(const std::vector<std::size_t>& dimensions) noexcept
 {
-  return std::accumulate(dimensions.begin(), dimensions.end(), 1, std::multiplies<std::size_t>());
+  return std::accumulate(dimensions.begin(), dimensions.end(), 1, std::multiplies<>());
 }
-
-// allowed types
-template vtkSmartPointer<vtkDataArray> NewDataArray<int>();
-template vtkSmartPointer<vtkDataArray> NewDataArray<unsigned int>();
-template vtkSmartPointer<vtkDataArray> NewDataArray<long int>();
-template vtkSmartPointer<vtkDataArray> NewDataArray<unsigned long int>();
-template vtkSmartPointer<vtkDataArray> NewDataArray<long long int>();
-template vtkSmartPointer<vtkDataArray> NewDataArray<unsigned long long int>();
-template vtkSmartPointer<vtkDataArray> NewDataArray<float>();
-template vtkSmartPointer<vtkDataArray> NewDataArray<double>();
 
 adios2::Box<adios2::Dims> PartitionCart1D(const adios2::Dims& shape)
 {

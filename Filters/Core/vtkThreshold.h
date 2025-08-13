@@ -16,7 +16,8 @@
  * control this behavior. See the AttributeMode ivar below.
  *
  * By default only the first scalar value is used in the decision. Use the ComponentMode
- * and SelectedComponent ivars to control this behavior.
+ * and SelectedComponent ivars to control this behavior. Note that magnitude can be
+ * selected if SelectedComponent is set to the number of components of the array.
  *
  * @warning
  * This class is templated. It may run slower than serial execution if the code
@@ -28,13 +29,13 @@
  * VTK_SMP_IMPLEMENTATION_TYPE) may improve performance significantly.
  *
  * @sa
- * vtkThresholdPoints vtkThresholdTextureCoords
+ * vtkThresholdPoints vtkThresholdTextureCoords, vtkMultiThreshold, vtkSplitByCellScalarFilter,
+ * vtkExplodeDataSet
  */
 
 #ifndef vtkThreshold_h
 #define vtkThreshold_h
 
-#include "vtkDeprecation.h"       // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkUnstructuredGridAlgorithm.h"
 
@@ -93,33 +94,6 @@ public:
 
   ///@{
   /**
-   * Control how the filter works with scalar point data and cell attribute
-   * data.  By default (AttributeModeToDefault), the filter will use point
-   * data, and if no point data is available, then cell data is
-   * used. Alternatively you can explicitly set the filter to use point data
-   * (AttributeModeToUsePointData) or cell data (AttributeModeToUseCellData).
-   */
-  VTK_DEPRECATED_IN_9_3_0("Please use SetInputArrayToProcess instead.")
-  vtkSetMacro(AttributeMode, int);
-
-  VTK_DEPRECATED_IN_9_3_0("This method is deprecated.")
-  vtkGetMacro(AttributeMode, int);
-
-  VTK_DEPRECATED_IN_9_3_0("Please use SetInputArrayToProcess instead.")
-  void SetAttributeModeToDefault();
-
-  VTK_DEPRECATED_IN_9_3_0("Please use SetInputArrayToProcess instead.")
-  void SetAttributeModeToUsePointData();
-
-  VTK_DEPRECATED_IN_9_3_0("Please use SetInputArrayToProcess instead.")
-  void SetAttributeModeToUseCellData();
-
-  VTK_DEPRECATED_IN_9_3_0("This method is deprecated.")
-  const char* GetAttributeModeAsString();
-  ///@}
-
-  ///@{
-  /**
    * Control how the decision of in / out is made with multi-component data.
    * The choices are to use the selected component (specified in the
    * SelectedComponent ivar), or to look at all components. When looking at
@@ -138,7 +112,9 @@ public:
   ///@{
   /**
    * When the component mode is UseSelected, this ivar indicated the selected
-   * component. The default value is 0.
+   * component. If set to the number of components of the array, threshold
+   * will apply on array's magnitude.
+   * The default value is 0.
    */
   vtkSetClampMacro(SelectedComponent, int, 0, VTK_INT_MAX);
   vtkGetMacro(SelectedComponent, int);
@@ -168,27 +144,6 @@ public:
   vtkSetMacro(UseContinuousCellRange, vtkTypeBool);
   vtkGetMacro(UseContinuousCellRange, vtkTypeBool);
   vtkBooleanMacro(UseContinuousCellRange, vtkTypeBool);
-  ///@}
-
-  ///@{
-  /**
-   * Set the data type of the output points (See the data types defined in
-   * vtkType.h). The default data type is float.
-
-   * These methods are deprecated. Please use the SetOutputPointsPrecision()
-   * and GetOutputPointsPrecision() methods instead.
-   */
-  VTK_DEPRECATED_IN_9_3_0("Please use SetOutputPointsPrecision instead.")
-  void SetPointsDataTypeToDouble();
-
-  VTK_DEPRECATED_IN_9_3_0("Please use SetOutputPointsPrecision instead.")
-  void SetPointsDataTypeToFloat();
-
-  VTK_DEPRECATED_IN_9_3_0("Please use SetOutputPointsPrecision instead.")
-  void SetPointsDataType(int type);
-
-  VTK_DEPRECATED_IN_9_3_0("Please use GetOutputPointsPrecision instead.")
-  int GetPointsDataType();
   ///@}
 
   ///@{
@@ -263,6 +218,14 @@ protected:
   int EvaluateCell(TScalarsArray& scalars, int c, const vtkIdType* cellPts, vtkIdType numCellPts);
 
 private:
+  /**
+   * Returns whether magnitude was computed.
+   * Is true if selected component equals number of components
+   * and if number of components > 1.
+   */
+  template <typename TScalarsArray>
+  bool ComputeMagnitude(double& magnitude, const TScalarsArray& scalars, vtkIdType id);
+
   vtkThreshold(const vtkThreshold&) = delete;
   void operator=(const vtkThreshold&) = delete;
 

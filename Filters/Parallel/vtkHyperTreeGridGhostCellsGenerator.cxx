@@ -1,115 +1,41 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridGhostCellsGenerator.h"
+#include "vtkHyperTreeGridGhostCellsGeneratorInternals.h"
 
-#include "vtkBitArray.h"
 #include "vtkCellData.h"
 #include "vtkCommunicator.h"
-#include "vtkHyperTree.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkHyperTreeGridNonOrientedCursor.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
-#include "vtkMath.h"
 #include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
-#include "vtkUniformHyperTreeGrid.h"
-#include "vtkUnsignedCharArray.h"
-
-#include <cmath>
-#include <map>
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
-namespace
-{
-
-template <typename MapType>
-typename MapType::iterator ProbeFind(
-  vtkMultiProcessController* controller, int tag, MapType& recvMap)
-{
-  int processBuff = -1;
-  auto targetRecv = recvMap.end();
-  if (controller->Probe(vtkMultiProcessController::ANY_SOURCE, tag, &processBuff) != 1)
-  {
-    vtkErrorWithObjectMacro(nullptr, "Probe failed on reception of tag " << tag);
-    return targetRecv;
-  }
-  if (processBuff < 0)
-  {
-    vtkErrorWithObjectMacro(
-      nullptr, "Probe returned erroneous process ID " << processBuff << "reception of tag " << tag);
-    return targetRecv;
-  }
-  targetRecv = recvMap.find(processBuff);
-  if (targetRecv == recvMap.end())
-  {
-    vtkErrorWithObjectMacro(nullptr,
-      "Receiving unexpected communication from " << processBuff << " process on tag " << tag
-                                                 << ".");
-    return targetRecv;
-  }
-  return targetRecv;
-}
-
-}
+#include "vtkPartitionedDataSet.h"
+#include "vtkSetGet.h"
+#include "vtkStreamingDemandDrivenPipeline.h"
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperTreeGridGhostCellsGenerator);
-
-struct vtkHyperTreeGridGhostCellsGenerator::vtkInternals
-{
-  // Controller only has MPI processes which have cells
-  vtkMultiProcessController* Controller;
-};
-
-namespace
-{
-struct SendBuffer
-{
-  SendBuffer()
-    : count(0)
-    , mask(0)
-    , isParent(vtkBitArray::New())
-  {
-  }
-  ~SendBuffer() { isParent->Delete(); }
-  vtkIdType count;                // len buffer
-  unsigned int mask;              // ghost mask
-  std::vector<vtkIdType> indices; // indices for selected cells
-  vtkBitArray* isParent;          // decomposition amr tree
-};
-
-struct RecvBuffer
-{
-  RecvBuffer()
-    : count(0)
-    , offset(0)
-  {
-  }
-  vtkIdType count;  // len buffer
-  vtkIdType offset; // offset in field vector
-  std::vector<vtkIdType> indices;
-};
-
-const int HTGGCG_SIZE_EXCHANGE_TAG = 5098;
-const int HTGGCG_DATA_EXCHANGE_TAG = 5099;
-const int HTGGCG_DATA2_EXCHANGE_TAG = 5100;
-}
+vtkCxxSetObjectMacro(vtkHyperTreeGridGhostCellsGenerator, Controller, vtkMultiProcessController);
 
 //------------------------------------------------------------------------------
 vtkHyperTreeGridGhostCellsGenerator::vtkHyperTreeGridGhostCellsGenerator()
 {
   this->AppropriateOutput = true;
-  this->Internals = new vtkInternals();
-  this->Internals->Controller = vtkMultiProcessController::GetGlobalController();
+  this->SetController(vtkMultiProcessController::GetGlobalController());
 }
 
 //------------------------------------------------------------------------------
 vtkHyperTreeGridGhostCellsGenerator::~vtkHyperTreeGridGhostCellsGenerator()
 {
-  delete this->Internals;
+  this->SetController(nullptr);
+}
+
+//------------------------------------------------------------------------------
+vtkMultiProcessController* vtkHyperTreeGridGhostCellsGenerator::GetController()
+{
+  return this->Controller.Get();
 }
 
 //------------------------------------------------------------------------------
@@ -119,9 +45,108 @@ void vtkHyperTreeGridGhostCellsGenerator::PrintSelf(ostream& os, vtkIndent inden
 }
 
 //------------------------------------------------------------------------------
-int vtkHyperTreeGridGhostCellsGenerator::FillOutputPortInformation(int, vtkInformation* info)
+int vtkHyperTreeGridGhostCellsGenerator::FillInputPortInformation(int, vtkInformation* info)
 {
-  info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkHyperTreeGrid");
+  info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkHyperTreeGrid");
+  info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkPartitionedDataSet");
+  return 1;
+}
+
+//------------------------------------------------------------------------------
+int vtkHyperTreeGridGhostCellsGenerator::RequestData(vtkInformation* vtkNotUsed(request),
+  vtkInformationVector** inputVector, vtkInformationVector* outputVector)
+{
+  this->UpdateProgress(0.);
+
+  vtkInformation* info = outputVector->GetInformationObject(0);
+  int currentPiece = info->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER());
+
+  // Make sure input is either a HTG or a PartitionedDataSet that contains a HTG piece.
+  vtkHyperTreeGrid* inputHTG = vtkHyperTreeGrid::GetData(inputVector[0], 0);
+  vtkPartitionedDataSet* inputPDS = vtkPartitionedDataSet::GetData(inputVector[0], 0);
+
+  if (!inputPDS && !inputHTG)
+  {
+    vtkErrorMacro("Input data is neither HTG or PartitionedDataSet. Cannot proceed with ghost cell "
+                  "generation.");
+    return 0;
+  }
+
+  vtkHyperTreeGrid* outputHTG = vtkHyperTreeGrid::GetData(outputVector, 0);
+  vtkPartitionedDataSet* outputPDS = vtkPartitionedDataSet::GetData(outputVector, 0);
+  if (outputPDS)
+  {
+    outputPDS->CopyStructure(inputPDS);
+  }
+
+  // When the filter receives a PartitionedDataSet, the data for the current rank can be in either
+  // partition, depending on the data generation method. We survey the partitions to find the one
+  // that contains the actual data. There should be exactly one non-null HTG partition in each
+  // piece. If we find multiple, the HTG structure is not capable of merging multiple grids, so we
+  // simply use the last one.
+  if (inputPDS && outputPDS)
+  {
+    for (unsigned int partId = 0; partId < inputPDS->GetNumberOfPartitions(); partId++)
+    {
+      auto partHTG = vtkHyperTreeGrid::SafeDownCast(inputPDS->GetPartitionAsDataObject(partId));
+      if (partHTG)
+      {
+        if (inputHTG)
+        {
+          vtkWarningMacro("Found more than one non-null HTG in the partitioned dataset for piece "
+            << currentPiece << ". Generating ghost data only for partition " << partId);
+        }
+        inputHTG = partHTG;
+        vtkNew<vtkHyperTreeGrid> newOutputHTG;
+        outputPDS->SetPartition(partId, newOutputHTG);
+        outputHTG = newOutputHTG; // Not dangling, outputPDS maintains a reference.
+      }
+    }
+  }
+
+  if (!outputHTG && !outputPDS)
+  {
+    vtkErrorMacro("No output available. Cannot proceed with hyper tree grid algorithm.");
+    return 0;
+  }
+
+  if (!inputHTG)
+  {
+    vtkWarningMacro("Incorrect HTG for piece " << currentPiece);
+  }
+
+  // Make sure every HTG piece has a correct extent and can be processed.
+  // This way, we make sure the `ProcessTrees` function will either be executed by all ranks
+  // or by none, and avoids getting stuck on barriers.
+  int correctExtent = inputHTG && inputHTG->GetExtent()[0] <= inputHTG->GetExtent()[1] &&
+    inputHTG->GetExtent()[2] <= inputHTG->GetExtent()[3] &&
+    inputHTG->GetExtent()[4] <= inputHTG->GetExtent()[5];
+
+  if (!correctExtent)
+  {
+    vtkWarningMacro("Piece " << currentPiece << " does not have a valid extend. Cannot process.");
+  }
+
+  int allCorrect = 1; // Reduction operation cannot be done on bools
+  this->Controller->AllReduce(&correctExtent, &allCorrect, 1, vtkCommunicator::LOGICAL_AND_OP);
+
+  if (!allCorrect)
+  {
+    vtkWarningMacro("Every individual distributed process does not have a valid HTG extent. No "
+                    "ghost cells will be generated.");
+    if (outputHTG)
+    {
+      outputHTG->ShallowCopy(inputHTG);
+    }
+    return 1;
+  }
+  else if (!this->ProcessTrees(inputHTG, outputHTG))
+  {
+    return 0;
+  }
+
+  // Update progress and return
+  this->UpdateProgress(1.);
   return 1;
 }
 
@@ -129,7 +154,8 @@ int vtkHyperTreeGridGhostCellsGenerator::FillOutputPortInformation(int, vtkInfor
 int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
   vtkHyperTreeGrid* input, vtkDataObject* outputDO)
 {
-  // Downcast output data object to hyper tree grid
+  int numberOfProcesses = this->Controller->GetNumberOfProcesses();
+
   vtkHyperTreeGrid* output = vtkHyperTreeGrid::SafeDownCast(outputDO);
   if (!output)
   {
@@ -137,18 +163,19 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
     return 0;
   }
 
-  // We only need the structure of the input with no data in it
+  if (input->HasAnyGhostCells())
+  {
+    vtkWarningMacro("Ghost cells already computed, we reuse them.");
+    output->ShallowCopy(input);
+    return 1;
+  }
+
+  vtkDebugMacro(<< "Start processing trees: copy input structure");
   output->Initialize();
-
-  // local handle on the controller
-  vtkMultiProcessController* controller = this->Internals->Controller;
-
-  int processId = controller->GetLocalProcessId();
-
-  int numberOfProcesses = controller->GetNumberOfProcesses();
   if (numberOfProcesses == 1)
   {
-    output->DeepCopy(input);
+    // No ghost cells to generate if we have a single process, pass through
+    output->ShallowCopy(input);
     return 1;
   }
   else
@@ -157,566 +184,52 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
     output->GetCellData()->CopyStructure(input->GetCellData());
   }
 
-  // Link HyperTrees
-  vtkHyperTreeGrid::vtkHyperTreeGridIterator inHTs;
-  input->InitializeTreeIterator(inHTs);
-  vtkIdType inTreeIndex;
+  vtkHyperTreeGridGhostCellsGeneratorInternals subroutines{ this, this->Controller, input, output };
+  subroutines.InitializeCellData();
+  this->UpdateProgress(0.1);
 
-  // To keep track of the number of nodes in the htg
-  vtkIdType numberOfValues = 0;
+  // Create a vector containing the processId of each consecutive tree in the HTG.
+  vtkDebugMacro("Broadcast tree locations");
+  subroutines.BroadcastTreeLocations();
+  this->UpdateProgress(0.2);
 
-  vtkNew<vtkHyperTreeGridNonOrientedCursor> outCursor, inCursor;
+  vtkDebugMacro("Determine neighbors");
+  subroutines.DetermineNeighbors();
+  this->UpdateProgress(0.3);
 
-  vtkBitArray *outputMask = input->HasMask() ? vtkBitArray::New() : nullptr,
-              *inputMask = input->HasMask() ? input->GetMask() : nullptr;
-
-  // First, we copy the input htg into the output
-  // We do it "by hand" to fill gaps if they exist
-  while (inHTs.GetNextTree(inTreeIndex))
+  vtkDebugMacro("Exchange sizes with neighbors");
+  if (subroutines.ExchangeSizes() == 0)
   {
-    input->InitializeNonOrientedCursor(inCursor, inTreeIndex);
-    output->InitializeNonOrientedCursor(outCursor, inTreeIndex, true);
-    outCursor->SetGlobalIndexStart(numberOfValues);
-    this->CopyInputTreeToOutput(
-      inCursor, outCursor, input->GetCellData(), output->GetCellData(), inputMask, outputMask);
-    numberOfValues += outCursor->GetTree()->GetNumberOfVertices();
+    vtkErrorMacro("Failure during size exchange, aborting.");
+    return 0;
   }
+  this->Controller->Barrier();
+  this->UpdateProgress(0.4);
 
-  // Handling receive and send buffer.
-  // The structure is as follows:
-  // sendBuffer[id] or recvBuffer[id] == process id of neighbor with who to communicate buffer
-  // sendBuffer[id][jd] or recvBuffer[id][jd] tells which tree index is being sent.
-  typedef std::map<unsigned int, SendBuffer> SendTreeBufferMap;
-  typedef std::map<unsigned int, SendTreeBufferMap> SendProcessBufferMap;
-  typedef std::map<unsigned int, RecvBuffer> RecvTreeBufferMap;
-  typedef std::map<unsigned int, RecvTreeBufferMap> RecvProcessBufferMap;
-
-  SendProcessBufferMap sendBuffer;
-  RecvProcessBufferMap recvBuffer;
-
-  enum FlagType
+  vtkDebugMacro("Exchange tree decomposition and masks with neighbors");
+  if (subroutines.ExchangeTreeDecomposition() == 0)
   {
-    NOT_TREATED,
-    INITIALIZE_TREE,
-    INITIALIZE_FIELD
-  };
-  std::unordered_map<unsigned, FlagType> flags;
-
-  // Broadcast hyper tree locations to everyone
-  unsigned cellDims[3];
-  input->GetCellDims(cellDims);
-  vtkIdType nbHTs = cellDims[0] * cellDims[1] * cellDims[2];
-
-  std::vector<int> broadcastHyperTreesMapToProcesses(nbHTs + numberOfProcesses, -1),
-    hyperTreesMapToProcesses(nbHTs + numberOfProcesses);
-  input->InitializeTreeIterator(inHTs);
-  while (inHTs.GetNextTree(inTreeIndex))
-  {
-    input->InitializeNonOrientedCursor(inCursor, inTreeIndex);
-    if (inCursor->HasTree())
-    {
-      broadcastHyperTreesMapToProcesses[inTreeIndex] = processId;
-    }
+    vtkErrorMacro("Failure during mask exchange, aborting.");
+    return 0;
   }
-  broadcastHyperTreesMapToProcesses[nbHTs + processId] = input->HasMask();
-  vtkDebugMacro("AllReduce: HyperTrees to process.");
-  controller->AllReduce(broadcastHyperTreesMapToProcesses.data(), hyperTreesMapToProcesses.data(),
-    nbHTs + numberOfProcesses, vtkCommunicator::MAX_OP);
+  this->Controller->Barrier();
+  this->UpdateProgress(0.6);
 
-  assert(input->GetDimension() > 1);
-
-  // Determining who are my neighbors
-  unsigned i, j, k = 0;
-  input->InitializeTreeIterator(inHTs);
-  switch (input->GetDimension())
+  vtkDebugMacro("Exchange cell data with neighbors");
+  if (subroutines.ExchangeCellData() == 0)
   {
-    case 2:
-    {
-      while (inHTs.GetNextTree(inTreeIndex))
-      {
-        input->GetLevelZeroCoordinatesFromIndex(inTreeIndex, i, j, k);
-        // Avoiding over / under flowing the grid
-        for (int rj = ((j > 0) ? -1 : 0); rj < (((j + 1) < cellDims[1]) ? 2 : 1); ++rj)
-        {
-          for (int ri = ((i > 0) ? -1 : 0); ri < (((i + 1) < cellDims[0]) ? 2 : 1); ++ri)
-          {
-            int neighbor = (i + ri) * cellDims[1] + j + rj;
-            int id = hyperTreesMapToProcesses[neighbor];
-            if (id >= 0 && id != processId)
-            {
-              // Construction a neighborhood mask to extract the interface in ExtractInterface later
-              // on Same encoding as vtkHyperTreeGrid::GetChildMask
-              sendBuffer[id][inTreeIndex].mask |= 1
-                << (8 * sizeof(int) - 1 - (ri + 1 + (rj + 1) * 3));
-              // Not receiving anything from this guy since we will send him stuff
-              recvBuffer[id][neighbor].count = 0;
-              // Process not treated yet, yielding the flag
-              flags[id] = NOT_TREATED;
-            }
-          }
-        }
-      }
-      break;
-    }
-    case 3:
-    {
-      while (inHTs.GetNextTree(inTreeIndex))
-      {
-        input->GetLevelZeroCoordinatesFromIndex(inTreeIndex, i, j, k);
-        // Avoiding over / under flowing the grid
-        for (int rk = ((k > 0) ? -1 : 0); rk < (((k + 1) < cellDims[2]) ? 2 : 1); ++rk)
-        {
-          for (int rj = ((j > 0) ? -1 : 0); rj < (((j + 1) < cellDims[1]) ? 2 : 1); ++rj)
-          {
-            for (int ri = ((i > 0) ? -1 : 0); ri < (((i + 1) < cellDims[0]) ? 2 : 1); ++ri)
-            {
-              int neighbor = ((k + rk) * cellDims[1] + j + rj) * cellDims[0] + i + ri;
-              int id = hyperTreesMapToProcesses[neighbor];
-              if (id >= 0 && id != processId)
-              {
-                // Construction a neighborhood mask to extract the interface in ExtractInterface
-                // later on Same encoding as vtkHyperTreeGrid::GetChildMask
-                sendBuffer[id][inTreeIndex].mask |= 1
-                  << (8 * sizeof(int) - 1 - (ri + 1 + (rj + 1) * 3 + (rk + 1) * 9));
-                // Not receiving anything from this guy since we will send him stuff
-                recvBuffer[id][neighbor].count = 0;
-                // Process not treated yet, yielding the flag
-                flags[id] = NOT_TREATED;
-              }
-            }
-          }
-        }
-      }
-      break;
-    }
+    vtkErrorMacro("Failure during cell data exchange, aborting.");
+
+    return 0;
   }
+  this->Controller->Barrier();
+  this->UpdateProgress(0.8);
 
-  // Exchanging size with my neighbors
-  for (int id = 0; id < numberOfProcesses; ++id)
-  {
-    if (id != processId)
-    {
-      auto sendIt = sendBuffer.find(id);
-      if (sendIt != sendBuffer.end())
-      {
-        SendTreeBufferMap& sendTreeMap = sendIt->second;
-        std::vector<vtkIdType> counts(sendTreeMap.size());
-        int cpt = 0;
-        for (auto&& sendTreeBufferPair : sendTreeMap)
-        {
-          vtkIdType treeId = sendTreeBufferPair.first;
-          auto&& sendTreeBuffer = sendTreeBufferPair.second;
-          input->InitializeNonOrientedCursor(inCursor, treeId);
-          // Extracting the tree interface with its neighbors
-          sendTreeBuffer.count = 0;
-          vtkHyperTree* tree = inCursor->GetTree();
-          if (tree)
-          {
-            // We store the isParent profile along the interface to know when to subdivide later
-            // indices store the indices in the input of the nodes on the interface
-            vtkIdType nbVertices = tree->GetNumberOfVertices();
-            sendTreeBuffer.indices.resize(nbVertices);
-            ExtractInterface(inCursor, sendTreeBuffer.isParent, sendTreeBuffer.indices, input,
-              sendTreeBuffer.mask, sendTreeBuffer.count);
-          }
-          // Telling my neighbors how much data I will send later
-          counts[cpt++] = sendTreeBuffer.count;
-        }
-        vtkDebugMacro("Send: data size to " << id);
-        controller->Send(counts.data(), cpt, id, HTGGCG_SIZE_EXCHANGE_TAG);
-      }
-    }
-    else
-    {
-      // Receiving size info from my neighbors
-      std::size_t iRecv = 0;
-      for (auto itRecvBuffer = recvBuffer.begin(); itRecvBuffer != recvBuffer.end(); ++itRecvBuffer)
-      {
-        auto targetRecvBuffer = itRecvBuffer;
-        if (controller->CanProbe())
-        {
-          targetRecvBuffer = ::ProbeFind(controller, HTGGCG_SIZE_EXCHANGE_TAG, recvBuffer);
-          if (targetRecvBuffer == recvBuffer.end())
-          {
-            vtkErrorMacro("Reception probe on process " << processId << " failed on " << iRecv
-                                                        << "th iteration.");
-            return 0;
-          }
-        }
-        int process = targetRecvBuffer->first;
-        auto&& recvTreeMap = targetRecvBuffer->second;
-        std::vector<vtkIdType> counts(recvTreeMap.size());
-        vtkDebugMacro("Receive: data size from " << process);
-        controller->Receive(counts.data(), static_cast<vtkIdType>(recvTreeMap.size()), process,
-          HTGGCG_SIZE_EXCHANGE_TAG);
-        int cpt = 0;
-        for (auto&& recvBufferPair : recvTreeMap)
-        {
-          recvBufferPair.second.count = counts[cpt++];
-        }
-        iRecv++;
-      }
-    }
-  }
-
-  // Synchronizing
-  vtkDebugMacro("Barrier");
-  controller->Barrier();
-
-  // Sending masks and parent state of each node
-  for (int id = 0; id < numberOfProcesses; ++id)
-  {
-    if (id != processId)
-    {
-      auto sendIt = sendBuffer.find(id);
-      if (sendIt != sendBuffer.end())
-      {
-        SendTreeBufferMap& sendTreeMap = sendIt->second;
-        std::vector<unsigned char> buf;
-        // Accumulated length
-        vtkIdType len = 0;
-        for (auto&& sendTreeBufferPair : sendTreeMap)
-        {
-          auto&& sendTreeBuffer = sendTreeBufferPair.second;
-          if (sendTreeBuffer.count)
-          {
-            // We send the bits packed in unsigned char
-            vtkIdType dlen = sendTreeBuffer.count / sizeof(unsigned char) + 1;
-            if (input->HasMask())
-            {
-              dlen *= 2;
-            }
-            buf.resize(len + dlen);
-            memcpy(buf.data() + len, sendTreeBuffer.isParent->GetPointer(0),
-              sendTreeBuffer.count / sizeof(unsigned char) + 1);
-            if (input->HasMask())
-            {
-              unsigned char* mask = buf.data() + len + dlen / 2;
-              for (vtkIdType ii = 0; ii < dlen / 2; ++ii)
-              {
-                mask[ii] = 0;
-              }
-              vtkBitArray* bmask = input->GetMask();
-              // Filling the mask with bits at the appropriate location
-              for (vtkIdType m = 0; m < sendTreeBuffer.count; ++m)
-              {
-                *mask |= static_cast<unsigned char>(bmask->GetValue(sendTreeBuffer.indices[m]))
-                  << (sizeof(unsigned char) - 1 - (m % sizeof(unsigned char)));
-                // Incrementing the pointer when unsigned char overflows
-                mask += !((m + 1) % sizeof(unsigned char));
-              }
-            }
-            len += dlen;
-          }
-        }
-        vtkDebugMacro("Send: data to " << id);
-        this->Internals->Controller->Send(buf.data(), len, id, HTGGCG_DATA_EXCHANGE_TAG);
-      }
-    }
-    else
-    {
-      // Receiving masks
-      std::size_t iRecv = 0;
-      for (auto itRecvBuffer = recvBuffer.begin(); itRecvBuffer != recvBuffer.end(); ++itRecvBuffer)
-      {
-        auto targetRecvBuffer = itRecvBuffer;
-        if (controller->CanProbe())
-        {
-          targetRecvBuffer = ::ProbeFind(controller, HTGGCG_DATA_EXCHANGE_TAG, recvBuffer);
-          if (targetRecvBuffer == recvBuffer.end())
-          {
-            vtkErrorMacro("Reception probe on process " << processId << " failed on " << iRecv
-                                                        << "th iteration.");
-            return 0;
-          }
-        }
-        int process = targetRecvBuffer->first;
-        auto&& recvTreeMap = targetRecvBuffer->second;
-
-        // If we have not dealt with process yet,
-        // we prepare for receiving with appropriate length
-        if (flags[process] == NOT_TREATED)
-        {
-          vtkIdType len = 0;
-          for (auto&& recvTreeBufferPair : recvTreeMap)
-          {
-            auto&& recvTreeBuffer = recvTreeBufferPair.second;
-            if (recvTreeBuffer.count != 0)
-            {
-              // bit message is packed in unsigned char, getting the correct length of the message
-              len += recvTreeBuffer.count / sizeof(unsigned char) + 1;
-              if (input->HasMask())
-              {
-                len += recvTreeBuffer.count / sizeof(unsigned char) + 1;
-              }
-            }
-          }
-          std::vector<unsigned char> buf(len);
-
-          vtkDebugMacro("Receive: data from " << process);
-          this->Internals->Controller->Receive(buf.data(), len, process, HTGGCG_DATA_EXCHANGE_TAG);
-
-          vtkIdType cpt = 0;
-          // Distributing receive data among my trees, i.e. creating my ghost trees with this data
-          // Remember: we only have the nodes / leaves at the inverface with our neighbor
-          for (auto&& recvTreeBufferPair : recvTreeMap)
-          {
-            vtkIdType treeId = recvTreeBufferPair.first;
-            auto&& recvTreeBuffer = recvTreeBufferPair.second;
-            if (recvTreeBuffer.count != 0)
-            {
-              output->InitializeNonOrientedCursor(outCursor, treeId, true);
-              vtkNew<vtkBitArray> isParent;
-
-              // Stealing ownership of buf in isParent to have vtkBitArray interface
-              isParent->SetArray(buf.data() + cpt,
-                input->HasMask() ? 2 * recvTreeBuffer.count : recvTreeBuffer.count, 1);
-
-              recvTreeBuffer.offset = numberOfValues;
-              recvTreeBuffer.indices.resize(recvTreeBuffer.count);
-
-              outCursor->SetGlobalIndexStart(numberOfValues);
-
-              if (!outputMask && hyperTreesMapToProcesses[nbHTs + process])
-              {
-                outputMask = vtkBitArray::New();
-                outputMask->Resize(numberOfValues);
-                for (vtkIdType ii = 0; ii < numberOfValues; ++ii)
-                {
-                  outputMask->SetValue(ii, 0);
-                }
-              }
-
-              numberOfValues +=
-                this->CreateGhostTree(outCursor, isParent, recvTreeBuffer.indices.data());
-
-              // TODO Bug potentiel si localement on n'a pas de masque... mais le voisin si :D
-              if (hyperTreesMapToProcesses[nbHTs + process])
-              {
-                vtkNew<vtkBitArray> mask;
-                // Stealing ownership of buf for mask handling to have vtkBitArray interface
-
-                mask->SetArray(buf.data() + cpt + recvTreeBuffer.count / sizeof(unsigned char) + 1,
-                  recvTreeBuffer.count, 1);
-
-                for (vtkIdType m = 0; m < recvTreeBuffer.count; ++m)
-                {
-                  outputMask->InsertValue(recvTreeBuffer.indices[m], mask->GetValue(m));
-                }
-                cpt += 2 * (recvTreeBuffer.count / sizeof(unsigned char) + 1);
-              }
-              else
-              {
-                if (outputMask)
-                {
-                  for (vtkIdType m = 0; m < recvTreeBuffer.count; ++m)
-                  {
-                    outputMask->InsertValue(recvTreeBuffer.indices[m], 0);
-                  }
-                }
-                cpt += recvTreeBuffer.count / sizeof(unsigned char) + 1;
-              }
-            }
-          }
-          flags[process] = INITIALIZE_TREE;
-        }
-        iRecv++;
-      }
-    }
-  }
-
-  // Synchronizing
-  vtkDebugMacro("Barrier");
-  this->Internals->Controller->Barrier();
-
-  // We now send the data store on each node
-  for (int id = 0; id < numberOfProcesses; ++id)
-  {
-    if (id != processId)
-    {
-      auto sendIt = sendBuffer.find(id);
-      if (sendIt != sendBuffer.end())
-      {
-        SendTreeBufferMap& sendTreeMap = sendIt->second;
-        std::vector<double> buf;
-        vtkIdType len = 0;
-        for (auto&& sendTreeBufferPair : sendTreeMap)
-        {
-          auto&& sendTreeBuffer = sendTreeBufferPair.second;
-          if (sendTreeBuffer.count)
-          {
-            vtkCellData* pd = input->GetCellData();
-            int nbArray = pd->GetNumberOfArrays();
-            len += sendTreeBuffer.count * nbArray;
-            buf.resize(len);
-            double* arr = buf.data() + len - sendTreeBuffer.count * nbArray;
-            for (int iArray = 0; iArray < nbArray; ++iArray)
-            {
-              vtkDataArray* inArray = pd->GetArray(iArray);
-              for (vtkIdType m = 0; m < sendTreeBuffer.count; ++m)
-              {
-                arr[iArray * sendTreeBuffer.count + m] =
-                  inArray->GetTuple1(sendTreeBuffer.indices[m]);
-              }
-            }
-          }
-        }
-        vtkDebugMacro("Send: data2 from " << id);
-        this->Internals->Controller->Send(buf.data(), len, id, HTGGCG_DATA2_EXCHANGE_TAG);
-      }
-    }
-    else
-    {
-      // We receive the data
-      std::size_t iRecv = 0;
-      for (auto itRecvBuffer = recvBuffer.begin(); itRecvBuffer != recvBuffer.end(); ++itRecvBuffer)
-      {
-        auto targetRecvBuffer = itRecvBuffer;
-        if (controller->CanProbe())
-        {
-          targetRecvBuffer = ::ProbeFind(controller, HTGGCG_DATA2_EXCHANGE_TAG, recvBuffer);
-          if (targetRecvBuffer == recvBuffer.end())
-          {
-            vtkErrorMacro("Reception probe on process " << processId << " failed on " << iRecv
-                                                        << "th iteration.");
-            return 0;
-          }
-        }
-        int process = targetRecvBuffer->first;
-        auto&& recvTreeMap = targetRecvBuffer->second;
-        if (flags[process] == INITIALIZE_TREE)
-        {
-          unsigned long len = 0;
-          for (auto&& recvTreeBufferPair : recvTreeMap)
-          {
-            vtkCellData* pd = output->GetCellData();
-            int nbArray = pd->GetNumberOfArrays();
-            len += recvTreeBufferPair.second.count * nbArray;
-          }
-          std::vector<double> buf(len);
-
-          vtkDebugMacro("Receive: data2 from " << process);
-          this->Internals->Controller->Receive(buf.data(), len, process, HTGGCG_DATA2_EXCHANGE_TAG);
-          vtkIdType cpt = 0;
-
-          for (auto&& recvTreeBufferPair : recvTreeMap)
-          {
-            auto&& recvTreeBuffer = recvTreeBufferPair.second;
-            vtkCellData* pd = output->GetCellData();
-            int nbArray = pd->GetNumberOfArrays();
-            double* arr = buf.data() + cpt;
-
-            for (int d = 0; d < nbArray; ++d)
-            {
-              vtkDataArray* outArray = pd->GetArray(d);
-              for (vtkIdType m = 0; m < recvTreeBuffer.count; ++m)
-              {
-                outArray->InsertTuple1(
-                  recvTreeBuffer.indices[m], arr[d * recvTreeBuffer.count + m]);
-              }
-            }
-            cpt += recvTreeBuffer.count * nbArray;
-          }
-          flags[process] = INITIALIZE_FIELD;
-        }
-        iRecv++;
-      }
-    }
-  }
-
-  vtkDebugMacro("Barrier");
-  this->Internals->Controller->Barrier();
-  {
-    vtkNew<vtkUnsignedCharArray> scalars;
-    scalars->SetNumberOfComponents(1);
-    scalars->SetName(vtkDataSetAttributes::GhostArrayName());
-    scalars->SetNumberOfTuples(numberOfValues);
-    for (vtkIdType ii = 0; ii < input->GetNumberOfCells(); ++ii)
-    {
-      scalars->InsertValue(ii, 0);
-    }
-    for (vtkIdType ii = input->GetNumberOfCells(); ii < numberOfValues; ++ii)
-    {
-      scalars->InsertValue(ii, 1);
-    }
-    output->GetCellData()->AddArray(scalars);
-    output->SetMask(outputMask);
-  }
+  vtkDebugMacro("Create ghost array and set output mask");
+  subroutines.FinalizeCellData();
 
   this->UpdateProgress(1.);
   return 1;
 }
 
-//------------------------------------------------------------------------------
-void vtkHyperTreeGridGhostCellsGenerator::ExtractInterface(
-  vtkHyperTreeGridNonOrientedCursor* inCursor, vtkBitArray* isParent,
-  std::vector<vtkIdType>& indices, vtkHyperTreeGrid* grid, unsigned int mask, vtkIdType& pos)
-{
-  isParent->InsertTuple1(pos, !inCursor->IsLeaf());
-  indices[pos] = inCursor->GetGlobalNodeIndex();
-  ++pos;
-  if (!inCursor->IsLeaf())
-  {
-    for (int ichild = 0; ichild < inCursor->GetNumberOfChildren(); ++ichild)
-    {
-      inCursor->ToChild(ichild);
-      unsigned int newMask = mask & grid->GetChildMask(ichild);
-      if (newMask)
-      {
-        this->ExtractInterface(inCursor, isParent, indices, grid, newMask, pos);
-      }
-      else
-      {
-        isParent->InsertTuple1(pos, 0);
-        indices[pos] = inCursor->GetGlobalNodeIndex();
-        ++pos;
-      }
-      inCursor->ToParent();
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-vtkIdType vtkHyperTreeGridGhostCellsGenerator::CreateGhostTree(
-  vtkHyperTreeGridNonOrientedCursor* outCursor, vtkBitArray* isParent, vtkIdType* indices,
-  vtkIdType&& pos)
-{
-  indices[pos] = outCursor->GetGlobalNodeIndex();
-  if (isParent->GetValue(pos++))
-  {
-    outCursor->SubdivideLeaf();
-    for (int ichild = 0; ichild < outCursor->GetNumberOfChildren(); ++ichild)
-    {
-      outCursor->ToChild(ichild);
-      this->CreateGhostTree(outCursor, isParent, indices, std::forward<vtkIdType&&>(pos));
-      outCursor->ToParent();
-    }
-  }
-  return pos;
-}
-
-//------------------------------------------------------------------------------
-void vtkHyperTreeGridGhostCellsGenerator::CopyInputTreeToOutput(
-  vtkHyperTreeGridNonOrientedCursor* inCursor, vtkHyperTreeGridNonOrientedCursor* outCursor,
-  vtkCellData* inCellData, vtkCellData* outCellData, vtkBitArray* inMask, vtkBitArray* outMask)
-{
-  vtkIdType outIdx = outCursor->GetGlobalNodeIndex(), inIdx = inCursor->GetGlobalNodeIndex();
-  outCellData->InsertTuple(outIdx, inIdx, inCellData);
-  if (inMask)
-  {
-    outMask->InsertTuple1(outIdx, inMask->GetValue(inIdx));
-  }
-  if (!inCursor->IsLeaf())
-  {
-    outCursor->SubdivideLeaf();
-    for (int ichild = 0; ichild < inCursor->GetNumberOfChildren(); ++ichild)
-    {
-      outCursor->ToChild(ichild);
-      inCursor->ToChild(ichild);
-      this->CopyInputTreeToOutput(inCursor, outCursor, inCellData, outCellData, inMask, outMask);
-      outCursor->ToParent();
-      inCursor->ToParent();
-    }
-  }
-}
 VTK_ABI_NAMESPACE_END

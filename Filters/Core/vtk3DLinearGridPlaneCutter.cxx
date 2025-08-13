@@ -1122,7 +1122,7 @@ int vtk3DLinearGridPlaneCutter::ProcessPiece(
   // Make sure there is input data to process
   if (!input || !plane || !output)
   {
-    vtkLog(INFO, "Null input, plane, or output");
+    vtkLog(TRACE, "Null input, plane, or output");
     return 1;
   }
 
@@ -1132,7 +1132,7 @@ int vtk3DLinearGridPlaneCutter::ProcessPiece(
   vtkIdType numCells = cells ? cells->GetNumberOfCells() : 0;
   if (numPts <= 0 || numCells <= 0)
   {
-    vtkLog(INFO, "Empty input");
+    vtkLog(TRACE, "Empty input");
     return 1;
   }
 
@@ -1353,7 +1353,7 @@ int vtk3DLinearGridPlaneCutter::RequestData(
       }
       else
       {
-        vtkLog(INFO, "This filter only processes unstructured grids");
+        vtkLog(TRACE, "This filter only processes unstructured grids");
       }
     }
   }
@@ -1388,8 +1388,8 @@ bool vtk3DLinearGridPlaneCutter::CanFullyProcessDataObject(vtkDataObject* object
       for (vtkIdType i = 0; i < cellTypes->GetNumberOfValues(); ++i)
       {
         unsigned char cellType = cellTypes->GetValue(i);
-        if (cellType != VTK_VOXEL && cellType != VTK_TETRA && cellType != VTK_HEXAHEDRON &&
-          cellType != VTK_WEDGE && cellType != VTK_PYRAMID)
+        if (cellType != VTK_EMPTY_CELL && cellType != VTK_VOXEL && cellType != VTK_TETRA &&
+          cellType != VTK_HEXAHEDRON && cellType != VTK_WEDGE && cellType != VTK_PYRAMID)
         {
           // Unsupported cell type, can't process data
           return false;

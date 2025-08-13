@@ -10,9 +10,9 @@
 
 #include <fides/DataSource.h>
 
-#include <vtkm/cont/ArrayHandle.h>
-#include <vtkm/cont/ArrayHandleGroupVec.h>
-#include <vtkm/cont/Storage.h>
+#include <viskores/cont/ArrayHandle.h>
+#include <viskores/cont/ArrayHandleRuntimeVec.h>
+#include <viskores/cont/Storage.h>
 
 #include <algorithm>
 #include <numeric>
@@ -175,6 +175,38 @@ std::map<std::string, adios2::Params>::iterator DataSource::FindAttribute(
   return this->AvailAtts.find(fullAttrName);
 }
 
+void DataSource::OpenSource(const std::unordered_map<std::string, std::string>& paths,
+                            const std::string& dataSourceName,
+                            bool useMPI /* = true */)
+{
+  if (this->Reader)
+  {
+    return;
+  }
+
+  auto itr = paths.find(dataSourceName);
+  std::string path;
+  if (itr != paths.end())
+  {
+    path = itr->second;
+  }
+  else
+  {
+    if (!this->RelativePath.empty())
+    {
+      path = this->RelativePath;
+    }
+    else
+    {
+      throw std::runtime_error("Could not find data_source with name " + dataSourceName +
+                               " among the input paths.");
+    }
+  }
+
+  path += this->FileName;
+  this->OpenSource(path, useMPI);
+}
+
 void DataSource::OpenSource(const std::string& fname, bool useMPI /* = true */)
 {
   //if the reader (ADIOS engine) is already been set, do nothing
@@ -245,30 +277,54 @@ void DataSource::Refresh()
   }
 }
 
-template <typename VariableType, typename VecType>
-vtkm::cont::UnknownArrayHandle AllocateArrayHandle(vtkm::Id bufSize, VariableType*& buffer)
+struct FidesArrayMemoryRequirements
 {
-  vtkm::cont::ArrayHandleBasic<VecType> arrayHandle;
-  arrayHandle.Allocate(bufSize);
-  buffer = reinterpret_cast<VariableType*>(arrayHandle.GetWritePointer());
-  return arrayHandle;
+  /// Total number of elements.
+  viskores::Id Size;
+  /// Location of the first element - local to the block.
+  adios2::Dims Start;
+  /// Number of elements in each dimension - local to the block.
+  adios2::Dims Count;
+  /// Does this memory describe shared points as well?
+  /// This is used to decide whether `SetSelection` of `SetBlockSelection` is called for global
+  /// arrays distributed across blocks.
+  bool HasSharedPoints;
+};
+
+inline std::ostream& operator<<(std::ostream& os, const FidesArrayMemoryRequirements& memReqs)
+{
+  os << "FidesArrayMemoryRequirements: \n";
+  os << "\tSize: " << memReqs.Size << "\n";
+  for (size_t dim = 0; dim < memReqs.Start.size(); ++dim)
+  {
+    os << "\tStart[" << dim << "]: " << memReqs.Start[dim] << "\n";
+    os << "\tCount[" << dim << "]: " << memReqs.Count[dim] << "\n";
+  }
+  os << "\tHasSharedPoints: " << memReqs.HasSharedPoints;
+  return os;
 }
 
-template <typename VariableType, vtkm::IdComponent Dim>
-vtkm::cont::UnknownArrayHandle AllocateArrayHandle(const VariableType* vecData, vtkm::Id bufSize)
+size_t GetBufferSize(const adios2::Dims& shape)
 {
-  vtkm::cont::ArrayHandle<VariableType> arrayHandle =
-    vtkm::cont::make_ArrayHandle(vecData, bufSize, vtkm::CopyFlag::Off);
-  return vtkm::cont::make_ArrayHandleGroupVec<Dim>(arrayHandle);
+  size_t size = 1;
+  for (const auto& n : shape)
+  {
+    size *= n;
+  }
+  return size;
 }
 
-template <typename VariableType>
-vtkm::Id GetBufferSize(adios2::Engine& reader,
-                       adios2::Variable<VariableType>& varADIOS2,
-                       size_t blockId,
-                       size_t step)
+// Set 1 to enable debug prints of array memory requirements.
+#define FidesArrayMemoryRequirements_DEBUG 0
+
+template <typename VariableType,
+          typename BlocksInfoType = typename adios2::Variable<VariableType>::Info>
+FidesArrayMemoryRequirements GetVariableMemoryRequirements(
+  std::vector<BlocksInfoType>& blocksInfo,
+  adios2::Variable<VariableType>& varADIOS2,
+  size_t blockId,
+  bool createSharedPoints = false)
 {
-  auto blocksInfo = reader.BlocksInfo(varADIOS2, step);
   if (blockId >= blocksInfo.size())
   {
     std::stringstream ss;
@@ -277,42 +333,103 @@ vtkm::Id GetBufferSize(adios2::Engine& reader,
        << "; there are only " << blocksInfo.size() << " blocks.";
     throw std::invalid_argument(ss.str());
   }
-  const auto& shape = blocksInfo[blockId].Count;
-  vtkm::Id bufSize = 1;
-  for (auto n : shape)
+  const auto& blockInfo = blocksInfo[blockId];
+
+#if FidesArrayMemoryRequirements_DEBUG
+  std::cout << "GetVariableMemoryRequirements for " << varADIOS2.Name() << " in block " << blockId
+            << std::endl;
+#endif
+  FidesArrayMemoryRequirements memoryRequirements = {};
+  // sane defaults correspond to whatever the variable and block info have.
+  memoryRequirements.Start = blockInfo.Start;
+  memoryRequirements.Count = blockInfo.Count;
+  memoryRequirements.Size = GetBufferSize(blockInfo.Count);
+  memoryRequirements.HasSharedPoints = false;
+#if FidesArrayMemoryRequirements_DEBUG
+  std::cout << "Default " << memoryRequirements << std::endl;
+#endif
+  // start and count will be adjusted depending on the value of Variable::ShapeID().
+  switch (varADIOS2.ShapeID())
   {
-    bufSize *= n;
+    case adios2::ShapeID::GlobalArray:
+    {
+      if (createSharedPoints)
+      {
+        const auto& nDims = blockInfo.Start.size();
+        for (size_t dim = 0; dim < nDims; ++dim)
+        {
+          // grow by one index for all blocks whose start > 0
+          const bool extendDimensions = blockInfo.Start[dim] > 0;
+          const int indexDelta = static_cast<int>(extendDimensions);
+          memoryRequirements.Start[dim] -= indexDelta;
+          memoryRequirements.Count[dim] += indexDelta;
+          memoryRequirements.HasSharedPoints |= extendDimensions;
+        }
+        // size will include shared points
+        memoryRequirements.Size = GetBufferSize(memoryRequirements.Count);
+      }
+      break;
+    }
+    default:
+      // all other types return un-modified shape and buffer size.
+      break;
   }
-  if (bufSize <= 0)
+  if (memoryRequirements.Size <= 0)
   {
-    // ADIOS Dims are size_t, but vtk-m uses signed integers (32- or 64-bit
+    // ADIOS Dims are size_t, but viskores uses signed integers (32- or 64-bit
     // depending on build) for allocating storage for the arrayhandle (num values,
     // not bytes). I think it's unlikely that we'd actually get overflow, but just
     // in case...
-    if (sizeof(vtkm::Id) == 4)
+    if (sizeof(viskores::Id) == 4)
     {
       throw std::runtime_error("Overflow in number of values being read detected."
-                               "Building VTK-m with VTKm_USE_64BIT_IDS should fix this.");
+                               "Building Viskores with Viskores_USE_64BIT_IDS should fix this.");
     }
     throw std::runtime_error("Overflow in number of values being read detected.");
   }
-  return bufSize;
+#if FidesArrayMemoryRequirements_DEBUG
+  std::cout << "New " << memoryRequirements << std::endl;
+#endif
+  return memoryRequirements;
+}
+
+/// This method makes an appropriate selection on the variable.
+///  - applies an extended selection using `SetSelection` if memory requirements deem that's necessary.
+///  - otherwise, applies a block selection using `SetBlockSelection`
+template <typename VariableType>
+void PrepareVariableSelection(adios2::Variable<VariableType>& varADIOS2,
+                              const FidesArrayMemoryRequirements& memoryRequirements,
+                              const std::size_t blockId)
+{
+  if (memoryRequirements.HasSharedPoints)
+  {
+    varADIOS2.SetSelection({ memoryRequirements.Start, memoryRequirements.Count });
+  }
+  else
+  {
+    // ADIOS2 calls `SetSelection`
+    varADIOS2.SetBlockSelection(blockId);
+  }
 }
 
 template <typename VariableType>
-vtkm::cont::UnknownArrayHandle ReadVariableInternal(adios2::Engine& reader,
-                                                    adios2::Variable<VariableType>& varADIOS2,
-                                                    size_t blockId,
-                                                    EngineType engineType,
-                                                    size_t step,
-                                                    IsVector isit = IsVector::Auto)
+viskores::cont::UnknownArrayHandle ReadVariableInternal(adios2::Engine& reader,
+                                                        adios2::Variable<VariableType>& varADIOS2,
+                                                        size_t blockId,
+                                                        EngineType engineType,
+                                                        size_t step,
+                                                        IsVector isit = IsVector::Auto,
+                                                        bool createSharedPoints = false)
 {
-  auto bufSize = GetBufferSize(reader, varADIOS2, blockId, step);
   auto blocksInfo = reader.BlocksInfo(varADIOS2, step);
-  const auto& shape = blocksInfo[blockId].Count;
+  auto memoryRequirements =
+    GetVariableMemoryRequirements(blocksInfo, varADIOS2, blockId, createSharedPoints);
+  const auto& shape = memoryRequirements.Count;
+  auto& bufSize = memoryRequirements.Size;
 
-  vtkm::cont::UnknownArrayHandle retVal;
   VariableType* buffer = nullptr;
+
+  PrepareVariableSelection(varADIOS2, memoryRequirements, blockId);
 
   if (engineType == EngineType::Inline)
   {
@@ -320,15 +437,27 @@ vtkm::cont::UnknownArrayHandle ReadVariableInternal(adios2::Engine& reader,
     // instead of data being copied into a buffer.
     // And this can be handled the same way whether it's a
     // vector or not
-    varADIOS2.SetBlockSelection(blockId);
     reader.Get(varADIOS2, blocksInfo[blockId]);
     reader.PerformGets();
+  }
+
+  viskores::cont::ArrayHandleBasic<VariableType> basicArray;
+  if (engineType == EngineType::Inline)
+  {
+    const VariableType* vecData = blocksInfo[blockId].Data();
+    basicArray = viskores::cont::make_ArrayHandle(vecData, bufSize, viskores::CopyFlag::Off);
+  }
+  else
+  {
+    basicArray.Allocate(bufSize);
+    buffer = basicArray.GetWritePointer();
+    reader.Get(varADIOS2, buffer);
   }
 
   // This logic is used to determine if a variable is a
   // vector (in which case we need to read it as 2D) or
   // not (in which case we need to read it as 1D even when
-  // it is a multi-dimensional variable because VTK-m expects
+  // it is a multi-dimensional variable because Viskores expects
   // it as such)
   bool isVector;
   if (isit == IsVector::Auto)
@@ -345,95 +474,38 @@ vtkm::cont::UnknownArrayHandle ReadVariableInternal(adios2::Engine& reader,
 
   if (!isVector)
   {
-    if (engineType == EngineType::Inline)
-    {
-      const VariableType* vecData = blocksInfo[blockId].Data();
-      vtkm::cont::ArrayHandle<VariableType> arrayHandle =
-        vtkm::cont::make_ArrayHandle(vecData, bufSize, vtkm::CopyFlag::Off);
-      retVal = arrayHandle;
-    }
-    else
-    {
-      vtkm::cont::ArrayHandleBasic<VariableType> arrayHandle;
-      arrayHandle.Allocate(bufSize);
-      buffer = arrayHandle.GetWritePointer();
-      retVal = arrayHandle;
-      reader.Get(varADIOS2, buffer);
-    }
+    // Scalar: can be returned as the basic array.
+    return basicArray;
   }
   else
   {
     // Vector: the last dimension is assumed to be the vector
     // components. Previous dimensions are collapsed together.
-    size_t nDims = shape.size();
-    if (nDims < 2)
-    {
-      throw std::runtime_error("1D array cannot be a vector");
-    }
-
-    vtkm::Id bufSize2 = 1;
-    for (size_t i = 0; i < nDims - 1; i++)
-    {
-      bufSize2 *= shape[i];
-    }
-    if (engineType == EngineType::Inline)
-    {
-      const VariableType* vecData = blocksInfo[blockId].Data();
-      switch (shape[nDims - 1])
-      {
-        case 1:
-          retVal = AllocateArrayHandle<VariableType, 1>(vecData, bufSize);
-          break;
-        case 2:
-          retVal = AllocateArrayHandle<VariableType, 2>(vecData, bufSize2);
-          break;
-        case 3:
-          retVal = AllocateArrayHandle<VariableType, 3>(vecData, bufSize2);
-          break;
-        default:
-          break;
-      }
-    }
-    else
-    {
-      switch (shape[nDims - 1])
-      {
-        case 1:
-          retVal = AllocateArrayHandle<VariableType, VariableType>(bufSize, buffer);
-          break;
-        case 2:
-          retVal = AllocateArrayHandle<VariableType, vtkm::Vec<VariableType, 2>>(bufSize2, buffer);
-          break;
-        case 3:
-          retVal = AllocateArrayHandle<VariableType, vtkm::Vec<VariableType, 3>>(bufSize2, buffer);
-          break;
-        default:
-          break;
-      }
-      reader.Get(varADIOS2, buffer);
-    }
+    // Need to wrap the data in a runtime vec.
+    const size_t nDims = shape.size();
+    const viskores::IdComponent nComponents = shape[nDims - 1];
+    return viskores::cont::make_ArrayHandleRuntimeVec(nComponents, basicArray);
   }
-
-  return retVal;
 }
 
 // Inline engine is not supported for multiblock read into a contiguous array
 template <typename VariableType>
-vtkm::cont::UnknownArrayHandle ReadMultiBlockVariableInternal(
+viskores::cont::UnknownArrayHandle ReadMultiBlockVariableInternal(
   adios2::Engine& reader,
   adios2::Variable<VariableType>& varADIOS2,
   std::vector<size_t> blocks,
   size_t step)
 {
   auto blocksInfo = reader.BlocksInfo(varADIOS2, step);
-  vtkm::Id bufSize = 0;
+  viskores::Id bufSize = 0;
   for (const auto& blockId : blocks)
   {
-    bufSize += GetBufferSize(reader, varADIOS2, blockId, step);
+    const auto memoryRequirements = GetVariableMemoryRequirements(blocksInfo, varADIOS2, blockId);
+    bufSize += memoryRequirements.Size;
   }
 
-  vtkm::cont::UnknownArrayHandle retVal;
-  vtkm::cont::ArrayHandleBasic<VariableType> arrayHandle;
+  viskores::cont::UnknownArrayHandle retVal;
+  viskores::cont::ArrayHandleBasic<VariableType> arrayHandle;
   arrayHandle.Allocate(bufSize);
   VariableType* buffer = arrayHandle.GetWritePointer();
   retVal = arrayHandle;
@@ -443,7 +515,7 @@ vtkm::cont::UnknownArrayHandle ReadMultiBlockVariableInternal(
     if (i > 0)
     {
       const auto& shape = blocksInfo[blockId].Count;
-      vtkm::Id size = 1;
+      viskores::Id size = 1;
       for (auto n : shape)
       {
         size *= n;
@@ -477,16 +549,17 @@ std::vector<size_t> GetVariableShapeInternal(adios2::IO& adiosIO,
 }
 
 template <typename VariableType>
-std::vector<vtkm::cont::UnknownArrayHandle> ReadVariableBlocksInternal(
+std::vector<viskores::cont::UnknownArrayHandle> ReadVariableBlocksInternal(
   adios2::IO& adiosIO,
   adios2::Engine& reader,
   const std::string& varName,
   const fides::metadata::MetaData& selections,
   EngineType engineType,
   IsVector isit = IsVector::Auto,
-  bool isMultiBlock = false)
+  bool isMultiBlock = false,
+  bool createSharedPoints = false)
 {
-  std::vector<vtkm::cont::UnknownArrayHandle> arrays;
+  std::vector<viskores::cont::UnknownArrayHandle> arrays;
   if (selections.Has(fides::keys::BLOCK_SELECTION()) &&
       selections.Get<fides::metadata::Vector<size_t>>(fides::keys::BLOCK_SELECTION()).Data.empty())
   {
@@ -544,9 +617,8 @@ std::vector<vtkm::cont::UnknownArrayHandle> ReadVariableBlocksInternal(
     arrays.reserve(blocksToReallyRead.size());
     for (auto blockId : blocksToReallyRead)
     {
-      varADIOS2.SetBlockSelection(blockId);
-      arrays.push_back(
-        ReadVariableInternal<VariableType>(reader, varADIOS2, blockId, engineType, step, isit));
+      arrays.push_back(ReadVariableInternal<VariableType>(
+        reader, varADIOS2, blockId, engineType, step, isit, createSharedPoints));
     }
   }
 
@@ -554,11 +626,12 @@ std::vector<vtkm::cont::UnknownArrayHandle> ReadVariableBlocksInternal(
 }
 
 template <typename VariableType>
-std::vector<vtkm::cont::UnknownArrayHandle> GetDimensionsInternal(
+std::vector<viskores::cont::UnknownArrayHandle> GetDimensionsInternal(
   adios2::IO& adiosIO,
   adios2::Engine& reader,
   const std::string& varName,
-  const fides::metadata::MetaData& selections)
+  const fides::metadata::MetaData& selections,
+  bool createSharedPoints = false)
 {
   auto varADIOS2 = adiosIO.InquireVariable<VariableType>(varName);
   size_t step = reader.CurrentStep();
@@ -588,17 +661,19 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetDimensionsInternal(
     blocksToReallyRead = blocksToRead;
   }
 
-  std::vector<vtkm::cont::UnknownArrayHandle> arrays;
+  std::vector<viskores::cont::UnknownArrayHandle> arrays;
   arrays.reserve(blocksToReallyRead.size());
 
   for (auto blockId : blocksToReallyRead)
   {
-    std::vector<size_t> shape = blocksInfo[blockId].Count;
+    const auto memoryRequirements =
+      GetVariableMemoryRequirements(blocksInfo, varADIOS2, blockId, createSharedPoints);
+    std::vector<size_t> shape = memoryRequirements.Count;
     std::reverse(shape.begin(), shape.end());
-    std::vector<size_t> start = blocksInfo[blockId].Start;
+    std::vector<size_t> start = memoryRequirements.Start;
     std::reverse(start.begin(), start.end());
     shape.insert(shape.end(), start.begin(), start.end());
-    arrays.push_back(vtkm::cont::make_ArrayHandle(shape, vtkm::CopyFlag::On));
+    arrays.push_back(viskores::cont::make_ArrayHandle(shape, viskores::CopyFlag::On));
   }
 
   return arrays;
@@ -607,7 +682,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetDimensionsInternal(
 // Since this is grabbing a scalar variable, ADIOS should always be
 // able to return the actual value immediately
 template <typename VariableType>
-std::vector<vtkm::cont::UnknownArrayHandle> GetScalarVariableInternal(
+std::vector<viskores::cont::UnknownArrayHandle> GetScalarVariableInternal(
   adios2::IO& adiosIO,
   adios2::Engine& reader,
   const std::string& varName,
@@ -615,9 +690,9 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetScalarVariableInternal(
 {
   auto varADIOS2 = adiosIO.InquireVariable<VariableType>(varName);
 
-  std::vector<vtkm::cont::UnknownArrayHandle> retVal;
-  vtkm::cont::UnknownArrayHandle valueAH;
-  vtkm::cont::ArrayHandleBasic<VariableType> arrayHandle;
+  std::vector<viskores::cont::UnknownArrayHandle> retVal;
+  viskores::cont::UnknownArrayHandle valueAH;
+  viskores::cont::ArrayHandleBasic<VariableType> arrayHandle;
   arrayHandle.Allocate(1);
   VariableType* buffer = arrayHandle.GetWritePointer();
   valueAH = arrayHandle;
@@ -632,7 +707,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetScalarVariableInternal(
 }
 
 template <typename VariableType>
-std::vector<vtkm::cont::UnknownArrayHandle> GetTimeArrayInternal(
+std::vector<viskores::cont::UnknownArrayHandle> GetTimeArrayInternal(
   adios2::IO& adiosIO,
   adios2::Engine& reader,
   const std::string& varName,
@@ -641,9 +716,9 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetTimeArrayInternal(
   auto varADIOS2 = adiosIO.InquireVariable<VariableType>(varName);
   auto numSteps = varADIOS2.Steps();
   varADIOS2.SetStepSelection({ varADIOS2.StepsStart(), numSteps });
-  std::vector<vtkm::cont::UnknownArrayHandle> retVal;
-  vtkm::cont::UnknownArrayHandle valueAH;
-  vtkm::cont::ArrayHandleBasic<VariableType> arrayHandle;
+  std::vector<viskores::cont::UnknownArrayHandle> retVal;
+  viskores::cont::UnknownArrayHandle valueAH;
+  viskores::cont::ArrayHandleBasic<VariableType> arrayHandle;
   arrayHandle.Allocate(numSteps);
   VariableType* buffer = arrayHandle.GetWritePointer();
   valueAH = arrayHandle;
@@ -769,7 +844,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetTimeArrayInternal(
       break;                                     \
   }
 
-std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetVariableDimensions(
+std::vector<viskores::cont::UnknownArrayHandle> DataSource::GetVariableDimensions(
   const std::string& varName,
   const fides::metadata::MetaData& selections)
 {
@@ -782,7 +857,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetVariableDimensions(
   {
     // previously we were throwing an error if the variable could not be found,
     // but it's possible that a variable may just not be available on a certain timestep.
-    return std::vector<vtkm::cont::UnknownArrayHandle>();
+    return std::vector<viskores::cont::UnknownArrayHandle>();
   }
 
   const std::string& type = itr->second["Type"];
@@ -791,13 +866,21 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetVariableDimensions(
     throw std::runtime_error("Variable type unavailable.");
   }
 
-  fidesTemplateMacro(
-    GetDimensionsInternal<fides_TT>(this->AdiosIO, this->Reader, itr->first, selections));
+  if (this->AdiosEngineType == EngineType::Inline)
+  {
+    // in the inline case, Fides can't read from other blocks,
+    // so we'll just set to false so we don't end up with junk
+    // data.
+    this->CreateSharedPoints = false;
+  }
+
+  fidesTemplateMacro(GetDimensionsInternal<fides_TT>(
+    this->AdiosIO, this->Reader, itr->first, selections, this->CreateSharedPoints));
 
   throw std::runtime_error("Unsupported variable type " + type);
 }
 
-std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetScalarVariable(
+std::vector<viskores::cont::UnknownArrayHandle> DataSource::GetScalarVariable(
   const std::string& varName,
   const fides::metadata::MetaData& selections)
 {
@@ -810,7 +893,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetScalarVariable(
   {
     // previously we were throwing an error if the variable could not be found,
     // but it's possible that a variable may just not be available on a certain timestep.
-    return std::vector<vtkm::cont::UnknownArrayHandle>();
+    return std::vector<viskores::cont::UnknownArrayHandle>();
   }
 
   const std::string& type = itr->second["Type"];
@@ -825,7 +908,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetScalarVariable(
   throw std::runtime_error("Unsupported variable type " + type);
 }
 
-std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetTimeArray(
+std::vector<viskores::cont::UnknownArrayHandle> DataSource::GetTimeArray(
   const std::string& varName,
   const fides::metadata::MetaData& selections)
 {
@@ -844,7 +927,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetTimeArray(
   {
     // previously we were throwing an error if the variable could not be found,
     // but it's possible that a variable may just not be available on a certain timestep.
-    return std::vector<vtkm::cont::UnknownArrayHandle>();
+    return std::vector<viskores::cont::UnknownArrayHandle>();
   }
 
   const std::string& type = itr->second["Type"];
@@ -859,7 +942,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetTimeArray(
   throw std::runtime_error("Unsupported variable type " + type);
 }
 
-std::vector<vtkm::cont::UnknownArrayHandle> DataSource::ReadVariable(
+std::vector<viskores::cont::UnknownArrayHandle> DataSource::ReadVariable(
   const std::string& varName,
   const fides::metadata::MetaData& selections,
   IsVector isit)
@@ -873,7 +956,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::ReadVariable(
   {
     // previously we were throwing an error if the variable could not be found,
     // but it's possible that a variable may just not be available on a certain timestep.
-    return std::vector<vtkm::cont::UnknownArrayHandle>();
+    return std::vector<viskores::cont::UnknownArrayHandle>();
   }
   const std::string& type = itr->second["Type"];
   if (type.empty())
@@ -881,13 +964,27 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::ReadVariable(
     throw std::runtime_error("Variable type unavailable.");
   }
 
-  fidesTemplateMacro(ReadVariableBlocksInternal<fides_TT>(
-    this->AdiosIO, this->Reader, itr->first, selections, this->AdiosEngineType, isit));
+  if (this->AdiosEngineType == EngineType::Inline)
+  {
+    // in the inline case, Fides can't read from other blocks,
+    // so we'll just set to false so we don't end up with junk
+    // data.
+    this->CreateSharedPoints = false;
+  }
+
+  fidesTemplateMacro(ReadVariableBlocksInternal<fides_TT>(this->AdiosIO,
+                                                          this->Reader,
+                                                          itr->first,
+                                                          selections,
+                                                          this->AdiosEngineType,
+                                                          isit,
+                                                          false,
+                                                          this->CreateSharedPoints));
 
   throw std::runtime_error("Unsupported variable type " + type);
 }
 
-std::vector<vtkm::cont::UnknownArrayHandle> DataSource::ReadMultiBlockVariable(
+std::vector<viskores::cont::UnknownArrayHandle> DataSource::ReadMultiBlockVariable(
   const std::string& varName,
   const fides::metadata::MetaData& selections)
 {
@@ -900,7 +997,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::ReadMultiBlockVariable(
   {
     // previously we were throwing an error if the variable could not be found,
     // but it's possible that a variable may just not be available on a certain timestep.
-    return std::vector<vtkm::cont::UnknownArrayHandle>();
+    return std::vector<viskores::cont::UnknownArrayHandle>();
   }
   const std::string& type = itr->second["Type"];
   if (type.empty())

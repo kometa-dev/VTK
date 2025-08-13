@@ -80,8 +80,8 @@ void ByteSwap64(void* aVals, int nVals)
 
 int compare_ids(const void* id1, const void* id2)
 {
-  int* a = (int*)id1;
-  int* b = (int*)id2;
+  const int* a = (const int*)id1;
+  const int* b = (const int*)id2;
 
   if (*a < *b)
     return (-1);
@@ -509,7 +509,7 @@ size_t vtkNek5000Reader::GetVariableNamesFromData(char* varTags)
       case 'S':
         for (int sloop = 0; sloop < numSFields; sloop++)
         {
-          char sname[4];
+          char sname[12];
           snprintf(sname, sizeof(sname), "S%02d", sloop + 1);
           this->PointDataArraySelection->AddArray(sname);
           this->var_names[this->num_vars] = strdup(sname);
@@ -702,7 +702,7 @@ void vtkNek5000Reader::partitionAndReadMesh()
   std::ifstream dfPtr;
   int i;
   string buf2, tag;
-  std::map<int, int> blockMap;
+  std::map<long, long> blockMap;
 
   int my_rank;
   int num_ranks;
@@ -849,7 +849,7 @@ void vtkNek5000Reader::partitionAndReadMesh()
   }
 
   // now that we have our list of blocks, get their positions in the file (their index)
-  this->myBlockPositions = new int[this->myNumBlocks];
+  this->myBlockPositions = new long[this->myNumBlocks];
 
   for (i = 0; i < this->myNumBlocks; i++)
   {
@@ -1691,7 +1691,9 @@ void vtkNek5000Reader::copyContinuumData(vtkUnstructuredGrid* pv_ugrid)
         for (int b_index = 0; b_index < this->myNumBlocks; ++b_index)
         {
           // for every point in this element/block
-          // cerr<<"rank= "<<my_rank<<" : b_index= "<< b_index<<endl;
+#ifndef NDEBUG
+          cerr << "rank= " << my_rank << " : b_index= " << b_index << endl;
+#endif
           int mag_block_offset = b_index * this->totalBlockSize;
           int comp_block_offset = mag_block_offset * 3;
 

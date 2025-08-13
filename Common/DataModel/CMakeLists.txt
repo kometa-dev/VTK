@@ -1,6 +1,7 @@
 set(classes
   vtkAMRBox
   vtkAMRUtilities
+  vtkAbstractCellArray
   vtkAbstractCellLinks
   vtkAbstractCellLocator
   vtkAbstractElectronicData
@@ -9,6 +10,7 @@ set(classes
   vtkAnimationScene
   vtkAnnotation
   vtkAnnotationLayers
+  vtkAnnulus
   vtkArrayData
   vtkAtom
   vtkAttributesErrorMetric
@@ -33,10 +35,16 @@ set(classes
   vtkCellArray
   vtkCellArrayIterator
   vtkCellAttribute
+  vtkCellAttributeCalculator
   vtkCellData
   vtkCellGrid
   vtkCellGridBoundsQuery
+  vtkCellGridCopyQuery
+  vtkCellGridEvaluator
+  vtkCellGridRangeQuery
+  vtkCellGridQuery
   vtkCellGridResponders
+  vtkCellGridSidesCache
   vtkCellGridSidesQuery
   vtkCellIterator
   vtkCellLinks
@@ -76,6 +84,7 @@ set(classes
   vtkExtractStructuredGridHelper
   vtkFieldData
   vtkFindCellStrategy
+  vtkFrustum
   vtkGenericAdaptorCell
   vtkGenericAttribute
   vtkGenericAttributeCollection
@@ -93,7 +102,6 @@ set(classes
   vtkGraphInternals
   vtkHexagonalPrism
   vtkHexahedron
-  vtkHierarchicalBoxDataIterator
   vtkHierarchicalBoxDataSet
   vtkHigherOrderCurve
   vtkHigherOrderHexahedron
@@ -103,7 +111,6 @@ set(classes
   vtkHigherOrderTriangle
   vtkHigherOrderWedge
   vtkHyperTree
-  vtkHyperTreeCursor
   vtkHyperTreeGrid
   vtkHyperTreeGridLocator
   vtkHyperTreeGridGeometricLocator
@@ -222,6 +229,7 @@ set(classes
   vtkStaticCellLocator
   vtkStaticPointLocator
   vtkStaticPointLocator2D
+  vtkStructuredCellArray
   vtkStructuredData
   vtkStructuredExtent
   vtkStructuredGrid
@@ -277,7 +285,6 @@ set(nowrap_classes
   vtkHyperTreeGridLevelEntry)
 
 set(headers
-  vtkCellGridQuery.h
   vtkCellGridResponder.h
   vtkCellGridResponderBase.h
   vtkCellType.h
@@ -295,6 +302,7 @@ set(headers
 set(nowrap_headers
   vtkCompositeDataSetNodeReference.h
   vtkCompositeDataSetRange.h
+  vtkDataObjectImplicitBackendInterface.h
   vtkDataObjectTreeRange.h
   vtkPolyDataInternals.h)
 
@@ -302,7 +310,45 @@ set(templates
   vtkCompositeDataSet.txx)
 
 set(private_templates
+  vtkDataObjectImplicitBackendInterface.txx
   vtkImageIterator.txx)
+
+include(vtkTypeLists)
+
+set(instantiation_sources)
+foreach (INSTANTIATION_VALUE_TYPE IN LISTS vtk_numeric_types)
+  # only instantiate fundamental types, not typedefs
+  if (INSTANTIATION_VALUE_TYPE STREQUAL "vtkIdType")
+    continue()
+  endif ()
+  vtk_type_to_camel_case("${INSTANTIATION_VALUE_TYPE}" _cased_type)
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/vtkDataObjectImplicitBackendInstantiate.cxx.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/vtkDataObjectImplicitBackendInstantiate${_cased_type}.cxx")
+
+    list(APPEND instantiation_sources
+      "${CMAKE_CURRENT_BINARY_DIR}/vtkDataObjectImplicitBackendInstantiate${_cased_type}.cxx")
+endforeach()
+
+# Hand written (de)serialization routines
+set(serialization_helper_sources)
+
+if (VTK_WRAP_SERIALIZATION)
+  list(APPEND serialization_helper_sources
+    vtkCellArraySerDesHelper.cxx
+    vtkDataSetAttributesSerDesHelper.cxx
+    vtkFieldDataSerDesHelper.cxx
+    vtkMultiBlockDataSetSerDesHelper.cxx
+    vtkPartitionedDataSetSerDesHelper.cxx
+    vtkPartitionedDataSetCollectionSerDesHelper.cxx
+    vtkPiecewiseFunctionSerDesHelper.cxx
+    vtkTableSerDesHelper.cxx
+    vtkUnstructuredGridSerDesHelper.cxx)
+endif ()
+
+set(sources
+  ${serialization_helper_sources}
+  ${instantiation_sources})
 
 vtk_module_add_module(VTK::CommonDataModel
   CLASSES           ${classes}
@@ -310,6 +356,7 @@ vtk_module_add_module(VTK::CommonDataModel
   TEMPLATES         ${templates}
   TEMPLATE_CLASSES  ${template_classes}
   HEADERS           ${headers}
+  SOURCES           ${sources}
   NOWRAP_HEADERS    ${nowrap_headers}
   PRIVATE_TEMPLATES ${private_templates})
 vtk_add_test_mangling(VTK::CommonDataModel)

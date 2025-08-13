@@ -11,6 +11,7 @@
 #include "vtkDoubleArray.h"
 #include "vtkFieldData.h"
 #include "vtkFloatArray.h"
+#include "vtkHyperTreeGrid.h"
 #include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -31,33 +32,6 @@
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRandomAttributeGenerator);
-
-//------------------------------------------------------------------------------
-vtkRandomAttributeGenerator::vtkRandomAttributeGenerator()
-{
-  this->DataType = VTK_FLOAT;
-  this->NumberOfComponents = 1;
-  this->NumberOfTuples = 0;
-  this->MinimumComponentValue = 0.0;
-  this->MaximumComponentValue = 1.0;
-
-  this->GeneratePointScalars = 0;
-  this->GeneratePointVectors = 0;
-  this->GeneratePointNormals = 0;
-  this->GeneratePointTCoords = 0;
-  this->GeneratePointTensors = 0;
-  this->GeneratePointArray = 0;
-
-  this->GenerateCellScalars = 0;
-  this->GenerateCellVectors = 0;
-  this->GenerateCellNormals = 0;
-  this->GenerateCellTCoords = 0;
-  this->GenerateCellTensors = 0;
-  this->GenerateCellArray = 0;
-
-  this->GenerateFieldArray = 0;
-  this->AttributesConstantPerBlock = false;
-}
 
 namespace
 {
@@ -109,10 +83,12 @@ void vtkRandomAttributeGenerator::GenerateRandomTuples(
   T* data, vtkIdType numTuples, int numComp, int minComp, int maxComp, double min, double max)
 {
   if (numTuples == 0)
+  {
     return;
+  }
   vtkIdType total = numComp * numTuples;
   vtkIdType tenth = total / 10 + 1;
-  GenerateRandomTuple(data, 0, numComp, minComp, maxComp, min, max);
+  ::GenerateRandomTuple(data, 0, numComp, minComp, maxComp, min, max);
   for (vtkIdType i = 1; i < numTuples; i++)
   {
     // update progress and check for aborts
@@ -126,11 +102,11 @@ void vtkRandomAttributeGenerator::GenerateRandomTuples(
     }
     if (this->AttributesConstantPerBlock)
     {
-      CopyTupleFrom0(data, i, numComp, minComp, maxComp);
+      ::CopyTupleFrom0(data, i, numComp, minComp, maxComp);
     }
     else
     {
-      GenerateRandomTuple(data, i, numComp, minComp, maxComp, min, max);
+      ::GenerateRandomTuple(data, i, numComp, minComp, maxComp, min, max);
     }
   }
 }
@@ -269,8 +245,10 @@ vtkDataArray* vtkRandomAttributeGenerator::GenerateData(
       dataArray->SetNumberOfComponents(numComp);
       dataArray->SetNumberOfTuples(numTuples);
       if (numTuples == 0)
+      {
         break;
-      GenerateRandomTupleBit(dataArray, 0, minComp, maxComp);
+      }
+      ::GenerateRandomTupleBit(dataArray, 0, minComp, maxComp);
       for (vtkIdType i = 1; i < numTuples; i++)
       {
         // update progress and check for aborts
@@ -284,11 +262,11 @@ vtkDataArray* vtkRandomAttributeGenerator::GenerateData(
         }
         if (this->AttributesConstantPerBlock)
         {
-          CopyTupleFrom0Bit(dataArray, i, minComp, maxComp);
+          ::CopyTupleFrom0Bit(dataArray, i, minComp, maxComp);
         }
         else
         {
-          GenerateRandomTupleBit(dataArray, i, minComp, maxComp);
+          ::GenerateRandomTupleBit(dataArray, i, minComp, maxComp);
         }
       }
     }
@@ -302,7 +280,22 @@ vtkDataArray* vtkRandomAttributeGenerator::GenerateData(
 }
 
 //------------------------------------------------------------------------------
+// VTK_DEPRECATED_IN_9_4_0()
 int vtkRandomAttributeGenerator::RequestData(
+  vtkCompositeDataSet* input, vtkCompositeDataSet* output)
+{
+  return this->ProcessComposite(input, output);
+}
+
+//------------------------------------------------------------------------------
+// VTK_DEPRECATED_IN_9_4_0()
+int vtkRandomAttributeGenerator::RequestData(vtkDataSet* input, vtkDataSet* output)
+{
+  return this->ProcessDataSet(input, output);
+}
+
+//------------------------------------------------------------------------------
+int vtkRandomAttributeGenerator::ProcessComposite(
   vtkCompositeDataSet* input, vtkCompositeDataSet* output)
 {
   if (input == nullptr || output == nullptr)
@@ -319,48 +312,136 @@ int vtkRandomAttributeGenerator::RequestData(
     {
       break;
     }
+
     vtkDataSet* inputDS = vtkDataSet::SafeDownCast(it->GetCurrentDataObject());
-    vtkSmartPointer<vtkDataSet> outputDS;
-    outputDS.TakeReference(inputDS->NewInstance());
-    output->SetDataSet(it, outputDS);
-    RequestData(inputDS, outputDS);
+    if (inputDS)
+    {
+      vtkSmartPointer<vtkDataSet> outputDS;
+      outputDS.TakeReference(inputDS->NewInstance());
+      output->SetDataSet(it, outputDS);
+      this->ProcessDataSet(inputDS, outputDS);
+      continue;
+    }
+
+    vtkHyperTreeGrid* inputHTG = vtkHyperTreeGrid::SafeDownCast(it->GetCurrentDataObject());
+    if (inputHTG)
+    {
+      vtkSmartPointer<vtkHyperTreeGrid> outputHTG;
+      outputHTG.TakeReference(inputHTG->NewInstance());
+      output->SetDataSet(it, outputHTG);
+      this->ProcessHTG(inputHTG, outputHTG);
+      continue;
+    }
   }
   return 1;
 }
 
 //------------------------------------------------------------------------------
-int vtkRandomAttributeGenerator::RequestData(vtkDataSet* input, vtkDataSet* output)
+int vtkRandomAttributeGenerator::ProcessDataSet(vtkDataSet* input, vtkDataSet* output)
 {
-  vtkDebugMacro(<< "Producing random attributes");
   vtkIdType numPts = input->GetNumberOfPoints();
   vtkIdType numCells = input->GetNumberOfCells();
 
-  if (numPts < 1)
-  {
-    vtkDebugMacro(<< "No input!");
-    return 1;
-  }
-
-  // Configure the output
   output->CopyStructure(input);
   output->CopyAttributes(input);
 
-  // Produce the appropriate output
-  // First the point data
+  if (numPts >= 1)
+  {
+    vtkPointData* outputPD = output->GetPointData();
+    this->GeneratePointData(outputPD, numPts);
+  }
+
+  if (numCells >= 1)
+  {
+    vtkCellData* outputCD = output->GetCellData();
+    this->GenerateCellData(outputCD, numCells);
+  }
+
+  vtkFieldData* outputFD = output->GetFieldData();
+  this->GenerateFieldData(outputFD);
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
+int vtkRandomAttributeGenerator::ProcessHTG(vtkHyperTreeGrid* input, vtkHyperTreeGrid* output)
+{
+  vtkIdType numCells = input->GetNumberOfCells();
+
+  output->CopyStructure(input);
+
+  // No point data in HTGs
+  output->GetCellData()->PassData(input->GetCellData());
+  output->GetFieldData()->PassData(input->GetFieldData());
+
+  if (numCells >= 1)
+  {
+    vtkCellData* outputCD = output->GetCellData();
+    this->GenerateCellData(outputCD, numCells);
+  }
+
+  vtkFieldData* outputFD = output->GetFieldData();
+  this->GenerateFieldData(outputFD);
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
+int vtkRandomAttributeGenerator::RequestData(vtkInformation* vtkNotUsed(request),
+  vtkInformationVector** inputVector, vtkInformationVector* outputVector)
+{
+  vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
+  vtkInformation* outInfo = outputVector->GetInformationObject(0);
+
+  // composite case
+  vtkCompositeDataSet* compositeInput = vtkCompositeDataSet::GetData(inInfo);
+  vtkCompositeDataSet* compositeOutput = vtkCompositeDataSet::GetData(outInfo);
+  if (compositeInput && compositeOutput)
+  {
+    return this->ProcessComposite(compositeInput, compositeOutput);
+  }
+
+  // dataset case
+  vtkDataSet* inputDS = vtkDataSet::GetData(inInfo);
+  vtkDataSet* outputDS = vtkDataSet::GetData(outInfo);
+  if (inputDS && outputDS)
+  {
+    return this->ProcessDataSet(inputDS, outputDS);
+  }
+
+  // htg case
+  vtkHyperTreeGrid* inputHTG = vtkHyperTreeGrid::GetData(inInfo);
+  vtkHyperTreeGrid* outputHTG = vtkHyperTreeGrid::GetData(outInfo);
+  if (inputHTG && outputHTG)
+  {
+    return this->ProcessHTG(inputHTG, outputHTG);
+  }
+
+  vtkErrorMacro(<< "Unable to retrieve input / output as supported type.\n");
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+void vtkRandomAttributeGenerator::GeneratePointData(vtkPointData* outputPD, vtkIdType numPts)
+{
   if (this->GeneratePointScalars)
   {
     vtkDataArray* ptScalars = this->GenerateData(this->DataType, numPts, this->NumberOfComponents,
       0, this->NumberOfComponents - 1, this->MinimumComponentValue, this->MaximumComponentValue);
-    ptScalars->SetName("RandomPointScalars");
-    output->GetPointData()->SetScalars(ptScalars);
+    const char* scalarsName = "RandomPointScalars";
+    ptScalars->SetName(scalarsName);
+    outputPD->AddArray(ptScalars);
+    outputPD->SetActiveScalars(scalarsName);
     ptScalars->Delete();
   }
   if (this->GeneratePointVectors)
   {
     vtkDataArray* ptVectors = this->GenerateData(
       this->DataType, numPts, 3, 0, 2, this->MinimumComponentValue, this->MaximumComponentValue);
-    ptVectors->SetName("RandomPointVectors");
-    output->GetPointData()->SetVectors(ptVectors);
+    const char* vectorsName = "RandomPointVectors";
+    ptVectors->SetName(vectorsName);
+    outputPD->AddArray(ptVectors);
+    outputPD->SetActiveVectors(vectorsName);
     ptVectors->Delete();
   }
   if (this->GeneratePointNormals)
@@ -374,7 +455,10 @@ int vtkRandomAttributeGenerator::RequestData(vtkDataSet* input, vtkDataSet* outp
       vtkMath::Normalize(v);
       ptNormals->SetTuple(id, v);
     }
-    output->GetPointData()->SetNormals(ptNormals);
+    const char* normalsName = "RandomPointNormals";
+    ptNormals->SetName(normalsName);
+    outputPD->AddArray(ptNormals);
+    outputPD->SetActiveNormals(normalsName);
     ptNormals->Delete();
   }
   if (this->GeneratePointTensors)
@@ -382,7 +466,6 @@ int vtkRandomAttributeGenerator::RequestData(vtkDataSet* input, vtkDataSet* outp
     // fill in 6 components, and then shift them around to make them symmetric
     vtkDataArray* ptTensors = this->GenerateData(
       this->DataType, numPts, 9, 0, 5, this->MinimumComponentValue, this->MaximumComponentValue);
-    ptTensors->SetName("RandomPointTensors");
     double t[9];
     for (vtkIdType id = 0; id < numPts; id++)
     {
@@ -393,50 +476,58 @@ int vtkRandomAttributeGenerator::RequestData(vtkDataSet* input, vtkDataSet* outp
       t[7] = t[5];
       ptTensors->SetTuple(id, t);
     }
-    output->GetPointData()->SetTensors(ptTensors);
+    const char* tensorsName = "RandomPointTensors";
+    ptTensors->SetName(tensorsName);
+    outputPD->AddArray(ptTensors);
+    outputPD->SetActiveTensors(tensorsName);
     ptTensors->Delete();
   }
   if (this->GeneratePointTCoords)
   {
+    // Clamp the number of component between 1 and 3
     int numComp = this->NumberOfComponents < 1
       ? 1
       : (this->NumberOfComponents > 3 ? 3 : this->NumberOfComponents);
     vtkDataArray* ptTCoords = this->GenerateData(this->DataType, numPts, numComp, 0,
       this->NumberOfComponents - 1, this->MinimumComponentValue, this->MaximumComponentValue);
-    output->GetPointData()->SetTCoords(ptTCoords);
+    const char* tCoordsName = "RandomPointTCoords";
+    ptTCoords->SetName(tCoordsName);
+    outputPD->AddArray(ptTCoords);
+    outputPD->SetActiveTCoords(tCoordsName);
     ptTCoords->Delete();
   }
   if (this->GeneratePointArray)
   {
-    vtkDataArray* ptData = this->GenerateData(this->DataType, numPts, this->NumberOfComponents, 0,
+    vtkDataArray* ptArray = this->GenerateData(this->DataType, numPts, this->NumberOfComponents, 0,
       this->NumberOfComponents - 1, this->MinimumComponentValue, this->MaximumComponentValue);
-    ptData->SetName("RandomPointArray");
-    output->GetPointData()->AddArray(ptData);
-    ptData->Delete();
+    ptArray->SetName("RandomPointArray");
+    outputPD->AddArray(ptArray);
+    ptArray->Delete();
   }
+}
 
-  if (numCells < 1)
-  {
-    vtkDebugMacro(<< "No input!");
-    return 1;
-  }
-
-  // Now the cell data
+//------------------------------------------------------------------------------
+void vtkRandomAttributeGenerator::GenerateCellData(vtkCellData* outputCD, vtkIdType numCells)
+{
   if (this->GenerateCellScalars)
   {
     vtkDataArray* cellScalars =
       this->GenerateData(this->DataType, numCells, this->NumberOfComponents, 0,
         this->NumberOfComponents - 1, this->MinimumComponentValue, this->MaximumComponentValue);
-    cellScalars->SetName("RandomCellScalars");
-    output->GetCellData()->SetScalars(cellScalars);
+    const char* scalarsName = "RandomCellScalars";
+    cellScalars->SetName(scalarsName);
+    outputCD->AddArray(cellScalars);
+    outputCD->SetActiveScalars(scalarsName);
     cellScalars->Delete();
   }
   if (this->GenerateCellVectors)
   {
     vtkDataArray* cellVectors = this->GenerateData(
       this->DataType, numCells, 3, 0, 2, this->MinimumComponentValue, this->MaximumComponentValue);
-    cellVectors->SetName("RandomCellVectors");
-    output->GetCellData()->SetVectors(cellVectors);
+    const char* vectorsName = "RandomCellVectors";
+    cellVectors->SetName(vectorsName);
+    outputCD->AddArray(cellVectors);
+    outputCD->SetActiveVectors(vectorsName);
     cellVectors->Delete();
   }
   if (this->GenerateCellNormals)
@@ -450,14 +541,16 @@ int vtkRandomAttributeGenerator::RequestData(vtkDataSet* input, vtkDataSet* outp
       vtkMath::Normalize(v);
       cellNormals->SetTuple(id, v);
     }
-    output->GetCellData()->SetNormals(cellNormals);
+    const char* normalsName = "RandomCellNormals";
+    cellNormals->SetName(normalsName);
+    outputCD->AddArray(cellNormals);
+    outputCD->SetActiveNormals(normalsName);
     cellNormals->Delete();
   }
   if (this->GenerateCellTensors)
   {
     vtkDataArray* cellTensors = this->GenerateData(
       this->DataType, numCells, 9, 0, 5, this->MinimumComponentValue, this->MaximumComponentValue);
-    cellTensors->SetName("RandomCellTensors");
     double t[9];
     for (vtkIdType id = 0; id < numCells; id++)
     {
@@ -467,7 +560,10 @@ int vtkRandomAttributeGenerator::RequestData(vtkDataSet* input, vtkDataSet* outp
       t[8] = t[4];
       cellTensors->SetTuple(id, t);
     }
-    output->GetCellData()->SetTensors(cellTensors);
+    const char* tensorsName = "RandomCellTensors";
+    cellTensors->SetName(tensorsName);
+    outputCD->AddArray(cellTensors);
+    outputCD->SetActiveTensors(tensorsName);
     cellTensors->Delete();
   }
   if (this->GenerateCellTCoords)
@@ -477,7 +573,10 @@ int vtkRandomAttributeGenerator::RequestData(vtkDataSet* input, vtkDataSet* outp
       : (this->NumberOfComponents > 3 ? 3 : this->NumberOfComponents);
     vtkDataArray* cellTCoords = this->GenerateData(this->DataType, numCells, numComp, 0,
       this->NumberOfComponents - 1, this->MinimumComponentValue, this->MaximumComponentValue);
-    output->GetCellData()->SetTCoords(cellTCoords);
+    const char* tCoordsName = "RandomCellTCoords";
+    cellTCoords->SetName(tCoordsName);
+    outputCD->AddArray(cellTCoords);
+    outputCD->SetActiveTCoords(tCoordsName);
     cellTCoords->Delete();
   }
   if (this->GenerateCellArray)
@@ -485,43 +584,22 @@ int vtkRandomAttributeGenerator::RequestData(vtkDataSet* input, vtkDataSet* outp
     vtkDataArray* cellArray = this->GenerateData(this->DataType, numCells, this->NumberOfComponents,
       0, this->NumberOfComponents - 1, this->MinimumComponentValue, this->MaximumComponentValue);
     cellArray->SetName("RandomCellArray");
-    output->GetCellData()->AddArray(cellArray);
+    outputCD->AddArray(cellArray);
     cellArray->Delete();
   }
-
-  // Finally any field data
-  if (this->GenerateFieldArray)
-  {
-    vtkDataArray* data =
-      this->GenerateData(this->DataType, this->NumberOfTuples, this->NumberOfComponents, 0,
-        this->NumberOfComponents - 1, this->MinimumComponentValue, this->MaximumComponentValue);
-    data->SetName("RandomFieldArray");
-    output->GetFieldData()->AddArray(data);
-    data->Delete();
-  }
-  return 1;
 }
 
 //------------------------------------------------------------------------------
-int vtkRandomAttributeGenerator::RequestData(vtkInformation* vtkNotUsed(request),
-  vtkInformationVector** inputVector, vtkInformationVector* outputVector)
+void vtkRandomAttributeGenerator::GenerateFieldData(vtkFieldData* outputFD)
 {
-  // get the info objects
-  vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
-  vtkInformation* outInfo = outputVector->GetInformationObject(0);
-
-  // get the input and output
-  vtkDataObject* input = inInfo->Get(vtkDataObject::DATA_OBJECT());
-  vtkDataObject* output = outInfo->Get(vtkDataObject::DATA_OBJECT());
-
-  if (input->IsA("vtkDataSet"))
+  if (this->GenerateFieldArray)
   {
-    return this->RequestData(vtkDataSet::SafeDownCast(input), vtkDataSet::SafeDownCast(output));
-  }
-  else
-  {
-    return this->RequestData(
-      vtkCompositeDataSet::SafeDownCast(input), vtkCompositeDataSet::SafeDownCast(output));
+    vtkDataArray* fieldArray =
+      this->GenerateData(this->DataType, this->NumberOfTuples, this->NumberOfComponents, 0,
+        this->NumberOfComponents - 1, this->MinimumComponentValue, this->MaximumComponentValue);
+    fieldArray->SetName("RandomFieldArray");
+    outputFD->AddArray(fieldArray);
+    fieldArray->Delete();
   }
 }
 
@@ -553,11 +631,13 @@ void vtkRandomAttributeGenerator::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Generate Field Array: " << (this->GenerateFieldArray ? "On\n" : "Off\n");
 }
 
+//------------------------------------------------------------------------------
 int vtkRandomAttributeGenerator::FillInputPortInformation(
   int vtkNotUsed(port), vtkInformation* info)
 {
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkCompositeDataSet");
+  info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkHyperTreeGrid");
   return 1;
 }
 VTK_ABI_NAMESPACE_END

@@ -3,6 +3,7 @@
 #include "vtkDGBoundsResponder.h"
 
 #include "vtkBoundingBox.h"
+#include "vtkCellAttribute.h"
 #include "vtkCellGrid.h"
 #include "vtkCellGridBoundsQuery.h"
 #include "vtkDGHex.h"
@@ -28,26 +29,31 @@ bool vtkDGBoundsResponder::Query(
   (void)caches;
 
   auto* grid = cellType->GetCellGrid();
-  if (!grid->GetShapeAttribute())
-  {
-    return false;
-  }
-  // TODO: A better way to get at this is to go through the grid's shape attribute.
-  auto* pts = grid->GetAttributes("coordinates"_token)->GetVectors();
   std::string cellTypeName = cellType->GetClassName();
-  vtkStringToken cellAttrName(cellTypeName.substr(3));
-  auto* conn = vtkTypeInt64Array::SafeDownCast(grid->GetAttributes(cellAttrName)->GetArray("conn"));
-  if (!pts || !conn)
+  auto* shape = grid->GetShapeAttribute();
+  if (!shape)
   {
+    vtkErrorMacro("Cells of type \"" << cellTypeName << "\" have no shape.");
     return false;
   }
+
+  vtkStringToken cellTypeToken(cellTypeName);
+  auto shapeArrays = shape->GetCellTypeInfo(cellTypeToken).ArraysByRole;
+  auto* pts = vtkDataArray::SafeDownCast(shapeArrays["values"_token]);
+  auto* conn = vtkDataArray::SafeDownCast(shapeArrays["connectivity"_token]);
+  if (!pts || !conn || !conn->IsIntegral())
+  {
+    vtkErrorMacro("Shape for \"" << cellTypeName << "\" missing points or connectivity.");
+    return false;
+  }
+
   std::unordered_set<std::int64_t> pointIDs;
   int nc = conn->GetNumberOfComponents();
   std::vector<vtkTypeInt64> entry;
   entry.resize(nc);
   for (vtkIdType ii = 0; ii < conn->GetNumberOfTuples(); ++ii)
   {
-    conn->GetTypedTuple(ii, entry.data());
+    conn->GetIntegerTuple(ii, entry.data());
     for (int jj = 0; jj < nc; ++jj)
     {
       pointIDs.insert(entry[jj]);
@@ -61,8 +67,10 @@ bool vtkDGBoundsResponder::Query(
 
     // Initialize the bounds:
     vtkBoundingBox bbox;
-    pts->GetTuple(
-      0, pcoord.data()); // TODO: Check isnan/isinf() on each component and iterate if true.
+    // TODO: Check isnan/isinf() on each component and iterate through points if true
+    //       until we find a valid point to serve as the infinitesimal starting bounds.
+    //       For now, just grab the first point:
+    pts->GetTuple(pointIDs.empty() ? 0 : *pointIDs.begin(), pcoord.data());
     bbox.SetMinPoint(pcoord.data());
     bbox.SetMaxPoint(pcoord.data());
 

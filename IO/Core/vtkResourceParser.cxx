@@ -117,7 +117,7 @@ public:
       const auto begin = std::copy(this->Begin, this->End, this->Buffer.begin());
       const auto offset = std::distance(this->Buffer.begin(), begin);
 
-      // Always read buffer size, may be benefic for the stream to have a contant, aligned, size
+      // Always read buffer size, may be beneficial for the stream to have a constant, aligned, size
       const auto read = this->Stream->Read(std::addressof(*begin), BufferSize);
       this->Begin = this->Buffer.data();
       this->End = this->Buffer.data() + offset + read;
@@ -331,15 +331,17 @@ private:
     if (this->StopOnNewLine)
     {
       bool newLine{};
-      const auto result = this->DiscardUntil([&discardPred, &newLine](char c) {
-        if (c == '\r' || c == '\n')
+      const auto result = this->DiscardUntil(
+        [&discardPred, &newLine](char c)
         {
-          newLine = true;
-          return true;
-        }
+          if (c == '\r' || c == '\n')
+          {
+            newLine = true;
+            return true;
+          }
 
-        return !discardPred(c);
-      });
+          return !discardPred(c);
+        });
 
       if (newLine)
       {
@@ -413,8 +415,8 @@ vtkParseResult vtkResourceParser::vtkInternals::Parse<std::string>(
       break;
   }
 
-  const auto receiver = [&output](
-                          const char* data, std::size_t size) { output.append(data, size); };
+  const auto receiver = [&output](const char* data, std::size_t size)
+  { output.append(data, size); };
 
   this->ReadUntil(discardPred, receiver, std::numeric_limits<std::size_t>::max());
 
@@ -550,14 +552,12 @@ void vtkResourceParser::vtkParserContext::PrintSelf(ostream& os, vtkIndent inden
 const vtkResourceParser::PredicateType vtkResourceParser::DiscardNone = [](char) { return false; };
 
 //------------------------------------------------------------------------------
-const vtkResourceParser::PredicateType vtkResourceParser::DiscardWhitespace = [](char c) {
-  return std::isspace(static_cast<unsigned char>(c));
-};
+const vtkResourceParser::PredicateType vtkResourceParser::DiscardWhitespace = [](char c)
+{ return std::isspace(static_cast<unsigned char>(c)); };
 
 //------------------------------------------------------------------------------
-const vtkResourceParser::PredicateType vtkResourceParser::DiscardNonAlphaNumeric = [](char c) {
-  return !std::isalnum(static_cast<unsigned char>(c));
-};
+const vtkResourceParser::PredicateType vtkResourceParser::DiscardNonAlphaNumeric = [](char c)
+{ return !std::isalnum(static_cast<unsigned char>(c)); };
 
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkResourceParser);

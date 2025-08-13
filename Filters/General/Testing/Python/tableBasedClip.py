@@ -2,6 +2,7 @@
 from vtkmodules.vtkCommonCore import (
     vtkFloatArray,
     vtkPoints,
+    vtkIdList
 )
 from vtkmodules.vtkCommonDataModel import (
     vtkCylinder,
@@ -9,6 +10,7 @@ from vtkmodules.vtkCommonDataModel import (
     vtkRectilinearGrid,
     vtkSphere,
     vtkStructuredGrid,
+    vtkUnstructuredGrid,
 )
 from vtkmodules.vtkCommonTransforms import vtkTransform
 from vtkmodules.vtkFiltersCore import vtkThreshold
@@ -32,6 +34,16 @@ VTK_DATA_ROOT = vtkGetDataRoot()
 import sys
 
 class TestClip(Testing.vtkTest):
+    def testEmpty(self):
+        ug = vtkUnstructuredGrid()
+        plane = vtkPlane()
+        c = vtkTableBasedClipDataSet()
+        c.SetInputData(ug)
+        c.SetClipFunction(plane)
+        c.Update()
+
+        self.assertEqual(c.GetOutput().GetNumberOfCells(), 0)
+
     def testImage2DScalar(self):
         planes = ['XY', 'XZ', 'YZ']
         expectedNCells = [38, 46, 42]
@@ -229,7 +241,7 @@ class TestClip(Testing.vtkTest):
 
         c.Update()
         data = c.GetOutputDataObject(0).GetBlock(0)
-        self.assertEqual(data.GetNumberOfCells(), 83)
+        self.assertEqual(data.GetNumberOfCells(), 75)
 
         rw = vtkRenderWindow()
         ren = vtkRenderer()
@@ -253,7 +265,7 @@ class TestClip(Testing.vtkTest):
         rtTester.AddArgument("tableBasedClip.png")
         rtTester.SetRenderWindow(rw)
         rw.Render()
-        rtResult = rtTester.RegressionTest(10)
+        rtResult = rtTester.RegressionTest(0.05)
 
     def testClipOnNormal(self):
         eg = vtkEnSightGoldReader()
@@ -282,15 +294,20 @@ class TestClip(Testing.vtkTest):
 
         normals_points = data.GetPointData().GetNormals()
 
-        [x, y, z] = normals_points.GetTuple3(18)
+        idList = vtkIdList()
+        # get the point id from the cell, because the point order is not deterministic
+        data.GetCellPoints(9, idList)
+        [x, y, z] = normals_points.GetTuple3(idList.GetId(0))
         self.assertEqual(x, 0)
         self.assertEqual(y, 0)
         self.assertEqual(z, 1)
 
-        [x, y, z] = normals_points.GetTuple3(103)
-        self.assertEqual(x, -0.6324555277824402)
-        self.assertEqual(y, -0.3162277638912201)
-        self.assertEqual(z, -0.7071067690849304)
+        # get the point id from the cell, because the point order is not deterministic
+        data.GetCellPoints(61, idList)
+        [x, y, z] = normals_points.GetTuple3(idList.GetId(0))
+        self.assertEqual(x, 0.8944272994995117)
+        self.assertEqual(y, 0.44721364974975586)
+        self.assertEqual(z, 0.)
 
 if __name__ == "__main__":
     Testing.main([(TestClip, 'test')])

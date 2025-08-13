@@ -44,6 +44,8 @@
 
 #include "vtkCommonCoreModule.h"
 
+#include "vtkType.h"
+
 #include <memory>
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -68,7 +70,13 @@ public:
    * Indexing operation for the indexed array respecting the backend expectations of
    * `vtkImplicitArray`
    */
-  ValueType operator()(int idx) const;
+  ValueType operator()(vtkIdType idx) const;
+
+  /**
+   * Returns the smallest integer memory size in KiB needed to store the array.
+   * Used to implement GetActualMemorySize on `vtkIndexedImplicitBackend`.
+   */
+  unsigned long getMemorySize() const;
 
 private:
   struct Internals;
@@ -78,9 +86,27 @@ VTK_ABI_NAMESPACE_END
 
 #endif // vtkIndexedImplicitBackend_h
 
-#ifdef VTK_INDEXED_BACKEND_INSTANTIATING
+#if defined(VTK_INDEXED_BACKEND_INSTANTIATING)
+
 #define VTK_INSTANTIATE_INDEXED_BACKEND(ValueType)                                                 \
   VTK_ABI_NAMESPACE_BEGIN                                                                          \
   template class VTKCOMMONCORE_EXPORT vtkIndexedImplicitBackend<ValueType>;                        \
   VTK_ABI_NAMESPACE_END
+
+#elif defined(VTK_USE_EXTERN_TEMPLATE)
+
+#ifndef VTK_INDEXED_BACKEND_TEMPLATE_EXTERN
+#define VTK_INDEXED_BACKEND_TEMPLATE_EXTERN
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4910) // extern and dllexport incompatible
+#endif
+VTK_ABI_NAMESPACE_BEGIN
+vtkExternTemplateMacro(extern template class VTKCOMMONCORE_EXPORT vtkIndexedImplicitBackend);
+VTK_ABI_NAMESPACE_END
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+#endif // VTK_INDEXED_IMPLICIT_BACKEND_TEMPLATE_EXTERN
+
 #endif

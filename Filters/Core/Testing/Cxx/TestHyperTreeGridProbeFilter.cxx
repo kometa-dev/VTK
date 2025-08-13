@@ -9,7 +9,6 @@
 #include "vtkDataSetMapper.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkHyperTreeGridGeometricLocator.h"
-#include "vtkHyperTreeGridPreConfiguredSource.h"
 #include "vtkHyperTreeGridProbeFilter.h"
 #include "vtkLookupTable.h"
 #include "vtkObjectFactory.h"
@@ -17,6 +16,7 @@
 #include "vtkProcess.h"
 #include "vtkProperty.h"
 #include "vtkRTAnalyticSource.h"
+#include "vtkRandomHyperTreeGridSource.h"
 #include "vtkRegressionTestImage.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
@@ -24,23 +24,21 @@
 
 int TestHyperTreeGridProbeFilter(int argc, char* argv[])
 {
-  vtkNew<vtkHyperTreeGridPreConfiguredSource> htgSource;
-  htgSource->SetHTGMode(vtkHyperTreeGridPreConfiguredSource::CUSTOM);
-  htgSource->SetCustomArchitecture(vtkHyperTreeGridPreConfiguredSource::UNBALANCED);
-  htgSource->SetCustomDim(3);
-  htgSource->SetCustomFactor(3);
-  htgSource->SetCustomDepth(5);
-  std::vector<unsigned int> subdivs = { 3, 3, 3 };
-  std::vector<double> extent = { -10, 10, -10, 10, -10, 10 };
-  htgSource->SetCustomSubdivisions(subdivs.data());
-  htgSource->SetCustomExtent(extent.data());
+  vtkNew<vtkRandomHyperTreeGridSource> htgSource;
+  htgSource->SetDimensions(5, 5, 5);
+  htgSource->SetOutputBounds(-10, 10, -10, 10, -10, 10);
+  htgSource->SetSeed(0);
+  htgSource->SetMaxDepth(4);
+  htgSource->SetSplitFraction(0.4);
 
   vtkNew<vtkRTAnalyticSource> wavelet;
+  wavelet->SetWholeExtent(-10, 10, -10, 10, -10, 10);
 
   vtkNew<vtkHyperTreeGridProbeFilter> prober;
   prober->SetInputConnection(wavelet->GetOutputPort());
   prober->SetSourceConnection(htgSource->GetOutputPort());
   prober->SetPassPointArrays(true);
+  prober->SetUseImplicitArrays(false);
 
   prober->Update();
   prober->GetOutput()->GetPointData()->SetActiveScalars("Depth");
@@ -75,5 +73,23 @@ int TestHyperTreeGridProbeFilter(int argc, char* argv[])
   renderer->ResetCamera();
 
   renWin->Render();
-  return !vtkRegressionTester::Test(argc, argv, renWin, 10);
+
+  if (!vtkRegressionTester::Test(argc, argv, renWin, 10))
+  {
+    return EXIT_FAILURE;
+  }
+
+  // Now test with indexed arrays; we should have the same result
+  prober->SetUseImplicitArrays(true);
+  prober->Update();
+  prober->GetOutput()->GetPointData()->SetActiveScalars("Depth");
+
+  renWin->Render();
+
+  if (!vtkRegressionTester::Test(argc, argv, renWin, 10))
+  {
+    return EXIT_FAILURE;
+  }
+
+  return EXIT_SUCCESS;
 }

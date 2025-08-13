@@ -73,12 +73,14 @@ public:
       for (int i = 0; i < *it; ++i)
       {
         vtkSMPThreadLocal<int> nestedCounter(0);
-        vtkSMPTools::For(0, this->Factor, [&](vtkIdType start, vtkIdType stop) {
-          for (vtkIdType j = start; j < stop; ++j)
+        vtkSMPTools::For(0, this->Factor,
+          [&](vtkIdType start, vtkIdType stop)
           {
-            nestedCounter.Local()++;
-          }
-        });
+            for (vtkIdType j = start; j < stop; ++j)
+            {
+              nestedCounter.Local()++;
+            }
+          });
         for (const auto& el : nestedCounter)
         {
           this->Counter.Local() += el;
@@ -108,17 +110,19 @@ public:
     for (int i = begin; i < end; i++)
     {
       vtkSMPThreadLocal<int> nestedCounter(0);
-      vtkSMPTools::For(0, 100, [&](vtkIdType start, vtkIdType stop) {
-        bool isSingleInner = vtkSMPTools::GetSingleThread();
-        if (!isSingleInner)
+      vtkSMPTools::For(0, 100,
+        [&](vtkIdType start, vtkIdType stop)
         {
-          return;
-        }
-        for (vtkIdType j = start; j < stop; ++j)
-        {
-          nestedCounter.Local()++;
-        }
-      });
+          bool isSingleInner = vtkSMPTools::GetSingleThread();
+          if (!isSingleInner)
+          {
+            return;
+          }
+          for (vtkIdType j = start; j < stop; ++j)
+          {
+            nestedCounter.Local()++;
+          }
+        });
 
       for (const auto& el : nestedCounter)
       {
@@ -192,7 +196,7 @@ int doTestSMP()
 
   if (total != Target)
   {
-    cerr << "Error: ARangeFunctor did not generate " << Target << endl;
+    cerr << "Error: ARangeFunctor generated " << total << ", did not generate " << Target << endl;
     return EXIT_FAILURE;
   }
 
@@ -246,12 +250,14 @@ int doTestSMP()
   {
     vtkSMPThreadLocal<int> isParallel(0);
     int target = 20;
-    vtkSMPTools::For(0, target, 1, [&](vtkIdType start, vtkIdType end) {
-      for (vtkIdType i = start; i < end; ++i)
+    vtkSMPTools::For(0, target, 1,
+      [&](vtkIdType start, vtkIdType end)
       {
-        isParallel.Local() += static_cast<int>(vtkSMPTools::IsParallelScope());
-      }
-    });
+        for (vtkIdType i = start; i < end; ++i)
+        {
+          isParallel.Local() += static_cast<int>(vtkSMPTools::IsParallelScope());
+        }
+      });
     total = 0;
     for (const auto& it : isParallel)
     {
@@ -286,6 +292,7 @@ int doTestSMP()
     }
   }
 
+  /* This Test is faulty, see: https://gitlab.kitware.com/vtk/vtk/-/issues/19338
   // Test GetSingleThread
   if (std::string(vtkSMPTools::GetBackend()) != "Sequential")
   {
@@ -309,7 +316,7 @@ int doTestSMP()
            << endl;
       return EXIT_FAILURE;
     }
-  }
+  }*/
 
   // Test LocalScope
   const int targetThreadNb = 2;
@@ -419,7 +426,8 @@ int doTestSMP()
 
   using TupleRef = typename decltype(transformRange4)::const_reference;
   using ValueType = typename decltype(transformRange5)::ValueType;
-  auto computeMag = [](const TupleRef& tuple) -> ValueType {
+  auto computeMag = [](const TupleRef& tuple) -> ValueType
+  {
     ValueType mag = 0;
     for (const auto& comp : tuple)
     {

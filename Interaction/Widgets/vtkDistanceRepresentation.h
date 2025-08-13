@@ -17,11 +17,13 @@
 
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkHandleRepresentation;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkDistanceRepresentation : public vtkWidgetRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkDistanceRepresentation
+  : public vtkWidgetRepresentation
 {
 public:
   ///@{
@@ -44,14 +46,14 @@ public:
    * this representation. Note that methods are available for both
    * display and world coordinates.
    */
-  virtual void GetPoint1WorldPosition(double pos[3]) = 0;
-  virtual void GetPoint2WorldPosition(double pos[3]) = 0;
+  virtual void GetPoint1WorldPosition(double pos[3]) VTK_FUTURE_CONST = 0;
+  virtual void GetPoint2WorldPosition(double pos[3]) VTK_FUTURE_CONST = 0;
   virtual double* GetPoint1WorldPosition() VTK_SIZEHINT(3) = 0;
   virtual double* GetPoint2WorldPosition() VTK_SIZEHINT(3) = 0;
   virtual void SetPoint1DisplayPosition(double pos[3]) = 0;
   virtual void SetPoint2DisplayPosition(double pos[3]) = 0;
-  virtual void GetPoint1DisplayPosition(double pos[3]) = 0;
-  virtual void GetPoint2DisplayPosition(double pos[3]) = 0;
+  virtual void GetPoint1DisplayPosition(double pos[3]) VTK_FUTURE_CONST = 0;
+  virtual void GetPoint2DisplayPosition(double pos[3]) VTK_FUTURE_CONST = 0;
   virtual void SetPoint1WorldPosition(double pos[3]) = 0;
   virtual void SetPoint2WorldPosition(double pos[3]) = 0;
   ///@}

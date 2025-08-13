@@ -1,7 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-// VTK_DEPRECATED_IN_9_2_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkCellLocator.h"
 
@@ -219,7 +217,7 @@ int vtkCellLocator::IntersectWithLine(const double p1[3], const double p2[3], do
             // now, do the expensive GetCell call and the expensive
             // intersect with line call
             this->DataSet->GetCell(cId, cell);
-            if (cell->IntersectWithLine(p1, p2, tol, t, x, pcoords, subId))
+            if (cell->IntersectWithLine(p1, p2, tol, t, x, pcoords, subId) && t < tBest)
             {
               // Make sure that intersection occurs within this octant or else spurious cell
               // intersections can occur behind this bin which are not the correct answer.
@@ -586,10 +584,8 @@ void vtkCellLocator::GetOverlappingBuckets(vtkNeighborCells& buckets, const doub
   // Determine the range of indices in each direction
   for (i = 0; i < 3; i++)
   {
-    minLevel[i] =
-      static_cast<int>(static_cast<double>(((x[i] - dist) - this->Bounds[2 * i]) / this->H[i]));
-    maxLevel[i] =
-      static_cast<int>(static_cast<double>(((x[i] + dist) - this->Bounds[2 * i]) / this->H[i]));
+    minLevel[i] = static_cast<int>(((x[i] - dist) - this->Bounds[2 * i]) / this->H[i]);
+    maxLevel[i] = static_cast<int>(((x[i] + dist) - this->Bounds[2 * i]) / this->H[i]);
 
     if (minLevel[i] < 0)
     {
@@ -725,7 +721,6 @@ void vtkCellLocator::BuildLocatorInternal()
   int i, j, k, ijkMin[3], ijkMax[3];
   vtkIdType cellId, idx;
   int parentOffset;
-  vtkSmartPointer<vtkIdList> octant;
   int numCellsPerBucket = this->NumberOfCellsPerNode;
   int prod, numOctants;
   double hTol[3];
@@ -760,9 +755,8 @@ void vtkCellLocator::BuildLocatorInternal()
 
   if (this->Automatic)
   {
-    this->Level =
-      static_cast<int>(std::ceil(std::log(static_cast<double>(numCells) / numCellsPerBucket) /
-        (std::log(static_cast<double>(8.0)))));
+    this->Level = static_cast<int>(
+      std::ceil(std::log(static_cast<double>(numCells) / numCellsPerBucket) / (std::log(8.0))));
   }
   this->Level = (this->Level > this->MaxLevel ? this->MaxLevel : this->Level);
 
@@ -825,14 +819,12 @@ void vtkCellLocator::BuildLocatorInternal()
         {
           idx = parentOffset + i + j * ndivs + k * product;
           this->MarkParents(parentOctant, i, j, k, ndivs, this->Level);
-          octant = this->Tree[idx];
-          if (!octant)
+          if (!this->Tree[idx])
           {
-            octant = vtkSmartPointer<vtkIdList>::New();
-            octant->Allocate(numCellsPerBucket, numCellsPerBucket / 2);
-            this->Tree[idx] = octant;
+            this->Tree[idx] = vtkSmartPointer<vtkIdList>::New();
+            this->Tree[idx]->Allocate(numCellsPerBucket, numCellsPerBucket / 2);
           }
-          octant->InsertNextId(cellId);
+          this->Tree[idx]->InsertNextId(cellId);
         }
       }
     }
@@ -1423,7 +1415,6 @@ void vtkCellLocator::ShallowCopy(vtkAbstractCellLocator* locator)
   // we only copy what's actually used by vtkCellLocator
 
   // vtkLocator parameters
-  this->SetDataSet(cellLocator->GetDataSet());
   this->SetUseExistingSearchStructure(cellLocator->GetUseExistingSearchStructure());
   this->SetAutomatic(cellLocator->GetAutomatic());
   this->SetMaxLevel(cellLocator->GetMaxLevel());
@@ -1442,6 +1433,7 @@ void vtkCellLocator::ShallowCopy(vtkAbstractCellLocator* locator)
   this->NumberOfDivisions = cellLocator->NumberOfDivisions;
   this->TreeSharedPtr = cellLocator->TreeSharedPtr; // This is important
   this->Tree = this->TreeSharedPtr.get() ? this->TreeSharedPtr->data() : nullptr;
+  this->BuildTime.Modified();
 }
 
 //------------------------------------------------------------------------------

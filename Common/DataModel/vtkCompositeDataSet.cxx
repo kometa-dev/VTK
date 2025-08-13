@@ -3,6 +3,7 @@
 #include "vtkCompositeDataSet.h"
 
 #include "vtkBoundingBox.h"
+#include "vtkCellGrid.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataSetRange.h"
 #include "vtkDataSet.h"
@@ -48,13 +49,6 @@ void vtkCompositeDataSet::CopyStructure(vtkCompositeDataSet* input)
 void vtkCompositeDataSet::CompositeShallowCopy(vtkCompositeDataSet* src)
 {
   this->Superclass::ShallowCopy(src);
-}
-
-//------------------------------------------------------------------------------
-void vtkCompositeDataSet::RecursiveShallowCopy(vtkDataObject* src)
-{
-  VTK_LEGACY_REPLACED_BODY(RecursiveShallowCopy, "VTK 9.3", ShallowCopy);
-  this->ShallowCopy(src);
 }
 
 //------------------------------------------------------------------------------
@@ -117,9 +111,14 @@ void vtkCompositeDataSet::GetBounds(double bounds[6])
   vtkBoundingBox bbox;
   for (vtkDataObject* dobj : vtk::Range(this, Opts::SkipEmptyNodes))
   {
-    if (auto ds = vtkDataSet::SafeDownCast(dobj))
+    if (auto* ds = vtkDataSet::SafeDownCast(dobj))
     {
       ds->GetBounds(bds);
+      bbox.AddBounds(bds);
+    }
+    else if (auto* cg = vtkCellGrid::SafeDownCast(dobj))
+    {
+      cg->GetBounds(bds);
       bbox.AddBounds(bds);
     }
   }
@@ -139,6 +138,16 @@ vtkDataObject* vtkCompositeDataSet::GetDataSet(unsigned int flatIndex)
     }
   }
   return nullptr;
+}
+
+//------------------------------------------------------------------------------
+bool vtkCompositeDataSet::SupportsGhostArray(int type)
+{
+  if (type == POINT || type == CELL)
+  {
+    return true;
+  }
+  return false;
 }
 
 //------------------------------------------------------------------------------

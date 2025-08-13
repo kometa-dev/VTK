@@ -131,7 +131,7 @@ void BuildLookupTable(vtkScalarsToColors* cf, float* table, int size, double sca
 
 //----------------------------------------------------------------------------
 float GetScaledRadius(double radius, float* scaleTable, int scaleTableSize, double scaleScale,
-  double scaleOffset, double scaleFactor, double triangleScale)
+  double scaleOffset, double scaleFactor, double boundScale)
 {
   if (scaleTable)
   {
@@ -153,7 +153,7 @@ float GetScaledRadius(double radius, float* scaleTable, int scaleTableSize, doub
   }
 
   radius *= scaleFactor;
-  radius *= triangleScale;
+  radius *= boundScale;
   if (radius < 1e-3)
   {
     radius *= 1e2;
@@ -166,7 +166,7 @@ float GetScaledRadius(double radius, float* scaleTable, int scaleTableSize, doub
 
 //----------------------------------------------------------------------------
 OSPVolumetricModel RenderAsParticles(osp::vec3f* vertices, std::vector<unsigned int>& indexArray,
-  double pointSize, double scaleFactor, double triangleScale, vtkDataArray* scaleArray,
+  double pointSize, double scaleFactor, double boundScale, vtkDataArray* scaleArray,
   int scaleArrayComponent, float* scaleTable, int scaleTableSize, double scaleScale,
   double scaleOffset, vtkDataArray* vtkNotUsed(opacityArray), float* vtkNotUsed(opacityTable),
   int vtkNotUsed(opacityTableSize), double vtkNotUsed(opacityScale),
@@ -209,7 +209,7 @@ OSPVolumetricModel RenderAsParticles(osp::vec3f* vertices, std::vector<unsigned 
         scaleArray->GetNumberOfComponents(), scaleArrayComponent);
     }
     float r = vtkosp::GetScaledRadius(
-      rDouble, scaleTable, scaleTableSize, scaleScale, scaleOffset, scaleFactor, triangleScale);
+      rDouble, scaleTable, scaleTableSize, scaleScale, scaleOffset, scaleFactor, boundScale);
     radii.emplace_back(r);
 
     float weight = 1.f;
@@ -280,7 +280,11 @@ OSPVolumetricModel RenderAsParticles(osp::vec3f* vertices, std::vector<unsigned 
   auto oTF = ospNewTransferFunction("piecewiseLinear");
   ospSetObject(oTF, "color", _Colors);
   ospSetObject(oTF, "opacity", _AlphaData);
+#if OSPRAY_VERSION_MAJOR < 3
   ospSetVec2f(oTF, "valueRange", static_cast<float>(wRange[0]), static_cast<float>(wRange[1]));
+#else
+  ospSetBox1f(oTF, "value", static_cast<float>(wRange[0]), static_cast<float>(wRange[1]));
+#endif
   ospCommit(oTF);
   ospRelease(_Colors);
   ospRelease(_AlphaData);
@@ -330,7 +334,8 @@ void vtkOSPRayPointGaussianMapperNode::PrintSelf(ostream& os, vtkIndent indent)
 
 //------------------------------------------------------------------------------
 void vtkOSPRayPointGaussianMapperNode::InternalRender(void* vtkNotUsed(renderer),
-  vtkOSPRayActorNode* aNode, vtkPolyData* poly, double opacity, std::string materialName)
+  vtkOSPRayActorNode* aNode, vtkPolyData* poly, double vtkNotUsed(opacity),
+  std::string vtkNotUsed(materialName))
 {
   vtkOSPRayRendererNode* orn =
     static_cast<vtkOSPRayRendererNode*>(this->GetFirstAncestorOfType("vtkOSPRayRendererNode"));
@@ -458,7 +463,7 @@ void vtkOSPRayPointGaussianMapperNode::InternalRender(void* vtkNotUsed(renderer)
   }
 
   this->VolumetricModels.emplace_back(vtkosp::RenderAsParticles(vertices.data(), conn.vertex_index,
-    pointSize, mapper->GetScaleFactor(), mapper->GetTriangleScale(), scaleArray,
+    pointSize, mapper->GetScaleFactor(), mapper->GetBoundScale(), scaleArray,
     mapper->GetScaleArrayComponent(), this->ScaleTable, this->ScaleTableSize, this->ScaleScale,
     this->ScaleOffset, opacityArray, this->OpacityTable, this->OpacityTableSize, this->OpacityScale,
     this->OpacityOffset, scalarArray, lut, this->NumColors, backend));
@@ -581,12 +586,12 @@ bool vtkOSPRayPointGaussianMapperNode::GetNeedToRebuild(vtkOSPRayActorNode* aNod
   vtkActor* act = vtkActor::SafeDownCast(aNode->GetRenderable());
   vtkPointGaussianMapper* mapper = vtkPointGaussianMapper::SafeDownCast(act->GetMapper());
   if ((aNode->GetMTime() > this->RenderTime) ||
-    mapper &&
-      ((mapper->GetInput() && (mapper->GetInput()->GetMTime() > this->RenderTime)) ||
+    (mapper &&
+      ((mapper->GetInput() && mapper->GetInput()->GetMTime() > this->RenderTime) ||
         (mapper->GetScaleFunction() &&
           mapper->GetScaleFunction()->GetMTime() > this->ScaleTableUpdateTime) ||
         (mapper->GetScalarOpacityFunction() &&
-          mapper->GetScalarOpacityFunction()->GetMTime() > this->OpacityTableUpdateTime)))
+          mapper->GetScalarOpacityFunction()->GetMTime() > this->OpacityTableUpdateTime))))
   {
     return true;
   }

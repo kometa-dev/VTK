@@ -14,13 +14,15 @@
 
 #include "vtkLabelRenderStrategy.h"
 #include "vtkRenderingLabelModule.h" // For export macro
+#include "vtkWrappingHints.h"        // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkActor2D;
 class vtkTextRenderer;
 class vtkTextMapper;
 
-class VTKRENDERINGLABEL_EXPORT vtkFreeTypeLabelRenderStrategy : public vtkLabelRenderStrategy
+class VTKRENDERINGLABEL_EXPORT VTK_MARSHALAUTO vtkFreeTypeLabelRenderStrategy
+  : public vtkLabelRenderStrategy
 {
 public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
@@ -42,6 +44,7 @@ public:
    */
   void ComputeLabelBounds(vtkTextProperty* tprop, vtkStdString label, double bds[4]) override;
 
+  using vtkLabelRenderStrategy::RenderLabel;
   /**
    * Render a label at a location in world coordinates.
    * Must be performed between StartFrame() and EndFrame() calls.

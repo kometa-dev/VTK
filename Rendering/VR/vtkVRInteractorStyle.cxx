@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVRInteractorStyle.h"
 
+#include "vtkAbstractVolumeMapper.h"
 #include "vtkAssemblyPath.h"
 #include "vtkCallbackCommand.h"
 #include "vtkCamera.h"
@@ -106,14 +107,11 @@ void vtkVRInteractorStyle::OnSelect3D(vtkEventData* edata)
   int y = this->Interactor->GetEventPosition()[1];
   this->FindPokedRenderer(x, y);
 
-  decltype(this->InputMap)::key_type key(vtkCommand::Select3DEvent, bd->GetAction());
-  auto it = this->InputMap.find(key);
-  if (it == this->InputMap.end())
+  int state = this->GetMappedAction(vtkCommand::Select3DEvent, bd->GetAction());
+  if (state < VTKIS_NONE)
   {
     return;
   }
-
-  int state = it->second;
 
   // if grab mode then convert event data into where the ray is intersecting geometry
   switch (bd->GetAction())
@@ -299,6 +297,11 @@ void vtkVRInteractorStyle::OnMove3D(vtkEventData* edata)
       this->Clip(edd);
       this->InvokeEvent(vtkCommand::InteractionEvent, nullptr);
       break;
+    case VTKIS_USCALE:
+      this->FindPokedRenderer(x, y);
+      this->UniformScale();
+      this->InvokeEvent(vtkCommand::InteractionEvent, nullptr);
+      break;
     default:
       vtkDebugMacro(<< "OnMove3D: unknown interaction state " << idev << ": "
                     << this->InteractionState[idev]);
@@ -431,6 +434,32 @@ void vtkVRInteractorStyle::EndPositionProp(vtkEventDataDevice3D* edata)
   this->InteractionProps[static_cast<int>(dev)] = nullptr;
 }
 
+namespace
+{
+
+// Calls `func` for each prop in `renderer` that is not part of a widget representation
+template <typename Func>
+void ForEachNonWidgetProp(vtkRenderer* renderer, Func&& func)
+{
+  vtkCollectionSimpleIterator cookie;
+  vtkPropCollection* props = renderer->GetViewProps();
+  props->InitTraversal(cookie);
+
+  for (vtkProp* prop = props->GetNextProp(cookie); prop; prop = props->GetNextProp(cookie))
+  {
+    if (!prop->IsA("vtkWidgetRepresentation"))
+    {
+      prop->InitPathTraversal();
+      for (vtkAssemblyPath* path = prop->GetNextPath(); path; path = prop->GetNextPath())
+      {
+        func(path->GetLastNode()->GetViewProp());
+      }
+    }
+  }
+}
+
+}
+
 //------------------------------------------------------------------------------
 void vtkVRInteractorStyle::StartClip(vtkEventDataDevice3D* ed)
 {
@@ -447,25 +476,32 @@ void vtkVRInteractorStyle::StartClip(vtkEventDataDevice3D* ed)
     this->ClippingPlanes[static_cast<int>(dev)] = vtkSmartPointer<vtkPlane>::New();
   }
 
-  vtkActorCollection* ac;
-  vtkActor *anActor, *aPart;
-  vtkAssemblyPath* path;
   if (this->CurrentRenderer != nullptr)
   {
-    ac = this->CurrentRenderer->GetActors();
-    vtkCollectionSimpleIterator ait;
-    for (ac->InitTraversal(ait); (anActor = ac->GetNextActor(ait));)
-    {
-      for (anActor->InitPathTraversal(); (path = anActor->GetNextPath());)
+    ForEachNonWidgetProp(this->CurrentRenderer,
+      [this, dev](vtkProp* prop)
       {
-        aPart = static_cast<vtkActor*>(path->GetLastNode()->GetViewProp());
-        if (aPart->GetMapper())
+        auto* actor = vtkActor::SafeDownCast(prop);
+        if (actor)
         {
-          aPart->GetMapper()->AddClippingPlane(this->ClippingPlanes[static_cast<int>(dev)]);
-          continue;
+          auto* mapper = actor->GetMapper();
+          if (mapper)
+          {
+            mapper->AddClippingPlane(this->ClippingPlanes[static_cast<int>(dev)]);
+          }
+          return;
         }
-      }
-    }
+        auto* volume = vtkVolume::SafeDownCast(prop);
+        if (volume)
+        {
+          auto* mapper = volume->GetMapper();
+          if (mapper)
+          {
+            mapper->AddClippingPlane(this->ClippingPlanes[static_cast<int>(dev)]);
+          }
+          return;
+        }
+      });
   }
   else
   {
@@ -479,25 +515,21 @@ void vtkVRInteractorStyle::EndClip(vtkEventDataDevice3D* ed)
   vtkEventDataDevice dev = ed->GetDevice();
   this->InteractionState[static_cast<int>(dev)] = VTKIS_NONE;
 
-  vtkActorCollection* ac;
-  vtkActor *anActor, *aPart;
-  vtkAssemblyPath* path;
   if (this->CurrentRenderer != nullptr)
   {
-    ac = this->CurrentRenderer->GetActors();
-    vtkCollectionSimpleIterator ait;
-    for (ac->InitTraversal(ait); (anActor = ac->GetNextActor(ait));)
-    {
-      for (anActor->InitPathTraversal(); (path = anActor->GetNextPath());)
+    ForEachNonWidgetProp(this->CurrentRenderer,
+      [this, dev](vtkProp* prop)
       {
-        aPart = static_cast<vtkActor*>(path->GetLastNode()->GetViewProp());
-        if (aPart->GetMapper())
+        auto* actor = vtkActor::SafeDownCast(prop);
+        if (actor)
         {
-          aPart->GetMapper()->RemoveClippingPlane(this->ClippingPlanes[static_cast<int>(dev)]);
-          continue;
+          auto* mapper = actor->GetMapper();
+          if (mapper)
+          {
+            mapper->RemoveClippingPlane(this->ClippingPlanes[static_cast<int>(dev)]);
+          }
         }
-      }
-    }
+      });
   }
   else
   {
@@ -765,6 +797,58 @@ void vtkVRInteractorStyle::GroundMovement3D(vtkEventDataDevice3D* edd)
 }
 
 //------------------------------------------------------------------------------
+void vtkVRInteractorStyle::Teleportation3D(vtkEventDataDevice3D* edd)
+{
+  vtkVRRenderWindow* renWin = vtkVRRenderWindow::SafeDownCast(this->Interactor->GetRenderWindow());
+  vtkVRRenderWindowInteractor* iren = vtkVRRenderWindowInteractor::SafeDownCast(this->Interactor);
+
+  if (!renWin || !iren || !edd || !this->CurrentRenderer)
+  {
+    return;
+  }
+
+  vtkEventDataDevice controller = edd->GetDevice();
+
+  // Compute controller position and world orientation
+  double p0[3];   // Ray start point
+  double wxyz[4]; // Controller orientation
+  double dummyPos[3];
+  double wdir[3];
+
+  // Get controller pose
+  vtkMatrix4x4* devicePose = renWin->GetDeviceToPhysicalMatrixForDevice(controller);
+  if (!devicePose)
+  {
+    return;
+  }
+
+  // Convert device pose to world coordinates
+  iren->ConvertPoseToWorldCoordinates(devicePose, p0, wxyz, dummyPos, wdir);
+
+  // Perform ray picking
+  this->InteractionPicker->Pick3DRay(p0, wxyz, this->CurrentRenderer);
+
+  // If something is picked, do teleportation
+  vtkProp3D* prop = this->InteractionPicker->GetProp3D();
+  if (prop)
+  {
+    double pickedPoint[3];
+    this->InteractionPicker->GetPickPosition(pickedPoint);
+
+    // Compute and set new translation of the scene
+    double* sceneTrans = iren->GetPhysicalTranslation(this->CurrentRenderer->GetActiveCamera());
+    double newSceneTrans[3] = { 0.0, 0.0, 0.0 };
+
+    double translationVect[3] = { p0[0] - pickedPoint[0], p0[1] - pickedPoint[1],
+      p0[2] - pickedPoint[2] };
+    vtkMath::Add(sceneTrans, translationVect, newSceneTrans);
+
+    iren->SetPhysicalTranslation(this->CurrentRenderer->GetActiveCamera(), newSceneTrans[0],
+      newSceneTrans[1], newSceneTrans[2]);
+  }
+}
+
+//------------------------------------------------------------------------------
 void vtkVRInteractorStyle::Elevation3D(vtkEventDataDevice3D* edd)
 {
   if (this->CurrentRenderer == nullptr)
@@ -826,16 +910,12 @@ void vtkVRInteractorStyle::MapInputToAction(
     return;
   }
 
-  decltype(this->InputMap)::key_type key(eid, action);
-  auto it = this->InputMap.find(key);
-  if (it != this->InputMap.end())
+  if (this->GetMappedAction(eid, action) == state)
   {
-    if (it->second == state)
-    {
-      return;
-    }
+    return;
   }
 
+  decltype(this->InputMap)::key_type key(eid, action);
   this->InputMap[key] = state;
 
   this->Modified();
@@ -846,6 +926,21 @@ void vtkVRInteractorStyle::MapInputToAction(vtkCommand::EventIds eid, int state)
 {
   this->MapInputToAction(eid, vtkEventDataAction::Press, state);
   this->MapInputToAction(eid, vtkEventDataAction::Release, state);
+}
+
+//----------------------------------------------------------------------------
+int vtkVRInteractorStyle::GetMappedAction(vtkCommand::EventIds eid, vtkEventDataAction action)
+{
+  decltype(this->InputMap)::key_type key(eid, action);
+
+  auto it = this->InputMap.find(key);
+  if (it != this->InputMap.end())
+  {
+    return it->second;
+  }
+  // Since VTKIS_*STATE* are expected to be >= VTKIS_NONE with VTKIS_NONE == 0,
+  // return -1 if no mapping is found.
+  return -1;
 }
 
 //------------------------------------------------------------------------------
@@ -928,6 +1023,12 @@ void vtkVRInteractorStyle::EndAction(int state, vtkEventDataDevice3D* edata)
         this->Interactor->ExitCallback();
       }
       break;
+    case VTKIS_TELEPORTATION:
+      this->Teleportation3D(edata);
+      break;
+    case VTKIS_USCALE:
+      this->EndUniformScale();
+      break;
     default:
       vtkDebugMacro(<< "EndAction: unknown state " << state);
       break;
@@ -949,6 +1050,17 @@ void vtkVRInteractorStyle::EndAction(int state, vtkEventDataDevice3D* edata)
         break;
     }
   }
+}
+
+//------------------------------------------------------------------------------
+void vtkVRInteractorStyle::SetInteractionState(vtkEventDataDevice device, int state)
+{
+  int deviceIndex = static_cast<int>(device);
+  if (deviceIndex < 0 || deviceIndex >= vtkEventDataNumberOfDevices || state < VTKIS_NONE)
+  {
+    return;
+  }
+  this->InteractionState[static_cast<int>(device)] = state;
 }
 
 //------------------------------------------------------------------------------

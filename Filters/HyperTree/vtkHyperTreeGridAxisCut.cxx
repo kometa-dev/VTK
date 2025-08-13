@@ -11,6 +11,7 @@
 #include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
+#include "vtkMathUtilities.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkUniformHyperTreeGrid.h"
@@ -29,7 +30,7 @@ vtkHyperTreeGridAxisCut::vtkHyperTreeGridAxisCut()
 
   // Default place intercept is 0
   this->PlanePosition = 0.;
-  // JB La position reellement utilisee dans la coupe
+
   this->PlanePositionRealUse = 0.;
 
   // Default mask is empty
@@ -38,7 +39,7 @@ vtkHyperTreeGridAxisCut::vtkHyperTreeGridAxisCut()
   // Output indices begin at 0
   this->CurrentId = 0;
 
-  // JB Pour sortir un maillage de meme type que celui en entree
+  // Output should be the same type as the input
   this->AppropriateOutput = true;
 }
 
@@ -94,12 +95,6 @@ int vtkHyperTreeGridAxisCut::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
   int axis = this->PlaneNormalAxis;
 
   this->PlanePositionRealUse = this->PlanePosition;
-  /* CORRECTIF pour les coupes sur axes
-  Au minimum ici il faut modifier cette valeur afin
-  de la deplacer un peu si necessaire
-  si UHTG c'est rapide et facile
-  sinon il faut trouver un HT concerne...
-  */
 
   double inter = this->PlanePositionRealUse;
 
@@ -173,7 +168,8 @@ int vtkHyperTreeGridAxisCut::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
     const double* _size = inCursor->GetSize();
 
     // Check whether root cell is intersected by plane
-    if (origin[axis] < inter && (origin[axis] + _size[axis] >= inter))
+    if ((origin[axis] < inter && (origin[axis] + _size[axis] > inter)) ||
+      vtkMathUtilities::FuzzyCompare(origin[axis] + _size[axis], inter))
     {
       // Root is intersected by plane, descend into current child
       input->GetLevelZeroCoordinatesFromIndex(inIndex, i, j, k);
@@ -266,7 +262,8 @@ void vtkHyperTreeGridAxisCut::RecursivelyProcessTree(
       const double* size = inCursor->GetSize();
 
       // Check whether child is intersected by plane
-      if (origin[axis] < inter && (origin[axis] + size[axis] >= inter))
+      if ((origin[axis] < inter && (origin[axis] + size[axis] > inter)) ||
+        vtkMathUtilities::FuzzyCompare(origin[axis] + size[axis], inter))
       {
         // Child is intersected by plane, descend into current child
         outCursor->ToChild(outChild);

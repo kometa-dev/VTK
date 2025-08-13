@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+// Hide VTK_DEPRECATED_IN_9_4_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkSDL2WebGPURenderWindow.h"
 #include "vtkCollection.h"
 #include "vtkObjectFactory.h"
@@ -26,13 +29,7 @@
 #pragma clang diagnostic pop
 #endif
 
-#ifdef VTK_DAWN_ENABLE_BACKEND_METAL
-#include "wgpu_utils_metal.h"
-#endif
-
 VTK_ABI_NAMESPACE_BEGIN
-const std::string vtkSDL2WebGPURenderWindow::DEFAULT_BASE_WINDOW_NAME =
-  "Visualization Toolkit - SDL2 WebGPU #";
 
 namespace
 {
@@ -48,7 +45,6 @@ vtkStandardNewMacro(vtkSDL2WebGPURenderWindow);
 //------------------------------------------------------------------------------
 vtkSDL2WebGPURenderWindow::vtkSDL2WebGPURenderWindow()
 {
-  this->SetWindowName(DEFAULT_BASE_WINDOW_NAME.c_str());
   this->SetStencilCapable(1);
 
   // set position to -1 to let SDL place the window
@@ -63,12 +59,12 @@ vtkSDL2WebGPURenderWindow::~vtkSDL2WebGPURenderWindow()
 {
   this->Finalize();
 
-  vtkRenderer* ren;
+  vtkRenderer* renderer;
   vtkCollectionSimpleIterator rit;
   this->Renderers->InitTraversal(rit);
-  while ((ren = this->Renderers->GetNextRenderer(rit)))
+  while ((renderer = this->Renderers->GetNextRenderer(rit)))
   {
-    ren->SetRenderWindow(nullptr);
+    renderer->SetRenderWindow(nullptr);
   }
 }
 
@@ -77,6 +73,20 @@ void vtkSDL2WebGPURenderWindow::PrintSelf(ostream& os, vtkIndent indent)
 {
   os << this->WindowId << '\n';
   this->Superclass::PrintSelf(os, indent);
+}
+
+//------------------------------------------------------------------------------------------------
+std::string vtkSDL2WebGPURenderWindow::MakeDefaultWindowNameWithBackend()
+{
+  if (this->WGPUConfiguration)
+  {
+    return std::string("Visualization Toolkit - ") + "SDL2 " +
+      this->WGPUConfiguration->GetBackendInUseAsString();
+  }
+  else
+  {
+    return "Visualization Toolkit - SDL2 undefined backend";
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -93,56 +103,11 @@ bool vtkSDL2WebGPURenderWindow::Initialize()
   }
   if (this->WGPUInit())
   {
-#ifdef __EMSCRIPTEN__
     // render into canvas elememnt
     wgpu::SurfaceDescriptorFromCanvasHTMLSelector htmlSurfDesc;
     htmlSurfDesc.selector = "#canvas";
     this->Surface = vtkWGPUContext::CreateSurface(htmlSurfDesc);
     return this->Surface.Get() != nullptr;
-#else
-    SDL_SysWMinfo wmInfo;
-    SDL_VERSION(&wmInfo.version)
-    if (SDL_GetWindowWMInfo(ToSDLWindow(this->WindowId), &wmInfo))
-    {
-#ifdef VTK_DAWN_ENABLE_BACKEND_D3D12
-      if (wmInfo.subsystem == SDL_SYSWM_WINDOWS)
-      {
-        wgpu::SurfaceDescriptorFromWindowsHWND winSurfDesc;
-        winSurfDesc.hwnd = wmInfo.info.win.window;
-        winSurfDesc.hinstance = wmInfo.info.win.hinstance;
-        this->Surface = vtkWGPUContext::CreateSurface(winSurfDesc);
-        return true;
-      }
-#elif defined(VTK_DAWN_ENABLE_BACKEND_METAL)
-      if (wmInfo.subsystem == SDL_SYSWM_COCOA)
-      {
-        auto cocoaSurfDesc = SetupWindowAndGetSurfaceDescriptorCocoa(wmInfo.info.cocoa.window);
-        this->Surface = vtkWGPUContext::CreateSurface(*cocoaSurfDesc);
-        return true;
-      }
-#elif defined(VTK_DAWN_USE_WAYLAND)
-      if (wmInfo.subsystem == SDL_SYSWM_WAYLAND)
-      {
-        wgpu::SurfaceDescriptorFromWaylandSurface wlSurfDesc;
-        wlSurfDesc.display = wmInfo.info.wl.display;
-        wlSurfDesc.surface = wmInfo.info.wl.surface;
-        this->Surface = vtkWGPUContext::CreateSurface(wlSurfDesc);
-        return true;
-      }
-      else if (wmInfo.subsystem == SDL_SYSWM_X11)
-#elif defined(VTK_DAWN_USE_X11)
-      {
-        wgpu::SurfaceDescriptorFromXlibWindow x11SurfDesc;
-        x11SurfDesc.display = wmInfo.info.x11.display;
-        x11SurfDesc.window = wmInfo.info.x11.window;
-        this->Surface = vtkWGPUContext::CreateSurface(x11SurfDesc);
-        return true;
-      }
-#else
-      return false;
-#endif
-    }
-#endif
   }
 
   return false;
@@ -151,7 +116,7 @@ bool vtkSDL2WebGPURenderWindow::Initialize()
 //------------------------------------------------------------------------------
 void vtkSDL2WebGPURenderWindow::Finalize()
 {
-  if (this->WGPUInitialized)
+  if (this->Initialized)
   {
     this->WGPUFinalize();
   }
@@ -215,7 +180,7 @@ void vtkSDL2WebGPURenderWindow::SetSize(int w, int h)
     {
       int currentW, currentH;
       SDL_GetWindowSize(ToSDLWindow(this->WindowId), &currentW, &currentH);
-      // set the size only when window is programatically resized.
+      // set the size only when window is programmatically resized.
       if (currentW != w || currentH != h)
       {
         SDL_SetWindowSize(ToSDLWindow(this->WindowId), w, h);

@@ -375,7 +375,7 @@ struct vtkYoungsMaterialInterface_IndexedValue
 {
   double value;
   int index;
-  inline bool operator<(const vtkYoungsMaterialInterface_IndexedValue& iv) const
+  bool operator<(const vtkYoungsMaterialInterface_IndexedValue& iv) const
   {
     return value < iv.value;
   }
@@ -458,7 +458,7 @@ struct CellInfo
   bool triangulationOk;
   bool needTriangulation;
 
-  inline CellInfo()
+  CellInfo()
     : dim(2)
     , np(0)
     , nf(0)
@@ -791,7 +791,6 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
 
     // --------------------------- core computation --------------------------
     vtkIdList* ptIds = vtkIdList::New();
-    vtkPoints* pts = vtkPoints::New();
     vtkConvexPointSet* cpsCell = vtkConvexPointSet::New();
 
     double* interpolatedValues = new double[MAX_CELL_POINTS * pointDataComponents];
@@ -864,7 +863,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
          IMPORTANT NOTE: triangulation is given with mesh point ids (not local cell ids)
          and are translated to cell local point ids. */
       cell.needTriangulation = false;
-      cell.triangulationOk = (vtkcell->Triangulate(ci, ptIds, pts) != 0);
+      cell.triangulationOk = (vtkcell->TriangulateIds(ci, ptIds) != 0);
       cell.ntri = 0;
       if (cell.triangulationOk)
       {
@@ -1374,7 +1373,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
                   DBG_ASSERT(nextCell.edges[i][1] >= 0 && nextCell.edges[i][1] < nextCell.np);
                 }
               }
-              nextCell.triangulationOk = (vtkcell->Triangulate(ci, ptIds, pts) != 0);
+              nextCell.triangulationOk = (vtkcell->TriangulateIds(ci, ptIds) != 0);
               nextCell.ntri = 0;
               if (nextCell.triangulationOk)
               {
@@ -1426,7 +1425,6 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
     delete[] inCellArrays;
 
     ptIds->Delete();
-    pts->Delete();
     cpsCell->Delete();
     delete[] interpolatedValues;
     delete[] matOrdering;
@@ -3041,7 +3039,7 @@ struct CWVertex
   double coord[3];
   double weight;
   int eid[2];
-  inline bool operator<(const CWVertex& v) const { return angle < v.angle; }
+  bool operator<(const CWVertex& v) const { return angle < v.angle; }
 };
 VTK_ABI_NAMESPACE_END
 } /* namespace vtkYoungsMaterialInterfaceCellCutInternals */

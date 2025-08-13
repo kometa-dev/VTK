@@ -24,6 +24,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -96,6 +97,7 @@ wchar_t* vtk_Py_UTF8ToWide(const char* arg)
   return result;
 }
 
+#if PY_VERSION_HEX < 0x03080000
 std::string vtk_Py_WideToUTF8(const wchar_t* arg)
 {
   std::string result;
@@ -109,6 +111,7 @@ std::string vtk_Py_WideToUTF8(const wchar_t* arg)
 
   return result;
 }
+#endif
 
 std::vector<vtkWeakPointer<vtkPythonInterpreter>>* GlobalInterpreters;
 std::vector<std::string> PythonPaths;
@@ -168,6 +171,8 @@ bool vtkPythonInterpreter::ConsoleBuffering = false;
 std::string vtkPythonInterpreter::StdErrBuffer;
 std::string vtkPythonInterpreter::StdOutBuffer;
 int vtkPythonInterpreter::LogVerbosity = vtkLogger::VERBOSITY_TRACE;
+std::vector<std::pair<std::string, std::string>> vtkPythonInterpreter::UserPythonPaths;
+std::vector<void (*)()> vtkPythonInterpreter::AtExitCallbacks;
 
 #if PY_VERSION_HEX >= 0x03000000
 struct CharDeleter
@@ -180,7 +185,7 @@ vtkStandardNewMacro(vtkPythonInterpreter);
 //------------------------------------------------------------------------------
 vtkPythonInterpreter::vtkPythonInterpreter()
 {
-  GlobalInterpreters->push_back(this);
+  GlobalInterpreters->emplace_back(this);
 }
 
 //------------------------------------------------------------------------------
@@ -319,7 +324,7 @@ void CloseDLLDirectoryCookie()
 /**
  * Add paths to VTK's Python modules.
  */
-void SetupVTKPythonPaths(bool isolated)
+void SetupPythonPaths(bool isolated, std::string vtklib, const char* landmark)
 {
   // Check if we're using an isolated Python.
   if (isolated)
@@ -329,16 +334,24 @@ void SetupVTKPythonPaths(bool isolated)
   }
 
   using systools = vtksys::SystemTools;
-  std::string vtklib = vtkGetLibraryPathForSymbol(GetVTKVersion);
   if (vtklib.empty())
   {
     VTKPY_DEBUG_MESSAGE(
-      "`GetVTKVersion` library couldn't be found. Will use `Py_GetProgramName` next.");
+      "`GetVTKVersion` library couldn't be found. Will use `sys.executable` next.");
   }
 
   if (vtklib.empty())
   {
+#if PY_VERSION_HEX >= 0x03080000
+    vtkPythonScopeGilEnsurer gilEnsurer;
+    PyObject* executable_path = PySys_GetObject("executable");
+    if (executable_path != Py_None)
+    {
+      vtklib = PyUnicode_AsUTF8AndSize(executable_path, nullptr);
+    }
+#else
     vtklib = vtk_Py_WideToUTF8(Py_GetProgramName());
+#endif
   }
 
   vtklib = systools::CollapseFullPath(vtklib);
@@ -351,7 +364,7 @@ void SetupVTKPythonPaths(bool isolated)
   if (!vtkdir.empty())
   {
 #if PY_VERSION_HEX >= 0x03080000
-    vtkPythonScopeGilEnsurer gilEnsurer(false, true);
+    vtkPythonScopeGilEnsurer gilEnsurer;
     CloseDLLDirectoryCookie();
     PyObject* os = PyImport_ImportModule("os");
     if (os)
@@ -384,7 +397,7 @@ void SetupVTKPythonPaths(bool isolated)
 #endif
 
 #if defined(VTK_BUILD_SHARED_LIBS)
-  vtkPythonInterpreter::PrependPythonPath(vtkdir.c_str(), "vtkmodules/__init__.py");
+  vtkPythonInterpreter::PrependPythonPath(vtkdir.c_str(), landmark);
 #else
   // since there may be other packages not zipped (e.g. mpi4py), we added path to _vtk.zip
   // to the search path as well.
@@ -395,14 +408,40 @@ void SetupVTKPythonPaths(bool isolated)
 }
 
 //------------------------------------------------------------------------------
-bool vtkPythonInterpreter::InitializeWithArgs(int initsigs, int argc, char* argv[])
+void vtkPythonInterpreter::AddUserPythonPath(const char* libraryPath, const char* landmark)
+{
+  vtkPythonInterpreter::UserPythonPaths.emplace_back(libraryPath, landmark);
+}
+
+int vtkPythonInterpreter::AddAtExitCallback(void (*func)())
+{
+  if (Py_IsInitialized() == 0)
+  {
+    vtkPythonInterpreter::AtExitCallbacks.emplace_back(func);
+    return 1;
+  }
+
+  return Py_AtExit(func);
+}
+
+//------------------------------------------------------------------------------
+bool vtkPythonInterpreter::InitializeWithArgs(
+  int initsigs, int argc, char* argv[], const char* programName)
 {
   bool isolated = vtkPythonPreConfig();
 
   if (Py_IsInitialized() == 0)
   {
-    // guide the mechanism to locate Python standard library, if possible.
-    SetupPythonPrefix(isolated);
+    if (programName)
+    {
+      vtkPythonInterpreter::SetProgramName(programName);
+    }
+    else
+    {
+      // If no program name is specified,
+      // guide the mechanism to locate Python standard library, if possible.
+      SetupPythonPrefix(isolated);
+    }
     bool signals_installed = initsigs != 0;
 
     // Need two copies of args, because programs might modify the first
@@ -508,12 +547,31 @@ bool vtkPythonInterpreter::InitializeWithArgs(int initsigs, int argc, char* argv
     // We call this before processing any of Python paths added by the
     // application using `PrependPythonPath`. This ensures that application
     // specified paths are preferred to the ones `vtkPythonInterpreter` adds.
-    SetupVTKPythonPaths(isolated);
+    std::string vtklib = vtkGetLibraryPathForSymbol(GetVTKVersion);
+    SetupPythonPaths(isolated, vtklib, "vtkmodules/__init__.py");
+
+    // Used to setup additional user python paths added by `AddUserPythonPath` method.
+    for (const auto& pair : vtkPythonInterpreter::UserPythonPaths)
+    {
+      if (!pair.first.empty())
+      {
+        SetupPythonPaths(isolated, pair.first, pair.second.c_str());
+      }
+    }
 
     for (size_t cc = 0; cc < PythonPaths.size(); cc++)
     {
       vtkPrependPythonPath(PythonPaths[cc].c_str());
     }
+
+    for (auto* func : vtkPythonInterpreter::AtExitCallbacks)
+    {
+      if (Py_AtExit(func))
+      {
+        return false;
+      }
+    }
+    vtkPythonInterpreter::AtExitCallbacks.clear();
 
     NotifyInterpreters(vtkCommand::EnterEvent);
     return true;
@@ -724,9 +782,8 @@ int vtkPythonInterpreter::PyMain(int argc, char** argv)
         PyObject* minor = PyObject_GetAttrString(version_info, "minor");
         PyObject* micro = PyObject_GetAttrString(version_info, "micro");
 
-        auto py_number_cmp = [](PyObject* obj, long expected) {
-          return obj && PyLong_Check(obj) && PyLong_AsLong(obj) == expected;
-        };
+        auto py_number_cmp = [](PyObject* obj, long expected)
+        { return obj && PyLong_Check(obj) && PyLong_AsLong(obj) == expected; };
 
         // Only 3.7.0 has this issue. Any failures to get the version
         // information is OK; we'll just crash later anyways if the version is

@@ -207,18 +207,22 @@ void vtkOpenGLES30PolyDataMapper2D::RenderOverlay(vtkViewport* viewport, vtkActo
   for (int primType = 0; primType < PrimitiveEnd; ++primType)
   {
     const auto numVerts = this->PrimitiveIndexArrays[primType].size();
+    if (!numVerts)
+    {
+      continue;
+    }
     ScopedValueRollback<vtkOpenGLVertexBufferObjectGroup*> vbogBkp(
       this->VBOs, this->PrimitiveVBOGroup[primType].Get());
     this->CurrentDrawCallPrimtiveType = static_cast<PrimitiveTypes>(primType);
     this->UpdateShaders(*cellBOs[primType], ren, actor);
     if (modes[primType] == GL_LINES && this->HaveWideLines(ren, actor))
     {
-      glDrawArraysInstanced(
-        GL_LINES, 0, numVerts, 2 * vtkMath::Ceil(actor->GetProperty()->GetLineWidth()));
+      glDrawArraysInstanced(GL_LINES, 0, static_cast<GLsizei>(numVerts),
+        static_cast<GLsizei>(2 * vtkMath::Ceil(actor->GetProperty()->GetLineWidth())));
     }
     else
     {
-      glDrawArrays(modes[primType], 0, numVerts);
+      glDrawArrays(modes[primType], 0, static_cast<GLsizei>(numVerts));
     }
   }
 
@@ -373,14 +377,6 @@ void vtkOpenGLES30PolyDataMapper2D::UpdateVBO(vtkActor2D* act, vtkViewport* view
     c = nullptr;
   }
 
-  // do we have texture maps?
-  bool haveTextures = false;
-  vtkInformation* info = act->GetPropertyKeys();
-  if (info && info->Has(vtkProp::GeneralTextureUnit()))
-  {
-    haveTextures = true;
-  }
-
   // Transform the points, if necessary
   vtkPoints* p = poly->GetPoints();
   if (this->TransformCoordinate)
@@ -424,7 +420,8 @@ void vtkOpenGLES30PolyDataMapper2D::UpdateVBO(vtkActor2D* act, vtkViewport* view
 
   // populate vertex attributes
   auto expand = [](vtkSmartPointer<vtkDataArray> src, vtkSmartPointer<vtkDataArray> dst,
-                  const unsigned int* indices, const std::size_t numIndices) {
+                  const unsigned int* indices, const std::size_t numIndices)
+  {
     if (src == nullptr || dst == nullptr)
     {
       return;
@@ -440,7 +437,7 @@ void vtkOpenGLES30PolyDataMapper2D::UpdateVBO(vtkActor2D* act, vtkViewport* view
   VertexAttributeArrays originalVAttribs;
   originalVAttribs.colors = c;
   originalVAttribs.points = p->GetData();
-  originalVAttribs.tcoords = haveTextures ? poly->GetPointData()->GetTCoords() : nullptr;
+  originalVAttribs.tcoords = poly->GetPointData()->GetTCoords();
 
   // unlike 3D actors, 2D actors do not have different kinds of representations,
   const std::size_t PrimitiveSizes[PrimitiveEnd] = {
@@ -462,7 +459,7 @@ void vtkOpenGLES30PolyDataMapper2D::UpdateVBO(vtkActor2D* act, vtkViewport* view
     const auto numPrimitives = numIndices / PrimitiveSizes[primType];
     VertexAttributeArrays newVertexAttrs;
     newVertexAttrs = originalVAttribs;
-    newVertexAttrs.Resize(numIndices);
+    newVertexAttrs.Resize(static_cast<int>(numIndices));
     const auto start = indexArray.data();
     expand(originalVAttribs.colors, newVertexAttrs.colors, start, numIndices);
     expand(originalVAttribs.points, newVertexAttrs.points, start, numIndices);

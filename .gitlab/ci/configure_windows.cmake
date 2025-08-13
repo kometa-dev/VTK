@@ -5,6 +5,7 @@ set(VTK_MODULE_ENABLE_VTK_FiltersOpenTURNS NO CACHE STRING "") # openturns
 set(VTK_MODULE_ENABLE_VTK_FiltersReebGraph NO CACHE STRING "") # boost
 set(VTK_MODULE_ENABLE_VTK_GeovisGDAL NO CACHE STRING "") # gdal
 set(VTK_MODULE_ENABLE_VTK_IOADIOS2 NO CACHE STRING "") # adios
+set(VTK_MODULE_ENABLE_VTK_IOAlembic NO CACHE STRING "") # alembic
 set(VTK_MODULE_ENABLE_VTK_IOFFMPEG NO CACHE STRING "") # ffmpeg
 set(VTK_MODULE_ENABLE_VTK_IOGDAL NO CACHE STRING "") # ffmpeg
 set(VTK_MODULE_ENABLE_VTK_IOLAS NO CACHE STRING "") # liblas, boost
@@ -19,7 +20,6 @@ set(VTK_MODULE_ENABLE_VTK_RenderingExternal NO CACHE STRING "") # glut
 set(VTK_MODULE_ENABLE_VTK_RenderingFreeTypeFontConfig NO CACHE STRING "") # fontconfig
 set(VTK_MODULE_ENABLE_VTK_RenderingMatplotlib NO CACHE STRING "") # matplotlib
 set(VTK_MODULE_ENABLE_VTK_RenderingOpenVR NO CACHE STRING "") # openvr
-set(VTK_MODULE_ENABLE_VTK_RenderingOpenXR NO CACHE STRING "") # openxr
 set(VTK_MODULE_ENABLE_VTK_RenderingRayTracing NO CACHE STRING "") # ospray
 set(VTK_MODULE_ENABLE_VTK_fides NO CACHE STRING "") # adios
 set(VTK_MODULE_ENABLE_VTK_xdmf3 NO CACHE STRING "") # boost
@@ -45,6 +45,8 @@ if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "python")
     list(APPEND vtk_dll_paths
       "${ci_project_dir}/.gitlab/tbb/redist/${tbb_redist_dir}")
   endif ()
+  list(APPEND vtk_dll_paths
+    "${ci_project_dir}/.gitlab/openxr/x64/bin")
   set(VTK_DLL_PATHS
     ${vtk_dll_paths}
     CACHE STRING "")

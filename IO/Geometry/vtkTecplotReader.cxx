@@ -23,7 +23,8 @@
 #include "vtkUnstructuredGrid.h"
 
 #include "vtk_zlib.h"
-#include <vtksys/SystemTools.hxx>
+#include "vtksys/Encoding.hxx"
+#include "vtksys/SystemTools.hxx"
 
 #include <cctype> // for isspace(), isalnum()
 
@@ -90,7 +91,12 @@ bool FileStreamReader::open(const char* fileName)
     if (count == 2)
     {
       const char* mode = (magic[0] == 0x1f && magic[1] == 0x8b) ? "rb" : "r";
+#if defined(_WIN32)
+      std::wstring fileNameWide = vtksys::Encoding::ToWide(fileName);
+      this->file = gzopen_w(fileNameWide.c_str(), mode);
+#else
       this->file = gzopen(fileName, mode);
+#endif
 
       this->Eof = (this->file == nullptr);
       this->Open = (this->file != nullptr);
@@ -1412,7 +1418,7 @@ void vtkTecplotReader::GetDataArraysList()
   }
 
 #define READ_UNTIL_TITLE_OR_VARIABLES                                                              \
-  !this->Internal->NextCharEOF && theTpToken != "TITLE" && theTpToken != "VARIABLES"
+  !this->Internal->NextCharEOF&& theTpToken != "TITLE" && theTpToken != "VARIABLES"
   int i;
   int tpTokenLen = 0;
   int guessedXid = -1;
@@ -1599,7 +1605,7 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
   }
 
 #define READ_UNTIL_LINE_END                                                                        \
-  !this->Internal->NextCharEOF && tok != "TITLE" && tok != "VARIABLES" && tok != "ZONE" &&         \
+  !this->Internal->NextCharEOF&& tok != "TITLE" && tok != "VARIABLES" && tok != "ZONE" &&          \
     tok != "GEOMETRY" && tok != "TEXT" && tok != "DATASETAUXDATA"
   int zoneIndex = 0;
   bool firstToken = true;
@@ -2118,7 +2124,9 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
             pos = tok.find('(');
             if (pos != std::string::npos)
             {
+#ifndef NDEBUG
               std::string exprName(tok.substr(0, pos));
+#endif
               std::string exprDef(tok.substr(pos, tok.size() - pos));
 
               exprDef.replace(0, 1, "{");

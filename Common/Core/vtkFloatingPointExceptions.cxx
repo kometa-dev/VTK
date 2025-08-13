@@ -17,21 +17,18 @@
 #endif
 
 #if defined(VTK_USE_FENV)
-//------------------------------------------------------------------------------
-// Signal handler for floating point exceptions in anonymous namespace
-namespace
-{
 
+#define signal_handler VTK_ABI_NAMESPACE_MANGLE(signal_handler)
 extern "C" void signal_handler(int signal)
 {
   // NOLINTNEXTLINE(bugprone-signal-handler)
   fprintf(stderr, "Error: Floating point exception detected. Signal %d\n", signal);
-  // This should possibly throw an exception rather than abort, abort should
-  // at least give access to the stack when it fails here.
+  // Call `abort()` so that a backtrace is created. We already broke signal
+  // handler rules by calling `fprintf`, so any kind of "recovery" is
+  // ill-advised.
   abort();
 }
 
-} // End anonymous namespace
 #endif
 
 //------------------------------------------------------------------------------
@@ -44,7 +41,7 @@ void vtkFloatingPointExceptions::Enable()
   // enable floating point exceptions on MSVC
   _controlfp(_EM_DENORMAL | _EM_UNDERFLOW | _EM_INEXACT, _MCW_EM);
 #endif //_MSC_VER
-#if defined(VTK_USE_FENV)
+#if defined(VTK_USE_FENV) && FE_ALL_EXCEPT != 0
   // This should work on all platforms
   feenableexcept(FE_DIVBYZERO | FE_INVALID);
   // Set the signal handler
@@ -63,7 +60,7 @@ void vtkFloatingPointExceptions::Disable()
     _EM_INVALID | _EM_DENORMAL | _EM_ZERODIVIDE | _EM_OVERFLOW | _EM_UNDERFLOW | _EM_INEXACT,
     _MCW_EM);
 #endif //_MSC_VER
-#if defined(VTK_USE_FENV)
+#if defined(VTK_USE_FENV) && FE_ALL_EXCEPT != 0
   fedisableexcept(FE_DIVBYZERO | FE_INVALID);
 #endif
 }

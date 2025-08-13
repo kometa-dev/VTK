@@ -10,12 +10,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-HierarchyInfo* hierarchyInfo = NULL;
-StringCache* stringCache = NULL;
-int numberOfWrappedFunctions = 0;
-FunctionInfo* wrappedFunctions[1000];
-FunctionInfo* thisFunction;
-ClassInfo* thisClass;
+static HierarchyInfo* hierarchyInfo = NULL;
+static StringCache* stringCache = NULL;
+static int numberOfWrappedFunctions = 0;
+static FunctionInfo* wrappedFunctions[1000];
+static FunctionInfo* thisFunction;
+static ClassInfo* thisClass;
 
 void OutputParamDeclarations(FILE* fp, int i)
 {
@@ -639,9 +639,10 @@ void OutputFunctionResult(FILE* fp)
  * return 0 if the types do not map to the same type */
 static int CheckMatch(unsigned int type1, unsigned int type2, const char* c1, const char* c2)
 {
+  /* VTK_PARSE_UNKNOWN is used for enum types, which are mapped to java's int type */
   static unsigned int byteTypes[] = { VTK_PARSE_UNSIGNED_CHAR, VTK_PARSE_SIGNED_CHAR, 0 };
   static unsigned int shortTypes[] = { VTK_PARSE_UNSIGNED_SHORT, VTK_PARSE_SHORT, 0 };
-  static unsigned int intTypes[] = { VTK_PARSE_UNSIGNED_INT, VTK_PARSE_INT, 0 };
+  static unsigned int intTypes[] = { VTK_PARSE_UNKNOWN, VTK_PARSE_UNSIGNED_INT, VTK_PARSE_INT, 0 };
   static unsigned int longTypes[] = { VTK_PARSE_UNSIGNED_LONG, VTK_PARSE_UNSIGNED_LONG_LONG,
     VTK_PARSE_LONG, VTK_PARSE_LONG_LONG, 0 };
 
@@ -730,7 +731,7 @@ int DoneOne(void)
 {
   int i, j;
   int match;
-  FunctionInfo* fi;
+  const FunctionInfo* fi;
 
   for (i = 0; i < numberOfWrappedFunctions; i++)
   {
@@ -760,7 +761,7 @@ int DoneOne(void)
   return 0;
 }
 
-void HandleDataReader(FILE* fp, ClassInfo* data)
+void HandleDataReader(FILE* fp, const ClassInfo* data)
 {
   fprintf(fp, "\n");
   fprintf(fp, "extern \"C\" JNIEXPORT void");
@@ -776,7 +777,7 @@ void HandleDataReader(FILE* fp, ClassInfo* data)
   fprintf(fp, "}\n");
 }
 
-void HandleDataArray(FILE* fp, ClassInfo* data)
+void HandleDataArray(FILE* fp, const ClassInfo* data)
 {
   const char* type = 0;
   const char* jtype = 0;
@@ -883,7 +884,7 @@ void HandleDataArray(FILE* fp, ClassInfo* data)
 
 static int isClassWrapped(const char* classname)
 {
-  HierarchyEntry* entry;
+  const HierarchyEntry* entry;
 
   if (hierarchyInfo)
   {
@@ -1319,7 +1320,7 @@ void outputFunction(FILE* fp, ClassInfo* data)
 /* print the parsed structures */
 int VTK_PARSE_MAIN(int argc, char* argv[])
 {
-  OptionInfo* options;
+  const OptionInfo* options;
   FileInfo* file_info;
   ClassInfo* data;
   FILE* fp;
@@ -1350,7 +1351,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   if (!fp)
   {
     fprintf(stderr, "Error opening output file %s\n", options->OutputFileName);
-    exit(1);
+    return vtkParse_FinalizeMain(1);
   }
 
   /* get the main class */
@@ -1358,13 +1359,14 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   if (data == NULL || data->IsExcluded)
   {
     fclose(fp);
-    exit(0);
+    return vtkParse_FinalizeMain(0);
   }
 
   if (data->Template)
   {
     fclose(fp);
-    exit(0);
+    vtkWrap_WarnEmpty(options);
+    return vtkParse_FinalizeMain(0);
   }
 
   for (i = 0; i < data->NumberOfSuperClasses; ++i)
@@ -1372,7 +1374,8 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     if (strchr(data->SuperClasses[i], '<'))
     {
       fclose(fp);
-      exit(0);
+      vtkWrap_WarnEmpty(options);
+      return vtkParse_FinalizeMain(0);
     }
   }
 
@@ -1381,7 +1384,8 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     if (!vtkWrap_IsTypeOf(hierarchyInfo, data->Name, "vtkObjectBase"))
     {
       fclose(fp);
-      exit(0);
+      vtkWrap_WarnEmpty(options);
+      return vtkParse_FinalizeMain(0);
     }
 
     /* resolve using declarations within the header files */
@@ -1398,6 +1402,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     /* Block inclusion of full streams.  */
     fprintf(fp, "#define VTK_STREAMS_FWD_ONLY\n");
   }
+  fprintf(fp, "#include \"vtkABI.h\"\n");
   fprintf(fp, "#include \"vtkSystemIncludes.h\"\n");
   fprintf(fp, "#include \"%s.h\"\n", data->Name);
   fprintf(fp, "#include \"vtkJavaUtil.h\"\n\n");
@@ -1406,6 +1411,11 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
 
   for (i = 0; i < data->NumberOfSuperClasses; i++)
   {
+    if (!isClassWrapped(data->SuperClasses[i]))
+    {
+      continue;
+    }
+
     char* safe_name = vtkWrap_SafeSuperclassName(data->SuperClasses[i]);
     const char* safe_superclass = safe_name ? safe_name : data->SuperClasses[i];
 
@@ -1430,6 +1440,10 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   /* check our superclasses */
   for (i = 0; i < data->NumberOfSuperClasses; i++)
   {
+    if (!isClassWrapped(data->SuperClasses[i]))
+    {
+      continue;
+    }
     char* safe_name = vtkWrap_SafeSuperclassName(data->SuperClasses[i]);
     const char* safe_superclass = safe_name ? safe_name : data->SuperClasses[i];
 
@@ -1562,5 +1576,5 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
 
   fclose(fp);
 
-  return 0;
+  return vtkParse_FinalizeMain(0);
 }

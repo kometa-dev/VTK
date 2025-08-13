@@ -9,7 +9,7 @@
 // vtkExternalOpenGLRenderer by drawing a GL_TRIANGLE in the scene before
 // drawing the vtk sphere.
 
-#include <vtk_glew.h>
+#include <vtk_glad.h>
 // GLUT includes
 #if defined(__APPLE__)
 #include <AvailabilityMacros.h>
@@ -44,7 +44,7 @@ namespace
 {
 
 // Global variables used by the glutDisplayFunc and glutIdleFunc
-vtkNew<ExternalVTKWidget> externalVTKWidget;
+ExternalVTKWidget* externalVTKWidget = nullptr;
 bool initialized = false;
 int NumArgs;
 char** ArgV;
@@ -148,7 +148,7 @@ void test()
   t->SetRenderWindow(externalVTKWidget->GetRenderWindow());
   if (!tested)
   {
-    retVal = t->RegressionTest(0);
+    retVal = t->RegressionTest(0.05);
     tested = true;
   }
   t->Delete();
@@ -176,6 +176,8 @@ void onexit()
 /* Main function: GLUT runs as a console application starting at main()  */
 int TestGLUTRenderWindow(int argc, char* argv[])
 {
+  vtkNew<ExternalVTKWidget> staticExternalVTKWidget;
+  externalVTKWidget = staticExternalVTKWidget;
   NumArgs = argc;
   ArgV = argv;
   glutInit(&argc, argv); // Initialize GLUT
@@ -188,7 +190,7 @@ int TestGLUTRenderWindow(int argc, char* argv[])
   glutIdleFunc(test);            // Register test callback handler for vtkTesting
   glutReshapeFunc(handleResize); // Register resize callback handler for window resize
   atexit(onexit);                // Register callback to uninitialize on exit
-  glewInit();
+  gladLoaderLoadGL();
   glutMainLoop(); // Enter the infinitely event-processing loop
   return 0;
 }

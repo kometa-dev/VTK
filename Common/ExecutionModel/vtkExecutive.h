@@ -17,6 +17,7 @@
 
 #include "vtkCommonExecutionModelModule.h" // For export macro
 #include "vtkObject.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAlgorithm;
@@ -32,7 +33,7 @@ class vtkInformationRequestKey;
 class vtkInformationKeyVectorKey;
 class vtkInformationVector;
 
-class VTKCOMMONEXECUTIONMODEL_EXPORT vtkExecutive : public vtkObject
+class VTKCOMMONEXECUTIONMODEL_EXPORT VTK_MARSHALAUTO vtkExecutive : public vtkObject
 {
 public:
   vtkTypeMacro(vtkExecutive, vtkObject);
@@ -170,18 +171,21 @@ public:
   /**
    * Information key to store the executive/port number producing an
    * information object.
+   * \ingroup InformationKeys
    */
   static vtkInformationExecutivePortKey* PRODUCER();
 
   /**
    * Information key to store the executive/port number pairs
    * consuming an information object.
+   * \ingroup InformationKeys
    */
   static vtkInformationExecutivePortVectorKey* CONSUMERS();
 
   /**
    * Information key to store the output port number from which a
    * request is made.
+   * \ingroup InformationKeys
    */
   static vtkInformationIntegerKey* FROM_OUTPUT_PORT();
 
@@ -189,6 +193,7 @@ public:
   /**
    * Keys to program vtkExecutive::ProcessRequest with the default
    * behavior for unknown requests.
+   * \ingroup InformationKeys
    */
   static vtkInformationIntegerKey* ALGORITHM_BEFORE_FORWARD();
   static vtkInformationIntegerKey* ALGORITHM_AFTER_FORWARD();

@@ -76,7 +76,7 @@ public:
   vtkGetMacro(NumberOfPointsPerBucket, int);
   ///@}
 
-  // Re-use any superclass signatures that we don't override.
+  // Reuse any superclass signatures that we don't override.
   using vtkAbstractPointLocator::FindClosestPoint;
 
   /**
@@ -152,7 +152,7 @@ public:
     xyz[1] = y;
     xyz[2] = z;
     return this->IsInsertedPoint(xyz);
-  };
+  }
   vtkIdType IsInsertedPoint(const double x[3]) override;
   ///@}
 

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridGeometryUnlimitedEntry
-JB
  * @brief   GeometryUnlimitedEntry is a cache data for cursors requiring coordinates
  *
  * cf. vtkHyperTreeGridEntry
@@ -147,7 +146,7 @@ public:
   bool IsVirtualLeaf(const vtkHyperTree* tree) const;
 
   /**
-   * Is the cursor pointing to a coarse with all childrens leaves ?
+   * Is the cursor pointing to a coarse with all children leaves ?
    * \pre not_tree: tree
    */
   bool IsTerminalNode(

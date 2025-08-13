@@ -65,6 +65,7 @@ public:
   ///@{
   /**
    * Set the KeyCode for the event.
+   * Default is 0.
    */
   vtkSetMacro(KeyCode, char);
   vtkGetMacro(KeyCode, char);
@@ -81,6 +82,7 @@ public:
   ///@{
   /**
    * Set the complex key symbol (compound key strokes) for the event.
+   * Default is nullptr.
    */
   vtkSetStringMacro(KeySym);
   vtkGetStringMacro(KeySym);
@@ -95,8 +97,8 @@ public:
    * Used to compare whether two events are equal. Takes into account
    * the EventId as well as the various modifiers.
    */
-  bool operator==(vtkEvent*);
-  bool operator==(unsigned long VTKEvent); // event with no modifiers
+  bool operator==(vtkEvent*) const;
+  bool operator==(unsigned long VTKEvent) const; // event with no modifiers
 
 protected:
   vtkEvent();

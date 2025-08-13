@@ -29,11 +29,14 @@
 #ifndef vtkInteractorEventRecorder_h
 #define vtkInteractorEventRecorder_h
 
-#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractorObserver.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 
+#include "vtkNew.h" // vtkNew
+
 VTK_ABI_NAMESPACE_BEGIN
+
+class vtkActor2D;
 class vtkStringArray;
 
 // The superclass that all commands should be subclasses of
@@ -112,6 +115,19 @@ public:
   vtkGetStringMacro(InputString);
   ///@}
 
+  ///@{
+  /**
+   * Enable the display of a cursor at the played event position
+   * during `Play()` method.
+   * Cursor is hidden again at the end of the `Play()`, so last render
+   * is not impacted (baselines are preserved).
+   * Default is Off.
+   */
+  vtkSetMacro(ShowCursor, bool);
+  vtkGetMacro(ShowCursor, bool);
+  vtkBooleanMacro(ShowCursor, bool);
+  ///@}
+
 protected:
   vtkInteractorEventRecorder();
   ~vtkInteractorEventRecorder() override;
@@ -141,10 +157,6 @@ protected:
   virtual void WriteEvent(const char* event, int pos[2], int modifiers, int keyCode,
     int repeatCount, char* keySym, void* callData = nullptr);
 
-  VTK_DEPRECATED_IN_9_2_0(
-    "This method was not used at all and has been replaced by ReadEvent(const std::string&)")
-  virtual void ReadEvent(){};
-
   /**
    * A method that parse a event line and invoke the corresponding event
    */
@@ -173,6 +185,9 @@ protected:
 private:
   vtkInteractorEventRecorder(const vtkInteractorEventRecorder&) = delete;
   void operator=(const vtkInteractorEventRecorder&) = delete;
+
+  bool ShowCursor = false;
+  vtkNew<vtkActor2D> CursorActor;
 };
 
 VTK_ABI_NAMESPACE_END

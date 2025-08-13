@@ -20,9 +20,10 @@
 
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkWindow.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
-class VTKRENDERINGCORE_EXPORT vtkHardwareWindow : public vtkWindow
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkHardwareWindow : public vtkWindow
 {
 public:
   static vtkHardwareWindow* New();
@@ -30,10 +31,10 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // create the window (not the instance)
-  virtual void Create(){};
+  virtual void Create() {}
 
   // destroy the window (not the instance)
-  virtual void Destroy(){};
+  virtual void Destroy() {}
 
 protected:
   vtkHardwareWindow();

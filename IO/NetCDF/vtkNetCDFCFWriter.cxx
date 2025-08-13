@@ -33,7 +33,6 @@
 #include <sstream>
 #include <vector>
 
-#include "vtk_libproj.h"
 #include "vtk_netcdf.h"
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -77,14 +76,32 @@ nc_type VTKTypeToNetCDFType(int type)
       // and NetCDF reports an error if you store something else.
     case VTK_CHAR:
     case VTK_SIGNED_CHAR:
-    case VTK_UNSIGNED_CHAR:
       return NC_BYTE;
+    case VTK_UNSIGNED_CHAR:
+      return NC_UBYTE;
     case VTK_SHORT:
       return NC_SHORT;
+    case VTK_UNSIGNED_SHORT:
+      return NC_USHORT;
     case VTK_INT:
       return NC_INT;
+    case VTK_UNSIGNED_INT:
+      return NC_UINT;
+#if VTK_SIZEOF_LONG == 4
     case VTK_LONG:
       return NC_INT;
+    case VTK_UNSIGNED_LONG:
+      return NC_UINT;
+#else
+    case VTK_LONG:
+      return NC_INT64;
+    case VTK_UNSIGNED_LONG:
+      return NC_UINT64;
+#endif
+    case VTK_LONG_LONG:
+      return NC_INT64;
+    case VTK_UNSIGNED_LONG_LONG:
+      return NC_UINT64;
     case VTK_FLOAT:
       return NC_FLOAT;
     case VTK_DOUBLE:
@@ -428,7 +445,7 @@ public:
     int status, dimidOrder[3];
     int fillValue = this->Obj->GetFillValue();
 
-    // How the array is layed out in memory
+    // How the array is laid out in memory
     dimidOrder[0] = dimid[2];
     dimidOrder[1] = dimid[1];
     dimidOrder[2] = dimid[0];

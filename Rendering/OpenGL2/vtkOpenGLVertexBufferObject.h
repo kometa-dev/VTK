@@ -19,7 +19,8 @@ class vtkOpenGLVertexBufferObjectCache;
  */
 
 // useful union for stuffing colors into a float
-union vtkFourByteUnion {
+union vtkFourByteUnion
+{
   unsigned char c[4];
   short s[2];
   float f;
@@ -115,8 +116,8 @@ public:
   // so allow applications to turn all these shifts off and manage the
   // float imprecision on their own.
   static void SetGlobalCoordShiftAndScaleEnabled(vtkTypeBool val);
-  static void GlobalCoordShiftAndScaleEnabledOn() { SetGlobalCoordShiftAndScaleEnabled(1); };
-  static void GlobalCoordShiftAndScaleEnabledOff() { SetGlobalCoordShiftAndScaleEnabled(0); };
+  static void GlobalCoordShiftAndScaleEnabledOn() { SetGlobalCoordShiftAndScaleEnabled(1); }
+  static void GlobalCoordShiftAndScaleEnabledOff() { SetGlobalCoordShiftAndScaleEnabled(0); }
   static vtkTypeBool GetGlobalCoordShiftAndScaleEnabled();
 
   // Set/Get the DataType to use for the VBO

@@ -93,15 +93,15 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  hid_t OpenFile(char* _FileName)
+  hid_t OpenFile(char* _filename)
   {
-    if (this->FileName != _FileName)
+    if (this->FileName != _filename)
     {
       this->CloseFile();
-      if (_FileName != nullptr)
+      if (_filename != nullptr)
       {
-        this->FileName = std::string(_FileName);
-        this->FileIndx = H5Fopen(_FileName, H5F_ACC_RDONLY, H5P_DEFAULT);
+        this->FileName = std::string(_filename);
+        this->FileIndx = H5Fopen(_filename, H5F_ACC_RDONLY, H5P_DEFAULT);
         this->PointData = vtkPointData::New();
       }
     }
@@ -961,7 +961,7 @@ int vtkTRUCHASReader::RequestData(
     }
     else
     {
-      strncpy(field_name, array_name, MAX_NAME);
+      strncpy(field_name, array_name, sizeof(field_name));
     }
 
     bool isFloat = this->Internals->array_isFloat[array_name];

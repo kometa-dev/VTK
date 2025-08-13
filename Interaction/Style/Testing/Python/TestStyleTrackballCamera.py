@@ -45,10 +45,10 @@ class TestStyleTrackballCamera(vtkmodules.test.Testing.vtkTest):
 
         # Switch to Trackball+Actor mode
 
-        iRen.SetKeyEventInformation(0, 0, 't', 0, '0')
+        iRen.SetKeyEventInformation(0, 0, 't', 0, 't')
         iRen.InvokeEvent("CharEvent")
 
-        iRen.SetKeyEventInformation(0, 0, 'c', 0, '0')
+        iRen.SetKeyEventInformation(0, 0, 'c', 0, 'c')
         iRen.InvokeEvent("CharEvent")
 
         # Test style
@@ -59,7 +59,7 @@ class TestStyleTrackballCamera(vtkmodules.test.Testing.vtkTest):
         # render and interact with data
 
         img_file = "TestStyleTrackballCamera.png"
-        vtkmodules.test.Testing.compareImage(iRen.GetRenderWindow(), vtkmodules.test.Testing.getAbsImagePath(img_file), threshold=25)
+        vtkmodules.test.Testing.compareImage(iRen.GetRenderWindow(), vtkmodules.test.Testing.getAbsImagePath(img_file))
         vtkmodules.test.Testing.interact()
 
 if __name__ == "__main__":

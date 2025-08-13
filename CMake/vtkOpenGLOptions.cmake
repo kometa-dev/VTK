@@ -24,47 +24,44 @@ cmake_dependent_option(VTK_USE_WIN32_OPENGL "Use Win32 APIs for VTK render windo
 mark_as_advanced(VTK_USE_WIN32_OPENGL)
 
 set(default_use_sdl2 OFF)
-if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-  set(default_use_sdl2 ON)
-endif()
-option(VTK_USE_SDL2 "Add SDL2 classes to VTK" "${default_use_sdl2}")
+# VTK_DEPRECATED_IN_9_4_0() Remove option when vtkSDL2OpenGLRenderWindow and vtkSDL2WebGPURenderWindow are removed.
+option(VTK_USE_SDL2 "Add SDL2 classes to VTK. This option will soon be removed" "${default_use_sdl2}")
 mark_as_advanced(VTK_USE_SDL2)
+if (VTK_USE_SDL2)
+  message(WARNING "You are using a soon to be deprecated flag. The VTK_USE_SDL2 option is marked for deprecation in VTK 9.4!")
+endif ()
 
 # For optional APIs that could be available for the OpenGL implementation
 # being used, we define VTK_OPENGL_HAS_<feature> options. These are not to be
 # treated as mutually exclusive.
 
 #-----------------------------------------------------------------------------
-# OSMesa variables
-#-----------------------------------------------------------------------------
-# OpenGL implementation supports OSMesa for creating offscreen context.
-option(VTK_OPENGL_HAS_OSMESA
-  "The OpenGL library being used supports offscreen Mesa (OSMesa)" OFF)
-mark_as_advanced(VTK_OPENGL_HAS_OSMESA)
-
-#-----------------------------------------------------------------------------
 # GLES variables
 #-----------------------------------------------------------------------------
 
 set(default_has_egl OFF)
+set(default_use_gles OFF)
 if (ANDROID)
-  set(VTK_OPENGL_USE_GLES ON)
   set(default_has_egl ON)
+  set(default_use_gles ON)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-  set(VTK_OPENGL_USE_GLES ON)
-else ()
-  # OpenGLES implementation.
-  option(VTK_OPENGL_USE_GLES "Use the OpenGL ES API" OFF)
-  mark_as_advanced(VTK_OPENGL_USE_GLES)
+  set(default_use_gles ON)
+elseif (UNIX AND NOT APPLE)
+  set(default_has_egl ON)
 endif ()
+# OpenGLES implementation.
+option(VTK_OPENGL_USE_GLES "Use the OpenGL ES API" "${default_use_gles}")
+mark_as_advanced(VTK_OPENGL_USE_GLES)
 
 #-----------------------------------------------------------------------------
 # EGL variables
 #-----------------------------------------------------------------------------
-# OpenGL implementation supports EGL for creating offscreen context.
-option(VTK_OPENGL_HAS_EGL "The OpenGL library being used supports EGL" "${default_has_egl}")
+# Whether VTK should attempt to use EGL for creating offscreen context.
+option(VTK_OPENGL_HAS_EGL "Enable EGL support for creating GPU accelerated offscreen context" "${default_has_egl}")
 mark_as_advanced(VTK_OPENGL_HAS_EGL)
-
+if (VTK_OPENGL_HAS_EGL AND APPLE)
+  message(FATAL_ERROR "VTK_OPENGL_HAS_EGL is ON, but APPLE platform does not support EGL!")
+endif ()
 set(VTK_DEFAULT_EGL_DEVICE_INDEX "0" CACHE STRING
   "EGL device (graphics card) index to use by default for EGL render windows.")
 mark_as_advanced(VTK_DEFAULT_EGL_DEVICE_INDEX)
@@ -79,17 +76,16 @@ mark_as_advanced(VTK_DEFAULT_RENDER_WINDOW_OFFSCREEN)
 #-----------------------------------------------------------------------------
 set(vtk_can_do_offscreen FALSE)
 set(vtk_can_do_onscreen FALSE)
-set(vtk_can_do_headless FALSE)
+# VTK OSMesa support is always built on major desktop platforms because it's far cheaper and simpler
+# to just build software-only support rather than making `vtkOpenGLRenderWindow` handle situations when
+# neither the hardware accelerated on/offscreen backends, nor the software-only backends are available.
+set(vtk_can_do_headless TRUE)
 
-if (VTK_USE_WIN32_OPENGL OR VTK_OPENGL_HAS_OSMESA OR VTK_OPENGL_HAS_EGL OR VTK_USE_SDL2)
+if (VTK_USE_WIN32_OPENGL OR VTK_OPENGL_HAS_EGL OR VTK_USE_SDL2)
   set(vtk_can_do_offscreen TRUE)
 endif ()
 if (VTK_USE_WIN32_OPENGL OR VTK_USE_COCOA OR VTK_USE_X OR VTK_USE_SDL2) # XXX: See error message below.
   set(vtk_can_do_onscreen TRUE)
-endif ()
-
-if (VTK_OPENGL_HAS_OSMESA OR VTK_OPENGL_HAS_EGL)
-  set(vtk_can_do_headless TRUE)
 endif ()
 
 # iOS does not use EGL
@@ -101,30 +97,11 @@ endif ()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   set(vtk_can_do_headless FALSE)
-endif ()
-
-if (NOT vtk_can_do_onscreen AND NOT vtk_can_do_offscreen)
-  message(FATAL_ERROR
-    "VTK current build configuration is not satisfiable as it supports neither onscreen "
-    "nor offscreen rendering. Make sure to set to ON at least one of the following to "
-    "be able to configure: `VTK_USE_X`, `VTK_USE_COCOA`, `VTK_OPENGL_HAS_OSMESA`, "
-    "`VTK_OPENGL_HAS_EGL` or `VTK_USE_SDL2`.")
-endif ()
-
-if (VTK_OPENGL_HAS_OSMESA AND VTK_OPENGL_HAS_EGL)
-  message(FATAL_ERROR
-    "`VTK_OPENGL_HAS_OSMESA` and `VTK_OPENGL_HAS_EGL` option can't be both "
-    "set to `ON`. The current build configuration is not satisfiable. "
-    "Please set to `OFF` any of these two.")
-endif ()
-
-if (VTK_OPENGL_HAS_OSMESA AND vtk_can_do_onscreen)
-  message(FATAL_ERROR
-    "The `VTK_OPENGL_HAS_OSMESA` can't be set to `ON` if any of the following is true: "
-    "`VTK_USE_WIN32_OPENGL`, `VTK_USE_COCOA` is `ON`, or `VTK_USE_X` is "
-    "`ON` or `VTK_USE_SDL2` is `ON`. OSMesa does not support on-screen "
-    "rendering and VTK's OpenGL selection is at build time, so the current "
-    "build configuration is not satisfiable.")
+  # VTK_DEPRECATED_IN_9_4_0() Unconditionally set both variables to TRUE after VTK_USE_SDL2 is removed.
+  if (NOT VTK_USE_SDL2)
+    set(vtk_can_do_onscreen TRUE)
+    set(vtk_can_do_offscreen TRUE)
+  endif ()
 endif ()
 
 cmake_dependent_option(

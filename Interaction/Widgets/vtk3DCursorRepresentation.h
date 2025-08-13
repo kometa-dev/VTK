@@ -24,12 +24,12 @@
 #define vtk3DCursorRepresentation_h
 
 #include "vtkActor.h"                    // For vtkActor
-#include "vtkDeprecation.h"              // For deprecation macros
 #include "vtkHardwarePicker.h"           // For vtkHardwarePicker
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkNew.h"                      // For vtkNew
 #include "vtkSmartPointer.h"             // For vtkSmartPointer
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include <memory> // for unique_ptr
 
@@ -37,7 +37,8 @@ VTK_ABI_NAMESPACE_BEGIN
 
 class vtkViewport;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtk3DCursorRepresentation : public vtkWidgetRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtk3DCursorRepresentation
+  : public vtkWidgetRepresentation
 {
 public:
   static vtk3DCursorRepresentation* New();
@@ -88,17 +89,6 @@ public:
    */
   void SetCustomCursor(vtkActor* customCursor);
   vtkGetSmartPointerMacro(CustomCursor, vtkActor);
-  ///@}
-
-  ///@{
-  /**
-   * Set / Get the actor currently used as the 3D cursor.
-   * By default, the cursor is a 3D cross (vtkCursor3D).
-   */
-  VTK_DEPRECATED_IN_9_3_0("Please use SetCursorShape and SetCustomCursor instead.")
-  virtual void SetCursor(vtkActor* cursor);
-  VTK_DEPRECATED_IN_9_3_0("Please use GetCustomCursor instead.")
-  virtual vtkActor* GetCursor();
   ///@}
 
 protected:

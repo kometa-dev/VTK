@@ -17,7 +17,7 @@
  *
  * The filter implements a contouring operation over a non-continuous scalar
  * field. In comparison, classic contouring methods (like Flying Edges or
- * Marching Cubes) presume a continuous scalar field. In comparision, this
+ * Marching Cubes) presume a continuous scalar field. In comparison, this
  * method processes non-continuous label maps, which corresponds to discrete
  * regions in an input 3D image (i.e., volume). With a non-continuous scalar
  * function, the usual data interpolation across a continuous function (e.g.,
@@ -44,6 +44,11 @@
  * faithful to the original published literature describing the Surface Nets
  * algorithm, and for performance reasons since smoothing stencils can be
  * generated on the fly.)
+ *
+ * See the following reference for more details about the implementation:
+ * W. Schroeder, S. Tsalikis, M. Halle, S. Frisken. A High-Performance
+ * SurfaceNets Discrete Isocontouring Algorithm. arXiv:2401.14906. 2024.
+ * (http://arxiv.org/abs/2401.14906).
  *
  * The Surface Nets algorithm was first proposed by Sarah Frisken.  Two
  * important papers include the description of surface nets for binary
@@ -264,7 +269,7 @@ public:
   ///@{
   /**
    * This value specifies the label value to use when referencing the
-   * backround region outside of any of the specified regions. (This value is
+   * background region outside of any of the specified regions. (This value is
    * used when producing cell scalars.) By default this value is zero. Be
    * very careful of the value being used here, it should not overlap an
    * extracted label value, and because it is the same type as the input
@@ -344,8 +349,8 @@ public:
   void SetConstraintBox(double sx, double sy, double sz)
   {
     this->Smoother->SetConstraintBox(sx, sy, sz);
-  };
-  void SetConstraintBox(double s[3]) { this->Smoother->SetConstraintBox(s); };
+  }
+  void SetConstraintBox(double s[3]) { this->Smoother->SetConstraintBox(s); }
   double* GetConstraintBox() VTK_SIZEHINT(3) { return this->Smoother->GetConstraintBox(); }
   void GetConstraintBox(double s[3]) { this->Smoother->GetConstraintBox(s); }
   void SetConstraintStrategyToConstraintDistance()

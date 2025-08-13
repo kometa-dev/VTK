@@ -1,7 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-// VTK_DEPRECATED_IN_9_2_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkModifiedBSPTree.h"
 
@@ -89,13 +87,13 @@ public:
       Maxs[i] = new cell_extents[nCells];
     }
     global_list_count += 1;
-  };
+  }
   ~Sorted_cell_extents_Lists()
   {
     for (int i = 0; i < 3; i++)
     {
-      delete[](this->Mins[i]);
-      delete[](this->Maxs[i]);
+      delete[] (this->Mins[i]);
+      delete[] (this->Maxs[i]);
     }
     global_list_count -= 1;
   }
@@ -149,23 +147,25 @@ void vtkModifiedBSPTree::BuildLocatorInternal()
 
   // sort the cells into 6 lists using structure for subdividing tests
   Sorted_cell_extents_Lists* lists = new Sorted_cell_extents_Lists(numCells);
-  vtkSMPTools::For(0, numCells, [&](vtkIdType begin, vtkIdType end) {
-    double cellBounds[6], *cellBoundsPtr;
-    cellBoundsPtr = cellBounds;
-    for (uint8_t i = 0; i < 3; ++i)
+  vtkSMPTools::For(0, numCells,
+    [&](vtkIdType begin, vtkIdType end)
     {
-      for (vtkIdType j = begin; j < end; ++j)
+      double cellBounds[6], *cellBoundsPtr;
+      cellBoundsPtr = cellBounds;
+      for (uint8_t i = 0; i < 3; ++i)
       {
-        this->GetCellBounds(j, cellBoundsPtr);
-        lists->Mins[i][j].min = cellBoundsPtr[i * 2];
-        lists->Mins[i][j].max = cellBoundsPtr[i * 2 + 1];
-        lists->Mins[i][j].cell_ID = j;
-        lists->Maxs[i][j].min = cellBoundsPtr[i * 2];
-        lists->Maxs[i][j].max = cellBoundsPtr[i * 2 + 1];
-        lists->Maxs[i][j].cell_ID = j;
+        for (vtkIdType j = begin; j < end; ++j)
+        {
+          this->GetCellBounds(j, cellBoundsPtr);
+          lists->Mins[i][j].min = cellBoundsPtr[i * 2];
+          lists->Mins[i][j].max = cellBoundsPtr[i * 2 + 1];
+          lists->Mins[i][j].cell_ID = j;
+          lists->Maxs[i][j].min = cellBoundsPtr[i * 2];
+          lists->Maxs[i][j].max = cellBoundsPtr[i * 2 + 1];
+          lists->Maxs[i][j].cell_ID = j;
+        }
       }
-    }
-  });
+    });
   for (uint8_t i = 0; i < 3; i++)
   {
     // Sort
@@ -475,7 +475,7 @@ public:
     {
       bounds[i] = b[i];
     }
-  };
+  }
 };
 
 //------------------------------------------------------------------------------
@@ -1034,7 +1034,6 @@ void vtkModifiedBSPTree::ShallowCopy(vtkAbstractCellLocator* locator)
   // we only copy what's actually used by vtkModifiedBSPTree
 
   // vtkLocator parameters
-  this->SetDataSet(cellLocator->GetDataSet());
   this->SetUseExistingSearchStructure(cellLocator->GetUseExistingSearchStructure());
   this->SetMaxLevel(cellLocator->GetMaxLevel());
   this->Level = cellLocator->Level;
@@ -1050,6 +1049,7 @@ void vtkModifiedBSPTree::ShallowCopy(vtkAbstractCellLocator* locator)
   this->npn = cellLocator->npn;
   this->nln = cellLocator->nln;
   this->tot_depth = cellLocator->tot_depth;
+  this->BuildTime.Modified();
 }
 
 //------------------------------------------------------------------------------

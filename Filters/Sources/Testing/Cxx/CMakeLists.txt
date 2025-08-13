@@ -12,6 +12,7 @@ vtk_add_test_cxx(vtkFiltersSourcesCxxTests tests
   TestFrustumSource.cxx,NO_VALID
   TestGlyphSource2D.cxx,NO_VALID
   TestGlyphSource2DResolution.cxx,
+  TestGoldenBallSource.cxx,NO_VALID
   TestHyperTreeGridPreConfiguredSource.cxx
   TestLineSource.cxx,NO_VALID
   TestMultiBlock.cxx
@@ -28,13 +29,36 @@ vtk_add_test_cxx(vtkFiltersSourcesCxxTests tests
   TestRandomHyperTreeGridSource.cxx
   TestRectangularButtonSource.cxx,NO_VALID
   TestRegularPolygonSource.cxx,NO_VALID
+  TestSpatioTemporalHarmonicsSource.cxx
   TestSphereSource.cxx,NO_VALID
   TestSuperquadricSource.cxx,NO_VALID
   TestTessellatedBoxSource.cxx,NO_VALID
   TestTextSource.cxx,NO_VALID
   TestTexturedSphereSource.cxx,NO_VALID
   )
+
 vtk_test_cxx_executable(vtkFiltersSourcesCxxTests tests
   DISABLE_FLOATING_POINT_EXCEPTIONS
   RENDERING_FACTORY
   )
+
+if(TARGET VTK::ParallelMPI)
+   set(vtkFiltersSourcesCxxTests-MPI_NUMPROCS 2)
+   vtk_add_test_mpi(vtkFiltersSourcesCxxTests-MPI tests_mpi_2
+     TESTING_DATA
+     TestSpatioTemporalHarmonicsSourceDistributed.cxx,
+   )
+   set(vtkFiltersSourcesCxxTests-MPI_NUMPROCS 3)
+   vtk_add_test_mpi(vtkFiltersSourcesCxxTests-MPI tests_mpi_3
+     TESTING_DATA
+     TestRandomHyperTreeGridSourceMPI3,TestRandomHyperTreeGridSourceDistributed.cxx
+     TestHyperTreeGridSourceDistributed.cxx,NO_VALID
+   )
+   set(tests_mpi
+     ${tests_mpi_2}
+     ${tests_mpi_3}
+   )
+  vtk_test_cxx_executable(vtkFiltersSourcesCxxTests-MPI tests_mpi
+    RENDERING_FACTORY
+  )
+endif()

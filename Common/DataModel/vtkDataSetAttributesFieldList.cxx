@@ -264,13 +264,12 @@ std::array<const detail::FieldInfo*, vtkDataSetAttributes::NUM_ATTRIBUTES> GetAt
     for (const auto& inattrs : finfo->AttributeTypes)
     {
       std::transform(accumulated_attrs.begin(), accumulated_attrs.end(), inattrs.begin(),
-        accumulated_attrs.begin(), std::logical_and<bool>());
+        accumulated_attrs.begin(), std::logical_and<>());
     }
 
     std::transform(attrs.begin(), attrs.end(), accumulated_attrs.begin(), attrs.begin(),
-      [&](const detail::FieldInfo* prev, bool isattr) {
-        return isattr && prev == nullptr ? finfo : prev;
-      });
+      [&](const detail::FieldInfo* prev, bool isattr)
+      { return isattr && prev == nullptr ? finfo : prev; });
   }
   return attrs;
 }
@@ -312,7 +311,7 @@ public:
 
   vtkInternals()
     : NumberOfTuples(0)
-    , NumberOfInputs(-1)
+    , NumberOfInputs(0)
     , Mode(NONE)
   {
   }
@@ -321,7 +320,7 @@ public:
   {
     this->Fields.clear();
     this->NumberOfTuples = 0;
-    this->NumberOfInputs = -1;
+    this->NumberOfInputs = 0;
     this->Mode = NONE;
   }
 
@@ -415,7 +414,7 @@ void vtkDataSetAttributesFieldList::InitializeFieldList(vtkDataSetAttributes* ds
 void vtkDataSetAttributesFieldList::IntersectFieldList(vtkDataSetAttributes* dsa)
 {
   auto& internals = *this->Internals;
-  if (internals.NumberOfInputs == -1)
+  if (internals.NumberOfInputs == 0)
   {
     // called without calling InitializeFieldList, just call it.
     this->InitializeFieldList(dsa);
@@ -457,9 +456,8 @@ void vtkDataSetAttributesFieldList::IntersectFieldList(vtkDataSetAttributes* dsa
   // second, remove fields from accumulate collection with names not in the
   // intersection set.
   detail::remove_if(accfields, accfields.begin(), accfields.end(),
-    [&](const std::pair<std::string, detail::FieldInfo>& pair) {
-      return rkeys.find(pair.first) == rkeys.end();
-    });
+    [&](const std::pair<std::string, detail::FieldInfo>& pair)
+    { return rkeys.find(pair.first) == rkeys.end(); });
 
   // now, since multiple fields can have same name (including empty names),
   // we do second intersection for fields with same names (or no names).
@@ -488,7 +486,7 @@ void vtkDataSetAttributesFieldList::IntersectFieldList(vtkDataSetAttributes* dsa
 void vtkDataSetAttributesFieldList::UnionFieldList(vtkDataSetAttributes* dsa)
 {
   auto& internals = *this->Internals;
-  if (internals.NumberOfInputs == -1)
+  if (internals.NumberOfInputs == 0)
   {
     // called without calling InitializeFieldList, just call it.
     this->InitializeFieldList(dsa);
@@ -723,8 +721,8 @@ void vtkDataSetAttributesFieldList::InterpolatePoint(int inputIndex, vtkDataSetA
 }
 
 //------------------------------------------------------------------------------
-void vtkDataSetAttributesFieldList::TransformData(int inputIndex, vtkDataSetAttributes* input,
-  vtkDataSetAttributes* output, std::function<void(vtkAbstractArray*, vtkAbstractArray*)> op) const
+void vtkDataSetAttributesFieldList::TransformData(int inputIndex, vtkFieldData* input,
+  vtkFieldData* output, std::function<void(vtkAbstractArray*, vtkAbstractArray*)> op) const
 {
   auto& internals = *this->Internals;
   for (auto& pair : internals.Fields)

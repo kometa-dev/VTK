@@ -20,6 +20,7 @@
 #include "vtkObject.h"
 #include "vtkRect.h"                // for ivar
 #include "vtkRenderingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkHomogeneousTransform;
@@ -31,7 +32,7 @@ class vtkTransform;
 class vtkCallbackCommand;
 class vtkCameraCallbackCommand;
 
-class VTKRENDERINGCORE_EXPORT vtkCamera : public vtkObject
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkCamera : public vtkObject
 {
 public:
   vtkTypeMacro(vtkCamera, vtkObject);
@@ -422,6 +423,18 @@ public:
   void GetEyePosition(double eyePosition[3]);
   ///@}
 
+  ///@{
+  /**
+   * Using the LeftEye property to determine whether left or right
+   * eye is being requested, this method computes and returns the
+   * position of the requested eye, taking head orientation
+   * and eye separation into account.
+   * The eyePosition parameter is output only, all elements are
+   * overwritten.
+   */
+  void GetStereoEyePosition(double eyePosition[3]);
+  ///@}
+
   /**
    * Get normal vector from eye to screen rotated by EyeTransformMatrix.
    * This will be used only for offaxis frustum calculation.
@@ -436,16 +449,9 @@ public:
    * Default is identity.
    */
   void SetEyeTransformMatrix(vtkMatrix4x4* matrix);
+  void SetEyeTransformMatrix(const double elements[16]);
   vtkGetObjectMacro(EyeTransformMatrix, vtkMatrix4x4);
   ///@}
-
-  /**
-   * Set the eye transform matrix.
-   * This is the transformation matrix for the point between eyes.
-   * This will be used only for offaxis frustum calculation.
-   * Default is identity.
-   */
-  void SetEyeTransformMatrix(const double elements[16]);
 
   ///@{
   /**
@@ -454,15 +460,9 @@ public:
    * such as scale, shear, rotations and translations.
    */
   void SetModelTransformMatrix(vtkMatrix4x4* matrix);
+  void SetModelTransformMatrix(const double elements[16]);
   vtkGetObjectMacro(ModelTransformMatrix, vtkMatrix4x4);
   ///@}
-
-  /**
-   * Set model transformation matrix.
-   * This matrix could be used for model related transformations
-   * such as scale, shear, rotations and translations.
-   */
-  void SetModelTransformMatrix(const double elements[16]);
 
   /**
    * Return the model view matrix of model view transform.

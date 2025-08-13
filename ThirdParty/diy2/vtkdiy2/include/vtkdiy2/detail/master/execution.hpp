@@ -1,3 +1,5 @@
+#include <algorithm>
+
 struct diy::Master::ProcessBlock
 {
           ProcessBlock(Master&                    master_,
@@ -61,8 +63,7 @@ struct diy::Master::ProcessBlock
           cmd->execute(skip ? 0 : master.block(i), master.proxy(i));
 
           // no longer need them, so get rid of them
-          current_incoming[gid].queues.clear();
-          current_incoming[gid].records.clear();
+          current_incoming[gid].clear();
       }
 
       if (skip && master.block(i) == 0)
@@ -128,7 +129,7 @@ execute()
   }
   else
   {
-    num_threads = std::min(threads_, limit_);
+    num_threads = (std::min)(threads_, limit_);
     blocks_per_thread = limit_/num_threads;
   }
 

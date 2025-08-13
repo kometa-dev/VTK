@@ -3,7 +3,7 @@
 
 /**
  * @class vtkOpenGLCompositePolyDataMapperDelegator
- * @brief An OpenGL delegator for batched rendering of multipler polydata with similar structure.
+ * @brief An OpenGL delegator for batched rendering of multiple polydata with similar structure.
  *
  * This class delegates work to vtkOpenGLBatchedPolyDataMapper which can do batched rendering
  * of many polydata.
@@ -20,9 +20,16 @@
 #include "vtkOpenGLPolyDataMapper.h"   // for PrimitiveEnd
 #include "vtkRenderingOpenGL2Module.h" // for export macro
 
-VTK_ABI_NAMESPACE_BEGIN
-class vtkOpenGLBatchedPolyDataMapper;
+#include "vtk_glad.h"
 
+VTK_ABI_NAMESPACE_BEGIN
+#ifdef GL_ES_VERSION_3_0
+class vtkOpenGLLowMemoryBatchedPolyDataMapper;
+#define GLDelegateClass vtkOpenGLLowMemoryBatchedPolyDataMapper
+#else
+class vtkOpenGLBatchedPolyDataMapper;
+#define GLDelegateClass vtkOpenGLBatchedPolyDataMapper
+#endif
 class VTKRENDERINGOPENGL2_EXPORT vtkOpenGLCompositePolyDataMapperDelegator
   : public vtkCompositePolyDataMapperDelegator
 {
@@ -78,7 +85,7 @@ protected:
   // From that point on, parent class manages lifetime of this GLDelegate.
   // Instead of repeatedly downcasting the abstract Delegate, we trampoline
   // calls to GLDelegate.
-  vtkOpenGLBatchedPolyDataMapper* GLDelegate = nullptr;
+  GLDelegateClass* GLDelegate = nullptr;
 
 private:
   vtkOpenGLCompositePolyDataMapperDelegator(

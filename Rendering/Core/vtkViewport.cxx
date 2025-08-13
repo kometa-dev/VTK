@@ -32,6 +32,7 @@ vtkViewport::vtkViewport()
   this->BackgroundAlpha = 0.0;
 
   this->GradientBackground = false;
+  this->DitherGradient = true;
 
   this->EnvironmentalBG[0] = 0;
   this->EnvironmentalBG[1] = 0;
@@ -149,15 +150,15 @@ void vtkViewport::AddViewProp(vtkProp* p)
 //------------------------------------------------------------------------------
 void vtkViewport::RemoveViewProp(vtkProp* p)
 {
-  if (p && this->HasViewProp(p))
+  if (p)
   {
-    if (this->VTKWindow)
+    int index = this->Props->IndexOfFirstOccurence(p);
+    if (index >= 0)
     {
-      this->VTKWindow->MakeCurrent();
+      p->ReleaseGraphicsResources(this->VTKWindow);
+      p->RemoveConsumer(this);
+      this->Props->RemoveItem(index);
     }
-    p->ReleaseGraphicsResources(this->VTKWindow);
-    p->RemoveConsumer(this);
-    this->Props->RemoveItem(p);
   }
 }
 

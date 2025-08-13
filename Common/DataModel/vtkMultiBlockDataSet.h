@@ -29,9 +29,10 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObjectTree.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALMANUAL
 
 VTK_ABI_NAMESPACE_BEGIN
-class VTKCOMMONDATAMODEL_EXPORT vtkMultiBlockDataSet : public vtkDataObjectTree
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALMANUAL vtkMultiBlockDataSet : public vtkDataObjectTree
 {
 public:
   static vtkMultiBlockDataSet* New();
@@ -42,7 +43,7 @@ public:
    * Return class name of data type (see vtkType.h for
    * definitions).
    */
-  int GetDataObjectType() override { return VTK_MULTIBLOCK_DATA_SET; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_MULTIBLOCK_DATA_SET; }
 
   /**
    * Set the number of blocks. This will cause allocation if the new number of

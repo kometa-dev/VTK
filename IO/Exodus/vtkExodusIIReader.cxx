@@ -4171,7 +4171,7 @@ int vtkExodusIIReaderPrivate::RequestInformation()
         // num_entries = binfo.Size;
         binfo.FileOffset = blockEntryFileOffset;
         blockEntryFileOffset += binfo.Size;
-        if (binfo.Name.length() == 0)
+        if (binfo.Name.empty())
         {
           if (this->Parent->GetUseLegacyBlockNames())
           {
@@ -4181,7 +4181,7 @@ int vtkExodusIIReaderPrivate::RequestInformation()
 #else
               "Unnamed block ID: %d Type: %s",
 #endif
-              ids[obj], binfo.TypeName.length() ? binfo.TypeName.c_str() : "nullptr");
+              ids[obj], !binfo.TypeName.empty() ? binfo.TypeName.c_str() : "nullptr");
           }
           else
           {
@@ -4315,7 +4315,7 @@ int vtkExodusIIReaderPrivate::RequestInformation()
         sinfo.FileOffset = setEntryFileOffset;
         setEntryFileOffset += sinfo.Size;
         this->GetInitialObjectStatus(obj_types[i], &sinfo);
-        if (sinfo.Name.length() == 0)
+        if (sinfo.Name.empty())
         {
           snprintf(tmpName, sizeof(tmpName),
 #ifdef VTK_USE_64BIT_IDS
@@ -4352,7 +4352,7 @@ int vtkExodusIIReaderPrivate::RequestInformation()
             minfo.Size = 0;
         }
         minfo.Name = obj_names[obj];
-        if (minfo.Name.length() == 0)
+        if (minfo.Name.empty())
         {
           snprintf(tmpName, sizeof(tmpName),
 #ifdef VTK_USE_64BIT_IDS
@@ -4624,7 +4624,6 @@ int vtkExodusIIReaderPrivate::SetUpEmptyGrid(vtkMultiBlockDataSet* output)
   // Iterate over all block and set types, creating a
   // multiblock dataset to hold objects of each type.
   int conntypidx;
-  int nbl = 0;
   output->SetNumberOfBlocks(num_conn_types);
   for (conntypidx = 0; conntypidx < num_conn_types; ++conntypidx)
   {
@@ -4655,7 +4654,6 @@ int vtkExodusIIReaderPrivate::SetUpEmptyGrid(vtkMultiBlockDataSet* output)
       vtkUnstructuredGrid* ug = vtkUnstructuredGrid::New();
       mbds->SetBlock(sortIdx, ug);
       ug->FastDelete();
-      ++nbl;
     }
   }
 #if 0
@@ -4747,7 +4745,7 @@ int vtkExodusIIReaderPrivate::SetUpEmptyGrid(vtkMultiBlockDataSet* output)
 
 void vtkExodusIIReaderPrivate::Reset()
 {
-  vtkLogF(TRACE, "vtkExodusIIReaderPrivate(%p)::Reset", this);
+  vtkLogF(TRACE, "vtkExodusIIReaderPrivate(%p)::Reset", static_cast<void*>(this));
   this->CloseFile();
   this->ResetCache(); // must come before BlockInfo and SetInfo are cleared.
   this->BlockInfo.clear();
@@ -4942,8 +4940,8 @@ void vtkExodusIIReaderPrivate::SetObjectStatus(int otyp, int k, int stat)
     return;
   }
 
-  vtkLogF(TRACE, "vtkExodusIIReaderPrivate(%p): SetObjectStatus(%d, %d (%s), %d)", this, otyp, k,
-    oinfop->Name.c_str(), stat);
+  vtkLogF(TRACE, "vtkExodusIIReaderPrivate(%p): SetObjectStatus(%d, %d (%s), %d)",
+    static_cast<void*>(this), otyp, k, oinfop->Name.c_str(), stat);
 
   if (oinfop->Status == stat)
   { // no change => do nothing
@@ -4963,8 +4961,8 @@ void vtkExodusIIReaderPrivate::SetUnsortedObjectStatus(int otyp, int k, int stat
     return;
   }
 
-  vtkLogF(TRACE, "vtkExodusIIReaderPrivate(%p): SetUnsortedObjectStatus(%d, %d (%s), %d)", this,
-    otyp, k, oinfop->Name.c_str(), stat);
+  vtkLogF(TRACE, "vtkExodusIIReaderPrivate(%p): SetUnsortedObjectStatus(%d, %d (%s), %d)",
+    static_cast<void*>(this), otyp, k, oinfop->Name.c_str(), stat);
 
   if (oinfop->Status == stat)
   { // no change => do nothing
@@ -5421,7 +5419,7 @@ vtkMTimeType vtkExodusIIReader::GetMetadataMTime()
 void vtkExodusIIReader::SetFileName(const char* fname)
 {
   vtkLogF(TRACE, "%s: SetFileName old=%s, new=%s", vtkLogIdentifier(this), this->FileName, fname);
-  vtkSetStringMacroBody(FileName, fname);
+  vtkSetStringMacroBody(FileName, fname)
   if (modified)
   {
     this->Metadata->Reset();
@@ -5431,7 +5429,7 @@ void vtkExodusIIReader::SetFileName(const char* fname)
 
 void vtkExodusIIReader::SetXMLFileName(const char* fname)
 {
-  vtkSetStringMacroBody(XMLFileName, fname);
+  vtkSetStringMacroBody(XMLFileName, fname)
   if (modified)
   {
     this->XMLFileNameMTime.Modified();

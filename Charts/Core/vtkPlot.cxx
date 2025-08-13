@@ -194,7 +194,7 @@ vtkStdString vtkPlot::GetNumber(double position, vtkAxis* axis)
   {
     // If axes are set to logarithmic scale we need to convert the
     // axis value using 10^(axis value)
-    ostr << pow(double(10.0), double(position));
+    ostr << pow(10.0, position);
   }
   else
   {
@@ -230,6 +230,12 @@ void vtkPlot::SetColor(unsigned char r, unsigned char g, unsigned char b, unsign
 }
 
 //------------------------------------------------------------------------------
+void vtkPlot::SetColor(unsigned char r, unsigned char g, unsigned char b)
+{
+  this->Pen->SetColor(r, g, b);
+}
+
+//------------------------------------------------------------------------------
 void vtkPlot::SetColorF(double r, double g, double b, double a)
 {
   this->Pen->SetColorF(r, g, b, a);
@@ -251,6 +257,13 @@ void vtkPlot::GetColor(unsigned char rgb[3])
 void vtkPlot::GetColorF(double rgb[3])
 {
   this->Pen->GetColorF(rgb);
+}
+
+//------------------------------------------------------------------------------
+void vtkPlot::GetColorRGBA(unsigned char rgba[4])
+{
+  this->Pen->GetColor(rgba);
+  rgba[3] = this->Pen->GetOpacity();
 }
 
 //------------------------------------------------------------------------------
@@ -537,6 +550,34 @@ void vtkPlot::SetInputArray(int index, const vtkStdString& name)
   this->Data->SetInputArrayToProcess(
     index, 0, 0, vtkDataObject::FIELD_ASSOCIATION_ROWS, name.c_str());
   this->AutoLabels = nullptr; // No longer valid
+}
+
+//------------------------------------------------------------------------------
+void vtkPlot::SetXAxisInputArrayToProcess(const std::string& name)
+{
+  this->SetInputArray(0, name);
+}
+
+//------------------------------------------------------------------------------
+std::string vtkPlot::GetXAxisInputArrayToProcess()
+{
+  auto* info = this->Data->GetInputArrayInformation(0);
+  const char* name = info->Get(vtkDataObject::FIELD_NAME());
+  return name ? name : "";
+}
+
+//------------------------------------------------------------------------------
+void vtkPlot::SetYAxisInputArrayToProcess(const std::string& name)
+{
+  this->SetInputArray(1, name);
+}
+
+//------------------------------------------------------------------------------
+std::string vtkPlot::GetYAxisInputArrayToProcess()
+{
+  auto* info = this->Data->GetInputArrayInformation(1);
+  const char* name = info->Get(vtkDataObject::FIELD_NAME());
+  return name ? name : "";
 }
 
 //------------------------------------------------------------------------------

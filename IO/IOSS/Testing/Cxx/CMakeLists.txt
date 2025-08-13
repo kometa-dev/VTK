@@ -3,9 +3,10 @@ vtk_add_test_cxx(vtkIOIOSSCxxTests tests
   TestIOSSAssemblies.cxx,NO_VALID
   TestIOSSAttributes.cxx,NO_VALID
   TestIOSSCGNS.cxx
+  TestIOSSExodus2DVector.cxx,NO_VALID
   TestIOSSExodus.cxx,NO_VALID
   TestIOSSExodusMergeEntityBlocks.cxx,NO_VALID
-  TestIOSSExodusParallelWriter.cxx,
+  TestIOSSExodusParallelWriter.cxx
   TestIOSSExodusRestarts.cxx,NO_VALID
   TestIOSSExodusSetArrays.cxx
   TestIOSSExodusWriterCrinkleClip.cxx
@@ -16,8 +17,16 @@ vtk_add_test_cxx(vtkIOIOSSCxxTests tests
   TestIOSSReadAllFilesToDetermineStructure.cxx,NO_VALID
   TestIOSSTri6.cxx
   TestIOSSUnsupported.cxx,NO_VALID
+  TestIOSSWedge21.cxx
   TestIOSSGhostArray.cxx,NO_VALID
 )
+
+if (TARGET VTK::catalyst)
+  vtk_add_test_cxx(vtkIOIOSSCxxTests tests
+    TestIOSSCatalystCGNS.cxx
+    TestIOSSCatalystExodus.cxx
+  )
+endif()
 
 if (VTK_USE_LARGE_DATA)
   vtk_add_test_cxx(vtkIOIOSSCxxTests tests
@@ -28,8 +37,13 @@ if (TARGET VTK::FiltersParallel AND TARGET VTK::RenderingParallel AND TARGET VTK
   set (vtkIOIOSSCxxTests_NUMPROCS 4)
   vtk_add_test_mpi(vtkIOIOSSCxxTests tests
     TestIOSSExodusParallelWriter.cxx,TESTING_DATA
-    TestIOSSExodusParitionedFiles.cxx,TESTING_DATA
+    TestIOSSExodusPartitionedFiles.cxx,TESTING_DATA
     TestIOSSExodusRestarts.cxx,NO_VALID,TESTING_DATA)
+  if (TARGET VTK::catalyst)
+    vtk_add_test_mpi(vtkIOIOSSCxxTests tests
+      TestIOSSCatalystExodus.cxx,TESTING_DATA
+    )
+  endif ()
 endif()
 
 vtk_test_cxx_executable(vtkIOIOSSCxxTests tests)

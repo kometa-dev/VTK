@@ -12,7 +12,7 @@
  * This mapper assumes that the points are located on the x-y plane
  * and that the camera remains perpendicular to that plane with a y-up
  * axis (this can be constrained using vtkImageInteractor).
- * On the first render, the mapper computes the visiblility of all labels
+ * On the first render, the mapper computes the visibility of all labels
  * at all scales, and queries this information on successive renders.
  * This causes the first render to be much slower. The visibility algorithm
  * is a greedy approach based on the point id, so the label for a point
@@ -22,7 +22,7 @@
  * Use this filter in combination with vtkSelectVisiblePoints if you want
  * to label only points that are visible. If you want to label cells rather
  * than points, use the filter vtkCellCenters to generate points at the
- * center of the cells. Also, you can use the class vtkIdFilter to
+ * center of the cells. Also, you can use the class vtkGenerateIds to
  * generate ids as scalars or field data, which can then be labeled.
  *
  * @sa
@@ -39,9 +39,10 @@
 
 #include "vtkLabeledDataMapper.h"
 #include "vtkRenderingLabelModule.h" // For export macro
+#include "vtkWrappingHints.h"        // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
-class VTKRENDERINGLABEL_EXPORT vtkDynamic2DLabelMapper : public vtkLabeledDataMapper
+class VTKRENDERINGLABEL_EXPORT VTK_MARSHALAUTO vtkDynamic2DLabelMapper : public vtkLabeledDataMapper
 {
 public:
   ///@{

@@ -24,6 +24,7 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
@@ -45,7 +46,7 @@ class vtkUnsignedCharArray;
 #define VTK_3D_EXTENT 1
 #define VTK_TIME_EXTENT 2
 
-class VTKCOMMONDATAMODEL_EXPORT vtkDataObject : public vtkObject
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkDataObject : public vtkObject
 {
 public:
   static vtkDataObject* New();
@@ -111,7 +112,7 @@ public:
    * VTK_RECTILINEAR_GRID (see vtkSetGet.h for definitions).
    * THIS METHOD IS THREAD SAFE
    */
-  virtual int GetDataObjectType() { return VTK_DATA_OBJECT; }
+  virtual int GetDataObjectType() VTK_FUTURE_CONST { return VTK_DATA_OBJECT; }
 
   /**
    * Used by Threaded ports to determine if they should initiate an
@@ -231,7 +232,7 @@ public:
    * and vtkStructuredGrid. The default is the have an extent in pieces,
    * with only one piece (no streaming possible).
    */
-  virtual int GetExtentType() { return VTK_PIECES_EXTENT; }
+  virtual int GetExtentType() VTK_FUTURE_CONST { return VTK_PIECES_EXTENT; }
 
   /**
    * This method crops the data object (if necessary) so that the extent
@@ -305,6 +306,20 @@ public:
   virtual vtkUnsignedCharArray* GetGhostArray(int type);
 
   /**
+   * Returns if this type of data object support ghost array for specified type.
+   * The type may be:
+   * <ul>
+   * <li>POINT    - Defined in vtkDataSet subclasses
+   * <li>CELL   - Defined in vtkDataSet subclasses.
+   * </ul>
+   * The other attribute types, will return false since
+   * ghosts arrays are not defined for now outside of point or cell.
+   * for vtkDataObject, this always return false but subclasses may override
+   * this method and implement their own logic.
+   */
+  virtual bool SupportsGhostArray(int type);
+
+  /**
    * Returns the attributes of the data object as a vtkFieldData.
    * This returns non-null values in all the same cases as GetAttributes,
    * in addition to the case of FIELD, which will return the field data
@@ -347,63 +362,119 @@ public:
    */
   static int GetAssociationTypeFromString(const char* associationName);
 
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationStringKey* DATA_TYPE_NAME();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationDataObjectKey* DATA_OBJECT();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerKey* DATA_EXTENT_TYPE();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerPointerKey* DATA_EXTENT();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerVectorKey* ALL_PIECES_EXTENT();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerKey* DATA_PIECE_NUMBER();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerKey* DATA_NUMBER_OF_PIECES();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerKey* DATA_NUMBER_OF_GHOST_LEVELS();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationDoubleKey* DATA_TIME_STEP();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationInformationVectorKey* POINT_DATA_VECTOR();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationInformationVectorKey* CELL_DATA_VECTOR();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationInformationVectorKey* VERTEX_DATA_VECTOR();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationInformationVectorKey* EDGE_DATA_VECTOR();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerKey* FIELD_ARRAY_TYPE();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerKey* FIELD_ASSOCIATION();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerKey* FIELD_ATTRIBUTE_TYPE();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerKey* FIELD_ACTIVE_ATTRIBUTE();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerKey* FIELD_NUMBER_OF_COMPONENTS();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerKey* FIELD_NUMBER_OF_TUPLES();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerKey* FIELD_OPERATION();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationDoubleVectorKey* FIELD_RANGE();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationIntegerVectorKey* PIECE_EXTENT();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationStringKey* FIELD_NAME();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationDoubleVectorKey* ORIGIN();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationDoubleVectorKey* SPACING();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationDoubleVectorKey* DIRECTION();
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationDoubleVectorKey* BOUNDING_BOX();
 
   // Key used to put SIL information in the output information by readers.
-  // \ingroup InformationKeys
+  /**
+   * \ingroup InformationKeys
+   */
   static vtkInformationDataObjectKey* SIL();
 
   ///@{

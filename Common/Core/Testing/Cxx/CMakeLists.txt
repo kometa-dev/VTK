@@ -132,6 +132,7 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestGarbageCollector.cxx
   TestGenericDataArrayAPI.cxx
   TestInformationKeyLookup.cxx
+  TestInherits.cxx
   TestLogger.cxx
   TestLoggerThreadName.cxx
   TestLookupTable.cxx
@@ -141,10 +142,13 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestMinimalStandardRandomSequence.cxx
   TestNew.cxx
   TestNumberOfGenerationsFromBase.cxx
+  TestNumberToString.cxx
   TestObjectFactory.cxx
   TestObservers.cxx
   TestObserversPerformance.cxx
   TestOStreamWrapper.cxx
+  TestPrintArrayValues.cxx
+  TestSCN.cxx
   TestSMP.cxx
   TestSmartPointer.cxx
   TestSOADataArray.cxx
@@ -178,34 +182,29 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestCompositeImplicitBackend.cxx
   TestConstantArray.cxx
   TestImplicitArraysBase.cxx
+  TestImplicitTypedArray.cxx
   TestImplicitArrayTraits.cxx
   TestIndexedArray.cxx
   TestIndexedImplicitBackend.cxx
   TestStdFunctionArray.cxx
-  )
+  TestStructuredPointArray.cxx)
 
-if (VTK_ABI_NAMESPACE_NAME STREQUAL "<DEFAULT>" OR VTK_ABI_NAMESPACE_NAME STREQUAL "")
-  # Only test type-name tokens when namespaces are disabled.
-  vtk_add_test_cxx(vtkCommonCoreCxxTests tests
-    NO_DATA NO_VALID NO_OUTPUT
-    TestInherits.cxx
-  )
-endif()
-
-# Special test to check whether disabling loguru signal handling, i.e.,
-# stack trace printing when it catches a signal, works. We add an
-# executable where the stack trace is disabled. The actual test is a
-# CMake script that runs the test executable and analyzes the output to
-# determine whether a stack trace was printed or not.
-add_executable(TestLoggerDisableSignalHandlerCxx
-  TestLoggerDisableSignalHandler.cxx)
-target_link_libraries(TestLoggerDisableSignalHandlerCxx
-  PRIVATE VTK::CommonCore VTK::CommonDataModel)
-add_test(NAME TestLoggerDisableSignalHandler
-  COMMAND ${CMAKE_COMMAND}
-  -DEXECUTABLE_PATH:FILEPATH=$<TARGET_FILE:TestLoggerDisableSignalHandlerCxx>
-  -P ${CMAKE_CURRENT_SOURCE_DIR}/TestLoggerDisableSignalHandler.cmake)
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  # On emscripten platform, loguru does not have stack trace ability.
+  # Special test to check whether disabling loguru signal handling, i.e.,
+  # stack trace printing when it catches a signal, works. We add an
+  # executable where the stack trace is disabled. The actual test is a
+  # CMake script that runs the test executable and analyzes the output to
+  # determine whether a stack trace was printed or not.
+  add_executable(TestLoggerDisableSignalHandlerCxx
+    TestLoggerDisableSignalHandler.cxx)
+  target_link_libraries(TestLoggerDisableSignalHandlerCxx
+    PRIVATE VTK::CommonCore VTK::CommonDataModel)
+  add_test(NAME TestLoggerDisableSignalHandler
+    COMMAND ${CMAKE_COMMAND}
+    -DEXECUTABLE_PATH:FILEPATH=$<TARGET_FILE:TestLoggerDisableSignalHandlerCxx>
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/TestLoggerDisableSignalHandler.cmake)
+endif ()
 
 vtk_test_cxx_executable(vtkCommonCoreCxxTests tests
-  vtkTestNewVar.cxx
-  )
+  vtkTestNewVar.cxx)

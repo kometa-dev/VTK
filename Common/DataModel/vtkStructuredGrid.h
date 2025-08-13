@@ -31,8 +31,8 @@
 #define vtkStructuredGrid_h
 
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkPointSet.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include "vtkStructuredData.h" // Needed for inline methods
 
@@ -44,7 +44,7 @@ class vtkQuad;
 class vtkUnsignedCharArray;
 class vtkVertex;
 
-class VTKCOMMONDATAMODEL_EXPORT vtkStructuredGrid : public vtkPointSet
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkStructuredGrid : public vtkPointSet
 {
 public:
   static vtkStructuredGrid* New();
@@ -56,17 +56,23 @@ public:
   /**
    * Return what type of dataset this is.
    */
-  int GetDataObjectType() override { return VTK_STRUCTURED_GRID; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_STRUCTURED_GRID; }
 
   /**
    * Copy the geometric and topological structure of an input poly data object.
    */
   void CopyStructure(vtkDataSet* ds) override;
 
+  /**
+   * Restore object to initial state. Release memory back to system.
+   */
+  void Initialize() override;
+
   ///@{
   /**
    * Standard vtkDataSet API methods. See vtkDataSet for more information.
    */
+  vtkIdType GetNumberOfCells() override;
   vtkIdType GetNumberOfPoints() override { return vtkPointSet::GetNumberOfPoints(); }
   double* GetPoint(vtkIdType ptId) VTK_SIZEHINT(3) override
   {
@@ -79,8 +85,8 @@ public:
   void GetCellBounds(vtkIdType cellId, double bounds[6]) override;
   int GetCellType(vtkIdType cellId) override;
   vtkIdType GetCellSize(vtkIdType cellId) override;
-  vtkIdType GetNumberOfCells() override;
-  using vtkDataSet::GetCellPoints;
+  void GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts, vtkIdList* ptIds)
+    VTK_SIZEHINT(pts, npts) override;
   void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override;
   void GetPointCells(vtkIdType ptId, vtkIdList* cellIds) override
   {
@@ -88,75 +94,27 @@ public:
     this->GetDimensions(dims);
     vtkStructuredData::GetPointCells(ptId, cellIds, dims);
   }
-  void Initialize() override;
   int GetMaxCellSize() override { return 8; } // hexahedron is the largest
+  int GetMaxSpatialDimension() override;
+  int GetMinSpatialDimension() override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds, int* seedLoc);
   ///@}
 
-  ///@{
   /**
-   * Sets the extent to be 0 to i-1, 0 to j-1, and 0 to k-1.
+   * Return the structured grid connectivity array.
+   *
+   * NOTE: the returned object should not be modified.
    */
-  void SetDimensions(int i, int j, int k);
+  vtkStructuredCellArray* GetCells();
 
   /**
-   * Sets the extent to be 0 to dim[i]-1 in all 3 dimensions.
+   * Get the array of all cell types in the structured grid. Each single-component
+   * integer value is the same. The array is of size GetNumberOfCells().
+   *
+   * NOTE: the returned object should not be modified.
    */
-  void SetDimensions(const int dims[3]);
-  ///@}
-
-  ///@{
-  /**
-   * Get dimensions of this structured grid.
-   */
-  VTK_DEPRECATED_IN_9_3_0("Please use GetDimensions(int dims[3]) instead.")
-  virtual int* GetDimensions() VTK_SIZEHINT(3);
-
-  /**
-   * Get dimensions of this structured grid based on its extent.
-   */
-  virtual void GetDimensions(int dims[3]);
-  ///@}
-
-  /**
-   * Return the dimensionality of the data.
-   */
-  int GetDataDimension();
-
-  ///@{
-  /**
-   * Different ways to set the extent of the data array.  The extent
-   * should be set before the "Scalars" are set or allocated.
-   * The Extent is stored in the order (X, Y, Z).
-   */
-  void SetExtent(VTK_FUTURE_CONST int extent[6]);
-  void SetExtent(int xMin, int xMax, int yMin, int yMax, int zMin, int zMax);
-  vtkGetVector6Macro(Extent, int);
-  ///@}
-
-  /**
-   * Return the actual size of the data in kibibytes (1024 bytes). This number
-   * is valid only after the pipeline has updated. The memory size
-   * returned is guaranteed to be greater than or equal to the
-   * memory required to represent the data (e.g., extra space in
-   * arrays, etc. are not included in the return value). THIS METHOD
-   * IS THREAD SAFE.
-   */
-  unsigned long GetActualMemorySize() override;
-
-  ///@{
-  /**
-   * Shallow and Deep copy.
-   */
-  void ShallowCopy(vtkDataObject* src) override;
-  void DeepCopy(vtkDataObject* src) override;
-  ///@}
-
-  /**
-   * The extent type is a 3D extent
-   */
-  int GetExtentType() override { return VTK_3D_EXTENT; }
+  vtkConstantArray<int>* GetCellTypesArray();
 
   ///@{
   /**
@@ -206,12 +164,73 @@ public:
   bool HasAnyBlankCells() override;
 
   /**
+   * Get the data description of the structured grid.
+   */
+  vtkGetMacro(DataDescription, int);
+
+  /**
    * Given the node dimensions of this grid instance, this method computes the
    * node dimensions. The value in each dimension can will have a lowest value
    * of "1" such that computing the total number of cells can be achieved by
    * simply by cellDims[0]*cellDims[1]*cellDims[2].
    */
   void GetCellDims(int cellDims[3]);
+
+  ///@{
+  /**
+   * Sets the extent to be 0 to i-1, 0 to j-1, and 0 to k-1.
+   */
+  void SetDimensions(int i, int j, int k);
+
+  /**
+   * Sets the extent to be 0 to dim[i]-1 in all 3 dimensions.
+   */
+  void SetDimensions(const int dims[3]);
+  ///@}
+
+  /**
+   * Get dimensions of this structured grid based on its extent.
+   */
+  virtual void GetDimensions(int dims[3]);
+
+  /**
+   * Return the dimensionality of the data.
+   */
+  int GetDataDimension();
+
+  ///@{
+  /**
+   * Different ways to set the extent of the data array.  The extent
+   * should be set before the "Scalars" are set or allocated.
+   * The Extent is stored in the order (X, Y, Z).
+   */
+  void SetExtent(VTK_FUTURE_CONST int extent[6]);
+  void SetExtent(int xMin, int xMax, int yMin, int yMax, int zMin, int zMax);
+  vtkGetVector6Macro(Extent, int);
+  ///@}
+
+  /**
+   * Return the actual size of the data in kibibytes (1024 bytes). This number
+   * is valid only after the pipeline has updated. The memory size
+   * returned is guaranteed to be greater than or equal to the
+   * memory required to represent the data (e.g., extra space in
+   * arrays, etc. are not included in the return value). THIS METHOD
+   * IS THREAD SAFE.
+   */
+  unsigned long GetActualMemorySize() override;
+
+  ///@{
+  /**
+   * Shallow and Deep copy.
+   */
+  void ShallowCopy(vtkDataObject* src) override;
+  void DeepCopy(vtkDataObject* src) override;
+  ///@}
+
+  /**
+   * The extent type is a 3D extent
+   */
+  int GetExtentType() VTK_FUTURE_CONST override { return VTK_3D_EXTENT; }
 
   /**
    * Reallocates and copies to set the Extent to the UpdateExtent.
@@ -243,25 +262,24 @@ protected:
   vtkStructuredGrid();
   ~vtkStructuredGrid() override;
 
-  // for the GetCell method
-  vtkVertex* Vertex;
-  vtkLine* Line;
-  vtkQuad* Quad;
-  vtkHexahedron* Hexahedron;
-  vtkEmptyCell* EmptyCell;
-
-#if !defined(VTK_LEGACY_REMOVE)
   int Dimensions[3];
-#endif
+
   int DataDescription;
 
   int Extent[6];
+
+  vtkSmartPointer<vtkStructuredCellArray> StructuredCells;
+  vtkSmartPointer<vtkConstantArray<int>> StructuredCellTypes;
 
   /**
    * Compute the range of the scalars and cache it into ScalarRange
    * only if the cache became invalid (ScalarRangeComputeTime).
    */
   void ComputeScalarRange() override;
+
+  void BuildImplicitStructures();
+  void BuildCells();
+  void BuildCellTypes();
 
 private:
   // Internal method used by DeepCopy and ShallowCopy.
@@ -271,29 +289,26 @@ private:
   void operator=(const vtkStructuredGrid&) = delete;
 };
 
-inline vtkIdType vtkStructuredGrid::GetNumberOfCells()
+//------------------------------------------------------------------------------
+inline int vtkStructuredGrid::GetDataDimension()
 {
-  vtkIdType nCells = 1;
-  int dims[3];
-  int i;
-
-  this->GetDimensions(dims);
-  for (i = 0; i < 3; i++)
-  {
-    if (dims[i] <= 0)
-    {
-      return 0;
-    }
-    if (dims[i] > 1)
-    {
-      nCells *= (dims[i] - 1);
-    }
-  }
-
-  return nCells;
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
 }
 
-inline int vtkStructuredGrid::GetDataDimension()
+//------------------------------------------------------------------------------
+inline vtkIdType vtkStructuredGrid::GetNumberOfCells()
+{
+  return vtkStructuredData::GetNumberOfCells(this->Extent);
+}
+
+//------------------------------------------------------------------------------
+inline int vtkStructuredGrid::GetMaxSpatialDimension()
+{
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
+
+//------------------------------------------------------------------------------
+inline int vtkStructuredGrid::GetMinSpatialDimension()
 {
   return vtkStructuredData::GetDataDimension(this->DataDescription);
 }

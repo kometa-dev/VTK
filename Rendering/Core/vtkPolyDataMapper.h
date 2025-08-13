@@ -15,6 +15,7 @@
 
 #include "vtkMapper.h"
 #include "vtkRenderingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 #include <cstdint> // For uintptr_t
 
@@ -23,7 +24,7 @@ class vtkPolyData;
 class vtkRenderer;
 class vtkRenderWindow;
 
-class VTKRENDERINGCORE_EXPORT vtkPolyDataMapper : public vtkMapper
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkPolyDataMapper : public vtkMapper
 {
 public:
   static vtkPolyDataMapper* New();
@@ -33,7 +34,7 @@ public:
   /**
    * Implemented by sub classes. Actual rendering is done here.
    */
-  virtual void RenderPiece(vtkRenderer*, vtkActor*){};
+  virtual void RenderPiece(vtkRenderer*, vtkActor*) {}
 
   /**
    * This calls RenderPiece (in a for loop if streaming is necessary).
@@ -49,7 +50,7 @@ public:
    * @note: For example, the OpenGL impl is capable of grouping polydata
    * that are similar in terms of the availability of scalars, normals and tcoords.
    */
-  virtual MapperHashType GenerateHash(vtkPolyData*) { return 0; };
+  virtual MapperHashType GenerateHash(vtkPolyData*) { return 0; }
 
   ///@{
   /**
@@ -104,6 +105,45 @@ public:
   vtkSetMacro(SeamlessV, bool);
   vtkGetMacro(SeamlessV, bool);
   vtkBooleanMacro(SeamlessV, bool);
+  ///@}
+
+  ///@{
+  /**
+   * By default, this class uses the dataset's point and cell ids during
+   * rendering. However, one can override those by specifying cell and point
+   * data arrays to use instead. Currently, only vtkIdType array is supported.
+   * Set to NULL string (default) to use the point ids instead.
+   */
+  vtkSetStringMacro(PointIdArrayName);
+  vtkGetStringMacro(PointIdArrayName);
+  vtkSetStringMacro(CellIdArrayName);
+  vtkGetStringMacro(CellIdArrayName);
+  ///@}
+
+  ///@{
+  /**
+   * Generally, this class can render the composite id when iterating
+   * over composite datasets. However in some cases (as in AMR), the rendered
+   * structure may not correspond to the input data, in which case we need
+   * to provide a cell array that can be used to render in the composite id in
+   * selection passes. Set to NULL (default) to not override the composite id
+   * color set by vtkCompositePainter if any.
+   * The array *MUST* be a cell array.
+   * The array's DataType *MUST* be VTK_UNSIGNED_INT.
+   */
+  vtkSetStringMacro(CompositeIdArrayName);
+  vtkGetStringMacro(CompositeIdArrayName);
+  ///@}
+
+  ///@{
+  /**
+   * If this class should override the process id using a data-array,
+   * set this variable to the name of the array to use. It must be a
+   * point-array.
+   * The array's DataType *MUST* be VTK_UNSIGNED_INT.
+   */
+  vtkSetStringMacro(ProcessIdArrayName);
+  vtkGetStringMacro(ProcessIdArrayName);
   ///@}
 
   /**
@@ -212,7 +252,7 @@ public:
 
 protected:
   vtkPolyDataMapper();
-  ~vtkPolyDataMapper() override = default;
+  ~vtkPolyDataMapper() override;
 
   /**
    * Called in GetBounds(). When this method is called, the consider the input
@@ -228,6 +268,12 @@ protected:
   bool SeamlessU, SeamlessV;
   int ShiftScaleMethod; // for points
   bool PauseShiftScale;
+
+  // additional picking indirection
+  char* PointIdArrayName = nullptr;
+  char* CellIdArrayName = nullptr;
+  char* CompositeIdArrayName = nullptr;
+  char* ProcessIdArrayName = nullptr;
 
   int FillInputPortInformation(int, vtkInformation*) override;
 

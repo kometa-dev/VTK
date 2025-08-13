@@ -12,7 +12,6 @@
 #include "vtkExecutive.h"
 #include "vtkFieldData.h"
 #include "vtkGarbageCollector.h"
-#include "vtkHierarchicalBoxDataSet.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
@@ -246,7 +245,7 @@ int vtkXMLCompositeDataWriter::WriteNonCompositeData(
   vtkXMLWriter* writer = this->GetWriter(myWriterIndex);
   if (!writer)
   {
-    return 0;
+    return 1;
   }
 
   vtkDataSet* curDS = vtkDataSet::SafeDownCast(dObj);
@@ -322,11 +321,11 @@ int vtkXMLCompositeDataWriter::WriteData()
 
   vtkInformation* meta = input->GetInformation();
   bool hasTime = meta->Has(vtkDataObject::DATA_TIME_STEP()) != 0;
-  if ((fieldData && fieldData->GetNumberOfArrays()) || hasTime)
+  if ((fieldData && fieldData->GetNumberOfArrays()) || (hasTime && this->GetWriteTimeValue()))
   {
     vtkNew<vtkFieldData> fieldDataCopy;
     fieldDataCopy->ShallowCopy(fieldData);
-    if (hasTime)
+    if (hasTime && this->GetWriteTimeValue())
     {
       vtkNew<vtkDoubleArray> time;
       time->SetNumberOfTuples(1);
@@ -478,6 +477,7 @@ void vtkXMLCompositeDataWriter::CreateWriters(vtkCompositeDataSet* hdInput)
       writer->SetEncodeAppendedData(this->GetEncodeAppendedData());
       writer->SetHeaderType(this->GetHeaderType());
       writer->SetIdType(this->GetIdType());
+      writer->SetWriteTimeValue(this->GetWriteTimeValue());
 
       // Pass input.
       writer->SetInputDataObject(iter->GetCurrentDataObject());

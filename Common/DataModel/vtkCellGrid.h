@@ -20,20 +20,24 @@
 #ifndef vtkCellGrid_h
 #define vtkCellGrid_h
 
-#include "vtkCompiler.h" // for VTK_COMPILER_MSVC
+#include "vtkCellGridRangeQuery.h" // For RangeCache ivar.
+#include "vtkCompiler.h"           // for VTK_COMPILER_MSVC
 #include "vtkDataObject.h"
 #include "vtkSmartPointer.h" // For ivars.
 #include "vtkStringToken.h"  // For ivars.
 #include "vtkTypeName.h"     // For vtk::TypeName<>().
 
 #include <array>         // For ivars.
+#include <set>           // For ivars.
 #include <unordered_map> // For ivars.
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCellAttribute;
 class vtkCellGridQuery;
+class vtkCellGridCopyQuery;
 class vtkCellMetadata;
 class vtkDataSetAttributes;
+class vtkInformationIntegerVectorKey;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkCellGrid : public vtkDataObject
 {
@@ -54,7 +58,7 @@ public:
    * Return class name of data type.
    * THIS METHOD IS THREAD SAFE
    */
-  int GetDataObjectType() override { return VTK_CELL_GRID; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_CELL_GRID; }
 
   /**
    * Return the actual size of the data in kibibytes (1024 bytes). This number
@@ -65,14 +69,34 @@ public:
    */
   unsigned long GetActualMemorySize() override;
 
+  ///@name Copying  Copying
   ///@{
-  /**
-   * Shallow and Deep copy. These copy the data, but not any pipeline connections.
-   */
+  /// Copy \a baseSrc by reference (which must be a vtkCellGrid) into this object.
+  ///
+  /// This copies cell metadata (i.e., topology) and cell-attributes (including
+  /// the cell-attribute holding the geometric shape).
   void ShallowCopy(vtkDataObject* baseSrc) override;
+
+  /// Copy \a baseSrc by value (which must be a vtkCellGrid) into this object.
+  ///
+  /// This copies cell metadata (i.e., topology) and cell-attributes (including
+  /// the cell-attribute holding the geometric shape).
   void DeepCopy(vtkDataObject* baseSrc) override;
+
+  /// Copy the geometric and topological data from \a other, but not any attributes.
+  ///
+  /// If \a byReference is true, references to source arrays are used directly.
+  /// Otherwise, deep copies of the \a other cell-grid's arrays are created.
+  bool CopyStructure(vtkCellGrid* other, bool byReference = true);
   ///@}
 
+  ///@name ArrayGroups Array-groups.
+  ///
+  /// A cell grid can have any number of *groups* of arrays.
+  /// Each group must have the same number of tuples.
+  /// The groups are related to a particular \a type (generally
+  /// they are functional groups related to a particular type of
+  /// cell or its sides).
   ///@{
   /**
    * Fetch a partition of DOF arrays.
@@ -83,10 +107,20 @@ public:
   vtkDataSetAttributes* GetAttributes(int type) override;
   vtkDataSetAttributes* GetAttributes(vtkStringToken type);
   vtkDataSetAttributes* FindAttributes(int type) const;
+  vtkDataSetAttributes* FindAttributes(vtkStringToken type) const;
   const std::unordered_map<int, vtkSmartPointer<vtkDataSetAttributes>>& GetArrayGroups() const
   {
     return this->ArrayGroups;
   }
+
+  /// This method populates the map you pass with pointers to all arrays
+  /// in this cell-grid's vtkDataSetAttributes instances.
+  ///
+  /// Various queries and responders need ways to refer to arrays by name
+  /// rather than by pointer; this provides a way to produce names based
+  /// on the array-group that the array belongs to.
+  void MapArrayLocations(
+    std::unordered_map<vtkAbstractArray*, vtkStringToken>& arrayLocations) const;
   ///@}
 
   /**
@@ -94,6 +128,11 @@ public:
    * attribute type. This may return a null pointer.
    */
   vtkUnsignedCharArray* GetGhostArray(int type) override;
+
+  /**
+   * Returns true if type is CELL, false otherwise
+   */
+  bool SupportsGhostArray(int type) override;
 
   /**
    * Retrieves the attribute type that an array came from.
@@ -146,13 +185,56 @@ public:
         std::make_pair(vtkStringToken(vtk::TypeName<CellType>()).GetId(), metadata));
       if (ok.second)
       {
-        result = ok.first.GetPointer();
+        result = dynamic_cast<CellType*>(ok.first->second.GetPointer());
       }
     }
     return result;
   }
 
   vtkCellMetadata* AddCellMetadata(vtkCellMetadata* cellType);
+
+  vtkCellMetadata* AddCellMetadata(vtkStringToken cellTypeName);
+  ///@}
+
+  ///@{
+  /**\brief Add every registered cell type to this grid.
+   *
+   * This is useful for queries that need to iterate over registered
+   * cell types in order to determine which type of cell to construct.
+   * Afterward, your VTK filter/source can call \a RemoveUnusedCellMetadata()
+   * to remove metadata for which no cells exist.
+   *
+   * The number of metadata entries added is returned.
+   */
+  int AddAllCellMetadata();
+  ///@}
+
+  ///@{
+  /// Remove all cells of the given type from this cell grid.
+  ///
+  /// This returns true if cell metadata of the given type was present.
+  template <typename CellType>
+  bool RemoveCellMetadata()
+  {
+    CellType* meta = this->GetCellsOfType<CellType>();
+    if (!meta)
+    {
+      return false;
+    }
+    return this->RemoveCellMetadata(meta);
+  }
+
+  bool RemoveCellMetadata(vtkCellMetadata* meta);
+  ///@}
+
+  ///@{
+  /**\brief Remove every registered cell type in this grid which has no cells.
+   *
+   * The number of metadata entries removed is returned.
+   *
+   * \sa vtkCellGrid::AddAllCellMetadata
+   */
+  int RemoveUnusedCellMetadata();
   ///@}
 
   ///@{
@@ -167,7 +249,7 @@ public:
     {
       return nullptr;
     }
-    return static_cast<const CellType*>(it->second);
+    return static_cast<const CellType*>(it->second.GetPointer());
   }
   template <typename CellType>
   CellType* GetCellsOfType()
@@ -177,7 +259,7 @@ public:
     {
       return nullptr;
     }
-    return static_cast<CellType*>(it->second);
+    return static_cast<CellType*>(it->second.GetPointer());
   }
   ///@}
 
@@ -200,20 +282,8 @@ public:
     this->CellTypes(cellTypes);
     return cellTypes;
   }
-  std::vector<vtkStringToken> CellTypeArray() const
-  {
-#if defined(_MSC_VER) && _MSC_VER >= 1930 && _MSC_VER < 1940 /*17.4+*/
-    // MSVC 2022 bombs when an exported method uses thread_local in its implementation.
-    // See https://github.com/pytorch/pytorch/issues/87957 for more. We omit the
-    // thread_local here, which makes this method non-threadsafe on Windows, which
-    // should be OK in most cases.
-    static std::vector<vtkStringToken> cellTypes;
-#else
-    static thread_local std::vector<vtkStringToken> cellTypes;
-#endif
-    this->CellTypes(cellTypes);
-    return cellTypes;
-  }
+  std::vector<vtkStringToken> CellTypeArray() const;
+  std::vector<std::string> GetCellTypes() const;
   ///@}
 
   ///@{
@@ -235,6 +305,66 @@ public:
    * and other basic visualization operations.
    */
   virtual bool AddCellAttribute(vtkCellAttribute* attribute);
+  ///@}
+
+  ///@{
+  /**
+   * Remove a cell-attribute from the dataset.
+   *
+   * This returns true if the cell-attribute was removed.
+   * Note that you cannot remove the shape attribute.
+   */
+  virtual bool RemoveCellAttribute(vtkCellAttribute* attribute);
+  ///@}
+
+  /// Return information on the range of values taken on by a component of an attribute.
+  ///
+  /// This method also accommodates computing the range of the L₁ or L₂ norm
+  /// of the entire tuple by passing -1 or -2, respectively, for the
+  /// \a componentIndex.
+  ///
+  /// When called with \a finiteRange equal to false (the default), either
+  /// component of \a range may be NaN (not-a-number) or +/-Inf (∞).
+  /// When \a finiteRange is true, the returned \a range values will always
+  /// be finite.
+  ///
+  /// Note that if this cell-attribute has no values, the \a range will be
+  /// marked invalid (i.e., range[1] < range[0]).
+  ///
+  /// Note that \a attribute must be an attribute owned by this cell-grid.
+  virtual bool GetCellAttributeRange(vtkCellAttribute* attribute, int componentIndex,
+    double range[2], bool finiteRange = false) const;
+
+  /// Return the cache of cell-attribute range data.
+  /// Responders to vtkCellGridRangeQuery are expected to update this.
+  vtkCellGridRangeQuery::CacheMap& GetRangeCache() const { return this->RangeCache; }
+
+  /// Clear the cache of cell-attribute range data.
+  ///
+  /// If \a attributeName is empty, the entire cache is cleared.
+  /// Otherwise, attributes with the given name are cleared from the cache.
+  /// This method exists for python scripts.
+  void ClearRangeCache(const std::string& attributeName = std::string());
+
+  /// Return the set of cell attribute IDs.
+  ///
+  /// Values in this set can be passed to GetCellAttributeById().
+  std::set<int> GetCellAttributeIds() const;
+  std::vector<int> GetUnorderedCellAttributeIds() const;
+
+  /// Return a vector of all this grid's cell-attributes.
+  ///
+  /// This is a convenience for scripting.
+  std::vector<vtkSmartPointer<vtkCellAttribute>> GetCellAttributeList() const;
+
+  ///@{
+  /**
+   * Return an attribute given its hash.
+   *
+   * This method is fast (O(1)) and preferred compared to the
+   * GetCellAttributeById and GetCellAttributeByName methods below.
+   */
+  vtkCellAttribute* GetCellAttribute(vtkStringToken::Hash hash);
   ///@}
 
   ///@{
@@ -281,6 +411,19 @@ public:
   bool Query(vtkCellGridQuery* query);
   ///@}
 
+  /// Set the schema name and version number that generated this object.
+  virtual void SetSchema(vtkStringToken name, vtkTypeUInt32 version);
+  vtkGetStringTokenMacro(SchemaName);
+  vtkGetMacro(SchemaVersion, vtkTypeUInt32);
+
+  /// Set the version number of the object's contents.
+  ///
+  /// This is not intended to be incremented with each change in memory
+  /// (as a vtkTimeStamp would) but when the object is serialized to
+  /// disk.
+  vtkSetMacro(ContentVersion, vtkTypeUInt32);
+  vtkGetMacro(ContentVersion, vtkTypeUInt32)
+
   ///@{
   /**
    * Retrieve an instance of this class from an information object.
@@ -289,11 +432,34 @@ public:
   static vtkCellGrid* GetData(vtkInformationVector* v, int i = 0);
   ///@}
 
+  /// Identify a correspondence between arrays in two cell grid objects.
+  ///
+  /// Given two cell-grids and an array held by the former, return the
+  /// corresponding array of the latter (i..e, one of the same name held
+  /// in an array-group (vtkDataSetAttributes) instance of the same name.
+  ///
+  /// If no match is found, this returns a null pointer.
+  static vtkDataArray* CorrespondingArray(
+    vtkCellGrid* gridA, vtkDataArray* arrayA, vtkCellGrid* gridB);
+
+  /// This information key is used to mark arrays with the string token(s)
+  /// of their owning vtkDataSetAttributes instance.
+  ///
+  /// If this key exists on an array, it indicates that calling
+  /// vtkCellGrid::GetAttributes() with its value will return a
+  /// vtkDataSetAttributes instance that holds the array.
+  /// It is used to accelerate the CorrespondingArray() method.
+  static vtkInformationIntegerVectorKey* ARRAY_GROUP_IDS();
+
 protected:
+  // Provide write access to this->NextAttribute:
+  friend class vtkCellGridCopyQuery;
+
   vtkCellGrid();
   ~vtkCellGrid() override;
 
   bool ComputeBoundsInternal();
+  bool ComputeRangeInternal(vtkCellAttribute* attribute, int component, bool finiteRange) const;
 
   std::unordered_map<int, vtkSmartPointer<vtkDataSetAttributes>> ArrayGroups;
   std::unordered_map<CellTypeId, vtkSmartPointer<vtkCellMetadata>> Cells;
@@ -302,8 +468,23 @@ protected:
   vtkStringToken ShapeAttribute;
   bool HaveShape{ false };
 
+  /// A string specifying the schema which generated this cell-grid.
+  vtkStringToken SchemaName;
+  /// The monotonically-increasing version number associated with \a SchemaName.
+  ///
+  /// The number 0 is reserved to indicate no version has been set.
+  vtkTypeUInt32 SchemaVersion{ 0 };
+  /// A user-provided version number for the grid's data.
+  /// This number should be incremented each time the data is serialized.
+  ///
+  /// The number 0 is reserved to indicate no version has been set.
+  vtkTypeUInt32 ContentVersion{ 0 };
+
   mutable std::array<double, 6> CachedBounds;
   mutable vtkTimeStamp CachedBoundsTime;
+
+  /// Cache for cell attribute component ranges.
+  mutable vtkCellGridRangeQuery::CacheMap RangeCache;
 
 private:
   vtkCellGrid(const vtkCellGrid&) = delete;

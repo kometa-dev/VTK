@@ -7,6 +7,13 @@
 #include "vtkResourceFileLocator.h"
 #include "vtksys/SystemTools.hxx"
 
+// Starting with Microsoft.Holographic.Remoting.OpenXr 2.9.3, the struct
+// `XrRemotingPreferredGraphicsAdapterMSFT` is defined in `openxr_msft_holographic_remoting.h`
+// and it requires the type LUID to be defined.
+// Since LUID is defined in `windows.h` (see `OpenXR-SDK-Source/specification/registry/xr.xml`),
+// we include the corresponding VTK header.
+#include <vtkWindows.h> // Defines LUID used in XrRemotingPreferredGraphicsAdapterMSFT
+
 #include <openxr_msft_holographic_remoting.h> // Defines XR_MSFT_holographic_remoting
 
 #include "XrConnectionExtensions.h" // Provides holographic remoting extensions
@@ -19,22 +26,58 @@ vtkStandardNewMacro(vtkOpenXRManagerRemoteConnection);
 //------------------------------------------------------------------------------
 bool vtkOpenXRManagerRemoteConnection::Initialize()
 {
+  // Get the path for the library
+  std::string libPath =
+    vtkResourceFileLocator::GetLibraryPathForSymbolWin32("vtkOpenXRManagerRemoteConnection");
+  std::string libDir = vtksys::SystemTools::GetFilenamePath(libPath);
+
   // Get the path for the current executable
   std::string exePath = vtkResourceFileLocator::GetLibraryPathForSymbolWin32(nullptr);
   std::string exeDir = vtksys::SystemTools::GetFilenamePath(exePath);
 
   // Look for the RemotingXR.json file provided by the microsoft.holographic.remoting.openxr
-  // package, in the system PATH and next to the executable.
+  // package, in the system PATH, next to the vtkRenderingOpenXR library and also next to the
+  // executable.
   // If found, set the XR_RUNTIME_JSON environment variable. It will be used by the OpenXR loader
   // to not use the system default OpenXR runtime but instead redirect to the Holographic Remoting
   // OpenXR runtime.
-  std::string remotingXRPath = vtksys::SystemTools::FindFile("RemotingXR.json", { exeDir });
-  if (!remotingXRPath.empty() && vtksys::SystemTools::PutEnv("XR_RUNTIME_JSON=" + remotingXRPath))
+  std::string remotingXRPath =
+    vtksys::SystemTools::FindFile("RemotingXR.json", { libDir, exeDir, this->RemotingXRDirectory });
+  if (remotingXRPath.empty())
   {
-    return true;
+    return false;
   }
 
-  return false;
+  std::string oldValue;
+  if (vtksys::SystemTools::GetEnv("XR_RUNTIME_JSON", oldValue))
+  {
+    this->OldXrRuntimeEnvValue = std::move(oldValue);
+  }
+
+  if (!vtksys::SystemTools::PutEnv("XR_RUNTIME_JSON=" + remotingXRPath))
+  {
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+bool vtkOpenXRManagerRemoteConnection::EndInitialize()
+{
+  if (!this->OldXrRuntimeEnvValue.empty())
+  {
+    if (!vtksys::SystemTools::PutEnv("XR_RUNTIME_JSON=" + this->OldXrRuntimeEnvValue))
+    {
+      return false;
+    }
+  }
+  else if (!vtksys::SystemTools::UnPutEnv("XR_RUNTIME_JSON"))
+  {
+    return false;
+  }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------

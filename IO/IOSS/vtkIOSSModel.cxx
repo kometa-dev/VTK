@@ -30,6 +30,7 @@
 #include <vtk_ioss.h>
 // clang-format off
 #include VTK_IOSS(Ioss_Assembly.h)
+#include VTK_IOSS(Ioss_CodeTypes.h)
 #include VTK_IOSS(Ioss_DatabaseIO.h)
 #include VTK_IOSS(Ioss_EdgeBlock.h)
 #include VTK_IOSS(Ioss_EdgeSet.h)
@@ -273,13 +274,15 @@ ErrorHandleInformation HandleGlobalIds(vtkPartitionedDataSetCollection* pdc, int
         globalIds->SetName(VTK_IOSS_MODEL_GLOBAL_IDS_ARRAY_NAME);
         globalIds->SetNumberOfComponents(1);
         globalIds->SetNumberOfTuples(numberOfElements);
-        vtkSMPTools::For(0, numberOfElements, [&](vtkIdType begin, vtkIdType end) {
-          auto globalIdsPtr = globalIds->GetPointer(0);
-          for (vtkIdType j = begin; j < end; ++j)
+        vtkSMPTools::For(0, numberOfElements,
+          [&](vtkIdType begin, vtkIdType end)
           {
-            globalIdsPtr[j] = startId + j;
-          }
-        });
+            auto globalIdsPtr = globalIds->GetPointer(0);
+            for (vtkIdType j = begin; j < end; ++j)
+            {
+              globalIdsPtr[j] = startId + j;
+            }
+          });
         ds->GetAttributes(association)->SetGlobalIds(globalIds);
         startId += numberOfElements;
       }
@@ -461,20 +464,23 @@ ErrorHandleInformation HandleElementSide(vtkPartitionedDataSetCollection* pdc,
           ds->GetCellData()->GetArray(VTK_IOSS_MODEL_OLD_ELEMENT_SIDE_ARRAY_NAME));
         const auto numTuples = oldElementSide->GetNumberOfTuples();
         std::atomic<int> localHasValidOldElementSide(true);
-        vtkSMPTools::For(0, numTuples, [&](vtkIdType begin, vtkIdType end) {
-          if (!localHasValidOldElementSide)
+        vtkSMPTools::For(0, numTuples,
+          [&](vtkIdType begin, vtkIdType end)
           {
-            return;
-          }
-          for (vtkIdType j = begin; j < end; ++j)
-          {
-            if (oldToNewGlobalIds.find(oldElementSide->GetValue(2 * j)) == oldToNewGlobalIds.end())
+            if (!localHasValidOldElementSide)
             {
-              localHasValidOldElementSide = false;
-              break;
+              return;
             }
-          }
-        });
+            for (vtkIdType j = begin; j < end; ++j)
+            {
+              if (oldToNewGlobalIds.find(oldElementSide->GetValue(2 * j)) ==
+                oldToNewGlobalIds.end())
+              {
+                localHasValidOldElementSide = false;
+                break;
+              }
+            }
+          });
         if (!localHasValidOldElementSide)
         {
           hasValidOldElementSide &= localHasValidOldElementSide.load();
@@ -514,17 +520,19 @@ ErrorHandleInformation HandleElementSide(vtkPartitionedDataSetCollection* pdc,
           elementSide->SetNumberOfTuples(oldElementSide->GetNumberOfTuples());
           const auto globalIdOffset = writer->GetOffsetGlobalIds();
           const auto numTuples = oldElementSide->GetNumberOfTuples();
-          vtkSMPTools::For(0, numTuples, [&](vtkIdType begin, vtkIdType end) {
-            int oldElementSideTuple[2];
-            int elementSideTuple[2];
-            for (vtkIdType j = begin; j < end; ++j)
+          vtkSMPTools::For(0, numTuples,
+            [&](vtkIdType begin, vtkIdType end)
             {
-              oldElementSide->GetTypedTuple(j, oldElementSideTuple);
-              elementSideTuple[0] = oldToNewGlobalIds[oldElementSideTuple[0]] + globalIdOffset;
-              elementSideTuple[1] = oldElementSideTuple[1];
-              elementSide->SetTypedTuple(j, elementSideTuple);
-            }
-          });
+              int oldElementSideTuple[2];
+              int elementSideTuple[2];
+              for (vtkIdType j = begin; j < end; ++j)
+              {
+                oldElementSide->GetTypedTuple(j, oldElementSideTuple);
+                elementSideTuple[0] = oldToNewGlobalIds[oldElementSideTuple[0]] + globalIdOffset;
+                elementSideTuple[1] = oldElementSideTuple[1];
+                elementSide->SetTypedTuple(j, elementSideTuple);
+              }
+            });
           ds->GetCellData()->AddArray(elementSide);
         }
       }
@@ -624,14 +632,16 @@ std::map<unsigned char, int64_t> GetElementCounts(
 
   for (auto& ds : datasets)
   {
-    vtkSMPTools::For(0, ds->GetNumberOfCells(), [&](vtkIdType start, vtkIdType end) {
-      for (vtkIdType cc = start; cc < end; ++cc)
+    vtkSMPTools::For(0, ds->GetNumberOfCells(),
+      [&](vtkIdType start, vtkIdType end)
       {
-        // memory_order_relaxed is safe here, since we're not using the atomics for
-        // synchronization.
-        elementCounts[ds->GetCellType(cc)].fetch_add(1, std::memory_order_relaxed);
-      }
-    });
+        for (vtkIdType cc = start; cc < end; ++cc)
+        {
+          // memory_order_relaxed is safe here, since we're not using the atomics for
+          // synchronization.
+          elementCounts[ds->GetCellType(cc)].fetch_add(1, std::memory_order_relaxed);
+        }
+      });
   }
 
   // convert element counts to a map
@@ -749,15 +759,27 @@ std::vector<std::tuple<std::string, Ioss::Field::BasicType, int>> GetFields(int 
 template <typename T>
 struct PutFieldWorker
 {
-  std::vector<std::vector<T>> Data;
+  std::vector<std::vector<T>> SOAData;
+  std::vector<T> AOSData;
   size_t Offset{ 0 };
   const std::vector<vtkIdType>* SourceIds = nullptr;
-  PutFieldWorker(int numComponents, size_t targetSize)
-    : Data(numComponents)
+  int NumComponents{ 0 };
+  bool CreateAOS{ true };
+  PutFieldWorker(int numComponents, size_t targetSize, bool createAOS)
+    : NumComponents(numComponents)
+    , CreateAOS(createAOS)
   {
-    for (int cc = 0; cc < numComponents; ++cc)
+    if (createAOS)
     {
-      this->Data[cc].resize(targetSize);
+      this->AOSData.resize(static_cast<size_t>(numComponents * targetSize));
+    }
+    else
+    {
+      this->SOAData.resize(numComponents);
+      for (int cc = 0; cc < numComponents; ++cc)
+      {
+        this->SOAData[cc].resize(targetSize);
+      }
     }
   }
 
@@ -768,37 +790,37 @@ struct PutFieldWorker
   {
     using SourceT = vtk::GetAPIType<ArrayType>;
     vtkSMPThreadLocal<std::vector<SourceT>> tlTuple;
-    vtkSMPTools::For(0, this->SourceIds->size(), [&](vtkIdType start, vtkIdType end) {
-      auto tuple = tlTuple.Local();
-      tuple.resize(this->Data.size());
-      for (vtkIdType cc = start; cc < end; ++cc)
+    vtkSMPTools::For(0, this->SourceIds->size(),
+      [&](vtkIdType start, vtkIdType end)
       {
-        array->GetTypedTuple((*this->SourceIds)[cc], tuple.data());
-        for (size_t comp = 0; comp < this->Data.size(); ++comp)
+        auto tuple = tlTuple.Local();
+        tuple.resize(this->NumComponents);
+        if (this->CreateAOS)
         {
-          this->Data[comp][this->Offset + cc] = static_cast<T>(tuple[comp]);
+          for (vtkIdType cc = start; cc < end; ++cc)
+          {
+            array->GetTypedTuple((*this->SourceIds)[cc], tuple.data());
+            for (int comp = 0; comp < this->NumComponents; ++comp)
+            {
+              this->AOSData[(this->Offset + cc) * this->NumComponents + comp] =
+                static_cast<T>(tuple[comp]);
+            }
+          }
         }
-      }
-    });
+        else
+        {
+          for (vtkIdType cc = start; cc < end; ++cc)
+          {
+            array->GetTypedTuple((*this->SourceIds)[cc], tuple.data());
+            for (int comp = 0; comp < this->NumComponents; ++comp)
+            {
+              this->SOAData[comp][this->Offset + cc] = static_cast<T>(tuple[comp]);
+            }
+          }
+        }
+      });
 
     this->Offset += this->SourceIds->size();
-  }
-
-  void ImplicitPointsOperator(vtkDataSet* ds)
-  {
-    vtkSMPThreadLocal<std::vector<double>> tlTuple;
-    vtkSMPTools::For(0, this->SourceIds->size(), [&](vtkIdType start, vtkIdType end) {
-      auto tuple = tlTuple.Local();
-      tuple.resize(this->Data.size());
-      for (vtkIdType cc = start; cc < end; ++cc)
-      {
-        ds->GetPoint((*this->SourceIds)[cc], tuple.data());
-        for (size_t comp = 0; comp < this->Data.size(); ++comp)
-        {
-          this->Data[comp][this->Offset + cc] = static_cast<T>(tuple[comp]);
-        }
-      }
-    });
   }
 };
 
@@ -821,18 +843,20 @@ struct DisplacementWorker
   void operator()(ArrayType* array)
   {
     using SourceT = vtk::GetAPIType<ArrayType>;
-    vtkSMPTools::For(0, this->SourceIds->size(), [&](vtkIdType start, vtkIdType end) {
-      SourceT* displ = new SourceT[this->Data.size()];
-      for (vtkIdType cc = start; cc < end; ++cc)
+    vtkSMPTools::For(0, this->SourceIds->size(),
+      [&](vtkIdType start, vtkIdType end)
       {
-        array->GetTypedTuple((*this->SourceIds)[cc], displ);
-        for (size_t comp = 0; comp < this->Data.size(); ++comp)
+        SourceT* displ = new SourceT[this->Data.size()];
+        for (vtkIdType cc = start; cc < end; ++cc)
         {
-          this->Data[comp][this->Offset + cc] -= (displ[comp] * this->Magnitude);
+          array->GetTypedTuple((*this->SourceIds)[cc], displ);
+          for (size_t comp = 0; comp < this->Data.size(); ++comp)
+          {
+            this->Data[comp][this->Offset + cc] -= (displ[comp] * this->Magnitude);
+          }
         }
-      }
-      delete[] displ;
-    });
+        delete[] displ;
+      });
 
     this->Offset += this->SourceIds->size();
   }
@@ -877,25 +901,25 @@ protected:
   {
     for (const auto& field : fields)
     {
-      switch (std::get<1>(field))
+      const auto& name = std::get<0>(field);
+      const auto& type = std::get<1>(field);
+      const auto& numComponents = std::get<2>(field);
+      switch (type)
       {
         case Ioss::Field::DOUBLE:
-          this->PutField<double>(
-            block, std::get<0>(field), std::get<2>(field), lIds, datasets, association);
+          this->PutField<double>(block, name, numComponents, lIds, datasets, association);
           break;
 
         case Ioss::Field::INT32:
-          this->PutField<int32_t>(
-            block, std::get<0>(field), std::get<2>(field), lIds, datasets, association);
+          this->PutField<int32_t>(block, name, numComponents, lIds, datasets, association);
           break;
 
         case Ioss::Field::INT64:
-          this->PutField<int64_t>(
-            block, std::get<0>(field), std::get<2>(field), lIds, datasets, association);
+          this->PutField<int64_t>(block, name, numComponents, lIds, datasets, association);
           break;
 
         default:
-          vtkLogF(TRACE, "Unsupported field type. Skipping %s", std::get<0>(field).c_str());
+          vtkLogF(TRACE, "Unsupported field type. Skipping %s", name.c_str());
           break;
       }
     }
@@ -911,7 +935,8 @@ protected:
       [](size_t sum, const std::vector<vtkIdType>& ids) { return sum + ids.size(); });
 
     using Dispatcher = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::AllTypes>;
-    PutFieldWorker<T> worker(numComponents, totalSize);
+    const bool createAOS = numComponents <= 3;
+    PutFieldWorker<T> worker(numComponents, totalSize, createAOS);
     for (size_t dsIndex = 0; dsIndex < datasets.size(); ++dsIndex)
     {
       auto& ds = datasets[dsIndex];
@@ -926,10 +951,17 @@ protected:
       }
     }
 
-    for (int comp = 0; comp < numComponents; ++comp)
+    if (createAOS)
     {
-      const auto fieldName = numComponents == 1 ? name : name + std::to_string(comp + 1);
-      block->put_field_data(fieldName, worker.Data[comp]);
+      block->put_field_data(name, worker.AOSData);
+    }
+    else
+    {
+      for (int comp = 0; comp < numComponents; ++comp)
+      {
+        const auto compName = name + std::to_string(comp + 1);
+        block->put_field_data(compName, worker.SOAData[comp]);
+      }
     }
   }
 
@@ -939,17 +971,34 @@ protected:
   {
     for (const auto& field : fields)
     {
-      if (std::get<2>(field) == 1)
+      const auto& name = std::get<0>(field);
+      const auto& type = std::get<1>(field);
+      const auto& numComponents = std::get<2>(field);
+      switch (numComponents)
       {
-        block->field_add(
-          Ioss::Field(std::get<0>(field), std::get<1>(field), "scalar", role, elementCount));
-      }
-      else
-      {
-        for (int comp = 0; comp < std::get<2>(field); ++comp)
+        // fancier variable type names can be found in Ioss_ConcreteVariableType.C
+        case 1:
         {
-          block->field_add(Ioss::Field(std::get<0>(field) + std::to_string(comp + 1),
-            std::get<1>(field), "scalar", role, elementCount));
+          block->field_add(Ioss::Field(name, type, IOSS_SCALAR(), role, elementCount));
+          break;
+        }
+        case 2:
+        {
+          block->field_add(Ioss::Field(name, type, IOSS_VECTOR_2D(), role, elementCount));
+          break;
+        }
+        case 3:
+        {
+          block->field_add(Ioss::Field(name, type, IOSS_VECTOR_3D(), role, elementCount));
+          break;
+        }
+        default:
+        {
+          for (int comp = 0; comp < numComponents; ++comp)
+          {
+            const auto compName = name + std::to_string(comp + 1);
+            block->field_add(Ioss::Field(compName, type, IOSS_SCALAR(), role, elementCount));
+          }
         }
       }
     }
@@ -1051,26 +1100,20 @@ struct vtkNodeBlock : vtkGroupingEntity
     nodeBlock->put_field_data("ids", this->Ids);
 
     // add mesh coordinates
-    using Dispatcher = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::Reals>;
-    PutFieldWorker<double> worker(3, this->Ids.size());
+    using Dispatcher = vtkArrayDispatch::DispatchByValueTypeUsingArrays<vtkArrayDispatch::AllArrays,
+      vtkArrayDispatch::Reals>;
+    PutFieldWorker<double> worker(3, this->Ids.size(), false /* createAOS */);
     for (size_t dsIndex = 0; dsIndex < this->DataSets.size(); ++dsIndex)
     {
       auto& ds = this->DataSets[dsIndex];
       auto& lids = this->IdsRaw[dsIndex];
       worker.SetSourceIds(&lids);
-      if (auto ps = vtkPointSet::SafeDownCast(ds))
+      if (ds->GetPoints())
       {
-        if (ps->GetPoints())
+        if (!Dispatcher::Execute(ds->GetPoints()->GetData(), worker))
         {
-          if (!Dispatcher::Execute(ps->GetPoints()->GetData(), worker))
-          {
-            vtkLog(ERROR, "Failed to dispatch points.");
-          }
+          vtkLog(ERROR, "Failed to dispatch points.");
         }
-      }
-      else
-      {
-        worker.ImplicitPointsOperator(ds);
       }
     }
 
@@ -1082,7 +1125,7 @@ struct vtkNodeBlock : vtkGroupingEntity
       displMagnitude > 0 ? vtkIOSSUtilities::GetDisplacementFieldName(this->DataSets.front()) : "";
     if (!displName.empty() && displMagnitude > 0.0)
     {
-      DisplacementWorker<double> dworker(worker.Data, displMagnitude);
+      DisplacementWorker<double> dworker(worker.SOAData, displMagnitude);
       for (size_t dsIndex = 0; dsIndex < this->DataSets.size(); ++dsIndex)
       {
         auto& ds = this->DataSets[dsIndex];
@@ -1098,9 +1141,9 @@ struct vtkNodeBlock : vtkGroupingEntity
       }
     }
 
-    nodeBlock->put_field_data("mesh_model_coordinates_x", worker.Data[0]);
-    nodeBlock->put_field_data("mesh_model_coordinates_y", worker.Data[1]);
-    nodeBlock->put_field_data("mesh_model_coordinates_z", worker.Data[2]);
+    nodeBlock->put_field_data("mesh_model_coordinates_x", worker.SOAData[0]);
+    nodeBlock->put_field_data("mesh_model_coordinates_y", worker.SOAData[1]);
+    nodeBlock->put_field_data("mesh_model_coordinates_z", worker.SOAData[2]);
   }
 
   void Transient(Ioss::Region& region) const override
@@ -1211,7 +1254,15 @@ struct vtkEntityBlock : public vtkGroupingEntity
       const int64_t elementCount = element.second;
       const unsigned char vtk_cell_type = element.first;
 
-      const auto* elementTopology = vtkIOSSUtilities::GetElementTopology(vtk_cell_type);
+      const Ioss::ElementTopology* elementTopology = nullptr;
+      try
+      {
+        elementTopology = vtkIOSSUtilities::GetElementTopology(vtk_cell_type);
+      }
+      catch (std::runtime_error&)
+      {
+        continue;
+      }
       const auto& elementType = elementTopology->name();
       const auto blockInfo = this->GetSubElementBlockInfo(vtk_cell_type, elementType);
 
@@ -1234,7 +1285,15 @@ struct vtkEntityBlock : public vtkGroupingEntity
       const int64_t elementCount = element.second;
       const unsigned char vtk_cell_type = element.first;
 
-      const auto* elementTopology = vtkIOSSUtilities::GetElementTopology(vtk_cell_type);
+      const Ioss::ElementTopology* elementTopology = nullptr;
+      try
+      {
+        elementTopology = vtkIOSSUtilities::GetElementTopology(vtk_cell_type);
+      }
+      catch (std::runtime_error&)
+      {
+        continue;
+      }
       const auto& elementType = elementTopology->name();
       const auto blockName = this->GetSubElementBlockInfo(vtk_cell_type, elementType).second;
 
@@ -1319,7 +1378,27 @@ struct vtkEntityBlock : public vtkGroupingEntity
         break;
       }
       case VTK_LAGRANGE_WEDGE:
+      {
+        // We only handle 21-node wedges for now.
+        // The caller checks whether our returned size matches.
+        // clang-format off
+        orderingTransformation = std::vector<int>{
+            // nodes
+          4, 5, 6, 1, 2, 3,
+            // edge mid-points
+         10, 11, 12,
+         13, 14, 15,
+         7, 8, 9,
+           // body center
+         21,
+           // triangle faces
+         17, 16,
+           // quad faces
+         19, 20, 18
+        };
+        // clang-format on
         break;
+      }
       default:
         break;
     }
@@ -1342,7 +1421,15 @@ struct vtkEntityBlock : public vtkGroupingEntity
       const int64_t elementCount = element.second;
       const unsigned char vtk_cell_type = element.first;
 
-      const auto* elementTopology = vtkIOSSUtilities::GetElementTopology(vtk_cell_type);
+      const Ioss::ElementTopology* elementTopology = nullptr;
+      try
+      {
+        elementTopology = vtkIOSSUtilities::GetElementTopology(vtk_cell_type);
+      }
+      catch (std::runtime_error&)
+      {
+        continue;
+      }
       const auto& elementType = elementTopology->name();
       const int nodeCount = elementTopology->number_nodes();
       const auto blockName = this->GetSubElementBlockInfo(vtk_cell_type, elementType).second;
@@ -1388,10 +1475,22 @@ struct vtkEntityBlock : public vtkGroupingEntity
             }
             else
             {
-              assert(orderingTransformation.size() == static_cast<size_t>(numPts));
-              std::transform(orderingTransformation.begin(), orderingTransformation.end(),
-                std::back_inserter(connectivity),
-                [&](int localId) { return gidOffset + pointGIDs->GetValue(cellPoints[localId]); });
+              if (orderingTransformation.size() != static_cast<size_t>(numPts))
+              {
+                vtkGenericWarningMacro("Cell of type "
+                  << vtk_cell_type << " has " << numPts
+                  << "entries but order transformation expects " << orderingTransformation.size()
+                  << " entries. Skipping transform.");
+                std::transform(cellPoints, cellPoints + numPts, std::back_inserter(connectivity),
+                  [&](vtkIdType ptid) { return gidOffset + pointGIDs->GetValue(ptid); });
+              }
+              else
+              {
+                std::transform(orderingTransformation.begin(), orderingTransformation.end(),
+                  std::back_inserter(connectivity),
+                  [&](int localId)
+                  { return gidOffset + pointGIDs->GetValue(cellPoints[localId]); });
+              }
             }
           }
         }
@@ -1409,7 +1508,15 @@ struct vtkEntityBlock : public vtkGroupingEntity
     {
       const unsigned char vtk_cell_type = element.first;
 
-      const auto* elementTopology = vtkIOSSUtilities::GetElementTopology(vtk_cell_type);
+      const Ioss::ElementTopology* elementTopology = nullptr;
+      try
+      {
+        elementTopology = vtkIOSSUtilities::GetElementTopology(vtk_cell_type);
+      }
+      catch (std::runtime_error&)
+      {
+        continue;
+      }
       const auto& elementType = elementTopology->name();
       const auto blockName = this->GetSubElementBlockInfo(vtk_cell_type, elementType).second;
 
@@ -1943,9 +2050,8 @@ vtkIOSSModel::vtkIOSSModel(vtkPartitionedDataSetCollection* pdc, vtkIOSSWriter* 
   }
   // write the above for loop with one line
   const bool indicesEmpty = std::all_of(entityIndices.begin(), entityIndices.end(),
-    [](const std::pair<EntityType, std::set<unsigned int>>& indices) {
-      return indices.second.empty();
-    });
+    [](const std::pair<EntityType, std::set<unsigned int>>& indices)
+    { return indices.second.empty(); });
   if (indicesEmpty)
   {
     // if no indices are specified, then all blocks will be processed as element blocks

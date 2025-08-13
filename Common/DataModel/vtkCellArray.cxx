@@ -423,7 +423,8 @@ struct ReplaceCellPointAtIdImpl
   {
     using ValueType = typename CellStateT::ValueType;
 
-    cells.GetCellRange(cellId)[cellPointIndex] = static_cast<ValueType>(newPointId);
+    return cells.GetConnectivity()->SetValue(
+      cells.GetBeginOffset(cellId) + cellPointIndex, static_cast<ValueType>(newPointId));
   }
 };
 
@@ -525,6 +526,12 @@ VTK_ABI_NAMESPACE_BEGIN
 vtkCellArray::vtkCellArray() = default;
 vtkCellArray::~vtkCellArray() = default;
 vtkStandardNewMacro(vtkCellArray);
+
+#ifdef VTK_USE_64BIT_IDS
+bool vtkCellArray::DefaultStorageIs64Bit = true;
+#else
+bool vtkCellArray::DefaultStorageIs64Bit = false;
+#endif
 
 //=================== Begin Legacy Methods ===================================
 // These should be deprecated at some point as they are confusing or very slow
@@ -664,17 +671,23 @@ void vtkCellArray::SetCells(vtkIdType ncells, vtkIdTypeArray* cells)
 //=================== End Legacy Methods =====================================
 
 //------------------------------------------------------------------------------
-void vtkCellArray::DeepCopy(vtkCellArray* ca)
+void vtkCellArray::DeepCopy(vtkAbstractCellArray* ca)
 {
-  if (ca == this)
+  auto other = vtkCellArray::SafeDownCast(ca);
+  if (!other)
+  {
+    vtkErrorMacro("Cannot copy from non-vtkCellArray.");
+    return;
+  }
+  if (other == this)
   {
     return;
   }
 
-  if (ca->Storage.Is64Bit())
+  if (other->Storage.Is64Bit())
   {
     this->Storage.Use64BitStorage();
-    auto& srcStorage = ca->Storage.GetArrays64();
+    auto& srcStorage = other->Storage.GetArrays64();
     auto& dstStorage = this->Storage.GetArrays64();
     dstStorage.Offsets->DeepCopy(srcStorage.Offsets);
     dstStorage.Connectivity->DeepCopy(srcStorage.Connectivity);
@@ -683,7 +696,7 @@ void vtkCellArray::DeepCopy(vtkCellArray* ca)
   else
   {
     this->Storage.Use32BitStorage();
-    auto& srcStorage = ca->Storage.GetArrays32();
+    auto& srcStorage = other->Storage.GetArrays32();
     auto& dstStorage = this->Storage.GetArrays32();
     dstStorage.Offsets->DeepCopy(srcStorage.Offsets);
     dstStorage.Connectivity->DeepCopy(srcStorage.Connectivity);
@@ -692,21 +705,26 @@ void vtkCellArray::DeepCopy(vtkCellArray* ca)
 }
 
 //------------------------------------------------------------------------------
-void vtkCellArray::ShallowCopy(vtkCellArray* ca)
+void vtkCellArray::ShallowCopy(vtkAbstractCellArray* ca)
 {
-  if (ca == this)
+  auto other = vtkCellArray::SafeDownCast(ca);
+  if (!other)
+  {
+    vtkErrorMacro("Cannot shallow copy from a non-vtkCellArray.");
+  }
+  if (other == this)
   {
     return;
   }
 
-  if (ca->Storage.Is64Bit())
+  if (other->Storage.Is64Bit())
   {
-    auto& srcStorage = ca->Storage.GetArrays64();
+    auto& srcStorage = other->Storage.GetArrays64();
     this->SetData(srcStorage.GetOffsets(), srcStorage.GetConnectivity());
   }
   else
   {
-    auto& srcStorage = ca->Storage.GetArrays32();
+    auto& srcStorage = other->Storage.GetArrays32();
     this->SetData(srcStorage.GetOffsets(), srcStorage.GetConnectivity());
   }
 }
@@ -749,11 +767,17 @@ void vtkCellArray::SetData(vtkTypeInt32Array* offsets, vtkTypeInt32Array* connec
 
   this->Storage.Use32BitStorage();
   auto& storage = this->Storage.GetArrays32();
-
   // vtkArrayDownCast to ensure this works when ArrayType32 is vtkIdTypeArray.
-  storage.Offsets = vtkArrayDownCast<ArrayType32>(offsets);
-  storage.Connectivity = vtkArrayDownCast<ArrayType32>(connectivity);
-  this->Modified();
+  if (storage.Offsets != offsets)
+  {
+    storage.Offsets = vtkArrayDownCast<ArrayType32>(offsets);
+    this->Modified();
+  }
+  if (storage.Connectivity != connectivity)
+  {
+    storage.Connectivity = vtkArrayDownCast<ArrayType32>(connectivity);
+    this->Modified();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -768,11 +792,17 @@ void vtkCellArray::SetData(vtkTypeInt64Array* offsets, vtkTypeInt64Array* connec
 
   this->Storage.Use64BitStorage();
   auto& storage = this->Storage.GetArrays64();
-
   // vtkArrayDownCast to ensure this works when ArrayType64 is vtkIdTypeArray.
-  storage.Offsets = vtkArrayDownCast<ArrayType64>(offsets);
-  storage.Connectivity = vtkArrayDownCast<ArrayType64>(connectivity);
-  this->Modified();
+  if (storage.Offsets != offsets)
+  {
+    storage.Offsets = vtkArrayDownCast<ArrayType64>(offsets);
+    this->Modified();
+  }
+  if (storage.Connectivity != connectivity)
+  {
+    storage.Connectivity = vtkArrayDownCast<ArrayType64>(connectivity);
+    this->Modified();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1088,10 +1118,12 @@ bool vtkCellArray::ResizeExact(vtkIdType numCells, vtkIdType connectivitySize)
 // defining the cell.
 int vtkCellArray::GetMaxCellSize()
 {
+  const vtkIdType numCells = this->GetNumberOfCells();
+  // We use THRESHOLD to test if the data size is small enough
+  // to execute the functor serially. This is faster.
+  // and also potentially avoids nested multithreading which creates race conditions.
   FindMaxCell finder{ this };
-
-  // Grain size puts an even number of pages into each instance.
-  vtkSMPTools::For(0, this->GetNumberOfCells(), finder);
+  vtkSMPTools::For(0, numCells, vtkSMPTools::THRESHOLD, finder);
 
   return static_cast<int>(finder.Result);
 }

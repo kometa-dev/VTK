@@ -19,9 +19,9 @@
 #include "vtkmlib/ArrayConverters.h"
 #include "vtkmlib/DataSetConverters.h"
 
-#include "vtkm/cont/DataSet.h"
+#include "viskores/cont/DataSet.h"
 
-#include <vtkm/filter/field_transform/WarpScalar.h>
+#include <viskores/filter/field_transform/Warp.h>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkmWarpScalar);
@@ -88,75 +88,77 @@ int vtkmWarpScalar::RequestData(vtkInformation* vtkNotUsed(request),
 
   try
   {
-    vtkm::cont::DataSet in = tovtkm::Convert(input, tovtkm::FieldsFlag::PointsAndCells);
+    viskores::cont::DataSet in = tovtkm::Convert(input, tovtkm::FieldsFlag::PointsAndCells);
     if (inScalars)
     {
       auto scalarFactor = tovtkm::Convert(inScalars, inScalarsAssociation);
       in.AddField(scalarFactor);
     }
-    vtkm::Id numberOfPoints = in.GetCoordinateSystem().GetData().GetNumberOfValues();
+    viskores::Id numberOfPoints = in.GetCoordinateSystem().GetData().GetNumberOfValues();
 
-    // ScaleFactor in vtk is the scalarAmount in vtk-m.
-    vtkm::filter::field_transform::WarpScalar warpScalar(this->ScaleFactor);
-    warpScalar.SetUseCoordinateSystemAsField(true);
+    viskores::filter::field_transform::Warp filter;
+
+    // ScaleFactor in vtk is the scalarAmount in viskores.
+    filter.SetScaleFactor(this->ScaleFactor);
+    filter.SetUseCoordinateSystemAsField(true);
 
     // Get/generate the normal field
     if (inNormals && !this->UseNormal)
     { // DataNormal
       auto inNormalsField = tovtkm::Convert(inNormals, vtkDataObject::FIELD_ASSOCIATION_POINTS);
       in.AddField(inNormalsField);
-      warpScalar.SetNormalField(inNormals->GetName());
+      filter.SetDirectionField(inNormals->GetName());
     }
     else if (this->XYPlane)
     {
-      using vecType = vtkm::Vec<vtkm::FloatDefault, 3>;
-      vecType normal = vtkm::make_Vec<vtkm::FloatDefault>(0.0, 0.0, 1.0);
-      vtkm::cont::ArrayHandleConstant<vecType> vectorAH =
-        vtkm::cont::make_ArrayHandleConstant(normal, numberOfPoints);
+      using vecType = viskores::Vec<viskores::FloatDefault, 3>;
+      vecType normal = viskores::make_Vec<viskores::FloatDefault>(0.0, 0.0, 1.0);
+      viskores::cont::ArrayHandleConstant<vecType> vectorAH =
+        viskores::cont::make_ArrayHandleConstant(normal, numberOfPoints);
       in.AddPointField("zNormal", vectorAH);
-      warpScalar.SetNormalField("zNormal");
+      filter.SetDirectionField("zNormal");
     }
     else
     {
-      using vecType = vtkm::Vec<vtkm::FloatDefault, 3>;
-      vecType normal =
-        vtkm::make_Vec<vtkm::FloatDefault>(this->Normal[0], this->Normal[1], this->Normal[2]);
-      vtkm::cont::ArrayHandleConstant<vecType> vectorAH =
-        vtkm::cont::make_ArrayHandleConstant(normal, numberOfPoints);
+      using vecType = viskores::Vec<viskores::FloatDefault, 3>;
+      vecType normal = viskores::make_Vec<viskores::FloatDefault>(
+        this->Normal[0], this->Normal[1], this->Normal[2]);
+      viskores::cont::ArrayHandleConstant<vecType> vectorAH =
+        viskores::cont::make_ArrayHandleConstant(normal, numberOfPoints);
       in.AddPointField("instanceNormal", vectorAH);
-      warpScalar.SetNormalField("instanceNormal");
+      filter.SetDirectionField("instanceNormal");
     }
 
     if (this->XYPlane)
     { // Just use the z value to warp the surface. Ignore the input scalars.
-      std::vector<vtkm::FloatDefault> zValues;
+      std::vector<viskores::FloatDefault> zValues;
       zValues.reserve(static_cast<size_t>(input->GetNumberOfPoints()));
       for (vtkIdType i = 0; i < input->GetNumberOfPoints(); i++)
       {
         zValues.push_back(input->GetPoints()->GetPoint(i)[2]);
       }
       in.AddPointField("scalarfactor", zValues);
-      warpScalar.SetScalarFactorField("scalarfactor");
+      filter.SetScaleField("scalarfactor");
     }
     else
     {
-      warpScalar.SetScalarFactorField(std::string(inScalars->GetName()));
+      filter.SetScaleField(std::string(inScalars->GetName()));
     }
 
-    auto result = warpScalar.Execute(in);
-    vtkDataArray* warpScalarResult =
-      fromvtkm::Convert(result.GetField("warpscalar", vtkm::cont::Field::Association::Points));
+    auto result = filter.Execute(in);
+    vtkDataArray* warpResult =
+      fromvtkm::Convert(result.GetField("Warp", viskores::cont::Field::Association::Points));
     vtkPoints* newPts = vtkPoints::New();
     // Update points
-    newPts->SetNumberOfPoints(warpScalarResult->GetNumberOfTuples());
-    newPts->SetData(warpScalarResult);
+    newPts->SetNumberOfPoints(warpResult->GetNumberOfTuples());
+    newPts->SetData(warpResult);
     output->SetPoints(newPts);
     newPts->Delete();
-    warpScalarResult->FastDelete();
+    warpResult->FastDelete();
   }
-  catch (const vtkm::cont::Error& e)
+  catch (const viskores::cont::Error& e)
   {
-    vtkErrorMacro(<< "VTK-m error: " << e.GetMessage());
+    vtkErrorMacro(<< "Viskores error: " << e.GetMessage());
     return 0;
   }
 

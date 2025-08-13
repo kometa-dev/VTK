@@ -10,9 +10,8 @@
  * following threshold: a cell is considered to be within range if its
  * value for the active scalar is within a specified range (inclusive).
  * The output remains a hyper tree grid.
- * JB Un parametre (JustCreateNewMask=true) permet de ne pas faire
- * le choix de la creation d'un nouveau HTG mais
- * de redefinir juste le masque.
+ * A parameter (JustCreateNewMask) allows to only redefine the mask
+ * and not create a new HTG.
  *
  * @sa
  * vtkHyperTreeGrid vtkHyperTreeGridAlgorithm vtkThreshold
@@ -31,6 +30,9 @@
 #include "vtkFiltersHyperTreeModule.h" // For export macro
 #include "vtkHyperTreeGridAlgorithm.h"
 
+#include <memory> // For std::unique_ptr
+#include <mutex>
+
 VTK_ABI_NAMESPACE_BEGIN
 class vtkBitArray;
 class vtkHyperTreeGrid;
@@ -43,14 +45,6 @@ public:
   static vtkHyperTreeGridThreshold* New();
   vtkTypeMacro(vtkHyperTreeGridThreshold, vtkHyperTreeGridAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
-
-  ///@{
-  /**
-   * Set/Get True, create a new mask ; false, create a new HTG.
-   */
-  vtkSetMacro(JustCreateNewMask, bool);
-  vtkGetMacro(JustCreateNewMask, bool);
-  ///@}
 
   ///@{
   /**
@@ -73,6 +67,30 @@ public:
    */
   void ThresholdBetween(double, double);
 
+  ///@{
+  /**
+   * Enum for defining the strategy to take in allocating the memory used by the output
+   *
+   * - MaskInput: shallow copy the input and generate a new mask based on the threshold
+   * - CopyStructureAndIndexArrays: generate a new HTG from the minimal set of cells necessary to
+   * describe the thresholded result and use `vtkIndexedArray`s to index the cell data on the input
+   * - DeepThreshold: generate a new HTG from the threshold of the input HTG
+   */
+  enum MemoryStrategyChoice
+  {
+    MaskInput = 0,
+    CopyStructureAndIndexArrays = 1,
+    DeepThreshold = 2
+  };
+  /**
+   * Setter and Getter for the memory strategy
+   *
+   * Default is MaskInput
+   */
+  vtkGetMacro(MemoryStrategy, int);
+  vtkSetClampMacro(MemoryStrategy, int, MaskInput, DeepThreshold);
+  ///@}
+
 protected:
   vtkHyperTreeGridThreshold();
   ~vtkHyperTreeGridThreshold() override;
@@ -88,10 +106,15 @@ protected:
   int ProcessTrees(vtkHyperTreeGrid*, vtkDataObject*) override;
 
   /**
-   * Recursively descend into tree down to leaves
+   * Recursively descend into input tree down to leaves, creating output structure at the same time
    */
   bool RecursivelyProcessTree(
     vtkHyperTreeGridNonOrientedCursor*, vtkHyperTreeGridNonOrientedCursor*);
+
+  /**
+   * Recursively descend into input tree down to leaves, filling the output mask
+   * as it goes.
+   */
   bool RecursivelyProcessTreeWithCreateNewMask(vtkHyperTreeGridNonOrientedCursor*);
 
   /**
@@ -125,13 +148,31 @@ protected:
   vtkDataArray* InScalars;
 
   /**
-   * With or without copy
+   * With or without copy (deprecated in favor of MemoryStrategy)
    */
   bool JustCreateNewMask;
 
 private:
   vtkHyperTreeGridThreshold(const vtkHyperTreeGridThreshold&) = delete;
   void operator=(const vtkHyperTreeGridThreshold&) = delete;
+  /**
+   * Process child ichild of the tree currently pointed by the cursor.
+   * Calls recursively `RecursivelyProcessTreeWithCreateNewMask`.
+   * The cell pointed by 'outCursor' needs to have at least 'ichild' children.
+   */
+  bool RecursivelyProcessChild(vtkHyperTreeGridNonOrientedCursor* outCursor, int ichild);
+
+  /**
+   * Thread-safe version of insertion in OutMask BitArray using a global mutex.
+   */
+  void SafeInsertOutMask(vtkIdType tupleIdx, double value);
+
+  int MemoryStrategy = MaskInput;
+  std::vector<std::mutex> OutMaskMutexes;
+  int ArrayMutexSize = 0; // Needs to be a multiple of 8
+
+  struct Internals;
+  std::unique_ptr<Internals> Internal;
 };
 
 VTK_ABI_NAMESPACE_END

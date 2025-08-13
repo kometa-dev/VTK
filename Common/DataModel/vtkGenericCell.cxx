@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+// VTK_DEPRECATED_IN_9_4_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkGenericCell.h"
 
 #include "vtkBezierCurve.h"
@@ -113,7 +116,7 @@ int vtkGenericCell::GetCellDimension()
 }
 
 //------------------------------------------------------------------------------
-int vtkGenericCell::IsLinear()
+int vtkGenericCell::IsLinear() VTK_FUTURE_CONST
 {
   return this->Cell->IsLinear();
 }
@@ -125,7 +128,7 @@ int vtkGenericCell::RequiresInitialization()
 }
 
 //------------------------------------------------------------------------------
-int vtkGenericCell::RequiresExplicitFaceRepresentation()
+int vtkGenericCell::RequiresExplicitFaceRepresentation() VTK_FUTURE_CONST
 {
   return this->Cell->RequiresExplicitFaceRepresentation();
 }
@@ -140,6 +143,42 @@ void vtkGenericCell::SetFaces(vtkIdType* faces)
 vtkIdType* vtkGenericCell::GetFaces()
 {
   return this->Cell->GetFaces();
+}
+
+//------------------------------------------------------------------------------
+int vtkGenericCell::SetCellFaces(vtkCellArray* faces)
+{
+  vtkPolyhedron* cell = vtkPolyhedron::SafeDownCast(this->Cell);
+  if (!cell)
+  {
+    vtkErrorMacro("SafeDownCast to vtkPolyhedron failed, the cell is not a polyhedron");
+    return 0;
+  }
+  return cell->SetCellFaces(faces);
+}
+
+//------------------------------------------------------------------------------
+vtkCellArray* vtkGenericCell::GetCellFaces()
+{
+  vtkPolyhedron* cell = vtkPolyhedron::SafeDownCast(this->Cell);
+  if (!cell)
+  {
+    vtkErrorMacro("SafeDownCast to vtkPolyhedron failed, the cell is not a polyhedron");
+    return nullptr;
+  }
+  return cell->GetCellFaces();
+}
+
+//------------------------------------------------------------------------------
+void vtkGenericCell::GetCellFaces(vtkCellArray* faces)
+{
+  vtkPolyhedron* cell = vtkPolyhedron::SafeDownCast(this->Cell);
+  if (!cell)
+  {
+    vtkErrorMacro("SafeDownCast to vtkPolyhedron failed, the cell is not a polyhedron");
+    return;
+  }
+  cell->GetCellFaces(faces);
 }
 
 //------------------------------------------------------------------------------
@@ -225,6 +264,18 @@ int vtkGenericCell::Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts)
 }
 
 //------------------------------------------------------------------------------
+int vtkGenericCell::TriangulateLocalIds(int index, vtkIdList* ptIds)
+{
+  return this->Cell->TriangulateLocalIds(index, ptIds);
+}
+
+//------------------------------------------------------------------------------
+int vtkGenericCell::TriangulateIds(int index, vtkIdList* ptIds)
+{
+  return this->Cell->TriangulateIds(index, ptIds);
+}
+
+//------------------------------------------------------------------------------
 void vtkGenericCell::Derivatives(
   int subId, const double pcoords[3], const double* values, int dim, double* derivs)
 {
@@ -244,7 +295,7 @@ double* vtkGenericCell::GetParametricCoords()
 }
 
 //------------------------------------------------------------------------------
-int vtkGenericCell::IsPrimaryCell()
+int vtkGenericCell::IsPrimaryCell() VTK_FUTURE_CONST
 {
   return this->Cell->IsPrimaryCell();
 }

@@ -25,6 +25,7 @@
 #include "vtkProp.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkWeakPointer.h"         // For vtkWeakPointer
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkLinearTransform;
@@ -32,7 +33,7 @@ class vtkMatrix4x4;
 class vtkRenderer;
 class vtkTransform;
 
-class VTKRENDERINGCORE_EXPORT vtkProp3D : public vtkProp
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkProp3D : public vtkProp
 {
 public:
   vtkTypeMacro(vtkProp3D, vtkProp);
@@ -59,7 +60,7 @@ public:
       this->Modified();
       this->IsIdentity = 0;
     }
-  };
+  }
   ///@}
 
   virtual void SetPosition(double pos[3]) { this->SetPosition(pos[0], pos[1], pos[2]); }
@@ -84,7 +85,7 @@ public:
       this->Modified();
       this->IsIdentity = 0;
     }
-  };
+  }
   virtual void SetOrigin(const double pos[3]) { this->SetOrigin(pos[0], pos[1], pos[2]); }
   vtkGetVectorMacro(Origin, double, 3);
   ///@}
@@ -106,7 +107,7 @@ public:
       this->Modified();
       this->IsIdentity = 0;
     }
-  };
+  }
   virtual void SetScale(double scale[3]) { this->SetScale(scale[0], scale[1], scale[2]); }
   vtkGetVectorMacro(Scale, double, 3);
   ///@}
@@ -129,7 +130,9 @@ public:
    * UserTransform, concatenated with the UserMatrix if the UserMatrix
    * is present.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void SetUserTransform(vtkLinearTransform* transform);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkGetObjectMacro(UserTransform, vtkLinearTransform);
   ///@}
 

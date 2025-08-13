@@ -76,6 +76,9 @@ public:
    */
   vtkHyperTreeGridEntry() { this->Index = 0; }
 
+  vtkHyperTreeGridEntry(vtkHyperTreeGridEntry const&) = default;
+  vtkHyperTreeGridEntry& operator=(vtkHyperTreeGridEntry const&) = default;
+
   /**
    * Constructor
    */
@@ -153,7 +156,7 @@ public:
   void SubdivideLeaf(const vtkHyperTreeGrid* grid, vtkHyperTree* tree, unsigned int level);
 
   /**
-   * Is the cursor pointing to a coarse with all childrens being leaves?
+   * Is the cursor pointing to a coarse with all children being leaves?
    * \pre not_tree: tree
    */
   bool IsTerminalNode(

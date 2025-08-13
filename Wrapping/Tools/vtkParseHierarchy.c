@@ -736,7 +736,7 @@ void vtkParseHierarchy_Free(HierarchyInfo* info)
 int vtkParseHierarchy_IsTypeOfTemplated(const HierarchyInfo* info, const HierarchyEntry* entry,
   const char* classname, const char* baseclass, const char** baseclass_with_args)
 {
-  HierarchyEntry* tmph;
+  const HierarchyEntry* tmph;
   const char* name = NULL;
   const char* supername;
   char* tmp;
@@ -1276,7 +1276,7 @@ const char* vtkParseHierarchy_ExpandTypedefsInName(
 
 /* -------------------------------------------------------------------- */
 const char* vtkParseHierarchy_QualifiedEnumName(
-  HierarchyInfo* hinfo, ClassInfo* data, StringCache* cache, const char* name)
+  const HierarchyInfo* hinfo, ClassInfo* data, StringCache* cache, const char* name)
 {
   /* check to see if this is an enum defined in the class */
   if (data)
@@ -1284,7 +1284,7 @@ const char* vtkParseHierarchy_QualifiedEnumName(
     int j;
     for (j = 0; j < data->NumberOfEnums; j++)
     {
-      EnumInfo* info = data->Enums[j];
+      const EnumInfo* info = data->Enums[j];
       if (name && info->Name && strcmp(name, info->Name) == 0)
       {
         char* scoped_name;
@@ -1299,7 +1299,7 @@ const char* vtkParseHierarchy_QualifiedEnumName(
   /* check the hierarchy information for the enum type */
   if (hinfo)
   {
-    HierarchyEntry* entry;
+    const HierarchyEntry* entry;
     entry = vtkParseHierarchy_FindEntry(hinfo, name);
     if (entry && entry->IsEnum)
     {

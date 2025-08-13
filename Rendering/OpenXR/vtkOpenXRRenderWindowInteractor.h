@@ -50,7 +50,20 @@ public:
   void AddAction(const std::string& path, const vtkCommand::EventIds&);
   void AddAction(const std::string& path, const std::function<void(vtkEventData*)>&);
   ///@}
-  // add an event action
+
+  ///@{
+  /**
+   * Assign an event or std::function to an event path
+   *
+   * \note
+   * The \a isAnalog parameter is ignored; these signatures are intended to satisfy
+   * the base class interface and are functionally equivalent to calling the AddAction()
+   * function without it.
+   */
+  void AddAction(const std::string& path, const vtkCommand::EventIds&, bool isAnalog) override;
+  void AddAction(
+    const std::string& path, bool isAnalog, const std::function<void(vtkEventData*)>&) override;
+  ///@}
 
   void ConvertOpenXRPoseToWorldCoordinates(const XrPosef& xrPose,
     double pos[3],   // Output world position
@@ -63,8 +76,8 @@ public:
    * \p action to emit vibration on \p hand to emit on \p amplitude 0.0 to 1.0.
    * \p duration nanoseconds, default 25ms \p frequency (hz)
    */
-  bool ApplyVibration(const std::string& actionName, int hand, float amplitude = 0.5f,
-    float duration = 25000000.0f, float frequency = XR_FREQUENCY_UNSPECIFIED);
+  bool ApplyVibration(const std::string& actionName, int hand, float amplitude = 0.5,
+    float duration = 25000000.0, float frequency = XR_FREQUENCY_UNSPECIFIED);
 
 protected:
   /**

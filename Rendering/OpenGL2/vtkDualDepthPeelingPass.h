@@ -41,6 +41,7 @@
 
 #include "vtkDepthPeelingPass.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 
 #include <array> // For std::array!
 
@@ -52,7 +53,8 @@ class vtkRenderTimerLog;
 class vtkShaderProgram;
 class vtkTextureObject;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkDualDepthPeelingPass : public vtkDepthPeelingPass
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkDualDepthPeelingPass
+  : public vtkDepthPeelingPass
 {
 public:
   static vtkDualDepthPeelingPass* New();
@@ -68,8 +70,8 @@ public:
    * It is usually set to a vtkVolumetricPass.
    * Initial value is a NULL pointer.
    */
-  vtkGetObjectMacro(VolumetricPass, vtkRenderPass) virtual void SetVolumetricPass(
-    vtkRenderPass* volumetricPass);
+  vtkGetObjectMacro(VolumetricPass, vtkRenderPass)
+  virtual void SetVolumetricPass(vtkRenderPass* volumetricPass);
   ///@}
 
   // vtkOpenGLRenderPass virtuals:

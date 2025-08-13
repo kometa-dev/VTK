@@ -9,14 +9,12 @@
 #include "vtkSMPThreadLocalObject.h"
 #include "vtkSMPTools.h"
 #include "vtkStructuredExtent.h"
+#include "vtkUnsignedCharArray.h"
 
 #include <algorithm>
 #include <vector>
 
 VTK_ABI_NAMESPACE_BEGIN
-//------------------------------------------------------------------------------
-static constexpr const vtkIdType SMP_THRESHOLD = 10000;
-
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkDataSetAttributes);
 
@@ -168,6 +166,10 @@ void vtkDataSetAttributes::DeepCopy(vtkFieldData* fd)
         dsa->CopyAttributeFlags[PASSDATA][attributeType];
     }
     this->CopyFlags(dsa);
+
+    this->GhostsToSkip = fd->GetGhostsToSkip();
+    this->GhostArray =
+      vtkArrayDownCast<vtkUnsignedCharArray>(this->GetAbstractArray(this->GhostArrayName()));
   }
   // If the source is field data, do a field data copy
   else
@@ -212,6 +214,10 @@ void vtkDataSetAttributes::ShallowCopy(vtkFieldData* fd)
         dsa->CopyAttributeFlags[PASSDATA][attributeType];
     }
     this->CopyFlags(dsa);
+
+    this->GhostsToSkip = fd->GetGhostsToSkip();
+    this->GhostArray =
+      vtkArrayDownCast<vtkUnsignedCharArray>(this->GetAbstractArray(this->GhostArrayName()));
   }
   // If the source is field data, do a field data copy
   else
@@ -448,6 +454,21 @@ struct CopyStructuredDataWorker
     const auto srcTuples = vtk::DataArrayTupleRange(srcArray);
     auto dstTuples = vtk::DataArrayTupleRange(dstArray);
 
+    // the ghost array won't have the same values from potentially multiple source arrays
+    // so we need to select the best values from potentially multiple source ghost arrays.
+    // the only value that should be inconsistent is DUPLICATEPOINT/DUPLICATECELL with
+    // the value that we want to replace it with
+    bool isGhostArray = false;
+    if (srcArray->GetName() != nullptr &&
+      strcmp(srcArray->GetName(), vtkDataSetAttributes::GhostArrayName()) == 0)
+    {
+      isGhostArray = true;
+    }
+
+    // Setting a ghost value with a binary and operation. If any source array
+    // has an unactivated bit, it should prevail over the other sources.
+    auto setGhost = [](unsigned char src, unsigned char dest) { return src & dest; };
+
     if (vtkStructuredExtent::Smaller(this->OutExt, this->InExt))
     {
       // get outExt relative to the inExt to keep the logic simple. This assumes
@@ -477,7 +498,20 @@ struct CopyStructuredDataWorker
           for (int outx = relOutExt[0]; outx <= relOutExt[1]; ++outx)
           {
             const vtkIdType inTupleIdx = yfactor + outx;
-            *dstTupleIter++ = srcTuples[inTupleIdx];
+
+            if (isGhostArray)
+            {
+              // If we are coping ghosts, we just to a binary and. The dest array is initialized
+              // with all its bits ON. If multiple arrays copied owning the same point / cell, the
+              // duplicate ghostness of the output array is removed, as the corresponding bit is set
+              // OFF by the owner of the ghost.
+              (*dstTupleIter)[0] = setGhost(srcTuples[inTupleIdx][0], (*dstTupleIter)[0]);
+              ++dstTupleIter;
+            }
+            else
+            {
+              *dstTupleIter++ = srcTuples[inTupleIdx];
+            }
           }
         }
       }
@@ -506,7 +540,15 @@ struct CopyStructuredDataWorker
             const vtkIdType inTupleIdx = inTupleId2 + idx - this->InExt[0];
             const vtkIdType outTupleIdx = outTupleId2 + idx - this->OutExt[0];
 
-            dstTuples[outTupleIdx] = srcTuples[inTupleIdx];
+            if (isGhostArray)
+            {
+              dstTuples[outTupleIdx][0] =
+                setGhost(srcTuples[inTupleIdx][0], dstTuples[outTupleIdx][0]);
+            }
+            else
+            {
+              dstTuples[outTupleIdx] = srcTuples[inTupleIdx];
+            }
           }
         }
       }
@@ -626,6 +668,19 @@ void vtkDataSetAttributes::CopyStructuredData(
     {
       // The "CopyAllocate" method only sets the size, not the number of tuples.
       outArray->SetNumberOfTuples(zIdx);
+      if (outArray->GetName() && !strcmp(outArray->GetName(), this->GhostArrayName()))
+      {
+        if (auto ghosts = vtkArrayDownCast<vtkUnsignedCharArray>(outArray))
+        {
+          // Down the road, the output ghosts (call it outGhost) are set as follows:
+          // outGhost &= inGhost. The reason spans from the ambiguity of the ghostness of an element
+          // when merging multiple datasets. If one of the sources has its bit inactive but other
+          // sources have it active, the bit needs turned off.
+          // We initialize outGhost to 1111 1111 so that we can merge the state of ghosts from
+          // multiple sources using the formula above.
+          ghosts->FillValue(0xff);
+        }
+      }
     }
 
     // We get very little performance improvement from this, but we'll leave the
@@ -933,7 +988,7 @@ void vtkDataSetAttributes::CopyData(
     return;
   }
 
-  if (fromIds->GetNumberOfIds() < SMP_THRESHOLD)
+  if (fromIds->GetNumberOfIds() <= vtkSMPTools::THRESHOLD)
   {
     for (const auto& i : this->RequiredArrays)
     {
@@ -971,7 +1026,7 @@ void vtkDataSetAttributes::CopyData(
     return;
   }
 
-  if (fromIds->GetNumberOfIds() < SMP_THRESHOLD)
+  if (fromIds->GetNumberOfIds() <= vtkSMPTools::THRESHOLD)
   {
     for (const auto& i : this->RequiredArrays)
     {
@@ -1010,7 +1065,7 @@ void vtkDataSetAttributes::CopyData(
     return;
   }
 
-  if (n < SMP_THRESHOLD)
+  if (n <= vtkSMPTools::THRESHOLD)
   {
     for (const auto& i : this->RequiredArrays)
     {

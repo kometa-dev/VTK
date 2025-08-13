@@ -32,7 +32,7 @@ int vtkTriangleStrip::EvaluatePosition(const double x[3], double closestPoint[3]
   double pcoords[3], double& minDist2, double weights[])
 {
   double pc[3], dist2;
-  int ignoreId, i, return_status, status;
+  int ignoreId, i, returnStatus, status;
   double tempWeights[3], activeWeights[3];
   double closest[3];
 
@@ -42,7 +42,7 @@ int vtkTriangleStrip::EvaluatePosition(const double x[3], double closestPoint[3]
   activeWeights[1] = 0.0;
   activeWeights[2] = 0.0;
 
-  return_status = 0;
+  returnStatus = 0;
   for (minDist2 = VTK_DOUBLE_MAX, i = 0; i < this->Points->GetNumberOfPoints() - 2; i++)
   {
     weights[i] = 0.0;
@@ -50,9 +50,9 @@ int vtkTriangleStrip::EvaluatePosition(const double x[3], double closestPoint[3]
     this->Triangle->Points->SetPoint(1, this->Points->GetPoint(i + 1));
     this->Triangle->Points->SetPoint(2, this->Points->GetPoint(i + 2));
     status = this->Triangle->EvaluatePosition(x, closest, ignoreId, pc, dist2, tempWeights);
-    if (status != -1 && dist2 < minDist2)
+    if (status != -1 && ((dist2 < minDist2) || ((dist2 == minDist2) && (returnStatus == 0))))
     {
-      return_status = status;
+      returnStatus = status;
       if (closestPoint)
       {
         closestPoint[0] = closest[0];
@@ -76,7 +76,7 @@ int vtkTriangleStrip::EvaluatePosition(const double x[3], double closestPoint[3]
   weights[subId + 1] = activeWeights[1];
   weights[subId + 2] = activeWeights[2];
 
-  return return_status;
+  return returnStatus;
 }
 
 //------------------------------------------------------------------------------
@@ -100,13 +100,14 @@ void vtkTriangleStrip::EvaluateLocation(
   const double* pt3 = pts + 3 * (subId + idx[order][2]);
   const double u3 = 1.0 - pcoords[0] - pcoords[1];
 
-  weights[0] = u3;
-  weights[1] = pcoords[0];
-  weights[2] = pcoords[1];
+  std::fill_n(weights, this->Points->GetNumberOfPoints(), 0.0);
+  weights[subId] = u3;
+  weights[subId + 1] = pcoords[0];
+  weights[subId + 2] = pcoords[1];
 
   for (int i = 0; i < 3; i++)
   {
-    x[i] = pt1[i] * weights[0] + pt2[i] * weights[1] + pt3[i] * weights[2];
+    x[i] = pt1[i] * weights[subId] + pt2[i] * weights[subId + 1] + pt3[i] * weights[subId + 2];
   }
 }
 
@@ -212,26 +213,20 @@ int vtkTriangleStrip::IntersectWithLine(const double p1[3], const double p2[3], 
 }
 
 //------------------------------------------------------------------------------
-int vtkTriangleStrip::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkTriangleStrip::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
   int numTris = this->Points->GetNumberOfPoints() - 2;
+  ptIds->SetNumberOfIds(3 * numTris);
   int i, order;
-  static const int idx[2][3] = { { 0, 1, 2 }, { 1, 0, 2 } };
-
-  pts->Reset();
-  ptIds->Reset();
-
+  constexpr int idx[2][3] = { { 0, 1, 2 }, { 1, 0, 2 } };
   for (int subId = 0; subId < numTris; subId++)
   {
     order = subId % 2;
-
     for (i = 0; i < 3; i++)
     {
-      ptIds->InsertNextId(this->PointIds->GetId(subId + idx[order][i]));
-      pts->InsertNextPoint(this->Points->GetPoint(subId + idx[order][i]));
+      ptIds->SetId(subId * 3 + i, subId + idx[order][i]);
     }
   }
-
   return 1;
 }
 

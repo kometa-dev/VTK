@@ -7,8 +7,15 @@
 #include "vtkCxxABIConfigure.h"
 #include "vtkStringToken.h" // For tokenized type-name.
 
+#include <cstring>  // For std::strlen.
 #include <string>   // For return value.
 #include <typeinfo> // For typeid().
+
+#if VTK_HAS_ABI_NAMESPACE
+#define VTK_TYPENAME_STRINGIFY_INTERNAL(x) #x
+#define VTK_TYPENAME_STRINGIFY(x) VTK_TYPENAME_STRINGIFY_INTERNAL(x)
+#define VTK_ABI_NAMESPACE_STRING VTK_TYPENAME_STRINGIFY(VTK_ABI_NAMESPACE_NAME) "::"
+#endif
 
 namespace vtk
 {
@@ -19,7 +26,7 @@ VTK_ABI_NAMESPACE_BEGIN
 template <typename ObjectType>
 struct Name
 {
-  inline static std::string value()
+  static std::string value()
   {
     std::string result = typeid(ObjectType).name();
 #ifdef VTK_HAS_CXXABI_DEMANGLE
@@ -66,6 +73,17 @@ struct Name
       result = result.substr(0, pos) + ", " + result.substr(pos + 1);
     }
 #endif
+    // Finally, vtkABINamespace.h provides a namespace name, we will strip it
+    // from the name. This is done to avoid burdening developers with string
+    // processing when linking to multiple versions of VTK.
+#if VTK_HAS_ABI_NAMESPACE
+    const std::size_t nsLen = std::strlen(VTK_ABI_NAMESPACE_STRING);
+    for (std::string::size_type pos = result.find(VTK_ABI_NAMESPACE_STRING);
+         pos != std::string::npos; pos = result.find(VTK_ABI_NAMESPACE_STRING, pos + 1))
+    {
+      result = result.substr(0, pos) + result.substr(pos + nsLen);
+    }
+#endif
     return result;
   }
 
@@ -75,7 +93,7 @@ struct Name
   /// extensions, but because MSVC requires so much string
   /// manipulation, it is not possible until local variables
   /// are allowed in constexpr functions.
-  static inline vtkStringToken::Hash token()
+  static vtkStringToken::Hash token()
   {
     auto nameStr = Name<ObjectType>::value();
     auto result = vtkStringToken::StringHash(nameStr.c_str(), nameStr.size());

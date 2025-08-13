@@ -13,13 +13,14 @@
 
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkObject.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include "vtkDataArray.h" // Needed for inline methods
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 
-class VTKCOMMONCORE_EXPORT vtkPoints2D : public vtkObject
+class VTKCOMMONCORE_EXPORT VTK_MARSHALAUTO vtkPoints2D : public vtkObject
 {
 public:
   static vtkPoints2D* New(int dataType);
@@ -164,7 +165,8 @@ public:
 
   /**
    * Resize the internal array while conserving the data.  Returns 1 if
-   * resizing succeeded and 0 otherwise.
+   * resizing succeeded (including shrinking) and 0 (or throw std::bad_alloc
+   * based on VTK_DONT_THROW_BAD_ALLOC configuration) otherwise.
    */
   vtkTypeBool Resize(vtkIdType numPoints);
 

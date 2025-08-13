@@ -25,11 +25,12 @@
 #include "vtkNew.h"                    // For vtkNew
 #include "vtkOpenGLFXAAFilter.h"       // For vtkOpenGLFXAAFilter
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkFXAAOptions;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkOpenGLFXAAPass : public vtkImageProcessingPass
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkOpenGLFXAAPass : public vtkImageProcessingPass
 {
 public:
   static vtkOpenGLFXAAPass* New();
@@ -40,6 +41,13 @@ public:
    * Perform rendering according to a render state.
    */
   void Render(const vtkRenderState* s) override;
+
+  /**
+   * Release graphics resources and ask components to release their own
+   * resources.
+   * \pre w_exists: w!=0
+   */
+  void ReleaseGraphicsResources(vtkWindow* w) override;
 
   vtkGetObjectMacro(FXAAOptions, vtkFXAAOptions);
   virtual void SetFXAAOptions(vtkFXAAOptions*);

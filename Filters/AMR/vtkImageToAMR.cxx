@@ -122,7 +122,7 @@ void Split(const vtkAMRBox& rootBox, int numLevels, int refinementRatio, int max
       SplitXYZ(parent, refinementRatio, childBoxes);
     }
   }
-};
+}
 
 // create a grid by sampling from input using the indices in box
 vtkUniformGrid* ConstructGrid(
@@ -198,7 +198,7 @@ vtkUniformGrid* ConstructGrid(
   return grid;
 }
 
-};
+}
 
 vtkStandardNewMacro(vtkImageToAMR);
 //------------------------------------------------------------------------------
@@ -346,7 +346,7 @@ int vtkImageToAMR::RequestData(vtkInformation* vtkNotUsed(request),
     }
   }
 
-  // Skipping BlankCells incase amr is empty
+  // Skipping BlankCells in case amr is empty
   if (!this->CheckAbort())
   {
     vtkAMRUtilities::BlankCells(amr);

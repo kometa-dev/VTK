@@ -24,7 +24,7 @@ bool vtkSMPTools::SetBackend(const char* backend)
 void vtkSMPTools::Initialize(int numThreads)
 {
   auto& SMPToolsAPI = vtk::detail::smp::vtkSMPToolsAPI::GetInstance();
-  return SMPToolsAPI.Initialize(numThreads);
+  SMPToolsAPI.Initialize(numThreads);
 }
 
 //------------------------------------------------------------------------------
@@ -35,10 +35,17 @@ int vtkSMPTools::GetEstimatedNumberOfThreads()
 }
 
 //------------------------------------------------------------------------------
+int vtkSMPTools::GetEstimatedDefaultNumberOfThreads()
+{
+  auto& SMPToolsAPI = vtk::detail::smp::vtkSMPToolsAPI::GetInstance();
+  return SMPToolsAPI.GetEstimatedDefaultNumberOfThreads();
+}
+
+//------------------------------------------------------------------------------
 void vtkSMPTools::SetNestedParallelism(bool isNested)
 {
   auto& SMPToolsAPI = vtk::detail::smp::vtkSMPToolsAPI::GetInstance();
-  return SMPToolsAPI.SetNestedParallelism(isNested);
+  SMPToolsAPI.SetNestedParallelism(isNested);
 }
 
 //------------------------------------------------------------------------------

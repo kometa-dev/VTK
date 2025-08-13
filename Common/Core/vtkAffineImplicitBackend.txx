@@ -39,16 +39,10 @@ vtkAffineImplicitBackend<ValueType>::vtkAffineImplicitBackend(ValueType slope, V
 }
 
 template <typename ValueType>
-ValueType vtkAffineImplicitBackend<ValueType>::operator()(int index) const
+ValueType vtkAffineImplicitBackend<ValueType>::operator()(vtkIdType index) const
 {
   return this->Slope * static_cast<ValueType>(index) + this->Intercept;
 }
+VTK_ABI_NAMESPACE_END
 
 #endif // vtkAffineImplicitBackend_txx
-
-#ifdef VTK_AFFINE_BACKEND_INSTANTIATING
-#define VTK_INSTANTIATE_AFFINE_BACKEND(ValueType)                                                  \
-  VTK_ABI_NAMESPACE_BEGIN                                                                          \
-  template struct VTKCOMMONCORE_EXPORT vtkAffineImplicitBackend<ValueType>;                        \
-  VTK_ABI_NAMESPACE_END
-#endif

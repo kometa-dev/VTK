@@ -75,7 +75,7 @@ public:
    */
   vtkGetMacro(IsLinearTransformation, bool);
 
-  // Re-use any superclass signatures that we don't override.
+  // Reuse any superclass signatures that we don't override.
   using vtkAbstractCellLocator::FindCell;
   using vtkAbstractCellLocator::FindClosestPoint;
   using vtkAbstractCellLocator::FindClosestPointWithinRadius;
@@ -185,6 +185,8 @@ public:
 
   /**
    * Shallow copy of a vtkLinearTransformCellLocator.
+   *
+   * Before you shallow copy, make sure to call SetDataSet()
    */
   void ShallowCopy(vtkAbstractCellLocator* locator) override;
 

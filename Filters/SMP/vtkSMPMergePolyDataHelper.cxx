@@ -82,7 +82,9 @@ void MergePoints(
     numPts += (*itr).Output->GetNumberOfPoints();
     ++itr;
   }
+  // Resize preserves existing data on reallocation
   outPts->Resize(numPts);
+  outPts->SetNumberOfPoints(numPts);
 
   // Find non-empty buckets for best load balancing. We don't
   // want to visit bunch of empty buckets.
@@ -128,7 +130,9 @@ void MergePoints(
     int numArrays = mergePoints.OutputPointData->GetNumberOfArrays();
     for (int i = 0; i < numArrays; i++)
     {
+      // Resize preserves existing data on reallocation
       mergePoints.OutputPointData->GetArray(i)->Resize(numPts);
+      mergePoints.OutputPointData->GetArray(i)->SetNumberOfTuples(numPts);
     }
     mergePoints.InputPointDatas = pds.data();
 
@@ -197,16 +201,14 @@ public:
 
       // Copy the offsets, adding outConnOffset to adjust for existing
       // connectivity entries:
-      std::transform(
-        inCell.cbegin(), inCell.cend(), outCell.begin(), [&](InIndexType i) -> OutIndexType {
-          return static_cast<OutIndexType>(i + outConnOffset);
-        });
+      std::transform(inCell.cbegin(), inCell.cend(), outCell.begin(),
+        [&](InIndexType i) -> OutIndexType
+        { return static_cast<OutIndexType>(i + outConnOffset); });
 
       // Copy the connectivities, passing them through the map:
-      std::transform(
-        inConn.cbegin(), inConn.cend(), outConn.begin(), [&](InIndexType i) -> OutIndexType {
-          return static_cast<OutIndexType>(map->GetId(static_cast<vtkIdType>(i)));
-        });
+      std::transform(inConn.cbegin(), inConn.cend(), outConn.begin(),
+        [&](InIndexType i) -> OutIndexType
+        { return static_cast<OutIndexType>(map->GetId(static_cast<vtkIdType>(i))); });
     }
   };
 
@@ -425,6 +427,7 @@ vtkPolyData* vtkSMPMergePolyDataHelper::MergePolyData(std::vector<InputData>& in
   int numCellArrays = outCellData->GetNumberOfArrays();
   for (int i = 0; i < numCellArrays; i++)
   {
+    // Resize preserves existing data on reallocation
     outCellData->GetArray(i)->Resize(numOutCells);
     outCellData->GetArray(i)->SetNumberOfTuples(numOutCells);
   }

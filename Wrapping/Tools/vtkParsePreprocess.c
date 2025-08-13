@@ -17,25 +17,25 @@
 #define PREPROC_DEBUG 0
 
 /** Block size for reading files */
-const size_t FILE_BUFFER_SIZE = 8192;
+static const size_t FILE_BUFFER_SIZE = 8192;
 
 /** Size of hash table must be a power of two */
-const unsigned int PREPROC_HASH_TABLE_SIZE = 1 << 10;
+static const unsigned int PREPROC_HASH_TABLE_SIZE = 1 << 10;
 
 /** Hashes for preprocessor keywords */
-const unsigned int HASH_IFDEF = 0x0fa4b283u;
-const unsigned int HASH_IFNDEF = 0x04407ab1u;
-const unsigned int HASH_IF = 0x00597834u;
-const unsigned int HASH_ELIF = 0x7c964b25u;
-const unsigned int HASH_ELSE = 0x7c964c6eu;
-const unsigned int HASH_ENDIF = 0x0f60b40bu;
-const unsigned int HASH_DEFINED = 0x088998d4u;
-const unsigned int HASH_DEFINE = 0xf8804a70u;
-const unsigned int HASH_UNDEF = 0x10823b97u;
-const unsigned int HASH_INCLUDE = 0x9e36af89u;
-const unsigned int HASH_ERROR = 0x0f6321efu;
-const unsigned int HASH_LINE = 0x7c9a15adu;
-const unsigned int HASH_PRAGMA = 0x1566a9fdu;
+static const unsigned int HASH_IFDEF = 0x0fa4b283u;
+static const unsigned int HASH_IFNDEF = 0x04407ab1u;
+static const unsigned int HASH_IF = 0x00597834u;
+static const unsigned int HASH_ELIF = 0x7c964b25u;
+static const unsigned int HASH_ELSE = 0x7c964c6eu;
+static const unsigned int HASH_ENDIF = 0x0f60b40bu;
+static const unsigned int HASH_DEFINED = 0x088998d4u;
+static const unsigned int HASH_DEFINE = 0xf8804a70u;
+static const unsigned int HASH_UNDEF = 0x10823b97u;
+static const unsigned int HASH_INCLUDE = 0x9e36af89u;
+// static const unsigned int HASH_ERROR = 0x0f6321efu;
+// static const unsigned int HASH_LINE = 0x7c9a15adu;
+// static const unsigned int HASH_PRAGMA = 0x1566a9fdu;
 
 /** Extend dynamic arrays in a progression of powers of two.
  * Whenever "n" reaches a power of two, then the array size is
@@ -154,7 +154,7 @@ static void preproc_free_macro(MacroInfo* info)
 }
 
 /** Find a preprocessor macro, return 0 if not found. */
-static MacroInfo* preproc_find_macro(PreprocessInfo* info, StringTokenizer* token)
+static MacroInfo* preproc_find_macro(PreprocessInfo* info, const StringTokenizer* token)
 {
   unsigned int m = PREPROC_HASH_TABLE_SIZE - 1;
   unsigned int i = (token->hash & m);
@@ -182,7 +182,8 @@ static MacroInfo* preproc_find_macro(PreprocessInfo* info, StringTokenizer* toke
 
 /** Return the address of the macro within the hash table.
  * If "insert" is nonzero, add a new location if macro not found. */
-static MacroInfo** preproc_macro_location(PreprocessInfo* info, StringTokenizer* token, int insert)
+static MacroInfo** preproc_macro_location(
+  PreprocessInfo* info, const StringTokenizer* token, int insert)
 {
   MacroInfo*** htable = info->MacroHashTable;
   unsigned int m = PREPROC_HASH_TABLE_SIZE - 1;
@@ -270,7 +271,7 @@ static MacroInfo** preproc_macro_location(PreprocessInfo* info, StringTokenizer*
 }
 
 /** Remove a preprocessor macro.  Returns 0 if macro not found. */
-static int preproc_remove_macro(PreprocessInfo* info, StringTokenizer* token)
+static int preproc_remove_macro(PreprocessInfo* info, const StringTokenizer* token)
 {
   MacroInfo** hptr;
 
@@ -1377,7 +1378,7 @@ int preproc_evaluate_conditional(PreprocessInfo* info, StringTokenizer* tokens)
  */
 static int preproc_evaluate_if(PreprocessInfo* info, StringTokenizer* tokens)
 {
-  MacroInfo* macro;
+  const MacroInfo* macro;
   int v1, v2;
   int result = VTK_PARSE_OK;
 
@@ -1690,7 +1691,7 @@ const char* preproc_find_include_file(
     if (m + 1 > outputsize)
     {
       char* oldoutput = output;
-      outputsize += m + 1;
+      outputsize = m + 1;
       output = (char*)realloc(output, outputsize);
       if (!output)
       {
@@ -1698,8 +1699,8 @@ const char* preproc_find_include_file(
         return NULL;
       }
     }
-    strncpy(output, filename, m);
-    output[m] = '\0';
+    strncpy(output, filename, outputsize);
+    output[outputsize - 1] = '\0';
 
     nn = info->NumberOfIncludeFiles;
     for (ii = 0; ii < nn; ii++)
@@ -2326,7 +2327,7 @@ static int preproc_evaluate_include(PreprocessInfo* info, StringTokenizer* token
 
     if (tokens->tok == TOK_ID)
     {
-      MacroInfo* macro = preproc_find_macro(info, tokens);
+      const MacroInfo* macro = preproc_find_macro(info, tokens);
       if (macro && !macro->IsExcluded && macro->Definition)
       {
         cp = macro->Definition;
@@ -4657,7 +4658,7 @@ const char* vtkParsePreprocess_ProcessString(PreprocessInfo* info, const char* t
  * Free a string returned by ExpandMacro
  */
 void vtkParsePreprocess_FreeMacroExpansion(
-  const PreprocessInfo* info, MacroInfo* macro, const char* text)
+  const PreprocessInfo* info, const MacroInfo* macro, const char* text)
 {
   /* only free expansion if it is different from definition */
   if (info && text != macro->Definition)

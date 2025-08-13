@@ -27,11 +27,12 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObject.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALMANUAL
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkPiecewiseFunctionInternals;
 
-class VTKCOMMONDATAMODEL_EXPORT vtkPiecewiseFunction : public vtkDataObject
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALMANUAL vtkPiecewiseFunction : public vtkDataObject
 {
 public:
   static vtkPiecewiseFunction* New();
@@ -51,7 +52,7 @@ public:
   /**
    * Return what type of dataset this is.
    */
-  int GetDataObjectType() override { return VTK_PIECEWISE_FUNCTION; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_PIECEWISE_FUNCTION; }
 
   /**
    * Get the number of points used to specify the function
@@ -248,7 +249,7 @@ public:
    * Methods to set / get the search method used.
    * By default the search method used is the one automatically updated
    * each time the data is modified.
-   * This behavior can be overriden by using SetUseCustomSearchMethod() and SetCustomSearchMethod()
+   * This behavior can be overridden by using SetUseCustomSearchMethod() and SetCustomSearchMethod()
    */
   int GetAutomaticSearchMethod();
   void SetUseCustomSearchMethod(bool use);

@@ -260,33 +260,43 @@ int vtkAbstractInterpolatedVelocityField::FunctionValues(vtkDataSet* dataset, do
 
     if (this->ForceSurfaceTangentVector)
     {
-      dataset->GetCellPoints(this->LastCellId, this->PointIds);
-      if (this->PointIds->GetNumberOfIds() < 3)
+      // check cell is a 2D cell
+      if (this->CurrentCell->GetCellDimension() != 2)
       {
-        vtkErrorMacro(<< "Cannot compute normal on cells with less than 3 points");
+        vtkWarningMacro(
+          << "Cannot compute normal on non 2D cells, skipping forcing vector on tangent");
       }
       else
       {
-        double p1[3];
-        double p2[3];
-        double p3[3];
-        dataset->GetPoint(this->PointIds->GetId(0), p1);
-        dataset->GetPoint(this->PointIds->GetId(1), p2);
-        dataset->GetPoint(this->PointIds->GetId(2), p3);
+        dataset->GetCellPoints(this->LastCellId, this->PointIds);
+        if (this->PointIds->GetNumberOfIds() < 3)
+        {
+          vtkWarningMacro(<< "Cannot compute normal on cells with less than 3 points, skipping "
+                             "forcing vector on tangent");
+        }
+        else
+        {
+          double p1[3];
+          double p2[3];
+          double p3[3];
+          dataset->GetPoint(this->PointIds->GetId(0), p1);
+          dataset->GetPoint(this->PointIds->GetId(1), p2);
+          dataset->GetPoint(this->PointIds->GetId(2), p3);
 
-        // Compute orthogonal component
-        const double v1[3] = { p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2] };
-        const double v2[3] = { p3[0] - p1[0], p3[1] - p1[1], p3[2] - p1[2] };
+          // Compute orthogonal component
+          const double v1[3] = { p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2] };
+          const double v2[3] = { p3[0] - p1[0], p3[1] - p1[1], p3[2] - p1[2] };
 
-        double normal[3];
-        vtkMath::Cross(v1, v2, normal);
-        vtkMath::Normalize(normal);
-        const double k = vtkMath::Dot(normal, f);
+          double normal[3];
+          vtkMath::Cross(v1, v2, normal);
+          vtkMath::Normalize(normal);
+          const double k = vtkMath::Dot(normal, f);
 
-        // Remove non-orthogonal component.
-        f[0] -= (normal[0] * k);
-        f[1] -= (normal[1] * k);
-        f[2] -= (normal[2] * k);
+          // Remove non-orthogonal component.
+          f[0] -= (normal[0] * k);
+          f[1] -= (normal[1] * k);
+          f[2] -= (normal[2] * k);
+        }
       }
     }
 
@@ -326,7 +336,6 @@ bool vtkAbstractInterpolatedVelocityField::FindAndUpdateCell(
     // Use cache cell only if point is inside
     int ret = this->CurrentCell->EvaluatePosition(
       x, this->LastClosestPoint, this->LastSubId, this->LastPCoords, dist2, this->Weights.data());
-    // this->LastClosestPoint has been computed
 
     // check if point is inside the cell
     if (ret == 1)
@@ -401,7 +410,7 @@ bool vtkAbstractInterpolatedVelocityField::FindAndUpdateCell(
     else
     {
       this->CacheMiss++;
-      if (this->SurfaceDataset)
+      if (this->SurfaceDataset && strategy)
       {
         // if we are on a surface dataset, we can use the strategy to find the closest point
         closestPointFound = strategy->FindClosestPointWithinRadius(x, tol, this->LastClosestPoint,
@@ -411,9 +420,10 @@ bool vtkAbstractInterpolatedVelocityField::FindAndUpdateCell(
         if (closestPointFound == 1)
         {
           dataset->GetCell(this->LastCellId, this->CurrentCell);
-          // we don't need to calculate the closest point, but we do need to calculate the weights
-          this->CurrentCell->EvaluatePosition(x, nullptr /*closestPoint*/, this->LastSubId,
-            this->LastPCoords, dist2, this->Weights.data());
+          // pcoords, weights and subid are all valid, so we can compute the closest point
+          // using EvaluateLocation
+          this->CurrentCell->EvaluateLocation(
+            this->LastSubId, this->LastPCoords, this->LastClosestPoint, this->Weights.data());
         }
         else
         {

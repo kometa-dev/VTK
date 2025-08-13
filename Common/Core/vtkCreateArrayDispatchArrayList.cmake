@@ -11,7 +11,7 @@
 # - VTK_DISPATCH_SOA_ARRAYS (default: OFF)
 #   Include vtkSOADataArrayTemplate<ValueType> for the basic types supported
 #   by VTK.
-# - VTK_DISPATCH_TYPED_ARRAYS (default: OFF)
+# - VTK_DISPATCH_TYPED_ARRAYS (default: OFF) VTK_DEPRECATED_IN_9_5_0
 #   Include vtkTypedDataArray<ValueType> for the basic types supported
 #   by VTK. This enables the old-style in-situ vtkMappedDataArray subclasses
 #   to be used.
@@ -25,6 +25,9 @@
 # - VTK_DISPATCH_STD_FUNCTION_ARRAYS (default: OFF)
 #   Include vtkStdFunctionArray<ValueType> for the basic types supported
 #   by VTK.
+# - VTK_DISPATCH_STRUCTURED_POINT_ARRAYS (default: ON)
+#   Include vtkStructuredPointArray<ValueType> for the basic types supported
+#   by VTK. This should probably not be turned off.
 #
 # At a lower level, specific arrays can be added to the list individually in
 # two ways:
@@ -130,27 +133,12 @@
 # #endif // vtkArrayDispatchArrayList_h
 #
 
+# get vtk_numeric_types
+include(vtkTypeLists)
+
 # Populate the environment so that vtk_array_dispatch_generate_array_header will
 # create the array TypeList with all known array types.
 macro(vtkArrayDispatch_default_array_setup)
-
-# The default set of scalar types:
-set(vtkArrayDispatch_all_types
-  "char"
-  "double"
-  "float"
-  "int"
-  "long"
-  "long long"
-  "short"
-  "signed char"
-  "unsigned char"
-  "unsigned int"
-  "unsigned long"
-  "unsigned long long"
-  "unsigned short"
-  "vtkIdType"
-)
 
 macro(_vtkCreateArrayDispatch var class types)
   if (${var})
@@ -161,10 +149,10 @@ macro(_vtkCreateArrayDispatch var class types)
 endmacro()
 
 _vtkCreateArrayDispatch(VTK_DISPATCH_AOS_ARRAYS "vtkAOSDataArrayTemplate"
-  "${vtkArrayDispatch_all_types}")
+  "${vtk_numeric_types}")
 
 _vtkCreateArrayDispatch(VTK_DISPATCH_SOA_ARRAYS "vtkSOADataArrayTemplate"
-  "${vtkArrayDispatch_all_types}")
+  "${vtk_numeric_types}")
 
 if (VTK_DISPATCH_SOA_ARRAYS AND VTK_BUILD_SCALED_SOA_ARRAYS)
   set(_dispatch_scaled_soa_arrays "ON")
@@ -172,10 +160,10 @@ else ()
   set(_dispatch_scaled_soa_arrays "OFF")
 endif ()
 _vtkCreateArrayDispatch(_dispatch_scaled_soa_arrays "vtkScaledSOADataArrayTemplate"
-  "${vtkArrayDispatch_all_types}")
+  "${vtk_numeric_types}")
 
 _vtkCreateArrayDispatch(VTK_DISPATCH_TYPED_ARRAYS "vtkTypedDataArray"
-  "${vtkArrayDispatch_all_types}")
+  "${vtk_numeric_types}") # VTK_DEPRECATED_IN_9_5_0
 
 macro(_vtkCreateArrayDispatchImplicit var class types)
   if (${var})
@@ -186,13 +174,18 @@ macro(_vtkCreateArrayDispatchImplicit var class types)
 endmacro()
 
 _vtkCreateArrayDispatchImplicit(VTK_DISPATCH_AFFINE_ARRAYS "vtkAffineArray"
-  "${vtkArrayDispatch_all_types}")
+  "${vtk_numeric_types}")
 
 _vtkCreateArrayDispatchImplicit(VTK_DISPATCH_CONSTANT_ARRAYS "vtkConstantArray"
-  "${vtkArrayDispatch_all_types}")
+  "${vtk_numeric_types}")
 
 _vtkCreateArrayDispatchImplicit(VTK_DISPATCH_STD_FUNCTION_ARRAYS "vtkStdFunctionArray"
-  "${vtkArrayDispatch_all_types}")
+  "${vtk_numeric_types}")
+
+# we only need to dispatch on double for implicit point arrays
+set(vtkArrayDispatchImplicit_structured_point_types "double")
+_vtkCreateArrayDispatchImplicit(VTK_DISPATCH_STRUCTURED_POINT_ARRAYS "vtkStructuredPointArray"
+  "${vtkArrayDispatchImplicit_structured_point_types}")
 
 endmacro()
 
@@ -202,15 +195,15 @@ macro(vtkArrayDispatch_generate_array_header result)
 set(vtkAD_headers vtkTypeList.h)
 set(vtkAD_arrays)
 set(vtkAD_readonly_arrays)
-foreach(container ${vtkArrayDispatch_containers})
-  list(APPEND vtkAD_headers ${vtkArrayDispatch_${container}_header})
-  foreach(value_type ${vtkArrayDispatch_${container}_types})
+foreach(container IN LISTS vtkArrayDispatch_containers)
+  list(APPEND vtkAD_headers "${vtkArrayDispatch_${container}_header}")
+  foreach(value_type IN LISTS "vtkArrayDispatch_${container}_types")
     list(APPEND vtkAD_arrays "${container}<${value_type}>")
   endforeach()
 endforeach ()
-foreach(container ${vtkArrayDispatchImplicit_containers})
-  list(APPEND vtkAD_headers ${vtkArrayDispatchImplicit_${container}_header})
-  foreach(value_type ${vtkArrayDispatchImplicit_${container}_types})
+foreach(container IN LISTS vtkArrayDispatchImplicit_containers)
+  list(APPEND vtkAD_headers "${vtkArrayDispatchImplicit_${container}_header}")
+  foreach(value_type IN LISTS "vtkArrayDispatchImplicit_${container}_types")
     list(APPEND vtkAD_readonly_arrays "${container}<${value_type}>")
   endforeach()
 endforeach()
@@ -230,7 +223,7 @@ set(temp
   "\n"
 )
 
-foreach(header ${vtkAD_headers})
+foreach(header IN LISTS vtkAD_headers)
   list(APPEND temp "#include \"${header}\"\n")
 endforeach()
 
@@ -240,41 +233,31 @@ list(APPEND temp
   "VTK_ABI_NAMESPACE_BEGIN\n"
   "\n"
   "typedef vtkTypeList::Unique<\n"
-  "  vtkTypeList::Create<\n"
+  "  vtkTypeList::Create<"
 )
 
-list(LENGTH vtkAD_arrays array_size)
-math(EXPR last_index "${array_size} - 1")
-list(GET vtkAD_arrays ${last_index} vtkAD_arrays_last)
-foreach (array ${vtkAD_arrays})
-  if (NOT ${array} STREQUAL ${vtkAD_arrays_last})
-    list(APPEND temp "    ${array},\n")
-  else ()
-    list(APPEND temp "    ${array}\n")
-  endif ()
+set(vtkAD_sep "")
+foreach (array IN LISTS vtkAD_arrays)
+  list(APPEND temp "${vtkAD_sep}\n    ${array}")
+  set(vtkAD_sep ",")
 endforeach ()
 
 list(APPEND temp
-  "  >\n"
+  "\n  >\n"
   ">::Result Arrays\;\n"
   "\n"
   "typedef vtkTypeList::Unique<\n"
   "  vtkTypeList::Create<\n"
   )
 
-list(LENGTH vtkAD_readonly_arrays read_only_array_size)
-math(EXPR read_only_last_index "${read_only_array_size} - 1")
-list(GET vtkAD_readonly_arrays ${read_only_last_index} vtkAD_readonly_arrays_last)
-foreach (array ${vtkAD_readonly_arrays})
-  if (NOT ${array} STREQUAL ${vtkAD_readonly_arrays_last})
-    list(APPEND temp "    ${array},\n")
-  else ()
-    list(APPEND temp "    ${array}\n")
-  endif ()
+set(vtkAD_sep "")
+foreach (array IN LISTS vtkAD_readonly_arrays)
+  list(APPEND temp "${vtkAD_sep}\n    ${array}")
+  set(vtkAD_sep ",")
 endforeach ()
 
 list(APPEND temp
-  "  >\n"
+  "\n  >\n"
   ">::Result ReadOnlyArrays\;\n"
   "\n"
   "typedef vtkTypeList::Unique<\n"

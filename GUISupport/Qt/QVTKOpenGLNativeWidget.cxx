@@ -19,6 +19,7 @@
 #include "vtkInteractorStyleTrackballCamera.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
+#include "vtkOpenGLRenderWindow.h"
 #include "vtkOpenGLState.h"
 
 //------------------------------------------------------------------------------
@@ -153,6 +154,16 @@ QSurfaceFormat QVTKOpenGLNativeWidget::defaultFormat(bool stereo_capable)
 }
 
 //------------------------------------------------------------------------------
+void QVTKOpenGLNativeWidget::setEnableTouchEventProcessing(bool enable)
+{
+  this->EnableTouchEventProcessing = enable;
+  if (this->RenderWindowAdapter)
+  {
+    this->RenderWindowAdapter->setEnableTouchEventProcessing(enable);
+  }
+}
+
+//------------------------------------------------------------------------------
 void QVTKOpenGLNativeWidget::setEnableHiDPI(bool enable)
 {
   this->EnableHiDPI = enable;
@@ -205,10 +216,29 @@ void QVTKOpenGLNativeWidget::initializeGL()
   {
     Q_ASSERT(this->RenderWindowAdapter.data() == nullptr);
 
+    if (!this->RenderWindow->GetInitialized())
+    {
+      auto loadFunc = [](
+                        void* userData, const char* name) -> vtkOpenGLRenderWindow::VTKOpenGLAPIProc
+      {
+        if (auto* context = reinterpret_cast<QOpenGLContext*>(userData))
+        {
+          if (auto* symbol = context->getProcAddress(name))
+          {
+            return symbol;
+          }
+        }
+        return nullptr;
+      };
+      this->RenderWindow->SetOpenGLSymbolLoader(loadFunc, this->context());
+      this->RenderWindow->vtkOpenGLRenderWindow::OpenGLInit();
+    }
     auto ostate = this->RenderWindow->GetState();
     ostate->Reset();
     // By default, Qt sets the depth function to GL_LESS but VTK expects GL_LEQUAL
     ostate->vtkglDepthFunc(GL_LEQUAL);
+    // By default, Qt disables the depth test but VTK expects it to be enabled.
+    ostate->vtkglEnable(GL_DEPTH_TEST);
 
     // When a QOpenGLWidget is told to use a QSurfaceFormat with samples > 0,
     // QOpenGLWidget doesn't actually create a context with multi-samples and
@@ -220,6 +250,7 @@ void QVTKOpenGLNativeWidget::initializeGL()
     this->RenderWindowAdapter.reset(
       new QVTKRenderWindowAdapter(this->context(), this->RenderWindow, this));
     this->RenderWindowAdapter->setDefaultCursor(this->defaultCursor());
+    this->RenderWindowAdapter->setEnableTouchEventProcessing(this->EnableTouchEventProcessing);
     this->RenderWindowAdapter->setEnableHiDPI(this->EnableHiDPI);
     this->RenderWindowAdapter->setUnscaledDPI(this->UnscaledDPI);
     this->RenderWindowAdapter->setCustomDevicePixelRatio(this->CustomDevicePixelRatio);

@@ -21,6 +21,7 @@
 
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkObject.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCollectionElement //;prevents pick-up by man page generator
@@ -38,7 +39,7 @@ typedef void* vtkCollectionSimpleIterator;
 
 class vtkCollectionIterator;
 
-class VTKCOMMONCORE_EXPORT vtkCollection : public vtkObject
+class VTKCOMMONCORE_EXPORT VTK_MARSHALAUTO vtkCollection : public vtkObject
 {
 public:
   vtkTypeMacro(vtkCollection, vtkObject);
@@ -91,19 +92,19 @@ public:
    * 0, the object was not found. If the object was found, the location is
    * the return value-1.
    */
-  int IsItemPresent(vtkObject* a);
+  int IsItemPresent(vtkObject* a) VTK_FUTURE_CONST;
 
   /**
    * Search for an object and return location in list. If the return value is
    * -1, the object was not found. If the object was found, the location is
    * at the returned (0-based) index.
    */
-  int IndexOfFirstOccurence(vtkObject* a);
+  int IndexOfFirstOccurence(vtkObject* a) VTK_FUTURE_CONST;
 
   /**
    * Return the number of objects in the list.
    */
-  int GetNumberOfItems() { return this->NumberOfItems; }
+  int GetNumberOfItems() VTK_FUTURE_CONST { return this->NumberOfItems; }
 
   /**
    * Initialize the traversal of the collection. This means the data pointer
@@ -130,13 +131,13 @@ public:
    * Get the i'th item in the collection. nullptr is returned if i is out
    * of range
    */
-  vtkObject* GetItemAsObject(int i);
+  vtkObject* GetItemAsObject(int i) VTK_FUTURE_CONST;
 
   /**
    * A reentrant safe way to get the next object as a collection. Just pass the
    * same cookie back and forth.
    */
-  vtkObject* GetNextItemAsObject(vtkCollectionSimpleIterator& cookie);
+  vtkObject* GetNextItemAsObject(vtkCollectionSimpleIterator& cookie) VTK_FUTURE_CONST;
 
   /**
    * Get an iterator to traverse the objects in this collection.
@@ -186,7 +187,7 @@ inline vtkObject* vtkCollection::GetNextItemAsObject()
   }
 }
 
-inline vtkObject* vtkCollection::GetNextItemAsObject(void*& cookie)
+inline vtkObject* vtkCollection::GetNextItemAsObject(void*& cookie) VTK_FUTURE_CONST
 {
   vtkCollectionElement* elem = static_cast<vtkCollectionElement*>(cookie);
 

@@ -97,7 +97,7 @@ static void pop_scope(const char* id)
     LOG_F(ERROR, "Mismatched scope! expected (%s), got (%s)", vector.back().first.c_str(), id);
   }
 }
-VTK_THREAD_LOCAL char ThreadName[128] = {};
+static VTK_THREAD_LOCAL char ThreadName[128] = {};
 #endif
 
 VTK_ABI_NAMESPACE_END
@@ -106,6 +106,13 @@ VTK_ABI_NAMESPACE_END
 VTK_ABI_NAMESPACE_BEGIN
 //=============================================================================
 bool vtkLogger::EnableUnsafeSignalHandler = true;
+bool vtkLogger::EnableSigabrtHandler = false;
+bool vtkLogger::EnableSigbusHandler = false;
+bool vtkLogger::EnableSigfpeHandler = false;
+bool vtkLogger::EnableSigillHandler = false;
+bool vtkLogger::EnableSigintHandler = false;
+bool vtkLogger::EnableSigsegvHandler = false;
+bool vtkLogger::EnableSigtermHandler = false;
 vtkLogger::Verbosity vtkLogger::InternalVerbosityLevel = vtkLogger::VERBOSITY_1;
 
 //------------------------------------------------------------------------------
@@ -128,22 +135,30 @@ void vtkLogger::Init(int& argc, char* argv[], const char* verbosity_flag /*= "-v
   loguru::g_preamble_time = false;
   loguru::g_internal_verbosity = static_cast<loguru::Verbosity>(vtkLogger::InternalVerbosityLevel);
 
-  const auto current_stderr_verbosity = loguru::g_stderr_verbosity;
-  if (loguru::g_internal_verbosity > loguru::g_stderr_verbosity)
+  bool currentPreambleValue = loguru::g_preamble;
+  if (loguru::g_preamble && (loguru::g_internal_verbosity > loguru::g_stderr_verbosity))
   {
     // this avoids printing the preamble-header on stderr except for cases
     // where the stderr log is guaranteed to have some log text generated.
-    loguru::g_stderr_verbosity = loguru::Verbosity_WARNING;
+    loguru::g_preamble = false;
   }
   loguru::Options options;
   options.verbosity_flag = verbosity_flag;
   options.signal_options.unsafe_signal_handler = vtkLogger::EnableUnsafeSignalHandler;
+  options.signal_options.sigabrt = vtkLogger::EnableSigabrtHandler;
+  options.signal_options.sigbus = vtkLogger::EnableSigbusHandler;
+  options.signal_options.sigfpe = vtkLogger::EnableSigfpeHandler;
+  options.signal_options.sigill = vtkLogger::EnableSigillHandler;
+  options.signal_options.sigint = vtkLogger::EnableSigintHandler;
+  options.signal_options.sigsegv = vtkLogger::EnableSigsegvHandler;
+  options.signal_options.sigterm = vtkLogger::EnableSigtermHandler;
   if (strlen(detail::ThreadName) > 0)
   {
     options.main_thread_name = detail::ThreadName;
   }
-  loguru::init(argc, argv, options);
-  loguru::g_stderr_verbosity = current_stderr_verbosity;
+  loguru::init(
+    argc, argv, options); // initializes many things, one of them being g_stderr_verbosity
+  loguru::g_preamble = currentPreambleValue;
 #else
   (void)argc;
   (void)argv;

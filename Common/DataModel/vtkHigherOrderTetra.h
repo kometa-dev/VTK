@@ -50,7 +50,7 @@ public:
   void SetEdgeIdsAndPoints(int edgeId,
     const std::function<void(const vtkIdType&)>& set_number_of_ids_and_points,
     const std::function<void(const vtkIdType&, const vtkIdType&)>& set_ids_and_points);
-  void SetFaceIdsAndPoints(vtkHigherOrderTriangle* result, int edgeId,
+  static void SetFaceIdsAndPoints(int faceId, int order, vtkIdType numPts,
     const std::function<void(const vtkIdType&)>& set_number_of_ids_and_points,
     const std::function<void(const vtkIdType&, const vtkIdType&)>& set_ids_and_points);
 
@@ -68,7 +68,7 @@ public:
     vtkIdType cellId, vtkCellData* outCd, int insideOut) override;
   int IntersectWithLine(const double p1[3], const double p2[3], double tol, double& t, double x[3],
     double pcoords[3], int& subId) override;
-  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override;
+  int TriangulateLocalIds(int index, vtkIdList* ptIds) override;
   void JacobianInverse(const double pcoords[3], double** inverse, double* derivs);
   void Derivatives(
     int subId, const double pcoords[3], const double* values, int dim, double* derivs) override;

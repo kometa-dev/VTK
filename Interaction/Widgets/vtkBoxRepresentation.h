@@ -26,6 +26,7 @@
 
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
@@ -45,7 +46,8 @@ class vtkBox;
 class vtkDoubleArray;
 class vtkMatrix4x4;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkBoxRepresentation : public vtkWidgetRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkBoxRepresentation
+  : public vtkWidgetRepresentation
 {
 public:
   /**
@@ -94,6 +96,7 @@ public:
    * transform can be used to control the position of vtkProp3D's, as well as
    * other transformation operations (e.g., vtkTransformPolyData).
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   virtual void GetTransform(vtkTransform* t);
 
   /**
@@ -102,6 +105,7 @@ public:
    * where PlaceWidget() was initially called (i.e., the original bounding
    * box).
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   virtual void SetTransform(vtkTransform* t);
 
   /**
@@ -321,6 +325,16 @@ public:
    * GetActors adds all the internal props used by this representation to the supplied collection.
    */
   void GetActors(vtkPropCollection*) override;
+
+  ///@{
+  /**
+   * Get/Set the x,y,z coordinates for the corner points of the 3D box.
+   * This method is an alternative to PlaceWidget(bds) when you already
+   * know the exact coordinates for the corners of the box widget.
+   */
+  std::vector<double> GetCorners();
+  void SetCorners(std::vector<double> points);
+  ///@}
 
 protected:
   vtkBoxRepresentation();

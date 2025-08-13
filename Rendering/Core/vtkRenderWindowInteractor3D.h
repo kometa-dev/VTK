@@ -142,6 +142,37 @@ public:
   virtual void GetStartingPhysicalEventPose(vtkMatrix4x4* poseMatrix, int pointerIndex);
   ///@}
 
+  /**
+   * Return starting physical to world matrix.
+   */
+  virtual void GetStartingPhysicalToWorldMatrix(vtkMatrix4x4* startingPhysicalToWorldMatrix);
+
+  /**
+   * Set starting physical to world matrix.
+   *
+   * This method is intended to be used when defining a custom heuristic
+   * for recognizing complex gestures.
+   *
+   * This method **does not** call `this->Modified()`.
+   *
+   * \sa vtkVRRenderWindowInteractor::HandleComplexGestureEvents()
+   * \sa vtkVRRenderWindowInteractor::RecognizeComplexGesture()
+   */
+  virtual void SetStartingPhysicalToWorldMatrix(vtkMatrix4x4* startingPhysicalToWorldMatrix);
+
+  /**
+   * Set starting physical event pose.
+   *
+   * This method is intended to be used when defining a custom heuristic
+   * for recognizing complex gestures.
+   *
+   * This method **does not** call `this->Modified()`.
+   *
+   * \sa vtkVRRenderWindowInteractor::HandleComplexGestureEvents()
+   * \sa vtkVRRenderWindowInteractor::RecognizeComplexGesture()
+   */
+  virtual void SetStartingPhysicalEventPose(vtkMatrix4x4* poseMatrix, vtkEventDataDevice device);
+
   ///@{
   /**
    * With VR we know the world coordinate positions
@@ -235,16 +266,16 @@ public:
   /**
    * Set/get the direction of the physical coordinate system -Z axis in world coordinates.
    */
-  virtual void SetPhysicalViewDirection(double, double, double){};
-  virtual double* GetPhysicalViewDirection() { return nullptr; };
+  virtual void SetPhysicalViewDirection(double, double, double) {}
+  virtual double* GetPhysicalViewDirection() { return nullptr; }
   ///@}
 
   ///@{
   /**
    * Set/get the direction of the physical coordinate system +Y axis in world coordinates.
    */
-  virtual void SetPhysicalViewUp(double, double, double){};
-  virtual double* GetPhysicalViewUp() { return nullptr; };
+  virtual void SetPhysicalViewUp(double, double, double) {}
+  virtual double* GetPhysicalViewUp() { return nullptr; }
   ///@}
 
   ///@{
@@ -294,6 +325,11 @@ protected:
   vtkNew<vtkMatrix4x4> LastPhysicalEventPoses[VTKI_MAX_POINTERS];
   vtkNew<vtkMatrix4x4> StartingPhysicalEventPoses[VTKI_MAX_POINTERS];
   void RecognizeGesture(vtkCommand::EventIds) override;
+
+  /**
+   * Store physical to world matrix at the start of a complex gesture.
+   */
+  vtkNew<vtkMatrix4x4> StartingPhysicalToWorldMatrix;
 
 private:
   vtkRenderWindowInteractor3D(const vtkRenderWindowInteractor3D&) = delete;

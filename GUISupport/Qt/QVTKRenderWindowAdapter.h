@@ -84,11 +84,6 @@ public:
   static QSurfaceFormat defaultFormat(bool stereo_capable = false);
 
   /**
-   * Get the context to use for rendering.
-   */
-  QOpenGLContext* context() const;
-
-  /**
    * Call this method in `paintGL` to request a render. This may trigger a
    * `vtkRenderWindow::Render` if this class determines the buffers may be
    * obsolete.
@@ -137,6 +132,14 @@ public:
    */
   void setDefaultCursor(const QCursor& cursor) { this->DefaultCursor = cursor; }
   const QCursor& defaultCursor() const { return this->DefaultCursor; }
+  ///@}
+
+  ///@{
+  /**
+   * Enable/disable Qt touch event processing. Basic QEvent::TouchBegin/
+   TouchUpdate/TouchEnd event will be/not be processed. Default is true.
+   */
+  void setEnableTouchEventProcessing(bool value);
   ///@}
 
   ///@{

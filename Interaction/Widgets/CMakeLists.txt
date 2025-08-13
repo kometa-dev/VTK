@@ -23,6 +23,7 @@ set(classes
   vtkBorderRepresentation
   vtkBorderWidget
   vtkBoundedPlanePointPlacer
+  vtkBoundedWidgetRepresentation
   vtkBoxRepresentation
   vtkBoxWidget
   vtkBoxWidget2
@@ -80,8 +81,14 @@ set(classes
   vtkImageOrthoPlanes
   vtkImagePlaneWidget
   vtkImageTracerWidget
+  vtkImplicitAnnulusRepresentation
+  vtkImplicitAnnulusWidget
+  vtkImplicitConeRepresentation
+  vtkImplicitConeWidget
   vtkImplicitCylinderRepresentation
   vtkImplicitCylinderWidget
+  vtkImplicitFrustumRepresentation
+  vtkImplicitFrustumWidget
   vtkImplicitImageRepresentation
   vtkImplicitPlaneRepresentation
   vtkImplicitPlaneWidget
@@ -168,6 +175,14 @@ set(classes
   vtkXYPlotWidget
   )
 
+# Hand written (de)serialization routines
+set(serialization_helper_sources)
+if (VTK_WRAP_SERIALIZATION)
+  list(APPEND serialization_helper_sources
+    vtkAbstractWidgetSerDesHelper.cxx)
+endif ()
+
 vtk_module_add_module(VTK::InteractionWidgets
-  CLASSES ${classes})
+  CLASSES ${classes}
+  SOURCES ${serialization_helper_sources})
 vtk_add_test_mangling(VTK::InteractionWidgets)

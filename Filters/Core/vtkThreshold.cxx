@@ -1,7 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-// Hide VTK_DEPRECATED_IN_9_3_0() warnings.
-#define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkThreshold.h"
 
@@ -363,9 +361,16 @@ int vtkThreshold::EvaluateComponents(TScalarsArray& scalars, vtkIdType id)
   switch (this->ComponentMode)
   {
     case VTK_COMPONENT_MODE_USE_SELECTED:
-      c = this->SelectedComponent < this->NumberOfComponents ? this->SelectedComponent : 0;
-      keepCell = (this->*(this->ThresholdFunction))(static_cast<double>(scalars[id][c]));
-      break;
+    {
+      double value = 0.0;
+      if (!this->ComputeMagnitude(value, scalars, id))
+      {
+        c = this->SelectedComponent < this->NumberOfComponents ? this->SelectedComponent : 0;
+        value = static_cast<double>(scalars[id][c]);
+      }
+      keepCell = (this->*(this->ThresholdFunction))(value);
+    }
+    break;
     case VTK_COMPONENT_MODE_USE_ANY:
       keepCell = 0;
       for (c = 0; (!keepCell) && (c < this->NumberOfComponents); c++)
@@ -382,42 +387,6 @@ int vtkThreshold::EvaluateComponents(TScalarsArray& scalars, vtkIdType id)
       break;
   }
   return keepCell;
-}
-
-//------------------------------------------------------------------------------
-void vtkThreshold::SetAttributeModeToDefault()
-{
-  this->SetAttributeMode(VTK_ATTRIBUTE_MODE_DEFAULT);
-}
-
-//------------------------------------------------------------------------------
-void vtkThreshold::SetAttributeModeToUsePointData()
-{
-  this->SetAttributeMode(VTK_ATTRIBUTE_MODE_USE_POINT_DATA);
-}
-
-//------------------------------------------------------------------------------
-void vtkThreshold::SetAttributeModeToUseCellData()
-{
-  this->SetAttributeMode(VTK_ATTRIBUTE_MODE_USE_CELL_DATA);
-}
-
-//------------------------------------------------------------------------------
-// Return the method for manipulating scalar data as a string.
-const char* vtkThreshold::GetAttributeModeAsString()
-{
-  if (this->AttributeMode == VTK_ATTRIBUTE_MODE_DEFAULT)
-  {
-    return "Default";
-  }
-  else if (this->AttributeMode == VTK_ATTRIBUTE_MODE_USE_POINT_DATA)
-  {
-    return "UsePointData";
-  }
-  else
-  {
-    return "UseCellData";
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -439,50 +408,32 @@ const char* vtkThreshold::GetComponentModeAsString()
 }
 
 //------------------------------------------------------------------------------
-void vtkThreshold::SetPointsDataTypeToDouble()
-{
-  this->SetPointsDataType(VTK_DOUBLE);
-}
-
-//------------------------------------------------------------------------------
-void vtkThreshold::SetPointsDataTypeToFloat()
-{
-  this->SetPointsDataType(VTK_FLOAT);
-}
-
-//------------------------------------------------------------------------------
-void vtkThreshold::SetPointsDataType(int type)
-{
-  if (type == VTK_FLOAT)
-  {
-    this->SetOutputPointsPrecision(SINGLE_PRECISION);
-  }
-  else if (type == VTK_DOUBLE)
-  {
-    this->SetOutputPointsPrecision(DOUBLE_PRECISION);
-  }
-}
-
-//------------------------------------------------------------------------------
-int vtkThreshold::GetPointsDataType()
-{
-  if (this->OutputPointsPrecision == SINGLE_PRECISION)
-  {
-    return VTK_FLOAT;
-  }
-  else if (this->OutputPointsPrecision == DOUBLE_PRECISION)
-  {
-    return VTK_DOUBLE;
-  }
-
-  return 0;
-}
-
-//------------------------------------------------------------------------------
 int vtkThreshold::FillInputPortInformation(int, vtkInformation* info)
 {
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
   return 1;
+}
+
+//------------------------------------------------------------------------------
+template <typename TScalarsArray>
+bool vtkThreshold::ComputeMagnitude(double& magnitude, const TScalarsArray& scalars, vtkIdType id)
+{
+  if (this->SelectedComponent != this->NumberOfComponents || this->NumberOfComponents <= 1)
+  {
+    // If NumberOfComponents == 1, magnitude equals component value
+    // so don't do extra computation
+    return false;
+  }
+
+  double squaredNorm = 0.0;
+  for (int i = 0; i < this->NumberOfComponents; ++i)
+  {
+    const double value = static_cast<double>(scalars[id][i]);
+    squaredNorm += value * value;
+  }
+
+  magnitude = std::sqrt(squaredNorm);
+  return true;
 }
 
 //------------------------------------------------------------------------------

@@ -12,7 +12,7 @@
  * key checking.
  *
  * This pass expects an initialized depth buffer and color buffer.
- * Initialized buffers means they have been cleared with farest z-value and
+ * Initialized buffers means they have been cleared with farthest z-value and
  * background color/gradient/transparent color.
  *
  * @sa
@@ -24,12 +24,13 @@
 
 #include "vtkRenderPass.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLRenderWindow;
 class vtkDefaultPassLayerList; // Pimpl
 
-class VTKRENDERINGOPENGL2_EXPORT vtkDefaultPass : public vtkRenderPass
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkDefaultPass : public vtkRenderPass
 {
 public:
   static vtkDefaultPass* New();

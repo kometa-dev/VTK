@@ -11,7 +11,7 @@
  * and uses them to obtain velocity values at time T0 and T1.
  *
  * In fact the class does quite a bit more than this because when the geometry
- * of the datasets is the same at T0 and T1, we can re-use cached cell Ids and
+ * of the datasets is the same at T0 and T1, we can reuse cached cell Ids and
  * weights used in the cell interpolation routines.
  * Additionally, the same weights can be used when interpolating (point) scalar
  * values and computing vorticity etc.
@@ -35,7 +35,6 @@
 #ifndef vtkTemporalInterpolatedVelocityField_h
 #define vtkTemporalInterpolatedVelocityField_h
 
-#include "vtkDeprecation.h"            // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkFiltersFlowPathsModule.h" // For export macro
 #include "vtkFunctionSet.h"
 #include "vtkSmartPointer.h" // For vtkSmartPointer
@@ -146,8 +145,6 @@ public:
    * this function.
    */
   void AddDataSetAtTime(int N, double T, vtkDataSet* dataset);
-  VTK_DEPRECATED_IN_9_2_0("Use AddDataSetAtTime and SetMeshOverTime instead")
-  void SetDataSetAtTime(int, int, double, vtkDataSet*, bool) {}
   ///@}
 
   ///@{
@@ -198,8 +195,6 @@ public:
     int T, double pcoords[3], double* weights, vtkGenericCell*& cell, vtkDoubleArray* cellVectors);
 
   void ShowCacheResults();
-  VTK_DEPRECATED_IN_9_2_0("Use GetMeshOverTime() instead.")
-  bool IsStatic(int) { return this->MeshOverTime == STATIC; }
 
   void AdvanceOneTimeStep();
 

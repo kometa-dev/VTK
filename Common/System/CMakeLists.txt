@@ -1,4 +1,4 @@
-vtk_module_find_package(
+vtk_module_find_package(PRIVATE_IF_SHARED
   PACKAGE Threads)
 
 set(classes
@@ -30,6 +30,7 @@ set_source_files_properties(vtkSocket.cxx
 vtk_module_add_module(VTK::CommonSystem
   CLASSES ${classes})
 vtk_module_link(VTK::CommonSystem
+  NO_KIT_EXPORT_IF_SHARED
   PRIVATE
     $<$<PLATFORM_ID:WIN32>:wsock32>
     Threads::Threads)

@@ -17,14 +17,21 @@
 #define vtkOpenGLGlyph3DMapper_h
 
 #include "vtkGlyph3DMapper.h"
+
+#include "vtkColor.h"                  // for ivar
+#include "vtkDataObjectTree.h"         // for arg
 #include "vtkNew.h"                    // For vtkNew
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkVector.h"                 // for ivar
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
+
+#include <stack> // for ivar
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLGlyph3DHelper;
 class vtkBitArray;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkOpenGLGlyph3DMapper : public vtkGlyph3DMapper
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkOpenGLGlyph3DMapper : public vtkGlyph3DMapper
 {
 public:
   static vtkOpenGLGlyph3DMapper* New();
@@ -85,6 +92,14 @@ protected:
 
   void SetupColorMapper();
 
+  /**
+   * Renders children of the given dobjTree recursively.
+   * Display attributes which are specified on parents are applied to children
+   * unless a child overrides the value.
+   */
+  void RenderChildren(
+    vtkRenderer* renderer, vtkActor* actor, vtkDataObject* dobjTree, unsigned int& flatIndex);
+
   vtkMapper* ColorMapper;
 
   class vtkOpenGLGlyph3DMapperEntry;
@@ -103,6 +118,15 @@ protected:
 private:
   vtkOpenGLGlyph3DMapper(const vtkOpenGLGlyph3DMapper&) = delete;
   void operator=(const vtkOpenGLGlyph3DMapper&) = delete;
+
+  struct RenderBlockState
+  {
+    std::stack<double> Opacity;
+    std::stack<bool> Visibility;
+    std::stack<bool> Pickability;
+    std::stack<vtkColor3d> Color;
+  };
+  RenderBlockState BlockState;
 };
 
 VTK_ABI_NAMESPACE_END

@@ -30,7 +30,9 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObject.h"
-#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_3_0
+#include "vtkNew.h"           // For vtkNew
+#include "vtkSmartPointer.h"  // For vtkSmartPointer
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCell;
@@ -40,10 +42,11 @@ class vtkCellTypes;
 class vtkGenericCell;
 class vtkIdList;
 class vtkPointData;
+class vtkPoints;
 class vtkUnsignedCharArray;
 class vtkCallbackCommand;
 
-class VTKCOMMONDATAMODEL_EXPORT vtkDataSet : public vtkDataObject
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkDataSet : public vtkDataObject
 {
 public:
   vtkTypeMacro(vtkDataSet, vtkDataObject);
@@ -75,6 +78,14 @@ public:
    * THIS METHOD IS THREAD SAFE
    */
   virtual vtkIdType GetNumberOfCells() = 0;
+
+  /**
+   * If the subclass has (implicit/explicit) points, then return them.
+   * Otherwise, create a vtkPoints object and return that.
+   *
+   * DO NOT MODIFY THE RETURNED POINTS OBJECT.
+   */
+  virtual vtkPoints* GetPoints();
 
   /**
    * Get point coordinates with ptId such that: 0 <= ptId < NumberOfPoints.
@@ -152,7 +163,7 @@ public:
    * THE DATASET IS NOT MODIFIED
    *
    * @warning This method MUST be overridden for performance reasons.
-   * Default implementation is very unefficient.
+   * Default implementation is very inefficient.
    */
   virtual vtkIdType GetCellSize(vtkIdType cellId);
 
@@ -210,11 +221,10 @@ public:
    *
    * Most of the times extracting the number of faces requires only extracting
    * the cell type. However, for some cell types, the number of faces is not
-   * constant. For example, a vtkPolyhedron cell can have a different number of
-   * faces for each cell. That's why this method requires the cell id and the
-   * dataset.
+   * constant. For example, a convex point set cell can have a different number of
+   * faces for each cell. That's why this method requires the cell id and the dataset.
    */
-  int GetCellNumberOfFaces(vtkIdType cellId, unsigned char& cellType, vtkGenericCell* cell);
+  virtual int GetCellNumberOfFaces(vtkIdType cellId, unsigned char& cellType, vtkGenericCell* cell);
 
   ///@{
   /**
@@ -378,6 +388,18 @@ public:
    */
   virtual int GetMaxCellSize() = 0;
 
+  ///@{
+  /**
+   * Get the maximum/minimum spatial dimensionality of the data
+   * which is the maximum/minimum dimension of all cells.
+   *
+   * @warning This method MUST be overridden for performance reasons.
+   * Default implementation is very inefficient.
+   */
+  virtual int GetMaxSpatialDimension();
+  virtual int GetMinSpatialDimension();
+  ///@}
+
   /**
    * Return the actual size of the data in kibibytes (1024 bytes). This number
    * is valid only after the pipeline has updated. The memory size
@@ -391,7 +413,7 @@ public:
   /**
    * Return the type of data object.
    */
-  int GetDataObjectType() override { return VTK_DATA_SET; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_DATA_SET; }
 
   ///@{
   /**
@@ -450,6 +472,17 @@ public:
   vtkIdType GetNumberOfElements(int type) override;
 
   /**
+   * Abstract method which return the mesh (geometry/topology) modification time.
+   * This time is different from the usual MTime which also takes into
+   * account the modification of data arrays. This function can be used to
+   * track the changes on the mesh separately from the data arrays
+   * (eg. static mesh over time with transient data).
+   * The default implementation returns the MTime. It is up to subclasses
+   * to provide a better approach.
+   */
+  virtual vtkMTimeType GetMeshMTime();
+
+  /**
    * Returns 1 if there are any ghost cells
    * 0 otherwise.
    */
@@ -479,12 +512,6 @@ public:
   vtkUnsignedCharArray* GetPointGhostArray();
 
   /**
-   * Updates the pointer to the point ghost array.
-   */
-  VTK_DEPRECATED_IN_9_3_0("This function is deprecated. It has no effect.")
-  void UpdatePointGhostArrayCache() {}
-
-  /**
    * Allocate ghost array for points.
    */
   vtkUnsignedCharArray* AllocatePointGhostArray();
@@ -494,12 +521,6 @@ public:
    * We cache the pointer to the array to save a lookup involving string comparisons
    */
   vtkUnsignedCharArray* GetCellGhostArray();
-
-  /**
-   * Updates the pointer to the cell ghost array.
-   */
-  VTK_DEPRECATED_IN_9_3_0("This function is deprecated. It has no effect.")
-  void UpdateCellGhostArrayCache() {}
 
   /**
    * Allocate ghost array for cells.
@@ -512,10 +533,23 @@ public:
    */
   vtkUnsignedCharArray* GetGhostArray(int type) override;
 
+  /**
+   * Returns true for POINT or CELL, false otherwise
+   */
+  bool SupportsGhostArray(int type) override;
+
 protected:
   // Constructor with default bounds (0,1, 0,1, 0,1).
   vtkDataSet();
   ~vtkDataSet() override;
+
+  vtkNew<vtkGenericCell> GenericCell; // used by GetCell()
+
+  /**
+   * Return the MTime of the ghost cells array.
+   * Return 0 if no such array.
+   */
+  vtkMTimeType GetGhostCellsTime();
 
   /**
    * Compute the range of the scalars and cache it into ScalarRange
@@ -536,29 +570,11 @@ protected:
   // Time at which scalar range is computed
   vtkTimeStamp ScalarRangeComputeTime;
 
-  ///@{
-  /**
-   * These arrays pointers are caches used to avoid a string comparison (when
-   * getting ghost arrays using GetArray(name))
-   */
-  VTK_DEPRECATED_IN_9_3_0("This member is deprecated. It's no longer used.")
-  vtkUnsignedCharArray* PointGhostArray;
-  VTK_DEPRECATED_IN_9_3_0("This member is deprecated. It's no longer used.")
-  vtkUnsignedCharArray* CellGhostArray;
-  VTK_DEPRECATED_IN_9_3_0("This member is deprecated. It's no longer used.")
-  bool PointGhostArrayCached;
-  VTK_DEPRECATED_IN_9_3_0("This member is deprecated. It's no longer used.")
-  bool CellGhostArrayCached;
-  ///@}
-
 private:
   void InternalDataSetCopy(vtkDataSet* src);
-  /**
-   * Called when point/cell data is modified
-   * Updates caches to point/cell ghost arrays.
-   */
-  static void OnDataModified(
-    vtkObject* source, unsigned long eid, void* clientdata, void* calldata);
+
+  // This should only be used if a vtkDataSet subclass don't define GetPoints()
+  vtkSmartPointer<vtkPoints> TempPoints;
 
   vtkDataSet(const vtkDataSet&) = delete;
   void operator=(const vtkDataSet&) = delete;

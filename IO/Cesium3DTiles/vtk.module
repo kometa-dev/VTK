@@ -12,11 +12,11 @@ DEPENDS
   VTK::IOCore
 PRIVATE_DEPENDS
   VTK::CommonCore
+  VTK::CommonExecutionModel
   VTK::CommonTransforms
   VTK::CommonSystem
   VTK::IOImage
   VTK::IOGeometry
-  VTK::IOXML
   VTK::FiltersGeneral
   VTK::FiltersGeometry
   VTK::FiltersExtraction
@@ -30,6 +30,7 @@ TEST_DEPENDS
   VTK::IOCityGML
   VTK::IOGeometry
   VTK::IOImport
+  VTK::FiltersCore
   VTK::RenderingOpenGL2
   VTK::TestingCore
   VTK::TestingRendering

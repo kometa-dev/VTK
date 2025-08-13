@@ -39,12 +39,15 @@
  * > information.
  */
 #include "vtkCommonCoreModule.h"
+#include "vtkCompiler.h" // For VTK_USE_EXTERN_TEMPLATE
+#include "vtkType.h"     // For vtkExternTemplateMacro
 
 #include <memory>
 #include <vector>
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
+class vtkDataArrayCollection;
 template <typename ValueType>
 class VTKCOMMONCORE_EXPORT vtkCompositeImplicitBackend final
 {
@@ -55,6 +58,7 @@ public:
    * leftArr->GetNumberOfTuples()
    */
   vtkCompositeImplicitBackend(const std::vector<vtkDataArray*>& arrays);
+  vtkCompositeImplicitBackend(vtkDataArrayCollection* arrays);
   ~vtkCompositeImplicitBackend();
 
   /**
@@ -64,7 +68,14 @@ public:
    * Conceptually, the composite array uses a binary search algorithm through the use of
    * `std::upper_bounds` to offer a compute complexity of O(log_2(n_arrays))
    */
-  ValueType operator()(int idx) const;
+  ValueType operator()(vtkIdType idx) const;
+
+  /**
+   * Returns the smallest integer memory size in KiB needed to store the array.
+   * The memory size of the composite array is calculated as the sum of the sizes of its components.
+   * Used to implement GetActualMemorySize on `vtkCompositeArray`.
+   */
+  unsigned long getMemorySize() const;
 
 protected:
   struct Internals;
@@ -74,9 +85,27 @@ VTK_ABI_NAMESPACE_END
 
 #endif // vtkCompositeImplicitBackend_h
 
-#ifdef VTK_COMPOSITE_BACKEND_INSTANTIATING
+#if defined(VTK_COMPOSITE_BACKEND_INSTANTIATING)
+
 #define VTK_INSTANTIATE_COMPOSITE_BACKEND(ValueType)                                               \
   VTK_ABI_NAMESPACE_BEGIN                                                                          \
   template class VTKCOMMONCORE_EXPORT vtkCompositeImplicitBackend<ValueType>;                      \
   VTK_ABI_NAMESPACE_END
+
+#elif defined(VTK_USE_EXTERN_TEMPLATE)
+
+#ifndef VTK_COMPOSITE_BACKEND_TEMPLATE_EXTERN
+#define VTK_COMPOSITE_BACKEND_TEMPLATE_EXTERN
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4910) // extern and dllexport incompatible
+#endif
+VTK_ABI_NAMESPACE_BEGIN
+vtkExternTemplateMacro(extern template class VTKCOMMONCORE_EXPORT vtkCompositeImplicitBackend);
+VTK_ABI_NAMESPACE_END
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+#endif // VTK_COMPOSITE_IMPLICIT_BACKEND_TEMPLATE_EXTERN
+
 #endif

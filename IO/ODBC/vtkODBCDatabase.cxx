@@ -42,7 +42,6 @@ static std::string GetErrorMessage(SQLSMALLINT handleType, SQLHANDLE handle, int
   SQLRETURN status;
   SQLCHAR state[SQL_SQLSTATE_SIZE + 1];
   SQLCHAR description[SQL_MAX_MESSAGE_LENGTH + 1];
-  std::string finalResult;
   int i = 1;
 
   // There may be several error messages queued up so we need to loop
@@ -511,7 +510,7 @@ vtkStringArray* vtkODBCDatabase::GetRecord(const char* table)
     nullptr, // column
     0);
 
-  if (status != SQL_SUCCESS && status != 0)
+  if (status != SQL_SUCCESS)
   {
     std::string error = GetErrorMessage(SQL_HANDLE_STMT, statement);
 

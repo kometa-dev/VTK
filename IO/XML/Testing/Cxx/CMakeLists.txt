@@ -2,6 +2,7 @@ set(TestXML_ARGS "DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/sample.xml}"
 set(all_tests
   TestAMRXMLIO.cxx,NO_VALID
   TestDataObjectXMLIO.cxx,NO_VALID
+  TestMultiBlockDataSetWithWriteWithEmptyPolyData.cxx,NO_DATA,NO_VALID
   TestMultiBlockXMLIOWithPartialArrays.cxx,NO_VALID
   TestMultiBlockXMLIOWithPartialArraysTable.cxx,NO_VALID
   TestReadDuplicateDataArrayNames.cxx,NO_DATA,NO_VALID
@@ -13,12 +14,16 @@ set(all_tests
   TestXMLHyperTreeGridIO2.cxx,NO_VALID
   TestXMLHyperTreeGridIOInterface.cxx
   TestXMLHyperTreeGridIOReduction.cxx,NO_VALID
+  TestXMLLargeUnstructuredGrid.cxx,NO_VALID
   TestXMLMappedUnstructuredGridIO.cxx,NO_DATA,NO_VALID
+  TestXMLMultiBlockDataWriterWithEmptyLeaf.cxx,NO_DATA,NO_VALID
   TestXMLPieceDistribution.cxx
+  TestXMLPolyhedronUnstructuredGrid.cxx,NO_DATA,NO_VALID
   TestXMLToString.cxx,NO_DATA,NO_VALID,NO_OUTPUT
   TestXMLUnstructuredGridReader.cxx
   TestXMLWriterWithDataArrayFallback.cxx,NO_VALID
   TestXMLLegacyFileReadIdTypeArrays.cxx,NO_VALID,NO_OUTPUT
+  TestXMLWriteTimeValue.cxx,NO_VALID
   )
 
 if ((NOT DEFINED MSVC_VERSION) OR (MSVC_VERSION GREATER 1800))
@@ -64,3 +69,10 @@ set_property(
   TEST VTK::IOXMLCxx-TestXMLLegacyFileReadIdTypeArrays
   APPEND
   PROPERTY SKIP_REGULAR_EXPRESSION "IdType tag has been ignored")
+
+# Writing a large file during this test takes extra time, especially when other tests are running simultaneously.
+if(NOT VTK_TEST_TIMEOUT_TestXMLLargeUnstructuredGrid)
+  set(VTK_TEST_TIMEOUT_TestXMLLargeUnstructuredGrid 1000)
+endif()
+set_tests_properties(VTK::IOXMLCxx-TestXMLLargeUnstructuredGrid
+  PROPERTIES TIMEOUT ${VTK_TEST_TIMEOUT_TestXMLLargeUnstructuredGrid})

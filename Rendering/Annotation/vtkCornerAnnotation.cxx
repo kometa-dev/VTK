@@ -440,7 +440,7 @@ int vtkCornerAnnotation::RenderOpaqueGeometry(vtkViewport* viewport)
     // Only adjust size then the text changes due to non w/l slice reasons
     if (viewport_size_has_changed || tprop_has_changed || this->GetMTime() > this->BuildTime)
     {
-      // Rebuid text props.
+      // Rebuild text props.
       // Perform shallow copy here since each individual corner has a
       // different alignment/size but they share the other this->TextProperty
       // attributes.
@@ -713,6 +713,28 @@ void vtkCornerAnnotation::CopyAllTextsFrom(vtkCornerAnnotation* ca)
   for (int i = 0; i < NumTextPositions; i++)
   {
     this->SetText(i, ca->GetText(i));
+  }
+}
+
+//------------------------------------------------------------------------------
+std::vector<std::string> vtkCornerAnnotation::GetAllTexts() const
+{
+  std::vector<std::string> result;
+  result.reserve(NumTextPositions);
+  for (int i = 0; i < NumTextPositions; i++)
+  {
+    const char* text = this->CornerText[i] ? this->CornerText[i] : "";
+    result.emplace_back(text);
+  }
+  return result;
+}
+
+//------------------------------------------------------------------------------
+void vtkCornerAnnotation::SetAllTexts(const std::vector<std::string>& values)
+{
+  for (int i = 0; i < NumTextPositions; ++i)
+  {
+    this->SetText(i, values[i].c_str());
   }
 }
 

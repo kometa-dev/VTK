@@ -9,9 +9,9 @@
  * data streams is defined by the Fides library:
  * (https://gitlab.kitware.com/vtk/fides/)
  * See the Fides documentation for the details of the schema used to
- * represent VTK/VTK-m data models.
- * The reader can create partitioned datasets containing
- * native VTK dataset or  VTK VTK-m datasets.
+ * represent VTK/Viskores data models.
+ * The reader can create partitioned dataset collection containing
+ * native VTK dataset or  VTK Viskores datasets.
  * Time and time streaming is supported. Note that the interface for
  * time streaming is different. It requires calling PrepareNextStep()
  * and Update() for each new step.
@@ -29,7 +29,6 @@
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArraySelection;
-class vtkInformationIntegerKey;
 
 class VTKIOFIDES_EXPORT vtkFidesReader : public vtkAlgorithm
 {
@@ -126,7 +125,7 @@ public:
   /**
    * Methods to determine whether to output a set of vtkmDataSets
    * or native VTK datasets. If the pipeline following the reader
-   * is mainly VTK filters (as opposed to VTK-m accelerated VTK
+   * is mainly VTK filters (as opposed to Viskores accelerated VTK
    * filters), set this to on. False by default.
    */
   vtkBooleanMacro(ConvertToVTK, bool);
@@ -143,6 +142,16 @@ public:
   vtkGetMacro(StreamSteps, bool);
   ///@}
 
+  ///@{
+  /**
+   * Determines whether to close gaps between blocks of structured grids with the use of shared
+   * points.
+   */
+  vtkBooleanMacro(CreateSharedPoints, bool);
+  vtkSetMacro(CreateSharedPoints, bool);
+  vtkGetMacro(CreateSharedPoints, bool);
+  ///@}
+
   /**
    * Object to perform point array selection before update.
    */
@@ -152,6 +161,48 @@ public:
    * Object to perform cell array selection before update.
    */
   vtkGetObjectMacro(CellDataArraySelection, vtkDataArraySelection);
+
+  /**
+   * Object to perform field array selection before update.
+   */
+  vtkGetObjectMacro(FieldDataArraySelection, vtkDataArraySelection);
+
+  ///@{
+  /**
+   * Get the number of point or cell arrays available in the input.
+   */
+  int GetNumberOfPointArrays();
+  int GetNumberOfCellArrays();
+  int GetNumberOfFieldArrays();
+  ///@}
+
+  ///@{
+  /**
+   * Get the name of the point or cell array with the given index in
+   * the input.
+   */
+  const char* GetPointArrayName(int index);
+  const char* GetCellArrayName(int index);
+  const char* GetFieldArrayName(int index);
+  ///@}
+
+  ///@{
+  /**
+   * Get/Set whether the point or cell array with the given name is to
+   * be read.
+   */
+  int GetPointArrayStatus(const char* name);
+  int GetCellArrayStatus(const char* name);
+  int GetFieldArrayStatus(const char* name);
+  void SetPointArrayStatus(const char* name, int status);
+  void SetCellArrayStatus(const char* name, int status);
+  void SetFieldArrayStatus(const char* name, int status);
+  ///@}
+
+  /**
+   * Overridden to take into account mtimes for vtkDataArraySelection instances.
+   */
+  vtkMTimeType GetMTime() override;
 
 protected:
   vtkFidesReader();
@@ -164,6 +215,7 @@ protected:
   bool ConvertToVTK;
   bool StreamSteps;
   StepStatus NextStepStatus;
+  bool CreateSharedPoints;
 
   virtual int RequestDataObject(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector);
@@ -177,8 +229,6 @@ protected:
   vtkDataArraySelection* PointDataArraySelection;
   vtkDataArraySelection* CellDataArraySelection;
   vtkDataArraySelection* FieldDataArraySelection;
-
-  static vtkInformationIntegerKey* NUMBER_OF_BLOCKS();
 
   int ADIOSAttributeCheck(const std::string& name);
 

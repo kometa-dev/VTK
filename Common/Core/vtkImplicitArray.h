@@ -57,7 +57,7 @@
  * @code
  * struct Const42
  * {
- *   int operator()(int idx) const { return 42; }
+ *   int operator()(vtkIdType idx) const { return 42; }
  * };
  * vtkNew<vtkImplicitArray<Const42>> arr42;
  * @endcode
@@ -115,12 +115,12 @@
  * A peculiarity of `vtkImplicitArray`s is that their `NewInstance` method no longer gives
  * an instance of the exact same array type. A `NewInstance` call on a `vtkImplicitArray`
  * will return a `vtkAOSDataArrayTemplate<ValueTypeT>` with the same value type as the
- * orginal implicit array. This is so that the following workflow (used extensively
+ * original implicit array. This is so that the following workflow (used extensively
  * throughout VTK) can work without issues:
  * @code
  * struct Const42
  * {
- *   int operator()(int idx) const { return 42; }
+ *   int operator()(vtkIdType idx) const { return 42; }
  * };
  * vtkNew<vtkImplicitArray<Const42>> arr42;
  * arr42->SetNumberOfTuples(11);
@@ -129,6 +129,11 @@
  * arr43->SetNumberOfTuples(arr42->GetNumberOfTuples());
  * arr43->Fill(43);
  * @endcode
+ *
+ * Optionally, `vtkImplicitArray`s backends can return their memory usage in KiB by defining
+ * the function `getMemorySize` returning `unsigned long`. `vtkImplicitArray` then exposes this
+ * function through the `GetActualMemorySize` function. If the backend does not define it,
+ * `GetActualMemorySize` always returns 1.
  *
  * @sa
  * vtkGenericDataArray vtkImplicitArrayTraits vtkDataArray
@@ -139,12 +144,12 @@
 // AOS arrays instead of empty implicit arrays
 #define vtkImplicitArrayTypeMacro(thisClass, superclass)                                           \
   vtkAbstractTypeMacroWithNewInstanceType(thisClass, superclass,                                   \
-    vtkAOSDataArrayTemplate<thisClass::ValueTypeT>, typeid(thisClass).name());                     \
+    vtkAOSDataArrayTemplate<typename thisClass::ValueType>, typeid(thisClass).name());             \
                                                                                                    \
 protected:                                                                                         \
   vtkObjectBase* NewInstanceInternal() const override                                              \
   {                                                                                                \
-    return vtkAOSDataArrayTemplate<thisClass::ValueTypeT>::New();                                  \
+    return vtkAOSDataArrayTemplate<typename thisClass::ValueType>::New();                          \
   }                                                                                                \
                                                                                                    \
 public:
@@ -178,7 +183,7 @@ public:
   /**
    * Get the value at @a idx. @a idx assumes AOS ordering.
    */
-  inline ValueType GetValue(vtkIdType idx) const { return this->GetValueImpl<BackendT>(idx); }
+  ValueType GetValue(vtkIdType idx) const { return this->GetValueImpl<BackendT>(idx); }
 
   /**
    * Will not do anything for these read only arrays!
@@ -201,7 +206,7 @@ public:
   /**
    * Get component @a comp of the tuple at @a idx.
    */
-  inline ValueType GetTypedComponent(vtkIdType idx, int comp) const
+  ValueType GetTypedComponent(vtkIdType idx, int comp) const
   {
     return this->GetTypedComponentImpl<BackendT>(idx, comp);
   }
@@ -236,6 +241,11 @@ public:
   /**
    * Use of this method is discouraged, it creates a memory copy of the data into
    * a contiguous AoS-ordered buffer internally.
+   *
+   * Implicit array aims to limit memory consumption. Calling this method breaks
+   * this paradigm and can cause unexpected memory consumption,
+   * specially when called indirectly by some implementation details.
+   * E.g. when using the numpy wrapping, see #19304.
    */
   void* GetVoidPointer(vtkIdType valueIdx) override;
 
@@ -256,6 +266,20 @@ public:
   {
     this->Initialize<BackendT>();
     this->Squeeze();
+  }
+
+  /**
+   * Return the memory in kibibytes (1024 bytes) consumed by this implicit data array.
+   *
+   * The value returned is guaranteed to be greater than or equal to the memory required to
+   * actually represent the data represented by this object.
+   *
+   * Implicit array backends can implement the `getMemorySize` function to override the default
+   * implementation, which always returns 1.
+   */
+  unsigned long GetActualMemorySize() const override
+  {
+    return this->GetActualMemorySizeImpl<BackendT>();
   }
 
   /**
@@ -439,6 +463,31 @@ private:
   }
   ///@}
 
+  ///@{
+  /**
+   * Static call to get memory size for compatible backends
+   */
+  template <typename U>
+  typename std::enable_if<vtk::detail::implicit_array_traits<U>::can_get_memory_size,
+    unsigned long>::type
+  GetActualMemorySizeImpl() const
+  {
+    return this->Backend->getMemorySize();
+  }
+
+  /**
+   * Static call to get memory size for incompatible backends
+   * For those backends, dhe default memory size is 1KiB.
+   */
+  template <typename U>
+  typename std::enable_if<!vtk::detail::implicit_array_traits<U>::can_get_memory_size,
+    unsigned long>::type
+  GetActualMemorySizeImpl() const
+  {
+    return 1;
+  }
+  ///@}
+
   friend class vtkGenericDataArray<vtkImplicitArray<BackendT>, ValueTypeT>;
 };
 
@@ -460,11 +509,13 @@ class vtkCompositeImplicitBackend;
 template <typename ValueType>
 struct vtkConstantImplicitBackend;
 template <typename ValueType>
+class vtkStructuredPointBackend;
+template <typename ValueType>
 class vtkIndexedImplicitBackend;
 VTK_ABI_NAMESPACE_END
 #include <functional>
 
-// Needed to export for this module and not CmmonCore
+// Needed to export for this module and not CommonCore
 #define VTK_INSTANTIATE_VALUERANGE_ARRAYTYPE(ArrayType, ValueType)                                 \
   template VTKCOMMONCORE_EXPORT bool DoComputeScalarRange(                                         \
     ArrayType*, ValueType*, vtkDataArrayPrivate::AllValues, const unsigned char*, unsigned char);  \
@@ -482,6 +533,8 @@ VTK_ABI_NAMESPACE_END
     vtkImplicitArray<vtkCompositeImplicitBackend<ValueType>>, ValueType)                           \
   VTK_INSTANTIATE_VALUERANGE_ARRAYTYPE(                                                            \
     vtkImplicitArray<vtkConstantImplicitBackend<ValueType>>, ValueType)                            \
+  VTK_INSTANTIATE_VALUERANGE_ARRAYTYPE(                                                            \
+    vtkImplicitArray<vtkStructuredPointBackend<ValueType>>, ValueType)                             \
   VTK_INSTANTIATE_VALUERANGE_ARRAYTYPE(                                                            \
     vtkImplicitArray<vtkIndexedImplicitBackend<ValueType>>, ValueType)                             \
   VTK_INSTANTIATE_VALUERANGE_ARRAYTYPE(vtkImplicitArray<std::function<ValueType(int)>>, ValueType)
@@ -505,6 +558,8 @@ class vtkCompositeImplicitBackend;
 template <typename ValueType>
 struct vtkConstantImplicitBackend;
 template <typename ValueType>
+class vtkStructuredPointBackend;
+template <typename ValueType>
 class vtkIndexedImplicitBackend;
 VTK_ABI_NAMESPACE_END
 #include <functional>
@@ -513,12 +568,13 @@ namespace vtkDataArrayPrivate
 {
 VTK_ABI_NAMESPACE_BEGIN
 template <typename A, typename R, typename T>
-bool DoComputeScalarRange(A*, R*, T, const unsigned char* ghosts, unsigned char ghostsToSkip);
+VTKCOMMONCORE_EXPORT bool DoComputeScalarRange(
+  A*, R*, T, const unsigned char* ghosts, unsigned char ghostsToSkip);
 template <typename A, typename R>
-bool DoComputeVectorRange(
+VTKCOMMONCORE_EXPORT bool DoComputeVectorRange(
   A*, R[2], AllValues, const unsigned char* ghosts, unsigned char ghostsToSkip);
 template <typename A, typename R>
-bool DoComputeVectorRange(
+VTKCOMMONCORE_EXPORT bool DoComputeVectorRange(
   A*, R[2], FiniteValues, const unsigned char* ghosts, unsigned char ghostsToSkip);
 VTK_ABI_NAMESPACE_END
 } // namespace vtkDataArrayPrivate
@@ -540,6 +596,8 @@ VTK_ABI_NAMESPACE_END
     vtkImplicitArray<vtkCompositeImplicitBackend<ValueType>>, ValueType)                           \
   VTK_DECLARE_VALUERANGE_ARRAYTYPE(                                                                \
     vtkImplicitArray<vtkConstantImplicitBackend<ValueType>>, ValueType)                            \
+  VTK_DECLARE_VALUERANGE_ARRAYTYPE(                                                                \
+    vtkImplicitArray<vtkStructuredPointBackend<ValueType>>, ValueType)                             \
   VTK_DECLARE_VALUERANGE_ARRAYTYPE(                                                                \
     vtkImplicitArray<vtkIndexedImplicitBackend<ValueType>>, ValueType)                             \
   VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkImplicitArray<std::function<ValueType(int)>>, ValueType)
@@ -565,6 +623,7 @@ VTK_ABI_NAMESPACE_BEGIN
 VTK_DECLARE_VALUERANGE_IMPLICIT_BACKENDTYPE(vtkAffineImplicitBackend)
 VTK_DECLARE_VALUERANGE_IMPLICIT_BACKENDTYPE(vtkConstantImplicitBackend)
 VTK_DECLARE_VALUERANGE_IMPLICIT_BACKENDTYPE(vtkCompositeImplicitBackend)
+VTK_DECLARE_VALUERANGE_IMPLICIT_BACKENDTYPE(vtkStructuredPointBackend)
 VTK_DECLARE_VALUERANGE_IMPLICIT_BACKENDTYPE(vtkIndexedImplicitBackend)
 
 VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkImplicitArray<std::function<float(int)>>, double)

@@ -95,6 +95,11 @@ vtkTypeBool vtkImageAlgorithm::ProcessRequest(
     return this->RequestUpdateExtent(request, inputVector, outputVector);
   }
 
+  if (request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_TIME()))
+  {
+    return this->RequestUpdateTime(request, inputVector, outputVector);
+  }
+
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
 
@@ -160,6 +165,14 @@ int vtkImageAlgorithm::RequestInformation(
 
 //------------------------------------------------------------------------------
 int vtkImageAlgorithm::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
+  vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* vtkNotUsed(outputVector))
+{
+  // do nothing let subclasses handle it
+  return 1;
+}
+
+//------------------------------------------------------------------------------
+int vtkImageAlgorithm::RequestUpdateTime(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* vtkNotUsed(outputVector))
 {
   // do nothing let subclasses handle it
@@ -241,6 +254,10 @@ void vtkImageAlgorithm::CopyAttributeData(
       if (inArray)
       {
         outArray->SetName(inArray->GetName());
+        for (int i = 0; i < inArray->GetNumberOfComponents(); ++i)
+        {
+          outArray->SetComponentName(i, inArray->GetComponentName(i));
+        }
       }
       // Cache the scalars otherwise it may get overwritten
       // during CopyAttributes()
@@ -267,6 +284,10 @@ void vtkImageAlgorithm::CopyAttributeData(
         if (inArray)
         {
           tmp->SetName(inArray->GetName());
+          for (int i = 0; i < inArray->GetNumberOfComponents(); ++i)
+          {
+            tmp->SetComponentName(i, inArray->GetComponentName(i));
+          }
         }
         tmp->Register(this);
         output->GetPointData()->SetScalars(nullptr);
@@ -289,6 +310,10 @@ void vtkImageAlgorithm::CopyAttributeData(
         {
           vtkDataArray* tmp = output->GetPointData()->GetScalars();
           tmp->SetName(inArray->GetName());
+          for (int i = 0; i < inArray->GetNumberOfComponents(); ++i)
+          {
+            tmp->SetComponentName(i, inArray->GetComponentName(i));
+          }
         }
       }
 
@@ -296,7 +321,7 @@ void vtkImageAlgorithm::CopyAttributeData(
       {
         output->GetCellData()->CopyAllocate(input->GetCellData(), output->GetNumberOfCells());
         // Cell extent is one less than point extent.
-        // Conditional to handle a colapsed axis (lower dimensional cells).
+        // Conditional to handle a collapsed axis (lower dimensional cells).
         if (inExt[0] < inExt[1])
         {
           --inExt[1];

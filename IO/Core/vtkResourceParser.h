@@ -144,7 +144,7 @@ private:
    * To support add a supported type you have to:
    * - Add it in this check
    * - Add extern template declaration below in this file
-   * - Add extern template instatiation in source file
+   * - Add extern template instantiation in source file
    * - Implement what is needed in vtkInternals
    */
   template <typename T>
@@ -363,7 +363,8 @@ public:
   {
     const auto result = this->ReadUntil(
       discardPred,
-      [&output](const char* data, std::size_t size) mutable {
+      [&output](const char* data, std::size_t size) mutable
+      {
         for (std::size_t i{}; i < size; ++i)
         {
           *output++ = data[i];
@@ -475,7 +476,8 @@ public:
   ReadToResult<OutputIt> ReadLineTo(OutputIt output, std::size_t limit = NoLimit)
   {
     const auto result = this->ReadLine(
-      [&output](const char* data, std::size_t size) {
+      [&output](const char* data, std::size_t size)
+      {
         for (std::size_t i{}; i < size; ++i)
         {
           *output++ = data[i];

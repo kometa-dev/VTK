@@ -3,7 +3,6 @@ set(classes
   vtkOSPRayAMRVolumeMapperNode
   vtkOSPRayCameraNode
   vtkOSPRayCompositePolyDataMapperNode
-  vtkOSPRayCompositePolyDataMapper2Node
   vtkOSPRayLightNode
   vtkOSPRayMaterialHelpers
   vtkOSPRayMaterialLibrary
@@ -56,22 +55,25 @@ vtk_module_add_module(VTK::RenderingRayTracing
   PRIVATE_HEADERS ${vtk_object_factory_header})
 
 if (VTK_ENABLE_OSPRAY)
-  vtk_module_find_package(
+  vtk_module_find_package(PRIVATE_IF_SHARED
     PACKAGE ospray
-    VERSION 2.1)
-
+    )
+  if (${ospray_VERSION} VERSION_LESS 2.7)
+    message(WARNING "Unsupported OSPRay version.")
+  endif()
   vtk_module_link(VTK::RenderingRayTracing
+    NO_KIT_EXPORT_IF_SHARED
     PRIVATE
-      ospray::ospray
-      )
+      ospray::ospray)
   if (VTKOSPRAY_ENABLE_DENOISER)
-    vtk_module_find_package(
+    vtk_module_find_package(PRIVATE_IF_SHARED
       PACKAGE OpenImageDenoise
       FORWARD_VERSION_REQ MINOR)
     vtk_module_definitions(VTK::RenderingRayTracing
       PRIVATE
         VTKOSPRAY_ENABLE_DENOISER)
     vtk_module_link(VTK::RenderingRayTracing
+      NO_KIT_EXPORT_IF_SHARED
       PRIVATE
         OpenImageDenoise)
   endif ()
@@ -86,7 +88,7 @@ if (VTK_ENABLE_OSPRAY)
   vtk_module_definitions(VTK::RenderingRayTracing
     PRIVATE
       VTK_ENABLE_OSPRAY
-      OSPRAY_VERSION_MINOR=${ospray_VERSION_MINOR})
+      OSPRAY_VERSION_MAJOR=${ospray_VERSION_MAJOR})
 endif ()
 
 # VisRTX

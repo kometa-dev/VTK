@@ -146,7 +146,7 @@ int vtkParseMerge_PushOverride(MergeInfo* info, int i, int depth)
 }
 
 /* return an initialized MergeInfo */
-MergeInfo* vtkParseMerge_CreateMergeInfo(ClassInfo* classInfo)
+MergeInfo* vtkParseMerge_CreateMergeInfo(const ClassInfo* classInfo)
 {
   int i, n;
   MergeInfo* info = (MergeInfo*)malloc(sizeof(MergeInfo));
@@ -222,7 +222,7 @@ static void merge_function(FileInfo* finfo, FunctionInfo* merge, const FunctionI
           /* check if the unqualified identifier is a parameter name */
           for (j = 0; j < func->NumberOfParameters; j++)
           {
-            ValueInfo* arg = func->Parameters[j];
+            const ValueInfo* arg = func->Parameters[j];
             const char* name = arg->Name;
             if (name && strlen(name) == t.len && strncmp(name, t.text, t.len) == 0)
             {
@@ -269,7 +269,7 @@ static void merge_function(FileInfo* finfo, FunctionInfo* merge, const FunctionI
   for (i = -1; i < j; i++)
   {
     ValueInfo* arg = merge->ReturnValue;
-    ValueInfo* arg2 = func->ReturnValue;
+    const ValueInfo* arg2 = func->ReturnValue;
     if (i >= 0)
     {
       arg = merge->Parameters[i];
@@ -507,7 +507,7 @@ int vtkParseMerge_Merge(FileInfo* finfo, MergeInfo* info, ClassInfo* merge, Clas
 {
   int i, j, ii, n, m, depth;
   int match;
-  FunctionInfo* func;
+  const FunctionInfo* func;
   FunctionInfo* f1;
   FunctionInfo* f2;
 
@@ -643,7 +643,7 @@ void vtkParseMerge_MergeHelper(FileInfo* finfo, const NamespaceInfo* data,
   if (entry && entry->NumberOfTemplateParameters > 0)
   {
     /* extract the template arguments */
-    template_arg_count = (int)entry->NumberOfTemplateParameters;
+    template_arg_count = entry->NumberOfTemplateParameters;
     vtkParse_DecomposeTemplatedType(
       classname, &classname, template_arg_count, &template_args, entry->TemplateDefaults);
   }
@@ -812,11 +812,11 @@ void vtkParseMerge_MergeHelper(FileInfo* finfo, const NamespaceInfo* data,
 
 /* Merge the methods from the superclasses */
 MergeInfo* vtkParseMerge_MergeSuperClasses(
-  FileInfo* finfo, NamespaceInfo* data, ClassInfo* classInfo)
+  FileInfo* finfo, const NamespaceInfo* data, ClassInfo* classInfo)
 {
   HierarchyInfo* hinfo = NULL;
   MergeInfo* info = NULL;
-  OptionInfo* oinfo = vtkParse_GetCommandLineOptions();
+  const OptionInfo* oinfo = vtkParse_GetCommandLineOptions();
   int i, n;
 
   if (oinfo->HierarchyFileNames)
@@ -838,6 +838,9 @@ MergeInfo* vtkParseMerge_MergeSuperClasses(
   {
     vtkParseHierarchy_Free(hinfo);
   }
+
+  /* Do not finalize `oinfo` here; we're just peeking at global state to know
+   * what hierarchy files are available. */
 
   return info;
 }

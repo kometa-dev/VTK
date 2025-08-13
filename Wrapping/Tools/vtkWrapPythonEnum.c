@@ -13,10 +13,10 @@
 
 /* -------------------------------------------------------------------- */
 /* check whether an enum type will be wrapped */
-int vtkWrapPython_IsEnumWrapped(HierarchyInfo* hinfo, const char* enumname)
+int vtkWrapPython_IsEnumWrapped(const HierarchyInfo* hinfo, const char* enumname)
 {
   int rval = 0;
-  HierarchyEntry* entry;
+  const HierarchyEntry* entry;
 
   if (hinfo && enumname)
   {
@@ -32,7 +32,7 @@ int vtkWrapPython_IsEnumWrapped(HierarchyInfo* hinfo, const char* enumname)
 
 /* -------------------------------------------------------------------- */
 /* find and mark all enum parameters by setting IsEnum=1 */
-void vtkWrapPython_MarkAllEnums(NamespaceInfo* contents, HierarchyInfo* hinfo)
+void vtkWrapPython_MarkAllEnums(NamespaceInfo* contents, const HierarchyInfo* hinfo)
 {
   FunctionInfo* currentFunction;
   int i, j, n, m, ii, nn;
@@ -76,7 +76,7 @@ void vtkWrapPython_MarkAllEnums(NamespaceInfo* contents, HierarchyInfo* hinfo)
 void vtkWrapPython_AddEnumType(FILE* fp, const char* indent, const char* dictvar,
   const char* objvar, const char* scope, EnumInfo* cls)
 {
-  ValueInfo* val;
+  const ValueInfo* val;
   int j;
 
   if (cls->IsDeprecated)
@@ -157,7 +157,7 @@ void vtkWrapPython_AddEnumType(FILE* fp, const char* indent, const char* dictvar
 /* -------------------------------------------------------------------- */
 /* write out an enum type object */
 void vtkWrapPython_GenerateEnumType(
-  FILE* fp, const char* module, const char* classname, EnumInfo* data)
+  FILE* fp, const char* module, const char* classname, const EnumInfo* data)
 {
   char enumname[512];
   char tpname[512];
@@ -254,7 +254,7 @@ void vtkWrapPython_GenerateEnumType(
   /* conversion method: construct from enum value */
   fprintf(fp,
     "template<class T>\n"
-    "PyObject *Py%s_FromEnum(T val)\n"
+    "static PyObject *Py%s_FromEnum(T val)\n"
     "{\n"
     "  return PyVTKEnum_New(&Py%s_Type, static_cast<int>(val));\n"
     "}\n"

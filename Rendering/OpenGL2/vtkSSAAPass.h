@@ -7,7 +7,7 @@
  * Render to a larger image and then sample down
  *
  * This pass expects an initialized depth buffer and color buffer.
- * Initialized buffers means they have been cleared with farest z-value and
+ * Initialized buffers means they have been cleared with farthest z-value and
  * background color/gradient/transparent color.
  *
  * The delegate is used once.
@@ -27,13 +27,14 @@
 
 #include "vtkRenderPass.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLFramebufferObject;
 class vtkOpenGLHelper;
 class vtkTextureObject;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkSSAAPass : public vtkRenderPass
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkSSAAPass : public vtkRenderPass
 {
 public:
   static vtkSSAAPass* New();
@@ -64,6 +65,17 @@ public:
   virtual void SetDelegatePass(vtkRenderPass* delegatePass);
   ///@}
 
+  ///@{
+  /**
+   * Set/Get the format to use for the color texture.
+   * vtkTextureObject::Float16, vtkTextureObject::Float32
+   * and vtkTextureObject::Fixed8 are supported.
+   * Fixed8 is the default.
+   */
+  vtkSetMacro(ColorFormat, int);
+  vtkGetMacro(ColorFormat, int);
+  ///@}
+
 protected:
   /**
    * Default constructor. DelegatePass is set to NULL.
@@ -90,6 +102,8 @@ protected:
 private:
   vtkSSAAPass(const vtkSSAAPass&) = delete;
   void operator=(const vtkSSAAPass&) = delete;
+
+  int ColorFormat; // framebuffer color texture format
 };
 
 VTK_ABI_NAMESPACE_END

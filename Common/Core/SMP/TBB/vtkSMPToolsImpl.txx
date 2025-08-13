@@ -32,6 +32,22 @@ VTK_ABI_NAMESPACE_BEGIN
 void VTKCOMMONCORE_EXPORT vtkSMPToolsImplForTBB(vtkIdType first, vtkIdType last, vtkIdType grain,
   ExecuteFunctorPtrType functorExecuter, void* functor);
 
+//------------------------------------------------------------------------------
+// Address the static initialization order 'fiasco' by implementing
+// the schwarz counter idiom.
+class VTKCOMMONCORE_EXPORT vtkSMPToolsImplTBBInitialize
+{
+public:
+  vtkSMPToolsImplTBBInitialize();
+  ~vtkSMPToolsImplTBBInitialize();
+};
+
+//--------------------------------------------------------------------------------
+// This instance will show up in any translation unit that uses vtkSMPToolsImpl.
+// It will make sure vtkSMPToolsImpl statics are initialized before there are used
+// and finalized when they are done being used.
+static vtkSMPToolsImplTBBInitialize vtkSMPToolsImplTBBInitializer;
+
 //--------------------------------------------------------------------------------
 template <typename T>
 class FuncCall
@@ -180,15 +196,23 @@ void vtkSMPToolsImpl<BackendType::TBB>::Sort(
 
 //--------------------------------------------------------------------------------
 template <>
-void vtkSMPToolsImpl<BackendType::TBB>::Initialize(int);
+VTKCOMMONCORE_EXPORT void vtkSMPToolsImpl<BackendType::TBB>::Initialize(int);
 
 //--------------------------------------------------------------------------------
 template <>
-int vtkSMPToolsImpl<BackendType::TBB>::GetEstimatedNumberOfThreads();
+VTKCOMMONCORE_EXPORT vtkSMPToolsImpl<BackendType::TBB>::vtkSMPToolsImpl();
 
 //--------------------------------------------------------------------------------
 template <>
-bool vtkSMPToolsImpl<BackendType::TBB>::GetSingleThread();
+VTKCOMMONCORE_EXPORT int vtkSMPToolsImpl<BackendType::TBB>::GetEstimatedDefaultNumberOfThreads();
+
+//--------------------------------------------------------------------------------
+template <>
+VTKCOMMONCORE_EXPORT int vtkSMPToolsImpl<BackendType::TBB>::GetEstimatedNumberOfThreads();
+
+//--------------------------------------------------------------------------------
+template <>
+VTKCOMMONCORE_EXPORT bool vtkSMPToolsImpl<BackendType::TBB>::GetSingleThread();
 
 VTK_ABI_NAMESPACE_END
 } // namespace smp

@@ -22,8 +22,11 @@ set(classes
   vtkCameraActor
   vtkCameraInterpolator
   vtkCellCenterDepthSort
+  vtkCellGraphicsPrimitiveMap
   vtkCellGridMapper
+  vtkCellGridRenderRequest
   vtkColorTransferFunction
+  vtkCompositeCellGridMapper
   vtkCompositeDataDisplayAttributes
   vtkCompositeDataDisplayAttributesLegacy
   vtkCompositePolyDataMapper
@@ -173,6 +176,7 @@ set_source_files_properties(
 
 set(headers
   vtkGPUInfoListArray.h
+  vtkLabeledDatatypeDefinitions.h
   vtkPythagoreanQuadruples.h
   vtkRayCastStructures.h
   vtkRenderingCoreEnums.h
@@ -183,10 +187,25 @@ set(headers
 set(nowrap_headers
   vtkNoise200x200.h)
 
+
+# Hand written (de)serialization routines
+set(serialization_helper_sources)
+if (VTK_WRAP_SERIALIZATION)
+  list(APPEND serialization_helper_sources
+    vtkAbstractMapperSerDesHelper.cxx
+    vtkColorTransferFunctionSerDesHelper.cxx
+    vtkCompositeDataDisplayAttributesSerDesHelper.cxx
+    vtkDataSetMapperSerDesHelper.cxx
+    vtkDiscretizableColorTransferFunctionSerDesHelper.cxx
+    vtkShaderPropertySerDesHelper.cxx
+    vtkTextureSerDesHelper.cxx)
+endif ()
+
 vtk_module_add_module(VTK::RenderingCore
   CLASSES ${classes}
   NOWRAP_CLASSES ${nowrap_classes}
   HEADERS ${headers}
+  SOURCES ${serialization_helper_sources}
   NOWRAP_HEADERS ${nowrap_headers}
   )
 

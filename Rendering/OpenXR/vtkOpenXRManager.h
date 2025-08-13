@@ -22,12 +22,15 @@
 #include "vtkSmartPointer.h"
 
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLRenderWindow;
+class vtkOpenXRRenderWindow;
+class vtkOpenXRSceneObserver;
 
 class VTKRENDERINGOPENXR_EXPORT vtkOpenXRManager
 {
@@ -58,6 +61,22 @@ public:
   bool XrCheckOutput(OutputLevel level, const XrResult&, const std::string& message);
   ///@}
 
+  /**
+   * Structure representing OpenXR instance version
+   */
+  struct VTKRENDERINGOPENXR_EXPORT InstanceVersion
+  {
+    std::uint16_t Major{};
+    std::uint16_t Minor{};
+    std::uint32_t Patch{};
+  };
+
+  /**
+   * Utility function to get XrInstance runtime version for given ConnectionStrategy
+   * This function creates a XrInstance, which may have a significant runtime overhead.
+   */
+  static InstanceVersion QueryInstanceVersion(vtkOpenXRManagerConnection* cs);
+
   ///@{
   /**
    * Utility functions to print information about OpenXR manager internal structures.
@@ -71,15 +90,19 @@ public:
 
   ///@{
   /**
+   * Internal API. Managed by `vtkOpenXRRenderWindow`.
+   *
    * Initialize the OpenXR SDK to render images in a virtual reality device.
-   * The helper window must be a vtkWin32OpenGLRenderWindow if the platform is Win32,
+   * The HelperWindow of xrWindow must be a vtkWin32OpenGLRenderWindow if the platform is Win32,
    * else a vtkXOpenGLRenderWindow if the platform is X.
    */
-  bool Initialize(vtkOpenGLRenderWindow*);
+  bool Initialize(vtkOpenXRRenderWindow* xrWindow);
   ///@}
 
   ///@{
   /**
+   * Internal API. Managed by `vtkOpenXRRenderWindow`.
+   *
    * End the OpenXR session and destroy it and the OpenXR instance.
    */
   void Finalize();
@@ -151,9 +174,21 @@ public:
   ///@{
   /**
    * Return true if the runtime supports the depth extension.
+   *
+   * This value is defined by `vtkOpenXRManager::Initialize`.
    */
   bool IsDepthExtensionSupported() { return this->OptionalExtensions.DepthExtensionSupported; }
   ///@}
+
+  /**
+   * Return true if the runtime supports the scene understanding extension.
+   *
+   * This value is defined by `vtkOpenXRManager::Initialize`.
+   */
+  bool IsSceneUnderstandingSupported()
+  {
+    return this->OptionalExtensions.SceneUnderstandingSupported;
+  }
 
   ///@{
   /**
@@ -207,10 +242,10 @@ public:
   /**
    * Prepare the rendering resources for the specified eye and store in \p colorTextureId and
    * in \p depthTextureId (if the depth extension is supported) the texture in which we need
-   * to draw pixels.
+   * to draw pixels. \p win is used to get the right clipping planes for the depth extension.
    * Return true if no error occurred.
    */
-  bool PrepareRendering(uint32_t eye, void* colorTextureId, void* depthTextureId);
+  bool PrepareRendering(vtkOpenXRRenderWindow* win, void* colorTextureId, void* depthTextureId);
   ///@}
 
   ///@{
@@ -318,8 +353,8 @@ public:
    * \p action to emit vibration on \p hand to emit on \p amplitude 0.0 to 1.0.
    * \p duration nanoseconds, default 25ms \p frequency (hz)
    */
-  bool ApplyVibration(const Action_t& actionT, int hand, float amplitude = 0.5f,
-    float duration = 25000000.0f, float frequency = XR_FREQUENCY_UNSPECIFIED);
+  bool ApplyVibration(const Action_t& actionT, int hand, float amplitude = 0.5,
+    float duration = 25000000.0, float frequency = XR_FREQUENCY_UNSPECIFIED);
 
   enum ControllerIndex
   {
@@ -336,7 +371,8 @@ public:
     XrAction Action;
     XrActionType ActionType;
 
-    union {
+    union
+    {
       XrActionStateFloat _float;
       XrActionStateBoolean _boolean;
       XrActionStatePose _pose;
@@ -364,6 +400,30 @@ public:
   vtkOpenXRManagerConnection* GetConnectionStrategy() { return this->ConnectionStrategy; }
   ///@}
 
+  VTK_DEPRECATED_IN_9_5_0(
+    "Use vtkOpenXRRenderWindow::SetUseDepthExtension instead. This has no effect!")
+  void SetUseDepthExtension(bool) {}
+  VTK_DEPRECATED_IN_9_5_0(
+    "Use vtkOpenXRRenderWindow::GetUseDepthExtension instead. This returns false!")
+  bool GetUseDepthExtension() const { return false; }
+
+  /**
+   * Return OpenXR System ID associated with the XrSession
+   */
+  XrSystemId GetSystemID() const { return this->SystemId; }
+
+  /**
+   * Return XrSpace associated with the XrSession
+   */
+  XrSpace GetReferenceSpace() const { return this->ReferenceSpace; }
+
+  /**
+   * Return runtime predicted display time for next frame.
+   * This may be needed for some OpenXR API calls that requires time information.
+   * This is updated by `WaitAndBeginFrame()`
+   */
+  XrTime GetPredictedDisplayTime() const { return this->PredictedDisplayTime; }
+
 protected:
   vtkOpenXRManager();
   ~vtkOpenXRManager() = default;
@@ -374,8 +434,8 @@ protected:
    * This is where we select the extensions using
    * SelectExtensions
    */
-  bool CreateInstance();
-  std::vector<const char*> SelectExtensions();
+  bool CreateInstance(vtkOpenXRRenderWindow* window);
+  std::vector<const char*> SelectExtensions(vtkOpenXRRenderWindow* window);
   ///@}
 
   ///@{
@@ -526,6 +586,8 @@ protected:
     bool HandInteractionSupported{ false };
     bool HandTrackingSupported{ false };
     bool RemotingSupported{ false };
+    bool SceneUnderstandingSupported{ false };
+    bool SceneMarkerSupported{ false };
   } OptionalExtensions;
   ///@}
 
@@ -562,7 +624,7 @@ protected:
     std::vector<XrCompositionLayerProjectionView> ProjectionLayerViews;
     std::vector<XrCompositionLayerDepthInfoKHR> DepthInfoViews;
   };
-  std::unique_ptr<RenderResources_t> RenderResources{};
+  std::unique_ptr<RenderResources_t> RenderResources;
   ///@}
 
   // There is one subaction path for each hand.
@@ -578,8 +640,11 @@ protected:
   XrTime PredictedDisplayTime;
 
   bool SessionRunning = false;
-  // After each WaitAndBeginFrame, the OpenXR runtime may inform us that
-  // the current frame should not be rendered. Store it to avoid a render
+  // Following each WaitAndBeginFrame operation, the OpenXR runtime may indicate
+  // whether the current frame should be rendered using the `XrFrameState.shouldRender`
+  // property. We store this information to optimize rendering and prevent unnecessary
+  // render calls. For further details, refer to:
+  // https://registry.khronos.org/OpenXR/specs/1.0/man/html/XrFrameState.html
   bool ShouldRenderCurrentFrame = false;
   // If true, the function UpdateActionData will store
   // pose velocities for pose actions

@@ -86,7 +86,7 @@ public:
    * and then sort them only once. Much faster than using
    * AddTuple for each tuple.
    * t is the time values array, nb is the size of time values array,
-   * data is the array containings tuples to add (by default AOS ordering)
+   * data is the array containing tuples to add (by default AOS ordering)
    */
   void FillFromData(int nb, double* t, double** data, bool isSOADataArray = false);
 
@@ -124,11 +124,11 @@ public:
   ///@{
   /**
    * Specify which type of function to use for interpolation. By default
-   * spline interpolation (SetInterpolationFunctionToSpline()) is used
+   * spline interpolation (SetInterpolationTypeToSpline()) is used
    * (i.e., a Kochanek spline) and the InterpolatingSpline instance variable
    * is used to birth the actual interpolation splines via a combination of
    * NewInstance() and DeepCopy(). You may also choose to use linear
-   * interpolation by invoking SetInterpolationFunctionToLinear(). Note that
+   * interpolation by invoking SetInterpolationTypeToLinear(). Note that
    * changing the type of interpolation causes previously inserted data
    * to be discarded.
    */

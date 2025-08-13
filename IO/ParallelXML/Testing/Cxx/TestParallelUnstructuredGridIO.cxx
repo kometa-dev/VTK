@@ -9,6 +9,7 @@
 #include "vtksys/FStream.hxx"
 #include <vtkCell.h>
 #include <vtkCellData.h>
+#include <vtkFloatArray.h>
 #include <vtkIdList.h>
 #include <vtkLogger.h>
 #include <vtkMultiProcessController.h>
@@ -97,6 +98,38 @@ bool CompareGrids(vtkUnstructuredGrid* s, vtkUnstructuredGrid* t)
     }
   }
 
+  vtkFloatArray* numArrayS =
+    vtkArrayDownCast<vtkFloatArray>(s->GetPointData()->GetAbstractArray("my_point_data"));
+  vtkFloatArray* numArrayT =
+    vtkArrayDownCast<vtkFloatArray>(t->GetPointData()->GetAbstractArray("my_point_data"));
+
+  if (numArrayS->GetNumberOfComponents() != numArrayT->GetNumberOfComponents())
+  {
+    std::cerr << "The number of components is different:" << numArrayS->GetNumberOfComponents()
+              << " != " << numArrayT->GetNumberOfComponents() << std::endl;
+    return false;
+  }
+
+  for (vtkIdType component_i = 0; component_i < 2; ++component_i)
+  {
+    if (std::string(numArrayS->GetComponentName(component_i)) !=
+      std::string(numArrayT->GetComponentName(component_i)))
+    {
+      std::cerr << "The component names are different:" << numArrayS->GetComponentName(component_i)
+                << " != " << numArrayT->GetComponentName(component_i) << std::endl;
+      return false;
+    }
+
+    for (vtkIdType i = 0; i < s->GetNumberOfPoints(); ++i)
+    {
+      if (numArrayS->GetTuple(i)[component_i] != numArrayT->GetTuple(i)[component_i])
+      {
+        std::cerr << "0 Num array does not match:" << numArrayS->GetTuple(i)[component_i]
+                  << " != " << numArrayT->GetTuple(i)[component_i] << std::endl;
+        return false;
+      }
+    }
+  }
   return true;
 }
 
@@ -129,6 +162,23 @@ int TestParallelUnstructuredGridIO(int argc, char* argv[])
   vtkNew<vtkUnstructuredGrid> ug;
   ug->SetPoints(points);
 
+  vtkSmartPointer<vtkFloatArray> point_data = vtkSmartPointer<vtkFloatArray>::New();
+  point_data->SetName("my_point_data");
+  point_data->SetNumberOfComponents(2);
+  point_data->SetComponentName(0, "point_data_0");
+  point_data->SetComponentName(1, "point_data_1");
+  point_data->InsertNextTuple2(0.0, 10.0);
+  point_data->InsertNextTuple2(1.0, 11.0);
+  point_data->InsertNextTuple2(2.0, 12.0);
+  point_data->InsertNextTuple2(3.0, 13.0);
+  point_data->InsertNextTuple2(4.0, 14.0);
+  point_data->InsertNextTuple2(5.0, 15.0);
+  point_data->InsertNextTuple2(6.0, 16.0);
+  point_data->InsertNextTuple2(7.0, 17.0);
+  point_data->InsertNextTuple2(8.0, 18.0);
+  point_data->InsertNextTuple2(9.0, 19.0);
+  ug->GetPointData()->AddArray(point_data);
+
   ug->Allocate(3); // allocate for 3 cells
 
   vtkNew<vtkIdList> ids;
@@ -153,39 +203,38 @@ int TestParallelUnstructuredGridIO(int argc, char* argv[])
   ids->InsertNextId(7);
   ids->InsertNextId(8);
 
-  vtkNew<vtkIdList> faces;
+  vtkNew<vtkCellArray> faces;
   // top face of four points
-  faces->InsertNextId(4);
+  faces->InsertNextCell(4);
 
-  faces->InsertNextId(4);
-  faces->InsertNextId(5);
-  faces->InsertNextId(6);
-  faces->InsertNextId(7);
+  faces->InsertCellPoint(4);
+  faces->InsertCellPoint(5);
+  faces->InsertCellPoint(6);
+  faces->InsertCellPoint(7);
 
   // four triangle side faces, each of three points
-  faces->InsertNextId(3);
-  faces->InsertNextId(4);
-  faces->InsertNextId(5);
-  faces->InsertNextId(8);
+  faces->InsertNextCell(3);
+  faces->InsertCellPoint(4);
+  faces->InsertCellPoint(5);
+  faces->InsertCellPoint(8);
 
-  faces->InsertNextId(3);
-  faces->InsertNextId(5);
-  faces->InsertNextId(6);
-  faces->InsertNextId(8);
+  faces->InsertNextCell(3);
+  faces->InsertCellPoint(5);
+  faces->InsertCellPoint(6);
+  faces->InsertCellPoint(8);
 
-  faces->InsertNextId(3);
-  faces->InsertNextId(6);
-  faces->InsertNextId(7);
-  faces->InsertNextId(8);
+  faces->InsertNextCell(3);
+  faces->InsertCellPoint(6);
+  faces->InsertCellPoint(7);
+  faces->InsertCellPoint(8);
 
-  faces->InsertNextId(3);
-  faces->InsertNextId(7);
-  faces->InsertNextId(4);
-  faces->InsertNextId(8);
+  faces->InsertNextCell(3);
+  faces->InsertCellPoint(7);
+  faces->InsertCellPoint(4);
+  faces->InsertCellPoint(8);
 
   // insert the polyhedron cell
-  ug->InsertNextCell(
-    VTK_POLYHEDRON, 5, ids.GetPointer()->GetPointer(0), 5, faces.GetPointer()->GetPointer(0));
+  ug->InsertNextCell(VTK_POLYHEDRON, 5, ids.GetPointer()->GetPointer(0), faces);
 
   // put another pyramid on the bottom towards the 10th point
   faces->Reset();
@@ -199,37 +248,36 @@ int TestParallelUnstructuredGridIO(int argc, char* argv[])
   ids->InsertNextId(9);
 
   // bottom face of four points
-  faces->InsertNextId(4);
+  faces->InsertNextCell(4);
 
-  faces->InsertNextId(0);
-  faces->InsertNextId(1);
-  faces->InsertNextId(2);
-  faces->InsertNextId(3);
+  faces->InsertCellPoint(0);
+  faces->InsertCellPoint(1);
+  faces->InsertCellPoint(2);
+  faces->InsertCellPoint(3);
 
   // four side faces, each of three points
-  faces->InsertNextId(3);
-  faces->InsertNextId(0);
-  faces->InsertNextId(1);
-  faces->InsertNextId(9);
+  faces->InsertNextCell(3);
+  faces->InsertCellPoint(0);
+  faces->InsertCellPoint(1);
+  faces->InsertCellPoint(9);
 
-  faces->InsertNextId(3);
-  faces->InsertNextId(1);
-  faces->InsertNextId(2);
-  faces->InsertNextId(9);
+  faces->InsertNextCell(3);
+  faces->InsertCellPoint(1);
+  faces->InsertCellPoint(2);
+  faces->InsertCellPoint(9);
 
-  faces->InsertNextId(3);
-  faces->InsertNextId(2);
-  faces->InsertNextId(3);
-  faces->InsertNextId(9);
+  faces->InsertNextCell(3);
+  faces->InsertCellPoint(2);
+  faces->InsertCellPoint(3);
+  faces->InsertCellPoint(9);
 
-  faces->InsertNextId(3);
-  faces->InsertNextId(3);
-  faces->InsertNextId(0);
-  faces->InsertNextId(9);
+  faces->InsertNextCell(3);
+  faces->InsertCellPoint(3);
+  faces->InsertCellPoint(0);
+  faces->InsertCellPoint(9);
 
   // insert the cell. We now have two pyramids with a cube in between
-  ug->InsertNextCell(
-    VTK_POLYHEDRON, 5, ids.GetPointer()->GetPointer(0), 5, faces.GetPointer()->GetPointer(0));
+  ug->InsertNextCell(VTK_POLYHEDRON, 5, ids.GetPointer()->GetPointer(0), faces);
 
   // String array for cells
   vtkNew<vtkStringArray> helloArray;

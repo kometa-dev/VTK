@@ -2,14 +2,19 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridThreshold.h"
 
+#include "vtkArrayDispatch.h"
 #include "vtkBitArray.h"
 #include "vtkCellData.h"
+#include "vtkDataArrayRange.h"
 #include "vtkHyperTree.h"
 #include "vtkHyperTreeGrid.h"
+#include "vtkIdTypeArray.h"
+#include "vtkIndexedArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
+#include "vtkThreadedTaskQueue.h"
 #include "vtkUniformHyperTreeGrid.h"
 
 #include "vtkHyperTreeGridNonOrientedCursor.h"
@@ -17,11 +22,156 @@
 #include <cmath>
 #include <limits>
 
+namespace
+{
+constexpr int MAX_MUTEX = 1024;
+/*
+ * Pure abstract interface for implementing how to deal with output
+ * cell data during the thresholding
+ */
+struct CellDataManager
+{
+public:
+  CellDataManager(vtkCellData* inputData, vtkCellData* outputData)
+    : InputData(inputData)
+    , OutputData(outputData)
+  {
+  }
+
+  virtual ~CellDataManager() = default;
+
+  virtual void operator()(vtkIdType inputIndex, vtkIdType outputIndex) = 0;
+
+  virtual void WrapUp() = 0;
+
+protected:
+  vtkCellData* InputData = nullptr;
+  vtkCellData* OutputData = nullptr;
+};
+
+/*
+ * Cell data management implementation for the DeepThreshold strategy.
+ * Implements a copy of the input data into the output data.
+ */
+struct CellDataCopier : public CellDataManager
+{
+public:
+  CellDataCopier(vtkCellData* inputData, vtkCellData* outputData)
+    : CellDataManager(inputData, outputData)
+  {
+    this->OutputData->CopyAllocate(this->InputData);
+  }
+
+  ~CellDataCopier() override = default;
+
+  void operator()(vtkIdType inputIndex, vtkIdType outputIndex) override
+  {
+    this->OutputData->CopyData(this->InputData, inputIndex, outputIndex);
+  }
+
+  void WrapUp() override { this->OutputData->Squeeze(); }
+};
+
+/*
+ * Utility struct for dispatching input arrays and creating
+ * the corresponding output vtkIndexedArrays.
+ */
+struct IndexedArrayInitializer
+{
+public:
+  IndexedArrayInitializer(vtkIdTypeArray* handles, vtkCellData* output)
+    : Handles(handles)
+    , Output(output)
+  {
+  }
+
+  template <class ArrayT>
+  void operator()(ArrayT* input)
+  {
+    using ValueType = vtk::GetAPIType<ArrayT>;
+    vtkNew<vtkIndexedArray<ValueType>> indexed;
+    indexed->SetName(input->GetName());
+    indexed->SetNumberOfComponents(input->GetNumberOfComponents());
+    indexed->ConstructBackend(this->Handles, input);
+    this->Output->AddArray(indexed);
+  }
+
+private:
+  vtkIdTypeArray* Handles = nullptr;
+  vtkCellData* Output = nullptr;
+};
+
+/*
+ * Cell data management implementation for the CopyStructureAndIndexArrays strategy.
+ * Implements an indexation of input cell data in the output using vtkIndexedArrays
+ * and a shared index mapping.
+ */
+struct CellDataIndexer : public CellDataManager
+{
+public:
+  CellDataIndexer(vtkCellData* inputData, vtkCellData* outputData)
+    : CellDataManager(inputData, outputData)
+    , IndirectionMap(vtkSmartPointer<vtkIdTypeArray>::New())
+  {
+    this->OutputData->CopyAllocate(this->InputData, 1, 1);
+    this->IndirectionMap->SetNumberOfComponents(1);
+    this->IndirectionMap->SetNumberOfTuples(0);
+    using SupportedArrays = vtkArrayDispatch::Arrays;
+    using Dispatcher = vtkArrayDispatch::DispatchByArray<SupportedArrays>;
+    for (vtkIdType iArr = 0; iArr < this->InputData->GetNumberOfArrays(); ++iArr)
+    {
+      auto inputArr = this->InputData->GetArray(iArr);
+      if (!inputArr)
+      {
+        // skip all arrays that are not data arrays
+        continue;
+      }
+      IndexedArrayInitializer initializer(this->IndirectionMap, this->OutputData);
+      if (!Dispatcher::Execute(inputArr, initializer))
+      {
+        initializer(inputArr);
+      }
+    }
+  }
+
+  void operator()(vtkIdType inputIndex, vtkIdType outputIndex) override
+  {
+    this->IndirectionMap->InsertValue(outputIndex, inputIndex);
+  }
+
+  void WrapUp() override
+  {
+    for (vtkIdType iArr = 0; iArr < this->OutputData->GetNumberOfArrays(); ++iArr)
+    {
+      auto arr = this->OutputData->GetArray(iArr);
+      if (!arr)
+      {
+        // skip all arrays that are not data arrays
+        continue;
+      }
+      arr->SetNumberOfTuples(this->IndirectionMap->GetNumberOfTuples());
+    }
+  }
+
+private:
+  vtkSmartPointer<vtkIdTypeArray> IndirectionMap;
+};
+
+}
+
 VTK_ABI_NAMESPACE_BEGIN
+//------------------------------------------------------------------------------
+struct vtkHyperTreeGridThreshold::Internals
+{
+  std::unique_ptr<::CellDataManager> CDManager;
+};
+
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkHyperTreeGridThreshold);
 
 //------------------------------------------------------------------------------
 vtkHyperTreeGridThreshold::vtkHyperTreeGridThreshold()
+  : Internal(new Internals)
 {
   // Use minimum double value by default for lower threshold bound
   this->LowerThreshold = std::numeric_limits<double>::min();
@@ -30,10 +180,6 @@ vtkHyperTreeGridThreshold::vtkHyperTreeGridThreshold()
   this->UpperThreshold = std::numeric_limits<double>::max();
 
   // This filter always creates an output with a material mask
-  // JBL Ce n'est que dans de tres rares cas que le mask produit par le
-  // JBL threshold, que ce soit avec ou sans creation d'un nouveau maillage,
-  // JBL ne contienne que des valeurs a false. Ce n'est que dans ces
-  // JBL tres rares cas que la creation d'un mask n'aurait pas d'utilite.
   this->OutMask = vtkBitArray::New();
 
   // Output indices begin at 0
@@ -46,10 +192,6 @@ vtkHyperTreeGridThreshold::vtkHyperTreeGridThreshold()
   // Input scalars point to null by default
   this->InScalars = nullptr;
 
-  // By default, just create a new mask
-  this->JustCreateNewMask = true;
-
-  // JB Pour sortir un maillage de meme type que celui en entree, si create
   this->AppropriateOutput = true;
 }
 
@@ -79,6 +221,8 @@ void vtkHyperTreeGridThreshold::PrintSelf(ostream& os, vtkIndent indent)
   {
     os << indent << "InScalars: (none)\n";
   }
+
+  os << indent << "MemoryStrategy: " << this->MemoryStrategy << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -115,19 +259,28 @@ int vtkHyperTreeGridThreshold::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObje
     return 1;
   }
 
-  // JBL Pour les cas extremes ou le filtre est insere dans une chaine
-  // JBL de traitement, on pourrait ajouter ici un controle optionnel
-  // JBL afin de voir entre le datarange de inscalars et
-  // JBL l'interval [LowerThreshold, UpperThreshold] il y a :
-  // JBL - un total recouvrement, alors output est le input
-  // JBL - pasde recouvrement, alors output est un maillage vide.
-
   // Retrieve material mask
   this->InMask = input->HasMask() ? input->GetMask() : nullptr;
 
-  if (this->JustCreateNewMask)
+  if (this->MemoryStrategy == MaskInput)
   {
     output->ShallowCopy(input);
+
+    // Create mutexes covering the whole array for concurrent accesses to the same byte of
+    // vtkBitArray
+    const vtkIdType nbCells = output->GetNumberOfCells();
+    const vtkIdType nbBytesMask = nbCells / 8;
+    const vtkIdType nbMutexes = std::max<vtkIdType>(std::min<vtkIdType>(MAX_MUTEX, nbBytesMask), 1);
+    this->ArrayMutexSize = nbCells / nbMutexes + 1;
+    if (this->ArrayMutexSize % 8 != 0)
+    {
+      // Align the size of mutex array with byte delimitation
+      this->ArrayMutexSize += 8 - this->ArrayMutexSize % 8;
+    }
+    this->ArrayMutexSize = std::max(this->ArrayMutexSize, 8);
+    assert("ArrayMutexSize is a multiple of 8" && this->ArrayMutexSize % 8 == 0);
+    std::vector<std::mutex> list(nbMutexes);
+    this->OutMaskMutexes.swap(list); // std::mutex is not movable, need to use a swap
 
     this->OutMask->SetNumberOfTuples(output->GetNumberOfCells());
 
@@ -135,20 +288,32 @@ int vtkHyperTreeGridThreshold::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObje
     vtkIdType outIndex;
     vtkHyperTreeGrid::vtkHyperTreeGridIterator it;
     output->InitializeTreeIterator(it);
-    vtkNew<vtkHyperTreeGridNonOrientedCursor> outCursor;
+
+    vtkThreadedTaskQueue<void, int> queue(
+      [this, &output](int startIndex)
+      {
+        vtkNew<vtkHyperTreeGridNonOrientedCursor> outCursor;
+        // Initialize new grid cursor at root of current input tree
+        output->InitializeNonOrientedCursor(outCursor, startIndex);
+        // Limit depth recursively
+        this->RecursivelyProcessTreeWithCreateNewMask(outCursor);
+      },
+      true);
+
     while (it.GetNextTree(outIndex))
     {
       if (this->CheckAbort())
       {
         break;
       }
-      // Initialize new grid cursor at root of current input tree
-      output->InitializeNonOrientedCursor(outCursor, outIndex);
-      // Limit depth recursively
-      this->RecursivelyProcessTreeWithCreateNewMask(outCursor);
-    } // it
+
+      queue.Push(static_cast<int>(outIndex));
+    }
+
+    queue.Flush();
   }
-  else
+  else if (this->MemoryStrategy == CopyStructureAndIndexArrays ||
+    this->MemoryStrategy == DeepThreshold)
   {
     // Set grid parameters
     output->SetDimensions(input->GetDimensions());
@@ -159,10 +324,25 @@ int vtkHyperTreeGridThreshold::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObje
     output->SetInterfaceNormalsName(input->GetInterfaceNormalsName());
     output->SetInterfaceInterceptsName(input->GetInterfaceInterceptsName());
 
-    // Initialize output point data
-    this->InData = input->GetCellData();
-    this->OutData = output->GetCellData();
-    this->OutData->CopyAllocate(this->InData);
+    // Initialize cell data manager
+    switch (this->MemoryStrategy)
+    {
+      // MaskInput is handled above
+      case CopyStructureAndIndexArrays:
+        this->Internal->CDManager = std::unique_ptr<::CellDataManager>(
+          new ::CellDataIndexer(input->GetCellData(), output->GetCellData()));
+        break;
+      case DeepThreshold:
+        this->Internal->CDManager = std::unique_ptr<::CellDataManager>(
+          new ::CellDataCopier(input->GetCellData(), output->GetCellData()));
+        break;
+      default:
+        this->Internal->CDManager = std::unique_ptr<::CellDataManager>(
+          new ::CellDataCopier(input->GetCellData(), output->GetCellData()));
+        vtkWarningMacro("No switch case for given MemoryStrategy "
+          << this->MemoryStrategy << " defaulting to DeepThreshold");
+        break;
+    }
 
     // Output indices begin at 0
     this->CurrentId = 0;
@@ -186,6 +366,14 @@ int vtkHyperTreeGridThreshold::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObje
       // Limit depth recursively
       this->RecursivelyProcessTree(inCursor, outCursor);
     } // it
+
+    this->Internal->CDManager->WrapUp();
+  }
+  else
+  {
+    vtkErrorMacro(
+      "No corresponding MemoryStrategyChoice for MemoryStrategy = " << this->MemoryStrategy);
+    return 0;
   }
 
   // Squeeze and set output material mask if necessary
@@ -207,7 +395,12 @@ bool vtkHyperTreeGridThreshold::RecursivelyProcessTree(
   vtkIdType outId = this->CurrentId++;
 
   // Copy out cell data from that of input cell
-  this->OutData->CopyData(this->InData, inId, outId);
+  if (!this->Internal->CDManager)
+  {
+    vtkErrorMacro("Must set the CellDataManager before processing trees");
+    return false;
+  }
+  (*(this->Internal->CDManager))(inId, outId);
 
   // Retrieve output tree and set global index of output cursor
   vtkHyperTree* outTree = outCursor->GetTree();
@@ -280,13 +473,16 @@ bool vtkHyperTreeGridThreshold::RecursivelyProcessTreeWithCreateNewMask(
   // Flag to recursively decide whether a tree node should discarded
   bool discard = true;
 
-  if (this->InMask && this->InMask->GetValue(outId))
+  if (this->InMask)
   {
-    // Mask output cell if necessary
-    this->OutMask->InsertTuple1(outId, discard);
+    if (this->InMask->GetValue(outId))
+    {
+      // Mask output cell if necessary
+      this->SafeInsertOutMask(outId, discard);
 
-    // Return whether current node is within range
-    return discard;
+      // Return whether current node is within range
+      return discard;
+    }
   }
 
   // Descend further into input trees only if cursor is not at leaf
@@ -294,31 +490,45 @@ bool vtkHyperTreeGridThreshold::RecursivelyProcessTreeWithCreateNewMask(
   {
     // If input cursor is neither at leaf nor at maximum depth, recurse to all children
     int numChildren = outCursor->GetNumberOfChildren();
+
     for (int ichild = 0; ichild < numChildren; ++ichild)
     {
-      if (this->CheckAbort())
-      {
-        break;
-      }
-      // Descend into child in output grid as well
-      outCursor->ToChild(ichild);
       // Recurse and keep track of whether some children are kept
-      discard &= this->RecursivelyProcessTreeWithCreateNewMask(outCursor);
-      // Return to parent in output grid
-      outCursor->ToParent();
-    } // child
-  }   // if (! inCursor->IsLeaf() && inCursor->GetCurrentDepth() < this->Depth)
+      discard &= this->RecursivelyProcessChild(outCursor, ichild);
+    }
+  }
   else
   {
     // Input cursor is at leaf, check whether it is within range
-    double value = this->InScalars->GetTuple1(outId);
-    discard = value < this->LowerThreshold || value > this->UpperThreshold;
-  } // else
+    std::array<double, 1> val{ 0.0 };
+    this->InScalars->GetTuple(outId, val.data());
+    discard = val[0] < this->LowerThreshold || val[0] > this->UpperThreshold;
+  }
 
   // Mask output cell if necessary
-  this->OutMask->InsertTuple1(outId, discard);
+  this->SafeInsertOutMask(outId, discard);
 
   // Return whether current node is within range
   return discard;
+}
+
+//------------------------------------------------------------------------------
+bool vtkHyperTreeGridThreshold::RecursivelyProcessChild(
+  vtkHyperTreeGridNonOrientedCursor* outCursor, int ichild)
+{
+  assert("pre: has child ichild" && ichild < outCursor->GetNumberOfChildren());
+  outCursor->ToChild(ichild);
+  bool discard = this->RecursivelyProcessTreeWithCreateNewMask(outCursor);
+  outCursor->ToParent();
+
+  return discard;
+}
+
+//------------------------------------------------------------------------------
+void vtkHyperTreeGridThreshold::SafeInsertOutMask(vtkIdType tupleIdx, double value)
+{
+  assert("pre: ArrayMutexSize not null" && this->ArrayMutexSize > 0);
+  const std::lock_guard<std::mutex> lock(this->OutMaskMutexes[tupleIdx / this->ArrayMutexSize]);
+  this->OutMask->InsertTuple1(tupleIdx, value);
 }
 VTK_ABI_NAMESPACE_END

@@ -29,7 +29,7 @@ double decodeMultiplier(short multiplier)
 {
   return (multiplier < 0) ? (-1.0 / multiplier) : (multiplier > 0 ? multiplier : 1.0);
 }
-};
+}
 
 //------------------------------------------------------------------------------
 vtkSegYReaderInternal::vtkSegYReaderInternal()
@@ -137,7 +137,7 @@ bool vtkSegYReaderInternal::Is3DComputeParameters(
 
   // compute the dimensions of the dataset, to be safe we
   // look at all the traces and compute the set of inline
-  // and crossline indicies
+  // and crossline indices
   std::set<int> crossLines;
   std::map<int, std::array<double, 3>> crossCoordinates;
   std::set<int> inLines;
@@ -232,7 +232,7 @@ bool vtkSegYReaderInternal::Is3DComputeParameters(
     return false;
   }
 
-  // compute the mapping of indicies into coords if we have three
+  // compute the mapping of indices into coords if we have three
   if (basisPointCount == 3)
   {
     // compute an orthogonal basis

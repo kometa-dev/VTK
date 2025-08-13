@@ -1,5 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+
+// VTK_DEPRECATED_IN_9_5_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkHierarchicalBoxDataSetAlgorithm.h"
 
 #include "vtkCompositeDataPipeline.h"
@@ -84,6 +88,11 @@ vtkTypeBool vtkHierarchicalBoxDataSetAlgorithm::ProcessRequest(
   if (request->Has(vtkCompositeDataPipeline::REQUEST_UPDATE_EXTENT()))
   {
     return this->RequestUpdateExtent(request, inputVector, outputVector);
+  }
+
+  if (request->Has(vtkCompositeDataPipeline::REQUEST_UPDATE_TIME()))
+  {
+    return this->RequestUpdateTime(request, inputVector, outputVector);
   }
 
   return this->Superclass::ProcessRequest(request, inputVector, outputVector);

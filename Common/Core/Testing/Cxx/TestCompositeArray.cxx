@@ -5,7 +5,6 @@
 #include "vtkAffineArray.h"
 #include "vtkDataArrayRange.h"
 #include "vtkIntArray.h"
-#include "vtkVTK_DISPATCH_IMPLICIT_ARRAYS.h"
 
 #include <cstdlib>
 #include <memory>
@@ -58,7 +57,7 @@ int TestCompositeArray(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
     if (composite->GetValue(iArr) != iArr)
     {
       res = EXIT_FAILURE;
-      std::cout << "get value failed with vtkCompositeArray: " << iArr
+      std::cerr << "get value failed with vtkCompositeArray: " << iArr
                 << " != " << composite->GetValue(iArr) << std::endl;
     }
   }
@@ -69,7 +68,7 @@ int TestCompositeArray(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
     if (val != iArr)
     {
       res = EXIT_FAILURE;
-      std::cout << "range iterator failed with vtkCompositerray" << std::endl;
+      std::cerr << "range iterator failed with vtkCompositerray" << std::endl;
     }
     iArr++;
   }
@@ -82,10 +81,20 @@ int TestCompositeArray(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
     if (oneComposite->GetValue(iArr) != iArr)
     {
       res = EXIT_FAILURE;
-      std::cout << "get value failed with vtkCompositeArray for composite with one array: " << iArr
+      std::cerr << "get value failed with vtkCompositeArray for composite with one array: " << iArr
                 << " != " << composite->GetValue(iArr) << std::endl;
     }
   }
 
+  // test memory size measurement
+  vtkSmartPointer<vtkCompositeArray<int>> largeComposite = ::SetupCompositeArray(2000 * 20);
+  if (largeComposite->GetActualMemorySize() != 2000 * 2)
+  {
+    res = EXIT_FAILURE;
+    std::cerr << "Wrong value memory size value for large vtkCompositeArray: "
+              << largeComposite->GetActualMemorySize() << " KiB instead of " << 20 * sizeof(int)
+              << std::endl;
+  }
+
   return res;
-};
+}

@@ -36,6 +36,7 @@
 
 #include "vtkPassInputTypeAlgorithm.h"
 #include "vtkViewsCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"   // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAlgorithmOutput;
@@ -48,7 +49,7 @@ class vtkTrivialProducer;
 class vtkView;
 class vtkViewTheme;
 
-class VTKVIEWSCORE_EXPORT vtkDataRepresentation : public vtkPassInputTypeAlgorithm
+class VTKVIEWSCORE_EXPORT VTK_MARSHALAUTO vtkDataRepresentation : public vtkPassInputTypeAlgorithm
 {
 public:
   static vtkDataRepresentation* New();
@@ -217,7 +218,7 @@ public:
    * representations through vtkAnnotationLink, possibly using the view.
    * For the superclass, we just return the same selection.
    * Subclasses may do something more fancy, like convert the selection
-   * from a frustrum to a list of pedigree ids.  If the selection cannot
+   * from a frustum to a list of pedigree ids.  If the selection cannot
    * be applied to this representation, return nullptr.
    */
   virtual vtkSelection* ConvertSelection(vtkView* view, vtkSelection* selection);

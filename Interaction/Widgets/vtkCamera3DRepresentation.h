@@ -25,6 +25,7 @@
 #include "vtkNew.h"                      // For vtkNew
 #include "vtkSmartPointer.h"             // For vtkSmartPointer
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include <array>
 
@@ -40,7 +41,8 @@ class vtkProperty;
 class vtkSphereSource;
 class vtkTransform;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkCamera3DRepresentation : public vtkWidgetRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkCamera3DRepresentation
+  : public vtkWidgetRepresentation
 {
 public:
   /**
@@ -88,7 +90,7 @@ public:
 
   ///@{
   /**
-   * Set/Get the distance betweem camera position and the front handle.
+   * Set/Get the distance between camera position and the front handle.
    * Note that the distance is scaled with view to keep the widget the same size.
    * Default: 2.5.
    **/
@@ -98,7 +100,7 @@ public:
 
   ///@{
   /**
-   * Set/Get the distance betweem camera position and the up handle.
+   * Set/Get the distance between camera position and the up handle.
    * Note that the distance is scaled with view to keep the widget the same size.
    * Default: 1.5.
    **/

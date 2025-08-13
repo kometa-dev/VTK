@@ -23,6 +23,7 @@
 
 #include "vtkMapper2D.h"
 #include "vtkRenderingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCoordinate;
@@ -30,7 +31,7 @@ class vtkPolyData;
 class vtkScalarsToColors;
 class vtkUnsignedCharArray;
 
-class VTKRENDERINGCORE_EXPORT vtkPolyDataMapper2D : public vtkMapper2D
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkPolyDataMapper2D : public vtkMapper2D
 {
 public:
   vtkTypeMacro(vtkPolyDataMapper2D, vtkMapper2D);
@@ -157,10 +158,14 @@ public:
   /**
    * Get the array name or number and component to color by.
    */
-  const char* GetArrayName() { return this->ArrayName; }
-  int GetArrayId() { return this->ArrayId; }
-  int GetArrayAccessMode() { return this->ArrayAccessMode; }
-  int GetArrayComponent() { return this->ArrayComponent; }
+  vtkGetStringMacro(ArrayName);
+  vtkSetStringMacro(ArrayName);
+  vtkGetMacro(ArrayId, int);
+  vtkSetMacro(ArrayId, int);
+  vtkGetMacro(ArrayAccessMode, int);
+  vtkSetMacro(ArrayAccessMode, int);
+  vtkGetMacro(ArrayComponent, int);
+  vtkSetMacro(ArrayComponent, int);
 
   /**
    * Overload standard modified time function. If lookup table is modified,
@@ -224,7 +229,7 @@ protected:
 
   // for coloring by a component of a field data array
   int ArrayId;
-  char ArrayName[256];
+  char* ArrayName = nullptr;
   int ArrayComponent;
   int ArrayAccessMode;
 

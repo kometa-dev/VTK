@@ -8,7 +8,7 @@
  * technique to render hard shadows in hardware).
  *
  * This pass expects an initialized depth buffer and color buffer.
- * Initialized buffers means they have been cleared with farest z-value and
+ * Initialized buffers means they have been cleared with farthest z-value and
  * background color/gradient/transparent color.
  * An opaque pass may have been performed right after the initialization.
  *
@@ -31,6 +31,7 @@
 
 #include "vtkOpenGLRenderPass.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 #include <string>                      // For member variables.
 #include <vector>                      // STL Header
 
@@ -46,7 +47,7 @@ class vtkShadowMapBakerPass;
 class vtkInformationObjectBaseKey;
 class vtkShaderProgram;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkShadowMapPass : public vtkOpenGLRenderPass
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkShadowMapPass : public vtkOpenGLRenderPass
 {
 public:
   static vtkShadowMapPass* New();
@@ -87,7 +88,7 @@ public:
   ///@}
 
   /**
-   * get the matricies for all the
+   * get the matrices for all the
    * shadow maps.
    */
   std::vector<double> ShadowMapTransforms() { return this->ShadowTransforms; }

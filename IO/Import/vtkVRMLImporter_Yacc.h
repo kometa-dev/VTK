@@ -368,17 +368,17 @@ inline void
 VrmlNodeType::addEventIn(const char *nodeName, int type)
 {
   add(eventIns, nodeName, type);
-};
+}
 inline void
 VrmlNodeType::addEventOut(const char *nodeName, int type)
 {
   add(eventOuts, nodeName, type);
-};
+}
 inline void
 VrmlNodeType::addField(const char *nodeName, int type)
 {
   add(fields, nodeName, type);
-};
+}
 inline void
 VrmlNodeType::addExposedField(const char *nodeName, int type)
 {
@@ -389,7 +389,7 @@ VrmlNodeType::addExposedField(const char *nodeName, int type)
   add(eventIns, tmp.data(), type);
   snprintf(tmp.data(), length, "%s_changed", nodeName);
   add(eventOuts, tmp.data(), type);
-};
+}
 
 inline void
 VrmlNodeType::add(vtkVRMLVectorType<NameTypeRec*> &recs, const char *nodeName, int type)
@@ -5120,12 +5120,12 @@ int n;
 
 inline void *vtkVRMLYaccData::yy_flex_alloc( unsigned int size )
 {
-  return (void *) malloc( size );
+  return malloc( size );
 }
 
 inline void *vtkVRMLYaccData::yy_flex_realloc( void *ptr, unsigned int size )
 {
-  return (void *) realloc( ptr, size );
+  return realloc( ptr, size );
 }
 
 inline void vtkVRMLYaccData::yy_flex_free( void *ptr )

@@ -12,7 +12,7 @@
  * and vtkAbstractPolyDataReader object.
  *
  * @sa
- * vtkOBJReader vtkPLYReader vtkSTLReader
+ * vtkOBJReader vtkOFFReader vtkPLYReader vtkSTLReader
  */
 
 #ifndef vtkAbstractPolyDataReader_h
@@ -20,6 +20,8 @@
 
 #include "vtkIOCoreModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
+#include "vtkResourceStream.h" // For vtkResourceStream
+#include "vtkSmartPointer.h"   // For vtkSmartPointer
 
 VTK_ABI_NAMESPACE_BEGIN
 class VTKIOCORE_EXPORT vtkAbstractPolyDataReader : public vtkPolyDataAlgorithm
@@ -30,10 +32,20 @@ public:
 
   ///@{
   /**
-   * Specify file name of AbstractPolyData file (obj / ply / stl).
+   * Specify file name of AbstractPolyData file (obj / off / ply / stl).
    */
   vtkSetFilePathMacro(FileName);
   vtkGetFilePathMacro(FileName);
+  ///@}
+
+  ///@{
+  /**
+   * Specify stream to read from
+   * When both `Stream` and `Filename` are set, it's left to the implementation to determine which
+   * one is used. If both are null, reader outputs nothing.
+   */
+  vtkSetSmartPointerMacro(Stream, vtkResourceStream);
+  vtkGetSmartPointerMacro(Stream, vtkResourceStream);
   ///@}
 
 protected:
@@ -41,6 +53,7 @@ protected:
   ~vtkAbstractPolyDataReader() override;
 
   char* FileName;
+  vtkSmartPointer<vtkResourceStream> Stream;
 
 private:
   vtkAbstractPolyDataReader(const vtkAbstractPolyDataReader&) = delete;

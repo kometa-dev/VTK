@@ -216,7 +216,7 @@ class vtkSelection::vtkInternals
   }
 
   // higher the value, higher the precedence.
-  inline int precedence(char op) const
+  int precedence(char op) const
   {
     switch (op)
     {
@@ -649,7 +649,7 @@ struct vtkSelection::EvaluateFunctor
     this->Range = { VTK_SIGNED_CHAR_MAX, VTK_SIGNED_CHAR_MIN };
   }
 
-  void Initialize(){};
+  void Initialize() {}
 
   void operator()(vtkIdType begin, vtkIdType end)
   {

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include <vtk_glew.h>
+#include <vtk_glad.h>
 
 #include "vtkCamera.h"
 #include "vtkCameraPass.h"
@@ -62,9 +62,6 @@ public:
     ss << "vec4 color = texture(colorTexture, texCoord);\n"
        << "gl_FragDepth = texture(depthTexture, texCoord).r;\n";
 
-    // The framebuffer are linear, a conversion to sRGB is required
-    // This is particularly important for OSPRay pathtracer but for compatibility
-    // with legacy behavior we keep the old behavior with the sciviz backend
     if (renType == "pathtracer")
     {
       // If the background image is an hdri (= mode in environment mode)
@@ -73,20 +70,17 @@ public:
       auto bgMode = vtkOSPRayRendererNode::GetBackgroundMode(ren);
       bool useHdri = ren->GetUseImageBasedLighting() && ren->GetEnvironmentTexture() &&
         bgMode == vtkOSPRayRendererNode::Environment;
-      ss << "gl_FragData[0] = vec4(pow(color.rgb, vec3(1.0/2.2)), "
-         << (useHdri ? "1.0)" : "color.a)") << ";\n";
+      ss << "gl_FragData[0] = vec4(color.rgb, " << (useHdri ? "1.0)" : "color.a)") << ";\n";
       this->BgMode = bgMode;
     }
     else
     {
       ss << "gl_FragData[0] = color;\n";
     }
-
     vtkShaderProgram::Substitute(FSSource, "//VTK::FSQ::Impl", ss.str());
 
     this->QuadHelper = new vtkOpenGLQuadHelper(context,
       vtkOpenGLRenderUtilities::GetFullScreenQuadVertexShader().c_str(), FSSource.c_str(), "");
-
     this->ColorTexture->SetContext(context);
     this->ColorTexture->AutoParametersOff();
     this->DepthTexture->SetContext(context);
@@ -357,7 +351,7 @@ void vtkOSPRayPass::RenderInternal(const vtkRenderState* s)
 
     if (colorTexGL != 0 && depthTexGL != 0 && windowOpenGL != nullptr)
     {
-      // for visRTX, re-use existing OpenGL texture provided
+      // for visRTX, reuse existing OpenGL texture provided
       this->Internal->SharedColorTexture->AssignToExistingTexture(colorTexGL, GL_TEXTURE_2D);
       this->Internal->SharedDepthTexture->AssignToExistingTexture(depthTexGL, GL_TEXTURE_2D);
 

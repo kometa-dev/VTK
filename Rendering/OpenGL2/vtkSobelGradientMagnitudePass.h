@@ -9,7 +9,7 @@
  * uses a Sobel high-pass filter (3x3 kernel).
  *
  * This pass expects an initialized depth buffer and color buffer.
- * Initialized buffers means they have been cleared with farest z-value and
+ * Initialized buffers means they have been cleared with farthest z-value and
  * background color/gradient/transparent color.
  * An opaque pass may have been performed right after the initialization.
  *
@@ -50,6 +50,7 @@
 
 #include "vtkImageProcessingPass.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDepthPeelingPassLayerList; // Pimpl
@@ -58,7 +59,8 @@ class vtkOpenGLHelper;
 class vtkOpenGLRenderWindow;
 class vtkTextureObject;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkSobelGradientMagnitudePass : public vtkImageProcessingPass
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkSobelGradientMagnitudePass
+  : public vtkImageProcessingPass
 {
 public:
   static vtkSobelGradientMagnitudePass* New();

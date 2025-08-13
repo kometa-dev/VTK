@@ -33,13 +33,13 @@ public:
    * converting to graphics primitives (during mapping). The vtkCell
    * API IsLinear() is modified to indicate this requirement.
    */
-  int IsLinear() override { return 0; }
+  int IsLinear() VTK_FUTURE_CONST override { return 0; }
 
   /**
    * Clip the cell based on the input cellScalars and the
    * specified value. The output of the clip operation will be one or
    * more cells of the same topological dimension as the original cell.
-   * For more informations see vtkCell::Clip.
+   * For more information see vtkCell::Clip.
    *
    * This method differs from the vtkCell::Clip function in such a way
    * that it tells more information about how the clipped cell was
@@ -65,7 +65,7 @@ public:
     this->Clip(
       value, cellScalars, locator, connectivity, inPd, outPd, inCd, cellId, outCd, insideOut);
     return false;
-  };
+  }
 
 protected:
   vtkNonLinearCell();

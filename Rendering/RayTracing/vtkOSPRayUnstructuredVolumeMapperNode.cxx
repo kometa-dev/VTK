@@ -84,7 +84,6 @@ void vtkOSPRayUnstructuredVolumeMapperNode::Render(bool prepass)
     RTW::Backend* backend = orn->GetBackend();
     if (backend == nullptr)
       return;
-    vtkRenderer* ren = vtkRenderer::SafeDownCast(orn->GetRenderable());
 
     vtkUnstructuredGrid* dataSet = vtkUnstructuredGrid::SafeDownCast(mapper->GetDataSetInput());
     if (!dataSet)
@@ -356,7 +355,11 @@ void vtkOSPRayUnstructuredVolumeMapperNode::Render(bool prepass)
       OSPData tfAlphaData = ospNewCopyData1D(&tfOVals[0], OSP_FLOAT, NumColors);
       ospCommit(tfAlphaData);
       ospSetObject(oTF, "opacity", tfAlphaData);
-      ospSetVec2f(oTF, "valueRange", range[0], range[1]);
+#if OSPRAY_VERSION_MAJOR < 3
+      ospSetVec2f(oTF, "valueRange", (float)range[0], (float)range[1]);
+#else
+      ospSetBox1f(oTF, "value", (float)range[0], (float)range[1]);
+#endif
       ospCommit(oTF);
 
       ospRelease(colorData);

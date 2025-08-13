@@ -33,6 +33,7 @@
 
 #include "vtkBoundingBox.h" // Needed for IntersectWithCell
 #include "vtkCellType.h"    // Needed to define cell types
+#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_4_0
 #include "vtkIdList.h"      // Needed for inline methods
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -91,7 +92,7 @@ public:
    * and connectivity list information.  Most cells in VTK are implicit
    * cells.
    */
-  virtual int IsLinear() { return 1; }
+  virtual int IsLinear() VTK_FUTURE_CONST { return 1; }
 
   /**
    * Some cells require initialization prior to access. For example, they
@@ -105,15 +106,18 @@ public:
    * beyond the usual cell type and connectivity list information.
    * Most cells in VTK are implicit cells.
    */
-  virtual int IsExplicitCell() { return 0; }
+  virtual int IsExplicitCell() VTK_FUTURE_CONST { return 0; }
 
   /**
    * Determine whether the cell requires explicit face representation, and
    * methods for setting and getting the faces (see vtkPolyhedron for example
    * usage of these methods).
    */
-  virtual int RequiresExplicitFaceRepresentation() { return 0; }
+  virtual int RequiresExplicitFaceRepresentation() VTK_FUTURE_CONST { return 0; }
+
+  VTK_DEPRECATED_IN_9_4_0("Use SetCellFaces() after casting the cell to vtkPolyhedron.")
   virtual void SetFaces(vtkIdType* vtkNotUsed(faces)) {}
+  VTK_DEPRECATED_IN_9_4_0("Use GetCellFaces() after casting the cell to vtkPolyhedron.")
   virtual vtkIdType* GetFaces() { return nullptr; }
 
   /**
@@ -287,7 +291,7 @@ public:
   ///@}
 
   /**
-   * Generate simplices of proper dimension. If cell is 3D, tetrahedron are
+   * Generate simplices of proper dimension. If cell is 3D, tetrahedra are
    * generated; if 2D triangles; if 1D lines; if 0D points. The form of the
    * output is a sequence of points, each n+1 points (where n is topological
    * cell dimension) defining a simplex. The index is a parameter that controls
@@ -296,7 +300,32 @@ public:
    * This method does not insert new points: all the points that define the
    * simplices are the points that define the cell.
    */
-  virtual int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) = 0;
+  virtual int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts);
+
+  /**
+   * Generate simplices of proper dimension. If cell is 3D, tetrahedra are
+   * generated; if 2D triangles; if 1D lines; if 0D points. The form of the
+   * output is a sequence of points, each n+1 points (where n is topological
+   * cell dimension) defining a simplex. The index is a parameter that controls
+   * which triangulation to use (if more than one is possible). If numerical
+   * degeneracy encountered, 0 is returned, otherwise 1 is returned.
+   * This method does not insert new points: all the points that define the
+   * simplices are the points that define the cell.
+   */
+  virtual int TriangulateIds(int index, vtkIdList* ptIds);
+
+  /**
+   * Generate simplices of proper dimension. If cell is 3D, tetrahedra are
+   * generated; if 2D triangles; if 1D lines; if 0D points. The form of the
+   * output is a sequence of points, each n+1 points (where n is topological
+   * cell dimension) defining a simplex. The index is a parameter that controls
+   * which triangulation to use (if more than one is possible). If numerical
+   * degeneracy encountered, 0 is returned, otherwise 1 is returned.
+   * This method does not insert new points: all the points that define the
+   * simplices are the points that define the cell.
+   * ptIds are the local indices with respect to the cell
+   */
+  virtual int TriangulateLocalIds(int index, vtkIdList* ptIds) = 0;
 
   /**
    * Compute derivatives given cell subId and parametric coordinates. The
@@ -356,7 +385,7 @@ public:
    * primary cells (e.g., a triangle strip composite cell is made up of
    * triangle primary cells).
    */
-  virtual int IsPrimaryCell() { return 1; }
+  virtual int IsPrimaryCell() VTK_FUTURE_CONST { return 1; }
 
   /**
    * Return a contiguous array of parametric coordinates of the points

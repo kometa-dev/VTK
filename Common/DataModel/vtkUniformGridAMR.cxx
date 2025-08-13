@@ -59,6 +59,25 @@ void vtkUniformGridAMR::SetAMRInfo(vtkAMRInformation* amrInfo)
 }
 
 //------------------------------------------------------------------------------
+void vtkUniformGridAMR::SetAMRData(vtkAMRDataInternals* amrData)
+{
+  if (amrData == this->AMRData)
+  {
+    return;
+  }
+  if (this->AMRData)
+  {
+    this->AMRData->Delete();
+  }
+  this->AMRData = amrData;
+  if (this->AMRData)
+  {
+    this->AMRData->Register(this);
+  }
+  this->Modified();
+}
+
+//------------------------------------------------------------------------------
 vtkUniformGrid* vtkUniformGridAMR::GetDataSet(unsigned int level, unsigned int idx)
 {
   return this->AMRData->GetDataSet(this->GetCompositeIndex(level, idx));
@@ -142,9 +161,9 @@ void vtkUniformGridAMR::SetDataSet(unsigned int level, unsigned int idx, vtkUnif
 
   if (this->AMRInfo->GetGridDescription() < 0)
   {
-    this->AMRInfo->SetGridDescription(grid->GetGridDescription());
+    this->AMRInfo->SetGridDescription(grid->GetDataDescription());
   }
-  else if (grid->GetGridDescription() != this->AMRInfo->GetGridDescription())
+  else if (grid->GetDataDescription() != this->AMRInfo->GetGridDescription())
   {
     vtkErrorMacro("Inconsistent types of vtkUniformGrid");
     return;
@@ -177,7 +196,7 @@ void vtkUniformGridAMR::SetDataSet(vtkCompositeDataIterator* compositeIter, vtkD
     this->SetDataSet(amrIter->GetCurrentLevel(), amrIter->GetCurrentIndex(),
       vtkUniformGrid::SafeDownCast(dataObj));
   }
-};
+}
 
 //------------------------------------------------------------------------------
 void vtkUniformGridAMR::SetGridDescription(int gridDescription)
@@ -280,6 +299,9 @@ void vtkUniformGridAMR::DeepCopy(vtkDataObject* src)
     this->SetAMRInfo(nullptr);
     this->AMRInfo = vtkAMRInformation::New();
     this->AMRInfo->DeepCopy(hbds->GetAMRInfo());
+    this->SetAMRData(nullptr);
+    this->AMRData = vtkAMRDataInternals::New();
+    this->AMRData->DeepCopy(hbds->GetAMRData());
     memcpy(this->Bounds, hbds->Bounds, sizeof(double) * 6);
   }
 
@@ -322,13 +344,6 @@ void vtkUniformGridAMR::ShallowCopy(vtkDataObject* src)
   }
 
   this->Modified();
-}
-
-//------------------------------------------------------------------------------
-void vtkUniformGridAMR::RecursiveShallowCopy(vtkDataObject* src)
-{
-  VTK_LEGACY_REPLACED_BODY(RecursiveShallowCopy, "VTK 9.3", ShallowCopy);
-  this->ShallowCopy(src);
 }
 
 //------------------------------------------------------------------------------

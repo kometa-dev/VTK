@@ -22,6 +22,7 @@
 
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkViewport.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include "vtkActorCollection.h"  // Needed for access in inline members
 #include "vtkVolumeCollection.h" // Needed for access in inline members
@@ -49,7 +50,7 @@ class vtkTexture;
 class vtkRecti;
 class vtkVector3d;
 
-class VTKRENDERINGCORE_EXPORT vtkRenderer : public vtkViewport
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkRenderer : public vtkViewport
 {
 public:
   vtkTypeMacro(vtkRenderer, vtkViewport);
@@ -68,25 +69,32 @@ public:
    * These methods are all synonyms to AddViewProp and RemoveViewProp.
    * They are here for convenience and backwards compatibility.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddActor(vtkProp* p);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddVolume(vtkProp* p);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveActor(vtkProp* p);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveVolume(vtkProp* p);
   ///@}
 
   /**
    * Add a light to the list of lights.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddLight(vtkLight*);
 
   /**
    * Remove a light from the list of lights.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveLight(vtkLight*);
 
   /**
    * Remove all lights from the list of lights.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveAllLights();
 
   /**
@@ -169,11 +177,13 @@ public:
   /**
    * Return the collection of volumes.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkVolumeCollection* GetVolumes();
 
   /**
    * Return any actors in this renderer.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkActorCollection* GetActors();
 
   /**
@@ -234,11 +244,13 @@ public:
   /**
    * Add an culler to the list of cullers.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddCuller(vtkCuller*);
 
   /**
    * Remove an actor from the list of cullers.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveCuller(vtkCuller*);
 
   /**
@@ -282,7 +294,7 @@ public:
   /**
    * Create an image. Subclasses of vtkRenderer must implement this method.
    */
-  virtual void DeviceRender(){};
+  virtual void DeviceRender() {}
 
   /**
    * Render opaque polygonal geometry. Default implementation just calls
@@ -550,8 +562,26 @@ public:
   /**
    * Given a pixel location, return the Z value. The z value is
    * normalized (0,1) between the front and back clipping planes.
+   * By default this functions accesses the `vtkRenderWindow`'s depth buffer
+   * that is only valid right after this specific renderer has rendered.
+   * If `SafeGetZ` is On, this function will use a `vtkHardwareSelector` to
+   * get the depth information in flight. This approach always works,
+   * but takes more time as it invokes a render on the whole scene.
    */
   double GetZ(int x, int y);
+
+  ///@{
+  /**
+   * If this flag is On `GetZ(int, int)` will use a vtkHardwareSelector
+   * internally to determine the Z value. Otherwise, it will use
+   * `vtkRenderWindow::GetZbufferValue`.
+   * See `GetZ(int, int)` documentation for more information.
+   * Default is off.
+   */
+  vtkSetMacro(SafeGetZ, bool);
+  vtkGetMacro(SafeGetZ, bool);
+  vtkBooleanMacro(SafeGetZ, bool);
+  ///@}
 
   /**
    * Return the MTime of the renderer also considering its ivars.
@@ -599,7 +629,8 @@ public:
    * If nothing was picked then NULL is returned.  This method selects from
    * the renderer's Prop list. Additionally, you can set the field
    * association of the hardware selector used internally, and get its selection
-   * result by passing a non-null vtkSmartPointer<vtkSelection>.
+   * result by passing a non-null vtkSmartPointer<vtkSelection>. The picked prop
+   * is guaranteed to be the first node in the selection result.
    */
   vtkAssemblyPath* PickProp(double selectionX, double selectionY, int fieldAssociation,
     vtkSmartPointer<vtkSelection> selection) override
@@ -847,8 +878,8 @@ public:
   /**
    * If this flag is true and the rendering engine supports it, image based
    * lighting is enabled and surface rendering displays environment reflections.
-   * The input cube map have to be set with SetEnvironmentCubeMap.
-   * If not cubemap is specified, this feature is disable.
+   * Image Based Lighting rely on the environment texture to compute lighting
+   * if it has been provided.
    */
   vtkSetMacro(UseImageBasedLighting, bool);
   vtkGetMacro(UseImageBasedLighting, bool);
@@ -859,15 +890,12 @@ public:
   /**
    * Set/Get the environment texture used for image based lighting.
    * This texture is supposed to represent the scene background.
-   * If it is not a cubemap, the texture is supposed to represent an equirectangular projection.
-   * If used with raytracing backends, the texture must be an equirectangular projection and must be
-   * constructed with a valid vtkImageData.
-   * Warning, this texture must be expressed in linear color space.
-   * If the texture is in sRGB color space, set the color flag on the texture or
-   * set the argument isSRGB to true.
    * @sa vtkTexture::UseSRGBColorSpaceOn
    */
+  VTK_MARSHALGETTER(EnvironmentTextureProperty)
   vtkGetObjectMacro(EnvironmentTexture, vtkTexture);
+  VTK_MARSHALSETTER(EnvironmentTextureProperty)
+  void SetEnvironmentTextureProperty(vtkTexture* texture) { this->SetEnvironmentTexture(texture); }
   virtual void SetEnvironmentTexture(vtkTexture* texture, bool isSRGB = false);
   ///@}
 
@@ -885,6 +913,23 @@ public:
    */
   vtkGetVector3Macro(EnvironmentRight, double);
   vtkSetVector3Macro(EnvironmentRight, double);
+  ///@}
+
+  ///@{
+  /**
+   * If UseOIT is on and there are translucent props in the scene, the renderer will use the
+   * OrderIndependentTranslucentPass to render. If UseOIT is disabled, traditional depth sorting is
+   * used for translucency.
+   * By default, UseOIT is on.
+   *
+   * \note OIT is a newer(better) approach for translucent rendering but doesn't support hardware
+   * multi-sampling. Use FXAA in that case.
+   *
+   * \sa SetUseFXAA()
+   */
+  vtkSetMacro(UseOIT, bool);
+  vtkGetMacro(UseOIT, bool);
+  vtkBooleanMacro(UseOIT, bool);
   ///@}
 
 protected:
@@ -1110,6 +1155,19 @@ protected:
   bool SSAOBlur = false;
 
   /**
+   * If UseOIT is on and there are translucent props in the scene, the renderer will use the
+   * OrderIndependentTranslucentPass to render. If UseOIT is disabled, traditional depth sorting is
+   * used for translucency.
+   * By default, UseOIT is on.
+   *
+   * \note OIT is a newer(better) approach for translucent rendering but doesn't support hardware
+   * multi-sampling. Use FXAA in that case.
+   *
+   * \sa SetUseFXAA()
+   */
+  bool UseOIT = true;
+
+  /**
    * Tells if the last call to DeviceRenderTranslucentPolygonalGeometry()
    * actually used depth peeling.
    * Initial value is false.
@@ -1191,6 +1249,11 @@ private:
    * Modified time from the camera when this->ViewTransformMatrix was set.
    */
   vtkMTimeType LastViewTransformCameraModified{};
+
+  /**
+   * If this flag affect GetZ. See Get/Set macro for more information.
+   */
+  bool SafeGetZ = false;
 
   vtkRenderer(const vtkRenderer&) = delete;
   void operator=(const vtkRenderer&) = delete;

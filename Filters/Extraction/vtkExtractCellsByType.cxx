@@ -321,6 +321,32 @@ void vtkExtractCellsByType::ExtractPolyDataCells(
 }
 
 //------------------------------------------------------------------------------
+// Helper
+namespace
+{
+struct ExtractPolyVisitor
+{
+  // Insert full cell
+  template <typename CellStateT>
+  vtkIdType operator()(CellStateT& state, vtkIdType* ptMap, vtkIdType numNewPts)
+  {
+    using ValueType = typename CellStateT::ValueType;
+    auto* conn = state.GetConnectivity();
+    const vtkIdType nids = conn->GetNumberOfValues();
+    for (vtkIdType i = 0; i < nids; ++i)
+    {
+      ValueType ptId = conn->GetValue(i);
+      if (ptMap[ptId] < 0)
+      {
+        ptMap[ptId] = numNewPts++;
+      }
+      conn->SetValue(i, ptMap[ptId]);
+    }
+    return numNewPts;
+  }
+};
+}
+//------------------------------------------------------------------------------
 void vtkExtractCellsByType::ExtractUnstructuredGridCells(
   vtkDataSet* inDS, vtkDataSet* outDS, vtkIdType* ptMap, vtkIdType& numNewPts)
 {
@@ -349,7 +375,8 @@ void vtkExtractCellsByType::ExtractUnstructuredGridCells(
   // appropriate types to the output. Along the way keep track of the points
   // that are used.
   vtkIdType i, cellId, newCellId, npts, ptId;
-  vtkIdList* ptIds = vtkIdList::New();
+  vtkNew<vtkIdList> ptIds;
+  vtkNew<vtkCellArray> faces;
   int cellType;
   output->Allocate(numCells);
   outCD->CopyAllocate(inCD);
@@ -365,24 +392,39 @@ void vtkExtractCellsByType::ExtractUnstructuredGridCells(
     cellType = input->GetCellType(cellId);
     if (this->ExtractCellType(cellType))
     {
-      input->GetCellPoints(cellId, ptIds);
-      npts = ptIds->GetNumberOfIds();
-      for (i = 0; i < npts; ++i)
+      if (cellType == VTK_POLYHEDRON)
       {
-        ptId = ptIds->GetId(i);
-        if (ptMap[ptId] < 0)
+        faces->Reset();
+        input->GetPolyhedronFaces(cellId, faces);
+        numNewPts = faces->Visit(ExtractPolyVisitor{}, ptMap, numNewPts);
+        input->GetCellPoints(cellId, ptIds);
+        npts = ptIds->GetNumberOfIds();
+        for (i = 0; i < npts; ++i)
         {
-          ptMap[ptId] = numNewPts++;
+          ptId = ptIds->GetId(i);
+          ptIds->InsertId(i, ptMap[ptId]);
         }
-        ptIds->InsertId(i, ptMap[ptId]);
+        newCellId = output->InsertNextCell(VTK_POLYHEDRON, npts, ptIds->GetPointer(0), faces);
       }
-      newCellId = output->InsertNextCell(cellType, ptIds);
+      else
+      {
+        input->GetCellPoints(cellId, ptIds);
+        npts = ptIds->GetNumberOfIds();
+        for (i = 0; i < npts; ++i)
+        {
+          ptId = ptIds->GetId(i);
+          if (ptMap[ptId] < 0)
+          {
+            ptMap[ptId] = numNewPts++;
+          }
+          ptIds->InsertId(i, ptMap[ptId]);
+        }
+        newCellId = output->InsertNextCell(cellType, ptIds);
+      }
       outCD->CopyData(inCD, cellId, newCellId);
+      ptIds->Reset();
     }
   }
-
-  // Clean up
-  ptIds->Delete();
 }
 
 //------------------------------------------------------------------------------

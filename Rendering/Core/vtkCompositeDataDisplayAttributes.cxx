@@ -4,11 +4,11 @@
 #include "vtkCompositeDataDisplayAttributes.h"
 #include "vtkAbstractMapper.h"
 #include "vtkBoundingBox.h"
+#include "vtkCellGrid.h"
 #include "vtkDataObjectTree.h"
 #include "vtkDataObjectTreeRange.h"
 #include "vtkDataSet.h"
 #include "vtkMath.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkMultiPieceDataSet.h"
 #include "vtkObjectFactory.h"
 #include "vtkPolyData.h"
@@ -1026,6 +1026,10 @@ void vtkCompositeDataDisplayAttributes::ComputeVisibleBoundsInternal(
     {
       dataset->GetBounds(bounds);
     }
+    else if (auto* cellgrid = vtkCellGrid::SafeDownCast(dobj))
+    {
+      cellgrid->GetBounds(bounds);
+    }
     bbox->AddBounds(bounds);
   }
 }
@@ -1061,4 +1065,5 @@ vtkDataObject* vtkCompositeDataDisplayAttributes::DataObjectFromIndex(
   }
   return nullptr;
 }
+
 VTK_ABI_NAMESPACE_END

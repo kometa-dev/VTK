@@ -76,7 +76,7 @@ typedef struct PreprocessInfo_
   int MacroCounter;         /* for ordering macro definitions */
   int NumberOfMissingFiles; /* include files that cannot be found */
   const char** MissingFiles;
-  SystemInfo* System; /* for cacheing the file system directory */
+  SystemInfo* System; /* for caching the file system directory */
 } PreprocessInfo;
 
 /**
@@ -204,7 +204,7 @@ extern "C"
    */
   VTKWRAPPINGTOOLS_EXPORT
   void vtkParsePreprocess_FreeMacroExpansion(
-    const PreprocessInfo* info, MacroInfo* macro, const char* text);
+    const PreprocessInfo* info, const MacroInfo* macro, const char* text);
 
   /**
    * Fully process a string with the preprocessor, and

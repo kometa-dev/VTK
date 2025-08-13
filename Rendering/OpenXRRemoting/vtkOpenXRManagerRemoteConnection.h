@@ -26,7 +26,20 @@ public:
   vtkTypeMacro(vtkOpenXRManagerRemoteConnection, vtkOpenXRManagerConnection);
 
   bool Initialize() override;
+  bool EndInitialize() override;
   bool ConnectToRemote(XrInstance instance, XrSystemId id) override;
+
+  ///@{
+  /**
+   * Set/Get a custom path to look for the RemotingXR.json file provided by the
+   * microsoft.holographic.remoting.openxr package.
+   * This file sets the XR_RUNTIME_JSON environment variable used by the OpenXR loader to not use
+   * the system default OpenXR runtime but instead redirect to the Holographic Remoting runtime.
+   * Default is empty. Calling this method after initialization has no effect.
+   */
+  vtkGetMacro(RemotingXRDirectory, std::string);
+  vtkSetMacro(RemotingXRDirectory, std::string);
+  ///@}
 
   /**
    * Enable the OpenXR Remoting extension if supported.
@@ -45,6 +58,9 @@ protected:
 private:
   vtkOpenXRManagerRemoteConnection(const vtkOpenXRManagerRemoteConnection&) = delete;
   void operator=(const vtkOpenXRManagerRemoteConnection&) = delete;
+
+  std::string OldXrRuntimeEnvValue;
+  std::string RemotingXRDirectory;
 };
 
 VTK_ABI_NAMESPACE_END

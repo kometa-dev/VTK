@@ -19,7 +19,9 @@
 #include <utility> // std::pair
 #include <vector>
 
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include <vtk_mpi.h>
+#endif
 
 #include "vtkDataArray.h"
 #include "vtkIdTypeArray.h"
@@ -35,8 +37,10 @@ namespace helper
 {
 VTK_ABI_NAMESPACE_BEGIN
 
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 /** Get current MPI global communicator from VTK */
 MPI_Comm MPIGetComm();
+#endif
 
 /** Get current MPI rank from MPIGetComm */
 int MPIGetRank();
@@ -132,12 +136,10 @@ std::size_t TotalElements(const std::vector<std::size_t>& dimensions) noexcept;
  * DataArray nodes
  * @param dataSetNode input
  * @param specialNames input check for vector components even if
- * @param persist make all set persist (e.g. CellData)
- * NumberOfComponents wasn't declared
  * @return initialized DataSet
  */
-types::DataSet XMLInitDataSet(const pugi::xml_node& dataSetNode,
-  const std::set<std::string>& specialNames, bool persist = false);
+types::DataSet XMLInitDataSet(
+  const pugi::xml_node& dataSetNode, const std::set<std::string>& specialNames);
 
 /**
  * Return a derived class of vtkDataArray specialized for supported types

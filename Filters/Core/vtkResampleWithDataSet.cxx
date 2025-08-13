@@ -9,6 +9,7 @@
 #include "vtkCompositeDataSetRange.h"
 #include "vtkDataObject.h"
 #include "vtkDataSet.h"
+#include "vtkGarbageCollector.h"
 #include "vtkIdList.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -144,6 +145,16 @@ void vtkResampleWithDataSet::SetSnapToCellWithClosestPoint(bool arg)
 bool vtkResampleWithDataSet::GetSnapToCellWithClosestPoint()
 {
   return this->Prober->GetSnapToCellWithClosestPoint();
+}
+
+void vtkResampleWithDataSet::SetUseImplicitArrays(bool arg)
+{
+  this->Prober->SetUseImplicitArrays(arg);
+}
+
+bool vtkResampleWithDataSet::GetUseImplicitArrays()
+{
+  return this->Prober->GetUseImplicitArrays();
 }
 
 //------------------------------------------------------------------------------
@@ -408,5 +419,13 @@ int vtkResampleWithDataSet::RequestData(vtkInformation* vtkNotUsed(request),
   }
 
   return 1;
+}
+
+//------------------------------------------------------------------------------
+void vtkResampleWithDataSet::ReportReferences(vtkGarbageCollector* collector)
+{
+  this->Superclass::ReportReferences(collector);
+  // A reference cycle with Prober exists via the pipeline
+  vtkGarbageCollectorReport(collector, this->Prober, "Prober");
 }
 VTK_ABI_NAMESPACE_END

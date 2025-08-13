@@ -53,7 +53,7 @@ public:
   {
   }
 
-  inline T operator()(const std::size_t& ps_index, parameter_list_t parameters) override
+  T operator()(const std::size_t& ps_index, parameter_list_t parameters) override
   {
     const vector_t x(parameters[0]);
 
@@ -107,7 +107,7 @@ public:
   {
   }
 
-  inline T operator()(const std::size_t& ps_index, parameter_list_t parameters) override
+  T operator()(const std::size_t& ps_index, parameter_list_t parameters) override
   {
     const vector_t x(parameters[0]);
     const vector_t y(parameters[1]);
@@ -156,7 +156,7 @@ public:
   {
   }
 
-  inline T operator()(const std::size_t& ps_index, parameter_list_t parameters) override
+  T operator()(const std::size_t& ps_index, parameter_list_t parameters) override
   {
     const vector_t x(parameters[0]);
     const vector_t y(parameters[1]);
@@ -205,7 +205,7 @@ public:
   {
   }
 
-  inline T operator()(const std::size_t& ps_index, parameter_list_t parameters) override
+  T operator()(const std::size_t& ps_index, parameter_list_t parameters) override
   {
     const vector_t x(parameters[0]);
     const vector_t y(parameters[1]);
@@ -447,17 +447,20 @@ int vtkExprTkFunctionParser::Parse(ParseMode mode)
     std::string resultName = GenerateRandomAlphabeticString(10);
     if (this->ResultType == ExprTkResultType::e_scalar)
     {
+      assert(this->ExprTkTools->SymbolTable.symbol_exists(resultName) == false);
       this->ExprTkTools->SymbolTable.add_variable(resultName, this->Result[0]);
       this->ExpressionString = resultName + " := " + this->FunctionWithUsedVariableNames + ";";
     }
     else
     {
+      assert(this->ExprTkTools->SymbolTable.symbol_exists(resultName) == false);
       this->ExprTkTools->SymbolTable.add_vector(
         resultName, this->Result.GetData(), this->Result.GetSize());
       this->ExpressionString = resultName + " := [" + this->FunctionWithUsedVariableNames + "];";
     }
   }
 
+  this->ExprTkTools->Expression.register_symbol_table(this->ExprTkTools->SymbolTable);
   bool parsingResult =
     this->ExprTkTools->Parser.compile(this->ExpressionString, this->ExprTkTools->Expression);
   // check parsing result
@@ -1078,6 +1081,7 @@ void vtkExprTkFunctionParser::RemoveVectorVariables()
 //------------------------------------------------------------------------------
 void vtkExprTkFunctionParser::RemoveAllVariables()
 {
+  this->ExprTkTools->Expression.release();
   this->RemoveScalarVariables();
   this->RemoveVectorVariables();
 }

@@ -1,29 +1,25 @@
 vtk_module_test_data(
   Data/pen_1.cur
   Data/pen_1.xcursor
+  Data/overlap_faces.vtm
+  Data/overlap_faces/overlap_faces_0_0.vtp
+  Data/overlap_faces/overlap_faces_1_0.vtp
+  Data/overlap_faces/overlap_faces_2_0.vtp
   )
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  set(_vtk_test_cxx_wasm_enabled_in_browser ON)
+endif ()
 vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestBlockVisibility.cxx
   TestBlurAndSobelPasses.cxx
   TestCameraShiftScale.cxx,NO_DATA
   TestCoincident.cxx
+  TestCoincidentFloor.cxx
+  TestCompositeDataOverlappingCells.cxx,
   TestCompositeDataPointGaussian.cxx,NO_DATA
   TestCompositeDataPointGaussianSelection.cxx,NO_DATA
-  TestCompositePolyDataMapper2.cxx,NO_DATA
-  TestCompositePolyDataMapper2CameraShiftScale.cxx,NO_DATA
-  TestCompositePolyDataMapper2CellScalars.cxx,NO_DATA
-  TestCompositePolyDataMapper2CustomShader.cxx,NO_DATA
-  TestCompositePolyDataMapper2MixedGeometryCellScalars.cxx,NO_DATA
-  TestCompositePolyDataMapper2MixedGeometryEdges.cxx,NO_DATA
-  TestCompositePolyDataMapper2NaNPartial.cxx,NO_DATA
-  TestCompositePolyDataMapper2Pickability.cxx,NO_DATA
-  TestCompositePolyDataMapper2Picking.cxx,NO_DATA
-  TestCompositePolyDataMapper2Scalars.cxx,NO_DATA
-  TestCompositePolyDataMapper2ScalarsSurfaceOpacity.cxx,NO_DATA
-  TestCompositePolyDataMapper2SharedArray.cxx,NO_DATA
-  TestCompositePolyDataMapper2Spheres.cxx,NO_DATA
-  TestCompositePolyDataMapper2Vertices.cxx,NO_DATA
+  TestComputeShader.cxx,NO_DATA,NO_VALID,NO_OUTPUT
   TestCubeMap.cxx
   TestCubeMap2.cxx
   TestCubeMapRerender.cxx
@@ -38,7 +34,7 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestFXAAPass.cxx
   TestFXAAWithEDLPass.cxx
   TestFlipRenderFramebuffer.cxx
-  TestFloor.cxx
+  TestFloor.cxx,LOOSE_VALID
   TestFluidMapper.cxx
   TestFramebufferHDR.cxx
   TestFramebufferPass.cxx
@@ -51,11 +47,10 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestHiddenLineRemovalPass.cxx
   TestLightingMapLuminancePass.cxx
   TestLightingMapNormalsPass.cxx
-  TestMultiBlockPartialArrayFieldData.cxx
-  TestMultiBlockPartialArrayPointData.cxx
   TestMultiTexturing.cxx
   TestMultiTexturingInterpolateScalars.cxx
   TestNormalMapping.cxx
+  TestNormalMappingWithEdges.cxx
   TestOffscreenRenderingResize.cxx
   TestOutlineGlowPass.cxx
   TestOrderIndependentTranslucentPass.cxx
@@ -72,6 +67,7 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestPBRTextureInterpolateScalars.cxx
   TestPointFillPass.cxx
   TestPointGaussianMapper.cxx
+  TestPointGaussianMapperAnisotropic.cxx
   TestPointGaussianMapperOpacity.cxx
   TestPointGaussianSelection.cxx,NO_DATA
   TestProgramPointSize.cxx
@@ -93,6 +89,7 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestSSAOPass.cxx
   TestSSAOPassWithRenderer.cxx
   TestSurfaceInterpolationSwitch.cxx
+  TestTessellationShader.cxx,NO_DATA
   TestTexture16Bits.cxx,NO_DATA
   TestTexture32Bits.cxx,NO_DATA
   TestTextureBufferEmulation.cxx,NO_DATA,NO_VALID,NO_OUTPUT
@@ -100,7 +97,9 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestToneMappingPass.cxx,NO_DATA
   TestUserShader.cxx
   TestUserShader2.cxx
+  TestUserShader2D.cxx,NO_DATA
   TestValuePassFloatingPoint.cxx
+  TestValuePassFloatingPoint2.cxx
   TestVBOPLYMapper.cxx
   TestVBOPointsLines.cxx
   TestWindowBlits.cxx
@@ -114,8 +113,16 @@ endif()
 set_tests_properties(VTK::RenderingOpenGL2Cxx-TestFramebufferHDR
   PROPERTIES TIMEOUT ${VTK_TEST_TIMEOUT_TestFramebufferHDR})
 
-if (VTK_USE_SDL2)
-  vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests TestSDL2.cxx)
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  if (VTK_USE_SDL2)
+    vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests TestSDL2.cxx)
+  endif ()
+endif ()
+
+if (NOT VTK_OPENGL_USE_GLES)
+  # vtkFastLabeledDataMapper needs geometry shaders and GLES does not have them.
+  vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
+    TestLabeledDataMappers.cxx)
 endif ()
 
 if (VTK_USE_WIN32_OPENGL)

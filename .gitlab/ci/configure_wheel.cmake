@@ -3,10 +3,6 @@ if (NOT DEFINED "ENV{PYTHON_PREFIX}")
     "The `PYTHON_PREFIX` environment variable is required.")
 endif ()
 
-if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "osmesa")
-  include("${CMAKE_CURRENT_LIST_DIR}/configure_wheel_osmesa.cmake")
-endif ()
-
 set(python_subdir "bin/")
 if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "windows")
   set(python_subdir "")
@@ -49,6 +45,7 @@ set(VTK_MODULE_ENABLE_VTK_DomainsMicroscopy NO CACHE STRING "") # OpenSlide
 set(VTK_MODULE_ENABLE_VTK_FiltersOpenTURNS NO CACHE STRING "") # OpenTURNS
 set(VTK_MODULE_ENABLE_VTK_FiltersReebGraph NO CACHE STRING "") # Boost
 set(VTK_MODULE_ENABLE_VTK_IOADIOS2 NO CACHE STRING "") # ADIOS2
+set(VTK_MODULE_ENABLE_VTK_IOAlembic NO CACHE STRING "") # alembic
 set(VTK_MODULE_ENABLE_VTK_IOFFMPEG NO CACHE STRING "") # FFMPEG
 set(VTK_MODULE_ENABLE_VTK_IOGDAL NO CACHE STRING "") # GDAL
 set(VTK_MODULE_ENABLE_VTK_IOLAS NO CACHE STRING "") # liblas
@@ -61,7 +58,11 @@ set(VTK_MODULE_ENABLE_VTK_InfovisBoost NO CACHE STRING "") # Boost
 set(VTK_MODULE_ENABLE_VTK_InfovisBoostGraphAlgorithms NO CACHE STRING "") # Boost
 set(VTK_MODULE_ENABLE_VTK_RenderingFreeTypeFontConfig NO CACHE STRING "") # fontconfig
 set(VTK_MODULE_ENABLE_VTK_RenderingOpenVR NO CACHE STRING "") # OpenVR
-set(VTK_MODULE_ENABLE_VTK_RenderingOpenXR NO CACHE STRING "") # OpenXR
+
+if(NOT WIN32)
+  set(VTK_MODULE_ENABLE_VTK_RenderingOpenXR NO CACHE STRING "") # OpenXR disable on every system except Windows
+endif()
+
 set(VTK_MODULE_ENABLE_VTK_RenderingRayTracing NO CACHE STRING "") # OSPRay
 set(VTK_MODULE_ENABLE_VTK_RenderingZSpace NO CACHE STRING "") # zSpace
 set(VTK_MODULE_ENABLE_VTK_fides NO CACHE STRING "") # ADIOS2

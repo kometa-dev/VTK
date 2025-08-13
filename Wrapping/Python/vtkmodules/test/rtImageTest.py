@@ -9,6 +9,19 @@ import sys
 import re
 import traceback
 
+def _GetController():
+    try:
+        from vtkmodules.vtkParallelMPI import vtkMPIController
+        controller = vtkMPIController();
+
+        # If MPI was not initialized, we do not want to use MPI
+        if not controller.GetCommunicator():
+            return None
+        return controller
+    except:
+        pass
+    return None
+
 def main(test_script):
     """Run a regression test, and compare the contents of the window against
     against a valid image.  This will use arguments from sys.argv to set the
@@ -29,6 +42,12 @@ def main(test_script):
 
     # create the testing class to do the work
     rtTester = vtkTesting()
+
+    try:
+        rtTester.SetController(_GetController())
+    except:
+        pass
+
     for arg in sys.argv[opt1:]:
         rtTester.AddArgument(arg)
 
@@ -80,7 +99,8 @@ def main(test_script):
     try:
         threshold = test_script_vars["threshold"]
     except KeyError:
-        threshold = 0.15
+        # Used to be 0.15. Changed to 0.05 for new SSIM method.
+        threshold = 0.05
 
     # we require a valid regression image
     if rtTester.IsValidImageSpecified():

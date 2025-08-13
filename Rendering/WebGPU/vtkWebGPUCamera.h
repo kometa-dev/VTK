@@ -43,7 +43,7 @@ protected:
   ~vtkWebGPUCamera() override;
 
   vtkTimeStamp KeyMatrixTime;
-  vtkRenderer* LastRenderer;
+  vtkRenderer* LastRenderer = nullptr;
   vtkNew<vtkMatrix3x3> NormalMatrix;
 
   // Pack uniforms as needed.
@@ -56,9 +56,11 @@ protected:
     // Camera space -> Clipped space
     vtkTypeFloat32 ProjectionMatrix[4][4] = {};
     // Normal matrix Inverted and transposed ViewMatrix
-    vtkTypeFloat32 NormalMatrix[4][4] = {};
+    vtkTypeFloat32 NormalMatrix[3][4] = {};
     // Clipped space -> Camera space
     vtkTypeFloat32 InvertedProjectionMatrix[4][4] = {};
+    // Custom flags used to encode various integer/boolean properties.
+    vtkTypeUInt32 Flags = 0;
   };
   SceneTransforms CachedSceneTransforms;
 

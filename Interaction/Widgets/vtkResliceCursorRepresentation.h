@@ -17,6 +17,7 @@
 
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkTextProperty;
@@ -40,7 +41,8 @@ class vtkImageAlgorithm;
 // Private.
 #define VTK_RESLICE_CURSOR_REPRESENTATION_MAX_TEXTBUFF 128
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkResliceCursorRepresentation : public vtkWidgetRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkResliceCursorRepresentation
+  : public vtkWidgetRepresentation
 {
 public:
   ///@{
@@ -213,6 +215,16 @@ public:
 
   ///@{
   /**
+   * Enable/disable independent modification of the thickness based on the selected axis.
+   * Disabled by default, which applies the modified thickness to every axis of the reslice cursor.
+   */
+  vtkSetMacro(IndependentThickness, bool);
+  vtkGetMacro(IndependentThickness, bool);
+  vtkBooleanMacro(IndependentThickness, bool);
+  ///@}
+
+  ///@{
+  /**
    * INTERNAL - Do not use
    * Set the manipulation mode. This is done by the widget
    */
@@ -348,6 +360,7 @@ protected:
   vtkTypeBool UseImageActor;
   char TextBuff[VTK_RESLICE_CURSOR_REPRESENTATION_MAX_TEXTBUFF];
   vtkTypeBool DisplayText;
+  bool IndependentThickness = false;
 
   vtkScalarsToColors* CreateDefaultLookupTable();
   void GenerateText();

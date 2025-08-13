@@ -1,4 +1,4 @@
-vtk_module_find_package(
+vtk_module_find_package(PRIVATE_IF_SHARED
   PACKAGE FFMPEG
   VERSION 2.3.3
   FORWARD_VERSION_REQ MINOR
@@ -37,6 +37,7 @@ endif ()
 vtk_module_add_module(VTK::IOFFMPEG
   CLASSES ${classes})
 vtk_module_link(VTK::IOFFMPEG
+  NO_KIT_EXPORT_IF_SHARED
   PRIVATE
     FFMPEG::avformat
     FFMPEG::avcodec

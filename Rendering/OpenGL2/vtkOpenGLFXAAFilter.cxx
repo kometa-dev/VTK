@@ -3,7 +3,7 @@
 
 #include "vtkOpenGLFXAAFilter.h"
 
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 
 #include "vtkFXAAOptions.h"
 #include "vtkObjectFactory.h"
@@ -29,7 +29,7 @@
 #include "vtkFXAAFilterFS.h"
 
 // Define to perform/dump benchmarking info:
-//#define FXAA_BENCHMARK
+// #define FXAA_BENCHMARK
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLFXAAFilter);
@@ -324,6 +324,12 @@ void vtkOpenGLFXAAFilter::ApplyFilter()
   }
 
   vtkShaderProgram* program = this->QHelper->Program;
+  if (!program)
+  {
+    vtkWarningMacro(
+      "Unable to retrieve shader program from internal vtkOpenGLQuadHelper instance.");
+    return;
+  }
   program->SetUniformi("Input", this->Input->GetTextureUnit());
   float invTexSize[2] = { 1.f / static_cast<float>(this->Viewport[2]),
     1.f / static_cast<float>(this->Viewport[3]) };

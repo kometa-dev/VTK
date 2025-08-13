@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGroupDataSetsFilter.h"
 
+#include "vtkConvertToMultiBlockDataSet.h"
+#include "vtkConvertToPartitionedDataSetCollection.h"
+#include "vtkDataSet.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMultiBlockDataSet.h"
@@ -16,10 +19,10 @@
 #include <cmath>
 #include <string>
 #include <vector>
-#include <vtk_fmt.h>
 
+#include <vtk_fmt.h>
 // clang-format off
-#include VTK_FMT(fmt/core.h)
+#include VTK_FMT(fmt/format.h)
 // clang-format on
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -194,16 +197,40 @@ int vtkGroupDataSetsFilter::RequestData(vtkInformation* vtkNotUsed(request),
       {
         break;
       }
-      if (vtkPartitionedDataSetCollection::SafeDownCast(input.second) ||
-        vtkPartitionedDataSet::SafeDownCast(input.second))
+      const auto idx = next++;
+      vtkSmartPointer<vtkDataObject> inputDO;
+      auto inputMB = vtkMultiBlockDataSet::SafeDownCast(input.second);
+      if (vtkPartitionedDataSetCollection::SafeDownCast(input.second))
       {
-        vtkErrorMacro("Cannot group " << input.second->GetClassName()
-                                      << " as a vtkMultiBlockDataSet. Skipping.");
+        vtkNew<vtkConvertToMultiBlockDataSet> converter;
+        converter->SetInputDataObject(input.second);
+        converter->Update();
+        inputDO = converter->GetOutput();
+      }
+      else if (auto inputPD = vtkPartitionedDataSet::SafeDownCast(input.second))
+      {
+        vtkNew<vtkMultiPieceDataSet> data;
+        data->ShallowCopy(inputPD);
+        inputDO = data;
+      }
+      else if (inputMB && this->CombineFirstLayerMultiblock)
+      {
+        for (unsigned int i = 0; i < inputMB->GetNumberOfBlocks(); i++)
+        {
+          output->SetBlock(idx + i, inputMB->GetBlock(i));
+          const char* blockName = inputMB->GetMetaData(i)->Get(vtkCompositeDataSet::NAME());
+          std::string safeName = blockName ? std::string(blockName) : "Block" + std::to_string(i);
+          output->GetMetaData(idx + i)->Set(
+            vtkCompositeDataSet::NAME(), input.first + "_" + safeName);
+        }
+        next += inputMB->GetNumberOfBlocks() - 1;
         continue;
       }
-
-      const auto idx = next++;
-      output->SetBlock(idx, input.second);
+      else
+      {
+        inputDO = input.second;
+      }
+      output->SetBlock(idx, inputDO);
       output->GetMetaData(idx)->Set(vtkCompositeDataSet::NAME(), input.first.c_str());
     }
   }
@@ -217,29 +244,55 @@ int vtkGroupDataSetsFilter::RequestData(vtkInformation* vtkNotUsed(request),
       {
         break;
       }
-      if (vtkPartitionedDataSetCollection::SafeDownCast(input.second) ||
-        vtkMultiBlockDataSet::SafeDownCast(input.second))
+      if (input.second->IsA("vtkPartitionedDataSetCollection") ||
+        input.second->IsA("vtkMultiBlockDataSet") || input.second->IsA("vtkUniformGridAMR"))
       {
-        vtkErrorMacro("Cannot group " << input.second->GetClassName()
-                                      << " as a vtkPartitionedDataSetCollection. Skipping.");
-        continue;
-      }
+        vtkNew<vtkConvertToPartitionedDataSetCollection> converter;
+        converter->SetInputDataObject(input.second);
+        converter->Update();
+        auto tempPDC = converter->GetOutput();
 
-      const auto idx = next++;
-      output->SetNumberOfPartitionedDataSets(idx + 1);
-      output->GetMetaData(idx)->Set(vtkCompositeDataSet::NAME(), input.first.c_str());
-      if (auto pd = vtkPartitionedDataSet::SafeDownCast(input.second))
-      {
-        unsigned int piece = 0;
-        const auto datasets = vtkCompositeDataSet::GetDataSets<vtkDataObject>(pd);
-        for (auto& ds : datasets)
+        auto numPartitionDataSets = tempPDC->GetNumberOfPartitionedDataSets();
+        output->SetNumberOfPartitionedDataSets(next + numPartitionDataSets);
+        for (unsigned int i = 0; i < numPartitionDataSets; ++i)
         {
-          output->SetPartition(idx, piece++, ds);
+          const auto idx = next++;
+          for (unsigned int j = 0; j < tempPDC->GetNumberOfPartitions(i); ++j)
+          {
+            output->SetPartition(idx, j, tempPDC->GetPartition(i, j));
+          }
+          std::string partitionName;
+          if (tempPDC->GetMetaData(i)->Has(vtkCompositeDataSet::NAME()) &&
+            tempPDC->GetMetaData(i)->Get(vtkCompositeDataSet::NAME()))
+          {
+            partitionName =
+              input.first + "_" + tempPDC->GetMetaData(i)->Get(vtkCompositeDataSet::NAME());
+          }
+          else
+          {
+            partitionName = input.first + "_" + std::to_string(i);
+          }
+          output->GetMetaData(idx)->Set(vtkCompositeDataSet::NAME(), partitionName.c_str());
         }
       }
       else
       {
-        output->SetPartition(idx, 0, input.second);
+        const auto idx = next++;
+        output->SetNumberOfPartitionedDataSets(idx + 1);
+        output->GetMetaData(idx)->Set(vtkCompositeDataSet::NAME(), input.first.c_str());
+        if (auto pd = vtkPartitionedDataSet::SafeDownCast(input.second))
+        {
+          unsigned int piece = 0;
+          const auto datasets = vtkCompositeDataSet::GetDataSets<vtkDataObject>(pd);
+          for (auto& ds : datasets)
+          {
+            output->SetPartition(idx, piece++, ds);
+          }
+        }
+        else
+        {
+          output->SetPartition(idx, 0, input.second);
+        }
       }
     }
   }

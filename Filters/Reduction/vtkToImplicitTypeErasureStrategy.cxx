@@ -7,7 +7,6 @@
 #include "vtkImplicitArray.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
-#include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
 #include "vtkToImplicitStrategy.h"
 #include "vtkUnsignedCharArray.h"
@@ -37,6 +36,8 @@ public:
     return this->MinimumElement + static_cast<ValueType>(this->Array->GetValue(idx));
   }
 
+  unsigned long getMemorySize() const { return this->Array->GetActualMemorySize(); }
+
 private:
   vtkSmartPointer<ArrayT> Array;
   ValueType MinimumElement;
@@ -57,6 +58,8 @@ public:
   {
     return this->MinimumElement + static_cast<ValueType>(this->Range[idx]);
   }
+
+  unsigned long getMemorySize() const { return this->Array->GetActualMemorySize(); }
 
 private:
   vtkSmartPointer<vtkDataArray> Array;
@@ -82,9 +85,8 @@ struct ReductionChecker
     VType span = *maxElem - *minElem;
     double nBytes = static_cast<double>(vtkMath::CeilLog2(span)) / 8.0;
     nBytes = *std::upper_bound(BYTE_SIZES.begin(), BYTE_SIZES.end(), nBytes);
-    reduction = (nBytes < sizeof(VType)
-        ? vtkToImplicitStrategy::Optional(static_cast<double>(nBytes) / sizeof(VType))
-        : vtkToImplicitStrategy::Optional());
+    reduction = (nBytes < sizeof(VType) ? vtkToImplicitStrategy::Optional(nBytes / sizeof(VType))
+                                        : vtkToImplicitStrategy::Optional());
   }
 };
 

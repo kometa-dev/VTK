@@ -14,19 +14,21 @@
  * In this case, these 4 pieces can be collected together using a
  * vtkMultiPieceDataSet.
  * Note that vtkMultiPieceDataSet is intended to be included in other composite
- * datasets eg. vtkMultiBlockDataSet, vtkHierarchicalBoxDataSet. Hence the lack
+ * datasets eg. vtkMultiBlockDataSet. Hence the lack
  * of algorithms producing vtkMultiPieceDataSet.
  */
 
 #ifndef vtkMultiPieceDataSet_h
 #define vtkMultiPieceDataSet_h
 
-#include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkPartitionedDataSet.h"
+
+#include "vtkCommonDataModelModule.h" // For export macro
+#include "vtkWrappingHints.h"         // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
-class VTKCOMMONDATAMODEL_EXPORT vtkMultiPieceDataSet : public vtkPartitionedDataSet
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkMultiPieceDataSet : public vtkPartitionedDataSet
 {
 public:
   static vtkMultiPieceDataSet* New();
@@ -37,7 +39,7 @@ public:
    * Return class name of data type (see vtkType.h for
    * definitions).
    */
-  int GetDataObjectType() override { return VTK_MULTIPIECE_DATA_SET; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_MULTIPIECE_DATA_SET; }
 
   /**
    * Set the number of pieces. This will cause allocation if the new number of

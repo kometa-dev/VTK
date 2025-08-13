@@ -1,5 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+
+// Hide VTK_DEPRECATED_IN_9_4_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkSDL2OpenGLRenderWindow.h"
 
 #include "vtkCommand.h"
@@ -12,8 +16,8 @@
 #include "vtkOpenGLShaderCache.h"
 #include "vtkOpenGLState.h"
 #include "vtkOpenGLVertexBufferObjectCache.h"
+#include "vtkRenderWindowInteractor.h"
 #include "vtkRendererCollection.h"
-#include "vtkSDL2RenderWindowInteractor.h"
 
 #include <cmath>
 #include <sstream>
@@ -142,16 +146,19 @@ void vtkSDL2OpenGLRenderWindow::SetSize(int x, int y)
 {
   if ((this->Size[0] != x) || (this->Size[1] != y))
   {
-    this->Superclass::SetSize(x, y);
-
-    if (this->Interactor)
-    {
-      this->Interactor->SetSize(x, y);
-    }
     if (this->WindowId)
     {
       SDL_SetWindowSize(this->WindowId, x, y);
     }
+    this->Size[0] = x;
+    this->Size[1] = y;
+
+    if (this->Interactor)
+    {
+      this->Interactor->SetSize(this->Size[0], this->Size[1]);
+    }
+    this->Modified();
+    this->InvokeEvent(vtkCommand::WindowResizeEvent, nullptr);
   }
 }
 
@@ -293,17 +300,6 @@ void vtkSDL2OpenGLRenderWindow::DestroyWindow()
 // Get the current size of the window.
 int* vtkSDL2OpenGLRenderWindow::GetSize(void)
 {
-  // if we aren't mapped then just return the ivar
-  if (this->WindowId && this->Mapped)
-  {
-    int w = 0;
-    int h = 0;
-
-    SDL_GetWindowSize(this->WindowId, &w, &h);
-    this->Size[0] = w;
-    this->Size[1] = h;
-  }
-
   return this->vtkOpenGLRenderWindow::GetSize();
 }
 

@@ -20,7 +20,7 @@ public:
   float readFloat(std::istream& in);
   float readIBMFloat(std::istream& in);
   unsigned char readUChar(std::istream& in);
-  void swap(char* a, char* b);
+  void swap(char* a, char* b) noexcept;
   static vtkSegYIOUtils* Instance();
   std::streamoff getFileSize(std::istream& in);
 
@@ -31,7 +31,7 @@ private:
   bool checkIfBigEndian()
   {
     unsigned short a = 0x1234;
-    if (*((unsigned char*)&a) == 0x12)
+    if (*(reinterpret_cast<unsigned char*>(&a)) == 0x12)
       return true;
     return false;
   }

@@ -7,26 +7,26 @@
 #include <algorithm>
 
 #include "constants.h"
-#include "chobo/small_vector.hpp"
+#include "thirdparty/itlib/small_vector.hpp"
 
 namespace diy
 {
 
 template<class Coordinate_, size_t static_size = DIY_MAX_DIM>
-class DynamicPoint: public chobo::small_vector<Coordinate_, static_size>
+class DynamicPoint: public itlib::small_vector<Coordinate_, static_size>
 {
     public:
         using Coordinate    = Coordinate_;
-        using Parent        = chobo::small_vector<Coordinate_, static_size>;
+        using Parent        = itlib::small_vector<Coordinate_, static_size>;
 
         template<class U>
         struct rebind       { typedef DynamicPoint<U> type; };
 
     public:
-                            DynamicPoint(int dim, Coordinate x = 0):
+                            DynamicPoint(size_t dim, Coordinate x = 0):
                                 Parent(dim, x)                      {}
         template<class T>   DynamicPoint(const DynamicPoint<T>& p)  { for (size_t i = 0; i < dimension(); ++i) (*this)[i] = p[i]; }
-        template<class T>   DynamicPoint(const T* a, int dim)       { for (size_t i = 0; i < static_cast<size_t>(dim); ++i) (*this)[i] = a[i]; }
+        template<class T>   DynamicPoint(const T* a, size_t dim)       { for (size_t i = 0; i < dim; ++i) (*this)[i] = a[i]; }
         template<class T>   DynamicPoint(const std::vector<T>& a):
                                 Parent(a.begin(), a.end())          {}
                             DynamicPoint(std::initializer_list<Coordinate> lst):
@@ -36,13 +36,13 @@ class DynamicPoint: public chobo::small_vector<Coordinate_, static_size>
                             DynamicPoint(const DynamicPoint&)       =default;
         DynamicPoint&       operator=(const DynamicPoint&)          =default;
 
-        unsigned            dimension() const                       { return Parent::size(); }
+        unsigned            dimension() const                       { return static_cast<unsigned>(Parent::size()); }
 
-        static DynamicPoint zero(int dim)                           { return DynamicPoint(dim, 0); }
-        static DynamicPoint one(int dim)                            { return DynamicPoint(dim, 1); }
+        static DynamicPoint zero(size_t dim)                           { return DynamicPoint(dim, 0); }
+        static DynamicPoint one(size_t dim)                            { return DynamicPoint(dim, 1); }
 
-        DynamicPoint        drop(int dim) const                     { DynamicPoint p(dimension() - 1); size_t c = 0; for (size_t i = 0; i < dimension();   ++i) { if (i == dim) continue; p[c++] = (*this)[i]; } return p; }
-        DynamicPoint        lift(int dim, Coordinate x) const       { DynamicPoint p(dimension() + 1); for (size_t i = 0; i < dimension()+1; ++i) { if (i < dim) p[i] = (*this)[i]; else if (i == dim) p[i] = x; else if (i > dim) p[i] = (*this)[i-1]; } return p; }
+        DynamicPoint        drop(size_t dim) const                     { DynamicPoint p(dimension() - 1); size_t c = 0; for (size_t i = 0; i < dimension(); ++i) { if (i == dim) continue; p[c++] = (*this)[i]; } return p; }
+        DynamicPoint        lift(size_t dim, Coordinate x) const       { DynamicPoint p(dimension() + 1); for (size_t i = 0; i < dimension()+1; ++i) { if (i < dim) p[i] = (*this)[i]; else if (i == dim) p[i] = x; else if (i > dim) p[i] = (*this)[i-1]; } return p; }
 
         using Parent::operator[];
 

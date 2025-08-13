@@ -5,7 +5,7 @@
  * @brief   create a moving, magnifying renderer that can inspect the contents
  *          of an encapsulating renderer.
  *
- * This class provides a small, interactive, overlayed viewport (i.e.,
+ * This class provides a small, interactive, overlaid viewport (i.e.,
  * renderer) that follows the mouse while inside another, larger
  * renderer. Inside this viewport effects like magnification (via zoom or
  * adjustment of the view angle), or other rendering effects are possible.
@@ -31,14 +31,13 @@
 #define vtkMagnifierWidget_h
 
 #include "vtkAbstractWidget.h"
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
-#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
+#include "vtkWrappingHints.h"            // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkMagnifierRepresentation;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkMagnifierWidget : public vtkAbstractWidget
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkMagnifierWidget : public vtkAbstractWidget
 {
 public:
   /**
@@ -114,10 +113,6 @@ protected:
     Invisible = 0,
     Visible
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef WidgetStateType _WidgetState;
-#endif
 
 private:
   vtkMagnifierWidget(const vtkMagnifierWidget&) = delete;

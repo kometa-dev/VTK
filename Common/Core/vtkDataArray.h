@@ -26,6 +26,7 @@
 #include "vtkAbstractArray.h"
 #include "vtkCommonCoreModule.h"          // For export macro
 #include "vtkVTK_USE_SCALED_SOA_ARRAYS.h" // For #define of VTK_USE_SCALED_SOA_ARRAYS
+#include "vtkWrappingHints.h"             // For VTK_MARSHALMANUAL
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDoubleArray;
@@ -35,7 +36,7 @@ class vtkInformationDoubleVectorKey;
 class vtkLookupTable;
 class vtkPoints;
 
-class VTKCOMMONCORE_EXPORT vtkDataArray : public vtkAbstractArray
+class VTKCOMMONCORE_EXPORT VTK_MARSHALMANUAL vtkDataArray : public vtkAbstractArray
 {
 public:
   vtkTypeMacro(vtkDataArray, vtkAbstractArray);
@@ -102,6 +103,38 @@ public:
    */
   virtual void GetTuple(vtkIdType tupleIdx, double* tuple)
     VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples()) = 0;
+
+  ///@{
+  /**
+   * Get/set the data at \a tupleIdx by filling in a user-provided array
+   * of integers.
+   *
+   * This variant accepts signed 64-bit integers for the tuple.
+   * Subclasses of vtkDataArray whose IsIntegral() method returns true
+   * should override this method to provide exact integer values; the
+   * default implementation uses double-precision to integer conversion.
+   */
+  virtual void GetIntegerTuple(vtkIdType tupleIdx, vtkTypeInt64* tuple)
+    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples());
+  virtual void SetIntegerTuple(vtkIdType tupleIdx, vtkTypeInt64* tuple)
+    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples());
+  ///@}
+
+  ///@{
+  /**
+   * Get/set the data at \a tupleIdx by filling in a user-provided array
+   * of unsigned integers.
+   *
+   * This variant accepts unsigned 64-bit integers for the tuple.
+   * Subclasses of vtkDataArray whose IsIntegral() method returns true
+   * should override this method to provide exact integer values; the
+   * default implementation uses double-precision to integer conversion.
+   */
+  virtual void GetUnsignedTuple(vtkIdType tupleIdx, vtkTypeUInt64* tuple)
+    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples());
+  virtual void SetUnsignedTuple(vtkIdType tupleIdx, vtkTypeUInt64* tuple)
+    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples());
+  ///@}
 
   ///@{
   /**
@@ -224,8 +257,9 @@ public:
    * Return the data component at the location specified by tupleIdx and
    * compIdx.
    */
-  virtual double GetComponent(vtkIdType tupleIdx, int compIdx) VTK_EXPECTS(0 <= tupleIdx &&
-    tupleIdx < GetNumberOfTuples()) VTK_EXPECTS(0 <= compIdx && compIdx < GetNumberOfComponents());
+  virtual double GetComponent(vtkIdType tupleIdx, int compIdx)
+    VTK_EXPECTS(0 <= tupleIdx && GetNumberOfComponents() * tupleIdx + compIdx < GetNumberOfValues())
+      VTK_EXPECTS(0 <= compIdx && compIdx < GetNumberOfComponents());
 
   /**
    * Set the data component at the location specified by tupleIdx and compIdx
@@ -235,7 +269,7 @@ public:
    * (use SetNumberOfTuples() and SetNumberOfComponents()).
    */
   virtual void SetComponent(vtkIdType tupleIdx, int compIdx, double value)
-    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples())
+    VTK_EXPECTS(0 <= tupleIdx && GetNumberOfComponents() * tupleIdx + compIdx < GetNumberOfValues())
       VTK_EXPECTS(0 <= compIdx && compIdx < GetNumberOfComponents());
 
   /**

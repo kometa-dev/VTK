@@ -14,8 +14,12 @@
 #include "vtkRenderer.h"
 
 #include "vtkOpenGLQuadHelper.h"       // for ivar
+#include "vtkPBRIrradianceTexture.h"   // for ivar
+#include "vtkPBRLUTTexture.h"          // for ivar
+#include "vtkPBRPrefilterTexture.h"    // for ivar
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkSmartPointer.h"           // For vtkSmartPointer
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 #include <memory>                      // for unique_ptr
 #include <string>                      // Ivars
 #include <vector>                      // STL Header
@@ -29,14 +33,14 @@ class vtkOpenGLTexture;
 class vtkOrderIndependentTranslucentPass;
 class vtkTextureObject;
 class vtkDepthPeelingPass;
-class vtkPBRIrradianceTexture;
-class vtkPBRLUTTexture;
-class vtkPBRPrefilterTexture;
 class vtkShaderProgram;
 class vtkShadowMapPass;
 class vtkSSAOPass;
+class vtkPolyData;
+class vtkTexturedActor2D;
+class vtkPolyDataMapper2D;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkOpenGLRenderer : public vtkRenderer
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkOpenGLRenderer : public vtkRenderer
 {
 public:
   static vtkOpenGLRenderer* New();
@@ -131,8 +135,11 @@ public:
   /**
    * Get environment textures used for image based lighting.
    */
+  vtkSetSmartPointerMacro(EnvMapLookupTable, vtkPBRLUTTexture);
   vtkPBRLUTTexture* GetEnvMapLookupTable();
+  vtkSetSmartPointerMacro(EnvMapIrradiance, vtkPBRIrradianceTexture);
   vtkPBRIrradianceTexture* GetEnvMapIrradiance();
+  vtkSetSmartPointerMacro(EnvMapPrefiltered, vtkPBRPrefilterTexture);
   vtkPBRPrefilterTexture* GetEnvMapPrefiltered();
   ///@}
 
@@ -151,7 +158,18 @@ public:
   ///@}
 
   /**
-   * Overridden in order to connect the texture to the environment map textures.
+   * Set/Get the environment texture used for image based lighting.
+   * This texture is supposed to represent the scene background.
+   * If it is not a cubemap, the texture is supposed to represent an equirectangular projection.
+   * If used with raytracing backends, the texture must be an equirectangular projection and must be
+   * constructed with a valid vtkImageData.
+   * Warning, this texture must be expressed in linear color space.
+   * If the texture is in sRGB color space, set the color flag on the texture or
+   * set the argument isSRGB to true.
+   * Note that this texture can be omitted if LUT, SpecularColorMap and SphericalHarmonics
+   * are used and provided
+   *
+   * @sa vtkTexture::UseSRGBColorSpaceOn
    */
   void SetEnvironmentTexture(vtkTexture* texture, bool isSRGB = false) override;
 
@@ -229,12 +247,16 @@ protected:
    */
   vtkSmartPointer<vtkTransform> UserLightTransform;
 
-  vtkPBRLUTTexture* EnvMapLookupTable;
-  vtkPBRIrradianceTexture* EnvMapIrradiance;
-  vtkPBRPrefilterTexture* EnvMapPrefiltered;
+  vtkSmartPointer<vtkPBRLUTTexture> EnvMapLookupTable;
+  vtkSmartPointer<vtkPBRIrradianceTexture> EnvMapIrradiance;
+  vtkSmartPointer<vtkPBRPrefilterTexture> EnvMapPrefiltered;
   vtkSmartPointer<vtkFloatArray> SphericalHarmonics;
-  std::unique_ptr<vtkOpenGLQuadHelper> BackgroundRenderer;
   bool UseSphericalHarmonics;
+
+  vtkSmartPointer<vtkTexturedActor2D> BackgroundTextureActor;
+  vtkSmartPointer<vtkTexturedActor2D> BackgroundGradientActor;
+  vtkSmartPointer<vtkPolyDataMapper2D> BackgroundMapper;
+  vtkSmartPointer<vtkPolyData> BackgroundQuad;
 
 private:
   vtkOpenGLRenderer(const vtkOpenGLRenderer&) = delete;

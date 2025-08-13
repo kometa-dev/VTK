@@ -11,7 +11,7 @@
 #include "vtkShaderProgram.h"
 #include "vtkTextureObject.h"
 
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 
 #include <sstream>
 
@@ -33,6 +33,7 @@ void vtkPBRLUTTexture::Load(vtkRenderer* ren)
   if (!renWin)
   {
     vtkErrorMacro("No render window.");
+    return;
   }
 
   if (this->GetMTime() > this->LoadTime.GetMTime())

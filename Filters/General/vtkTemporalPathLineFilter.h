@@ -26,6 +26,11 @@
 
 #include "vtkFiltersGeneralModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
+#include "vtkTemporalAlgorithm.h" // For temporal algorithm
+
+#ifndef __VTK_WRAP__
+#define vtkPolyDataAlgorithm vtkTemporalAlgorithm<vtkPolyDataAlgorithm>
+#endif
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
@@ -48,10 +53,17 @@ public:
   /**
    * Standard Type-Macro
    */
-  static vtkTemporalPathLineFilter* New();
   vtkTypeMacro(vtkTemporalPathLineFilter, vtkPolyDataAlgorithm);
+#ifndef __VTK_WRAP__
+#undef vtkPassInputTypeAlgorithm
+#endif
+  static vtkTemporalPathLineFilter* New();
   void PrintSelf(ostream& os, vtkIndent indent) override;
   ///@}
+
+#if defined(__VTK_WRAP__) || defined(__WRAP_GCCXML)
+  vtkCreateWrappedTemporalAlgorithmInterface();
+#endif
 
   ///@{
   /**
@@ -112,20 +124,6 @@ public:
   vtkGetMacro(KeepDeadTrails, bool);
   ///@}
 
-  ///@{
-  /**
-   * Set / Get if the filter is configured to work in backward time going mode.
-   * Default is false (time should go forward).
-   *
-   * Time going forward means that for each call to RequestData, then the time
-   * step from vtkDataObject::DATA_TIME_STEP() is greater than the time step
-   * from the previous call. Time going backward means that the current time
-   * step is smaller than the previous one.
-   */
-  virtual void SetBackwardTime(bool backward);
-  vtkGetMacro(BackwardTime, bool);
-  ///@}
-
   /**
    * Flush will wipe any existing data so that traces can be restarted from
    * whatever time step is next supplied.
@@ -156,30 +154,28 @@ protected:
   int FillInputPortInformation(int port, vtkInformation* info) override;
   int FillOutputPortInformation(int port, vtkInformation* info) override;
 
-  ///@{
-  /**
-   * The necessary parts of the standard pipeline update mechanism
-   */
-  int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
-  //
-  int RequestData(vtkInformation* request, vtkInformationVector** inputVector,
+  int Initialize(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
-  ///@}
+  int Execute(vtkInformation* request, vtkInformationVector** inputVector,
+    vtkInformationVector* outputVector) override;
+  int Finalize(vtkInformation* request, vtkInformationVector** inputVector,
+    vtkInformationVector* outputVector) override;
+  void IncrementTrail(TrailPointer trail, vtkDataSet* input, vtkIdType i);
 
   TrailPointer GetTrail(vtkIdType i);
-  void IncrementTrail(TrailPointer trail, vtkDataSet* input, vtkIdType i);
+
+  // void Initialize(vtkDataSet* input, vtkDataSet* selection,
+  //  vtkPolyData* pathLines, vtkPolyData* particles);
 
   // internal data variables
   int NumberOfTimeSteps = 0;
   int MaskPoints = 200;
   unsigned int MaxTrackLength = 10;
   unsigned int LastTrackLength = 10;
-  int FirstTime = 1;
   char* IdChannelArray = nullptr;
   double MaxStepDistance[3] = { 1, 1, 1 };
   double LatestTime;
   bool KeepDeadTrails = false;
-  bool UsingSelection = false;
   bool BackwardTime = false;
   //
 
@@ -189,10 +185,13 @@ protected:
   vtkSmartPointer<vtkPoints> VertexCoordinates;
   vtkSmartPointer<vtkFloatArray> TrailId;
   vtkSmartPointer<vtkTemporalPathLineFilterInternals> Internals;
-  std::set<vtkIdType> SelectionIds;
 
   //
 private:
+  void AccumulateTrails(vtkDataSet* input, vtkDataSet* selection);
+  void PostExecute(vtkDataSet* input, vtkPolyData* pathLines, vtkPolyData* particles);
+  void InitializeExecute(vtkDataSet* input, vtkPolyData* pathLines);
+
   vtkTemporalPathLineFilter(const vtkTemporalPathLineFilter&) = delete;
   void operator=(const vtkTemporalPathLineFilter&) = delete;
 };

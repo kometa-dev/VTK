@@ -46,6 +46,17 @@ void vtkOpenVRRenderWindowInteractor::Initialize()
   this->AddAction("/actions/vtk/in/ComplexGestureAction", false,
     [this](vtkEventData* ed) { this->HandleComplexGestureEvents(ed); });
 
+  // This additional action is needed to support the recognition of complex gestures
+  // in cases where the two complex gesture buttons are pressed consecutively. In such
+  // scenarios, when the user is already pressing one button, the `actionData.bChanged`
+  // condition (used in `DoOneEvent`) is already false and no additional event is synthesized.
+  // By using another action named `ComplexGestureAction_Event2`, we ensure a second event
+  // is synthesized. This leads to a second invocation of `HandleComplexGestureEvents`,
+  // enabling the function `RecognizeComplexGesture()` to effectively recognize the associated
+  // gesture.
+  this->AddAction("/actions/vtk/in/ComplexGestureAction_Event2", false,
+    [this](vtkEventData* ed) { this->HandleComplexGestureEvents(ed); });
+
   // add extra event actions
   for (auto& it : this->ActionMap)
   {
@@ -342,7 +353,7 @@ void vtkOpenVRRenderWindowInteractor::DoOneEvent(vtkVRRenderWindow* renWin, vtkR
 
 //------------------------------------------------------------------------------
 void vtkOpenVRRenderWindowInteractor::AddAction(
-  std::string path, vtkCommand::EventIds eid, bool isAnalog)
+  const std::string& path, const vtkCommand::EventIds& eid, bool isAnalog)
 {
   // Path example: "/user/hand/right/input/trackpad"
   auto& am = this->ActionMap[path];
@@ -357,7 +368,7 @@ void vtkOpenVRRenderWindowInteractor::AddAction(
 
 //------------------------------------------------------------------------------
 void vtkOpenVRRenderWindowInteractor::AddAction(
-  std::string path, bool isAnalog, std::function<void(vtkEventData*)> func)
+  const std::string& path, bool isAnalog, const std::function<void(vtkEventData*)>& func)
 {
   // Path example: "/user/hand/right/input/trackpad"
   auto& am = this->ActionMap[path];
@@ -370,29 +381,4 @@ void vtkOpenVRRenderWindowInteractor::AddAction(
   }
 }
 
-//------------------------------------------------------------------------------
-// Purpose: Returns true if the action is active and its state is true
-//------------------------------------------------------------------------------
-bool GetDigitalActionState(
-  vr::VRActionHandle_t action, vr::VRInputValueHandle_t* pDevicePath = nullptr)
-{
-  vr::InputDigitalActionData_t actionData;
-  vr::VRInput()->GetDigitalActionData(
-    action, &actionData, sizeof(actionData), vr::k_ulInvalidInputValueHandle);
-  if (pDevicePath)
-  {
-    *pDevicePath = vr::k_ulInvalidInputValueHandle;
-    if (actionData.bActive)
-    {
-      vr::InputOriginInfo_t originInfo;
-      if (vr::VRInputError_None ==
-        vr::VRInput()->GetOriginTrackedDeviceInfo(
-          actionData.activeOrigin, &originInfo, sizeof(originInfo)))
-      {
-        *pDevicePath = originInfo.devicePath;
-      }
-    }
-  }
-  return actionData.bActive && actionData.bState;
-}
 VTK_ABI_NAMESPACE_END

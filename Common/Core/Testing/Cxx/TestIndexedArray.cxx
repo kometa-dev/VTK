@@ -25,7 +25,9 @@ int TestIndexedArray(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   handles->SetNumberOfIds(100);
   std::random_device randdev;
   std::mt19937 generator(randdev());
-  auto index_rand = std::bind(std::uniform_int_distribution<vtkIdType>(0, 999), generator);
+
+  std::uniform_int_distribution<vtkIdType> dist(0, 999);
+  auto index_rand = [&]() { return dist(generator); };
   for (vtkIdType idx = 0; idx < 100; idx++)
   {
     handles->SetId(idx, index_rand());
@@ -41,7 +43,7 @@ int TestIndexedArray(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
     if (indexed->GetValue(iArr) != static_cast<int>(handles->GetId(iArr)))
     {
       res = EXIT_FAILURE;
-      std::cout << "get value failed with vtkIndexedArray" << std::endl;
+      std::cerr << "get value failed with vtkIndexedArray" << std::endl;
     }
   }
 
@@ -51,10 +53,50 @@ int TestIndexedArray(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
     if (val != static_cast<int>(handles->GetId(iArr)))
     {
       res = EXIT_FAILURE;
-      std::cout << "range iterator failed with vtkIndexedArray" << std::endl;
+      std::cerr << "range iterator failed with vtkIndexedArray" << std::endl;
     }
     iArr++;
   }
 
+  // Test memory size measurement for a large array
+  vtkNew<vtkIdList> largeHandles;
+  largeHandles->SetNumberOfIds(1024 * 3);
+
+  vtkNew<vtkIntArray> largeArray;
+  largeArray->SetNumberOfComponents(4);
+  largeArray->SetNumberOfTuples(1024 * 5);
+
+  vtkNew<vtkIndexedArray<int>> largeIndexed;
+  largeIndexed->SetBackend(
+    std::make_shared<vtkIndexedImplicitBackend<int>>(largeHandles, largeArray));
+
+  unsigned long expectedSizeInKib = 3 * sizeof(vtkIdType) + largeArray->GetActualMemorySize();
+  if (largeIndexed->GetActualMemorySize() != expectedSizeInKib)
+  {
+    res = EXIT_FAILURE;
+    std::cerr << "Wrong value memory size value for large vtkIndexedArray: "
+              << largeIndexed->GetActualMemorySize() << " KiB instead of " << expectedSizeInKib
+              << std::endl;
+  }
+
+  // Test memory size for an array smaller than 1KiB
+  vtkNew<vtkIdList> smallHandles;
+  smallHandles->SetNumberOfIds(5);
+
+  vtkNew<vtkIntArray> smallArray;
+  smallArray->SetNumberOfComponents(5);
+  smallArray->SetNumberOfTuples(5);
+
+  vtkNew<vtkIndexedArray<int>> smallIndexed;
+  smallIndexed->SetBackend(
+    std::make_shared<vtkIndexedImplicitBackend<int>>(smallHandles, smallArray));
+
+  if (smallIndexed->GetActualMemorySize() != 2)
+  {
+    res = EXIT_FAILURE;
+    std::cerr << "Wrong value memory size value for large vtkIndexedArray: "
+              << smallIndexed->GetActualMemorySize() << " KiB instead of 2" << std::endl;
+  }
+
   return res;
-};
+}

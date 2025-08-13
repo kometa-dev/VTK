@@ -45,6 +45,13 @@
  * Unless `Modified` is called, various cached entities, like array range,
  * map created for `LookupValue` may become obsolete and yield incorrect results.
  *
+ * @warning
+ * In VTK 9.4, new method `nlohmann::json vtkAbstractArray::SerializeValues()` was
+ * introduced which required exposing symbols from
+ * VTK::nlohmannjson library in public API. This method will be removed in VTK 9.5 as it caused
+ * difficulty for downstream projects that linked to a different nlohmannjson. It cannot be
+ * deprecated because doing so prevents fixing the underlying issue.
+ *
  * @sa
  * vtkDataArray vtkStringArray vtkCellArray
  */
@@ -55,7 +62,8 @@
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkIdList.h"           // For InsertTuples
 #include "vtkObject.h"
-#include "vtkVariant.h" // for variant arguments
+#include "vtkVariant.h"       // for variant arguments
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkArrayIterator;
@@ -69,11 +77,16 @@ class vtkInformationInformationVectorKey;
 class vtkInformationVariantVectorKey;
 class vtkVariantArray;
 
-class VTKCOMMONCORE_EXPORT vtkAbstractArray : public vtkObject
+class VTKCOMMONCORE_EXPORT VTK_MARSHALAUTO vtkAbstractArray : public vtkObject
 {
 public:
   vtkTypeMacro(vtkAbstractArray, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  /**
+   * Print the array values to an `ostream` object.
+   */
+  void PrintValues(ostream& os);
 
   /**
    * Allocate memory for this array. Delete old storage only if necessary.
@@ -161,6 +174,7 @@ public:
    * conjunction with SetValue() method for fast insertion. Preserves existing
    * data and returns true if allocation succeeds, or false otherwise.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   virtual bool SetNumberOfValues(vtkIdType numValues);
 
   /**
@@ -174,7 +188,8 @@ public:
    * construction for subclasses that support component insertion, which may
    * result in an incomplete trailing tuple.
    */
-  inline vtkIdType GetNumberOfValues() const { return (this->MaxId + 1); }
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
+  vtkIdType GetNumberOfValues() const { return (this->MaxId + 1); }
 
   /**
    * Set the tuple at dstTupleIdx in this array to the tuple at srcTupleIdx in
@@ -415,6 +430,11 @@ public:
    * must return true if and only if an array contains numeric data.
    */
   virtual int IsNumeric() const = 0;
+
+  /**
+   * This method will return true if and only if an array contains integer-valued data.
+   */
+  virtual bool IsIntegral() const;
 
   /**
    * Subclasses must override this method and provide the right kind
@@ -719,7 +739,7 @@ private:
 template <typename ArrayT>
 struct vtkArrayDownCast_impl
 {
-  inline ArrayT* operator()(vtkAbstractArray* array) { return ArrayT::SafeDownCast(array); }
+  ArrayT* operator()(vtkAbstractArray* array) { return ArrayT::SafeDownCast(array); }
 };
 ///@}
 
@@ -759,7 +779,10 @@ VTK_ABI_NAMESPACE_END
   template <>                                                                                      \
   struct vtkArrayDownCast_impl<ArrayT>                                                             \
   {                                                                                                \
-    inline ArrayT* operator()(vtkAbstractArray* array) { return ArrayT::FastDownCast(array); }     \
+    inline ArrayT* operator()(vtkAbstractArray* array)                                             \
+    {                                                                                              \
+      return ArrayT::FastDownCast(array);                                                          \
+    }                                                                                              \
   }
 ///@}
 

@@ -25,7 +25,7 @@
 
 #define PTSMULT 10
 #define TXTMULT (PTSMULT * PTSMULT)
-//#define GENERATE_TEST_POINTS
+// #define GENERATE_TEST_POINTS
 
 static const char* vtkTextLabelList[] = {
   "Barbey",
@@ -2472,7 +2472,7 @@ int TestLabelPlacementMapper2D(int argc, char* argv[])
 
   // rw->Render();
 
-  int retval = vtkRegressionTestImageThreshold(rw, 60.0);
+  int retval = vtkRegressionTestImageThreshold(rw, 0.05);
   if (retval == vtkRegressionTester::DO_INTERACTOR)
   {
     ri->Start();

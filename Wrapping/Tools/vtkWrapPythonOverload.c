@@ -85,7 +85,7 @@
 static char vtkWrapPython_FormatChar(unsigned int argtype);
 
 /* create a string for checking arguments against available signatures */
-static char* vtkWrapPython_ArgCheckString(ClassInfo* data, FunctionInfo* currentFunction);
+static char* vtkWrapPython_ArgCheckString(const ClassInfo* data, FunctionInfo* currentFunction);
 
 /* -------------------------------------------------------------------- */
 /* Get the python format char for the give type, after retrieving the
@@ -154,7 +154,7 @@ static char vtkWrapPython_FormatChar(unsigned int argtype)
 /* -------------------------------------------------------------------- */
 /* Create a string to describe the signature of a method. */
 
-static char* vtkWrapPython_ArgCheckString(ClassInfo* data, FunctionInfo* currentFunction)
+static char* vtkWrapPython_ArgCheckString(const ClassInfo* data, FunctionInfo* currentFunction)
 {
   static char result[2048]; /* max literal string length */
   char classname[1024];
@@ -354,8 +354,8 @@ int* vtkWrapPython_ArgCountToOverloadMap(FunctionInfo** wrappedFunctions,
   static int overloadMap[512];
   int totalArgs, requiredArgs;
   int occ, occCounter;
-  FunctionInfo* theOccurrence;
-  FunctionInfo* theFunc;
+  const FunctionInfo* theOccurrence;
+  const FunctionInfo* theFunc;
   int mixed_static, any_static;
   int i;
 
@@ -433,7 +433,7 @@ int* vtkWrapPython_ArgCountToOverloadMap(FunctionInfo** wrappedFunctions,
 /* output the method table for all overloads of a particular method,
  * this is also used to write out all constructors for the class */
 
-void vtkWrapPython_OverloadMethodDef(FILE* fp, const char* classname, ClassInfo* data,
+void vtkWrapPython_OverloadMethodDef(FILE* fp, const char* classname, const ClassInfo* data,
   const int* overloadMap, FunctionInfo** wrappedFunctions, int numberOfWrappedFunctions, int fnum,
   int numberOfOccurrences)
 {

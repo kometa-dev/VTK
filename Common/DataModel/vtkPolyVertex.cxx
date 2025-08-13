@@ -11,6 +11,7 @@
 #include "vtkPointData.h"
 #include "vtkPoints.h"
 #include "vtkVertex.h"
+#include <numeric> //std::iota
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPolyVertex);
@@ -85,13 +86,9 @@ int vtkPolyVertex::EvaluatePosition(const double x[3], double closestPoint[3], i
 void vtkPolyVertex::EvaluateLocation(
   int& subId, const double vtkNotUsed(pcoords)[3], double x[3], double* weights)
 {
-  int i;
   this->Points->GetPoint(subId, x);
 
-  for (i = 0; i < this->GetNumberOfPoints(); i++)
-  {
-    weights[i] = 0.0;
-  }
+  std::fill_n(weights, this->GetNumberOfPoints(), 0);
   weights[subId] = 1.0;
 }
 
@@ -161,17 +158,10 @@ int vtkPolyVertex::IntersectWithLine(const double p1[3], const double p2[3], dou
 }
 
 //------------------------------------------------------------------------------
-int vtkPolyVertex::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkPolyVertex::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  int subId;
-
-  pts->Reset();
-  ptIds->Reset();
-  for (subId = 0; subId < this->Points->GetNumberOfPoints(); subId++)
-  {
-    pts->InsertPoint(subId, this->Points->GetPoint(subId));
-    ptIds->InsertId(subId, this->PointIds->GetId(subId));
-  }
+  ptIds->SetNumberOfIds(this->Points->GetNumberOfPoints());
+  std::iota(ptIds->begin(), ptIds->end(), 0);
   return 1;
 }
 

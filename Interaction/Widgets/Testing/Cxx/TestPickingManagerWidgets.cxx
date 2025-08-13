@@ -38,6 +38,7 @@
 #include "vtkRenderer.h"
 #include "vtkSmartPointer.h"
 #include "vtkSphereSource.h"
+#include "vtkTesting.h"
 
 //------------------------------------------------------------------------------
 class vtkBalloonPickCallback : public vtkCommand
@@ -95,9 +96,10 @@ public:
   void Execute(vtkObject* caller, unsigned long, void*) override
   {
     vtkRenderWindowInteractor* iren = static_cast<vtkRenderWindowInteractor*>(caller);
+    char* cKeySym = iren->GetKeySym();
+    std::string keySym = cKeySym != nullptr ? cKeySym : "";
 
-    if ((!strcmp(iren->GetKeySym(), "Control_L") || !strcmp(iren->GetKeySym(), "Control_R")) &&
-      iren->GetPickingManager())
+    if ((keySym == "Control_L" || keySym == "Control_R") && iren->GetPickingManager())
     {
       if (!iren->GetPickingManager()->GetEnabled())
       {
@@ -111,7 +113,7 @@ public:
       }
     }
     // Enable/Disable the Optimization on render events.
-    else if (!strcmp(iren->GetKeySym(), "o") && iren->GetPickingManager())
+    else if (keySym == "o" && iren->GetPickingManager())
     {
       if (!iren->GetPickingManager()->GetOptimizeOnInteractorEvents())
       {
@@ -138,6 +140,14 @@ int TestPickingManagerWidgets(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   //
   vtkNew<vtkRenderer> ren1;
   vtkNew<vtkRenderWindow> renWin;
+  if (renWin->IsA("vtkOSOpenGLRenderWindow"))
+  {
+    // we cannot run in OSMesa.
+    // Note: I am not sure why but this is how things were before.
+    // This test was excluded from the build when VTK_OPENGL_HAS_OSMESA (old setting)
+    // was `ON`.
+    return VTK_SKIP_RETURN_CODE;
+  }
   renWin->AddRenderer(ren1);
 
   vtkNew<vtkRenderWindowInteractor> iren;
@@ -283,7 +293,7 @@ int TestPickingManagerWidgets(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   // First ImplicitPlaneWidget (Green)
   vtkNew<vtkImplicitPlaneRepresentation> impPlaneRep;
   impPlaneRep->SetPlaceFactor(1.);
-  impPlaneRep->SetOutlineTranslation(0);
+  impPlaneRep->SetOutlineTranslation(false);
   impPlaneRep->SetScaleEnabled(0);
   impPlaneRep->PlaceWidget(glyphImpPlane->GetOutput()->GetBounds());
   impPlaneRep->SetEdgeColor(0., 1., 0.);
@@ -299,7 +309,7 @@ int TestPickingManagerWidgets(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
 
   // Second ImplicitPlaneWidget (Red)
   vtkNew<vtkImplicitPlaneRepresentation> impPlaneRep2;
-  impPlaneRep2->SetOutlineTranslation(0);
+  impPlaneRep2->SetOutlineTranslation(false);
   impPlaneRep2->SetScaleEnabled(0);
   impPlaneRep2->SetPlaceFactor(1.);
   impPlaneRep2->PlaceWidget(glyphImpPlane->GetOutput()->GetBounds());

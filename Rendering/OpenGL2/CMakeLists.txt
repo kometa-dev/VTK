@@ -1,31 +1,41 @@
 set(classes
+  vtkArrayRenderer
   vtkCameraPass
   vtkClearRGBPass
   vtkClearZPass
-  vtkCompositePolyDataMapper2
   vtkDataTransferHelper
   vtkDefaultPass
   vtkDepthImageProcessingPass
   vtkDepthOfFieldPass
   vtkDepthPeelingPass
+  vtkDrawTexturedElements
   vtkDualDepthPeelingPass
   vtkEDLShading
   vtkEquirectangularToCubeMapTexture
+  vtkFastLabeledDataMapper
   vtkFramebufferPass
   vtkGaussianBlurPass
   vtkGenericOpenGLRenderWindow
+  vtkGLSLModCamera
+  vtkGLSLModCoincidentTopology
+  vtkGLSLModLight
+  vtkGLSLModPixelDebugger
+  vtkGLSLModifierBase
+  vtkGLSLModifierFactory
   vtkHiddenLineRemovalPass
   vtkImageProcessingPass
   vtkLightingMapPass
   vtkLightsPass
   vtkOpaquePass
   vtkOpenGLActor
+  vtkOpenGLArrayTextureBufferAdapter
   vtkOpenGLBatchedPolyDataMapper
   vtkOpenGLBillboardTextActor3D
   vtkOpenGLBufferObject
   vtkOpenGLCamera
   vtkOpenGLCellToVTKCellMap
   vtkOpenGLCompositePolyDataMapperDelegator
+  vtkOpenGLES30PolyDataMapper2D
   vtkOpenGLFXAAFilter
   vtkOpenGLFXAAPass
   vtkOpenGLFluidMapper
@@ -43,6 +53,8 @@ set(classes
   vtkOpenGLInstanceCulling
   vtkOpenGLLabeledContourMapper
   vtkOpenGLLight
+  vtkOpenGLLowMemoryBatchedPolyDataMapper
+  vtkOpenGLLowMemoryPolyDataMapper
   vtkOpenGLPointGaussianMapper
   vtkOpenGLPolyDataMapper
   vtkOpenGLPolyDataMapper2D
@@ -70,6 +82,7 @@ set(classes
   vtkOpenGLVertexBufferObjectCache
   vtkOpenGLVertexBufferObjectGroup
   vtkOrderIndependentTranslucentPass
+  vtkOSOpenGLRenderWindow
   vtkOutlineGlowPass
   vtkOverlayPass
   vtkPBRIrradianceTexture
@@ -103,7 +116,8 @@ set(headers
   "${CMAKE_CURRENT_BINARY_DIR}/vtkRenderingOpenGLConfigure.h")
 
 set(nowrap_headers
-  vtkCompositeMapperHelper2.h
+        vtkOpenGLPointGaussianMapperHelper.h
+  vtkOpenGLShaderDeclaration.h
 )
 
 # add opengl support test executable on windows
@@ -118,6 +132,13 @@ endif ()
 
 set(sources)
 set(private_headers)
+set(private_classes
+  vtkOpenGLLowMemoryCellTypeAgent
+  vtkOpenGLLowMemoryLinesAgent
+  vtkOpenGLLowMemoryPolygonsAgent
+  vtkOpenGLLowMemoryStripsAgent
+  vtkOpenGLLowMemoryVerticesAgent
+)
 
 set(shader_files
   glsl/vtkDepthOfFieldPassFS.glsl
@@ -153,6 +174,7 @@ set(shader_files
   glsl/vtkPolyDataWideLineGS.glsl
   glsl/vtkSSAAPassFS.glsl
   glsl/vtkSimpleMotionBlurPassFS.glsl
+  glsl/vtkSimpleSplatVS.glsl
   glsl/vtkSobelGradientMagnitudePass1FS.glsl
   glsl/vtkSobelGradientMagnitudePass2FS.glsl
   glsl/vtkSphereMapperGS.glsl
@@ -164,6 +186,8 @@ unset(shader_h_files)
 foreach(file IN LISTS shader_files)
   vtk_encode_string(
     INPUT         "${file}"
+    EXPORT_SYMBOL "VTKRENDERINGOPENGL2_NO_EXPORT"
+    EXPORT_HEADER "vtkRenderingOpenGL2Module.h"
     HEADER_OUTPUT header
     SOURCE_OUTPUT source)
   list(APPEND sources
@@ -191,6 +215,8 @@ vtk_encode_string(
   INPUT "textures/BlueNoiseTexture64x64.jpg"
   HEADER_OUTPUT BlueNoiseTexture64x64_header
   SOURCE_OUTPUT BlueNoiseTexture64x64_source
+  EXPORT_SYMBOL "VTKRENDERINGOPENGL2_NO_EXPORT"
+  EXPORT_HEADER "vtkRenderingOpenGL2Module.h"
   BINARY)
 list(APPEND sources "${BlueNoiseTexture64x64_source}")
 list(APPEND private_headers "${BlueNoiseTexture64x64_header}")
@@ -225,19 +251,15 @@ set(opengl_overrides
 include(vtkOpenGLOptions)
 if (VTK_OPENGL_USE_GLES)
   # Add custom overrides
-  set(opengles_overrides
-    PolyDataMapper
-    PolyDataMapper2D)
-  list(APPEND classes
-    vtkOpenGLES30PolyDataMapper
-    vtkOpenGLES30PolyDataMapper2D)
-  foreach (opengles_override IN LISTS opengles_overrides)
-    vtk_object_factory_declare(
-      BASE "vtk${opengles_override}"
-      OVERRIDE "vtkOpenGLES30${opengles_override}")
-    # remove opengl override
-    list(REMOVE_ITEM opengl_overrides ${opengles_override})
-  endforeach()
+  vtk_object_factory_declare(
+    BASE "vtkPolyDataMapper"
+    OVERRIDE "vtkOpenGLLowMemoryPolyDataMapper")
+  vtk_object_factory_declare(
+    BASE "vtkPolyDataMapper2D"
+    OVERRIDE "vtkOpenGLES30PolyDataMapper2D")
+  # remove default opengl override
+  list(REMOVE_ITEM opengl_overrides PolyDataMapper)
+  list(REMOVE_ITEM opengl_overrides PolyDataMapper2D)
 endif ()
 
 # Now to see about the GPU info list.
@@ -254,38 +276,42 @@ endforeach ()
 
 # Update sources to include render window specializations for
 # offscreen-only modes, if enabled.
-if (VTK_OPENGL_HAS_OSMESA)
-  list(APPEND classes vtkOSOpenGLRenderWindow)
-endif ()
+set(has_vtkRenderWindow_override 0)
 if (VTK_OPENGL_HAS_EGL)
   list(APPEND classes vtkEGLRenderWindow)
+  if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
+    vtk_object_factory_declare(
+      BASE vtkRenderWindow
+      OVERRIDE vtkOpenGLRenderWindow)
+    set(has_vtkRenderWindow_override 1)
+  endif ()
   set_source_files_properties(vtkEGLRenderWindow.cxx
     PROPERTIES
       COMPILE_DEFINITIONS "VTK_DEFAULT_EGL_DEVICE_INDEX=${VTK_DEFAULT_EGL_DEVICE_INDEX}")
 endif ()
 
-set(has_vtkRenderWindow_override 0)
 # Setup factory overrides and add window system specific render windows.
+# On Linux and Windows, it's possible to have multiple context creation backends that can be used
+# as fallback. vtkOpenGLRenderWindow is made the factory override for vtkRenderWindow because
+# vtkOpenGLRenderWindow has runtime detection of suitable backend in it's New() method.
 if (VTK_USE_X)
-  # Add some custom overrides
-  if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
-    vtk_object_factory_declare(
-      BASE vtkRenderWindow
-      OVERRIDE vtkXOpenGLRenderWindow)
-    set(has_vtkRenderWindow_override 1)
-  endif ()
   list(APPEND classes vtkXOpenGLRenderWindow)
-elseif (VTK_USE_WIN32_OPENGL)
-  # Add some custom overrides
-  if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
+  if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS AND NOT has_vtkRenderWindow_override)
     vtk_object_factory_declare(
       BASE vtkRenderWindow
-      OVERRIDE vtkWin32OpenGLRenderWindow)
+      OVERRIDE vtkOpenGLRenderWindow)
     set(has_vtkRenderWindow_override 1)
   endif ()
+elseif (VTK_USE_WIN32_OPENGL)
   list(APPEND classes
     vtkWin32OpenGLRenderWindow
     vtkWin32OpenGLDXRenderWindow)
+  if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS AND NOT has_vtkRenderWindow_override)
+    vtk_object_factory_declare(
+      BASE vtkRenderWindow
+      OVERRIDE vtkOpenGLRenderWindow)
+    set(has_vtkRenderWindow_override 1)
+  endif ()
 elseif (VTK_USE_COCOA)
   # Add some custom overrides
   if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
@@ -316,12 +342,22 @@ elseif (ANDROID)
     OVERRIDE vtkEGLRenderWindow)
   set(has_vtkRenderWindow_override 1)
   include_directories("${CMAKE_ANDROID_NDK}/sources/android/native_app_glue")
-elseif (EMSCRIPTEN)
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   # Add some custom overrides
-  vtk_object_factory_declare(
-    BASE vtkRenderWindow
-    OVERRIDE vtkSDL2OpenGLRenderWindow)
-  set(has_vtkRenderWindow_override 1)
+  # VTK_DEPRECATED_IN_9_4_0() Remove when vtkSDL2OpenGLRenderWindow is removed.
+  if (VTK_USE_SDL2)
+    vtk_object_factory_declare(
+      BASE vtkRenderWindow
+      OVERRIDE vtkSDL2OpenGLRenderWindow)
+    set(has_vtkRenderWindow_override 1)
+    list(APPEND classes vtkSDL2OpenGLRenderWindow)
+  else ()
+    vtk_object_factory_declare(
+      BASE vtkRenderWindow
+      OVERRIDE vtkWebAssemblyOpenGLRenderWindow)
+    set(has_vtkRenderWindow_override 1)
+    list(APPEND classes vtkWebAssemblyOpenGLRenderWindow)
+  endif ()
 elseif (APPLE_IOS)
   # Add some custom overrides
   vtk_object_factory_declare(
@@ -340,15 +376,9 @@ elseif (APPLE_IOS)
 endif ()
 
 if (VTK_DEFAULT_RENDER_WINDOW_HEADLESS OR NOT has_vtkRenderWindow_override)
-  if (VTK_OPENGL_HAS_EGL)
-    vtk_object_factory_declare(
-      BASE vtkRenderWindow
-      OVERRIDE vtkEGLRenderWindow)
-  elseif (VTK_OPENGL_HAS_OSMESA)
-    vtk_object_factory_declare(
-      BASE vtkRenderWindow
-      OVERRIDE vtkOSOpenGLRenderWindow)
-  endif ()
+  vtk_object_factory_declare(
+    BASE vtkRenderWindow
+    OVERRIDE vtkOSOpenGLRenderWindow)
 endif ()
 
 vtk_object_factory_configure(
@@ -381,20 +411,32 @@ configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/vtkRenderingOpenGLConfigure.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkRenderingOpenGLConfigure.h")
 
-if (VTK_USE_SDL2)
-  list(APPEND classes vtkSDL2OpenGLRenderWindow)
-endif ()
-
 vtk_module_add_module(VTK::RenderingOpenGL2
   CLASSES ${classes}
+  PRIVATE_CLASSES ${private_classes}
   SOURCES ${sources} ${vtk_object_factory_source}
   HEADERS ${headers}
   NOWRAP_HEADERS ${nowrap_headers}
   PRIVATE_HEADERS ${private_headers} ${vtk_object_factory_header})
 
-if (VTK_USE_SDL2)
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  # VTK_DEPRECATED_IN_9_4_0() Remove when vtkSDL2OpenGLRenderWindow is removed.
+  if (VTK_USE_SDL2)
+    # The -sUSE_SDL=2 flag will inform emcc driver to add include paths.
+    # PUBLIC because vtkSDL2OpenGLRenderWindow.h includes SDL2.h
+    vtk_module_compile_options(VTK::RenderingUI
+      PUBLIC
+        "-sUSE_SDL=2")
+    vtk_module_link_options(VTK::RenderingUI
+      PUBLIC
+        "-sUSE_SDL=2")
+  endif ()
+elseif (VTK_USE_SDL2)
+  # VTK_DEPRECATED_IN_9_4_0() Remove when vtkSDL2OpenGLRenderWindow is removed.
+  list(APPEND classes vtkSDL2OpenGLRenderWindow)
   vtk_module_find_package(PACKAGE SDL2)
-  vtk_module_link(VTK::RenderingOpenGL2
+  # PUBLIC because vtkSDL2OpenGLRenderWindow.h includes SDL2.h
+  vtk_module_link(VTK::RenderingUI
     PUBLIC
       SDL2::SDL2)
 endif ()
@@ -415,8 +457,9 @@ elseif (VTK_USE_COCOA)
   vtk_module_link(VTK::RenderingOpenGL2 PUBLIC "-framework Cocoa")
 elseif (VTK_USE_WIN32_OPENGL)
   # vtkWin32OpenGLDXRenderWindow requires D3D.
-  vtk_module_find_package(PACKAGE DirectX)
-  vtk_module_link(VTK::RenderingOpenGL2 PRIVATE DirectX::d3d11 DirectX::dxgi)
+  vtk_module_find_package(PRIVATE_IF_SHARED
+    PACKAGE DirectX)
+  vtk_module_link(VTK::RenderingOpenGL2 NO_KIT_EXPORT_IF_SHARED PRIVATE DirectX::d3d11 DirectX::dxgi)
 endif ()
 
 if (ANDROID)

@@ -29,7 +29,7 @@ void vtkXMLPDataWriter::PrintSelf(ostream& os, vtkIndent indent)
 //------------------------------------------------------------------------------
 void vtkXMLPDataWriter::WritePData(vtkIndent indent)
 {
-  vtkDataSet* input = this->GetInputAsDataSet();
+  vtkDataSet* input = this->GetDataSetInput();
 
   // We want to avoid using appended data mode as it
   // is not supported in meta formats.
@@ -43,11 +43,11 @@ void vtkXMLPDataWriter::WritePData(vtkIndent indent)
 
   vtkInformation* meta = input->GetInformation();
   bool hasTime = meta->Has(vtkDataObject::DATA_TIME_STEP()) != 0;
-  if ((fieldData && fieldData->GetNumberOfArrays()) || hasTime)
+  if ((fieldData && fieldData->GetNumberOfArrays()) || (hasTime && this->GetWriteTimeValue()))
   {
     vtkNew<vtkFieldData> fieldDataCopy;
     fieldDataCopy->ShallowCopy(fieldData);
-    if (hasTime)
+    if (hasTime && this->GetWriteTimeValue())
     {
       vtkNew<vtkDoubleArray> time;
       time->SetNumberOfTuples(1);
@@ -73,7 +73,7 @@ int vtkXMLPDataWriter::WritePieceInternal()
 {
   int piece = this->GetCurrentPiece();
 
-  vtkDataSet* inputDS = this->GetInputAsDataSet();
+  vtkDataSet* inputDS = this->GetDataSetInput();
   if (inputDS && (inputDS->GetNumberOfPoints() > 0 || inputDS->GetNumberOfCells() > 0))
   {
     if (!this->WritePiece(piece))
@@ -113,6 +113,7 @@ int vtkXMLPDataWriter::WritePiece(int index)
   pWriter->SetEncodeAppendedData(this->EncodeAppendedData);
   pWriter->SetHeaderType(this->HeaderType);
   pWriter->SetBlockSize(this->BlockSize);
+  pWriter->SetWriteTimeValue(this->GetWriteTimeValue());
 
   // Write the piece.
   int result = pWriter->Write();

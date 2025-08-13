@@ -16,8 +16,9 @@
 
 #include "vtkChartsCoreModule.h" // For export macro
 #include "vtkContextItem.h"
-#include "vtkNew.h"  // For vtkNew
-#include "vtkRect.h" // For vtkRectf return value
+#include "vtkNew.h"           // For vtkNew
+#include "vtkRect.h"          // For vtkRectf return value
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkChart;
@@ -25,7 +26,7 @@ class vtkPen;
 class vtkBrush;
 class vtkTextProperty;
 
-class VTKCHARTSCORE_EXPORT vtkChartLegend : public vtkContextItem
+class VTKCHARTSCORE_EXPORT VTK_MARSHALAUTO vtkChartLegend : public vtkContextItem
 {
 public:
   vtkTypeMacro(vtkChartLegend, vtkContextItem);
@@ -69,6 +70,16 @@ public:
    * Get point the legend box is anchored to.
    */
   const vtkVector2f& GetPointVector();
+
+  ///@{
+  /**
+   * Set/Get whether the anchor point is in normalized chart coordinates or screen coordinates.
+   * By default, this is disabled and the point is in screen coordinates.
+   */
+  vtkSetMacro(PointIsNormalized, bool);
+  vtkGetMacro(PointIsNormalized, bool);
+  vtkBooleanMacro(PointIsNormalized, bool);
+  ///@}
 
   ///@{
   /**
@@ -244,6 +255,7 @@ protected:
   float* Point;            // The point the legend is anchored to.
   int HorizontalAlignment; // Alignment of the legend to the point it is anchored to.
   int VerticalAlignment;   // Alignment of the legend to the point it is anchored to.
+  bool PointIsNormalized;  // Allow specifying the point in normalized coordinates
 
   /**
    * The pen used to draw the legend box.

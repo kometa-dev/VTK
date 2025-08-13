@@ -565,9 +565,8 @@ int vtkH5PartReader::RequestData(vtkInformation* vtkNotUsed(request),
     double requestedTimeValue = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP());
     auto toleranceCheck = H5PartToleranceCheck(this->TimeStepTolerance);
     this->ActualTimeStep = std::find_if(this->TimeStepValues.begin(), this->TimeStepValues.end(),
-                             [&toleranceCheck, &requestedTimeValue](double timeStepValue) {
-                               return toleranceCheck(timeStepValue, requestedTimeValue);
-                             }) -
+                             [&toleranceCheck, &requestedTimeValue](double timeStepValue)
+                             { return toleranceCheck(timeStepValue, requestedTimeValue); }) -
       this->TimeStepValues.begin();
     //
     if (requestedTimeValue < this->TimeStepValues.front() ||
@@ -606,8 +605,8 @@ int vtkH5PartReader::RequestData(vtkInformation* vtkNotUsed(request),
   {
     if (numPieces > 1)
     {
-      int div = Nt / numPieces;
-      int rem = Nt % numPieces;
+      vtkIdType div = Nt / numPieces;
+      vtkIdType rem = Nt % numPieces;
 
       vtkIdType myNt = piece < rem ? div + 1 : div;
       vtkIdType myOffset = piece < rem ? (div + 1) * piece : (div + 1) * rem + div * (piece - rem);

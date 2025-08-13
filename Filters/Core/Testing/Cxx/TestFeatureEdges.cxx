@@ -222,10 +222,10 @@ bool TestMixedTypes()
   vtkImageData* lineImageRef =
     vtkImageData::SafeDownCast(lineImagePointToCell->GetOutputDataObject(0));
 
-  vtkDoubleArray* imageRefArray =
-    vtkArrayDownCast<vtkDoubleArray>(imageRef->GetCellData()->GetAbstractArray(0));
-  vtkDoubleArray* lineRefArray =
-    vtkArrayDownCast<vtkDoubleArray>(lineImageRef->GetCellData()->GetAbstractArray(0));
+  vtkDataArray* imageRefArray =
+    vtkArrayDownCast<vtkDataArray>(imageRef->GetCellData()->GetAbstractArray(0));
+  vtkDataArray* lineRefArray =
+    vtkArrayDownCast<vtkDataArray>(lineImageRef->GetCellData()->GetAbstractArray(0));
 
   vtkNew<vtkFeatureEdges> edges;
   edges->BoundaryEdgesOn();
@@ -272,8 +272,7 @@ bool TestMixedTypes()
   outputMapToGrid->SetId(18, 21);
   outputMapToGrid->SetId(19, 23);
 
-  vtkDoubleArray* outArray =
-    vtkArrayDownCast<vtkDoubleArray>(out->GetCellData()->GetAbstractArray(0));
+  vtkDataArray* outArray = vtkArrayDownCast<vtkDataArray>(out->GetCellData()->GetAbstractArray(0));
 
   for (vtkIdType id = 0; id < out->GetNumberOfCells(); ++id)
   {
@@ -281,7 +280,7 @@ bool TestMixedTypes()
     // 1D grid
     if (id < maxExtent)
     {
-      if (lineRefArray->GetValue(id) != outArray->GetValue(id))
+      if (lineRefArray->GetTuple1(id) != outArray->GetTuple1(id))
       {
         error = true;
       }
@@ -290,8 +289,8 @@ bool TestMixedTypes()
     else
     {
       if (std::abs(
-            imageRefArray->GetValue(outputMapToGrid->GetId(id - lineImage->GetNumberOfCells())) -
-            outArray->GetValue(id)) > 0.001)
+            imageRefArray->GetTuple1(outputMapToGrid->GetId(id - lineImage->GetNumberOfCells())) -
+            outArray->GetTuple1(id)) > 0.001)
       {
         error = true;
       }
@@ -349,6 +348,50 @@ bool TestMixedTypes()
         << out->GetNumberOfCells() << " cells instead of " << (maxExtent * 4));
   }
 
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool TestDegenerateCell()
+{
+  // Create two quads, the second one being degenerated into a triangle
+  // This test make sure that the edge between the two cells is removed by vtkFeatureEdges
+
+  vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
+  polydata->AllocateExact(2, 4);
+
+  auto points = vtkSmartPointer<vtkPoints>::New();
+  points->InsertNextPoint(0, 0, 0);
+  points->InsertNextPoint(1, 0, 0);
+  points->InsertNextPoint(0, 1, 0);
+  points->InsertNextPoint(1, 1, 0);
+  points->InsertNextPoint(1.5, 0.5, 0);
+  polydata->SetPoints(points);
+
+  vtkIdType connectivityQuad1[4] = { 0, 1, 3, 2 };
+  vtkIdType connectivityQuad2[4] = { 4, 3, 1, 1 };
+  polydata->InsertNextCell(VTK_QUAD, 4, connectivityQuad1);
+  polydata->InsertNextCell(VTK_QUAD, 4, connectivityQuad2);
+
+  vtkNew<vtkFeatureEdges> edges;
+  edges->BoundaryEdgesOn();
+  edges->FeatureEdgesOn();
+  edges->NonManifoldEdgesOff();
+  edges->PassLinesOff();
+  edges->ColoringOff();
+  edges->ManifoldEdgesOff();
+  edges->SetInputData(polydata);
+  edges->Update();
+
+  vtkPolyData* out = vtkPolyData::SafeDownCast(edges->GetOutputDataObject(0));
+
+  if (out->GetNumberOfLines() != 5)
+  {
+    vtkLog(ERROR,
+      "Feature edges generated the wrong number of output lines: it generated "
+        << out->GetNumberOfLines() << " lines instead of " << 5);
+    return false;
+  }
   return true;
 }
 
@@ -456,6 +499,11 @@ int FeatureEdges(int dataType, int outputPointsPrecision)
 int TestFeatureEdges(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
 {
   if (!TestMixedTypes())
+  {
+    return EXIT_FAILURE;
+  }
+
+  if (!TestDegenerateCell())
   {
     return EXIT_FAILURE;
   }

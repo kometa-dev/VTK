@@ -115,7 +115,7 @@
  * This class was modified by Guenole Harel and Jacques-Bernard Lekien 2014
  * This class was modified by Philippe Pebay, 2016
  * Among others, this class was simplified, optimized (memory), documented and
- * completed for to improve IO XML by Jacques-Bernard Lekien 2018-19
+ * completed for to improve IO XML by Jacques-Bernard Lekien 2018-19,24
  * This work was supported by Commissariat a l'Energie Atomique
  * CEA, DAM, DIF, F-91297 Arpajon, France.
  */
@@ -124,9 +124,11 @@
 #define vtkHyperTree_h
 
 #include "vtkCommonDataModelModule.h" // For export macro
+#include "vtkDeprecation.h"           // Include the macros.
 #include "vtkObject.h"
 
 #include <cassert> // Used internally
+#include <limits>  // Used infinity
 #include <memory>  // std::shared_ptr
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -237,6 +239,8 @@ public:
    * concatenating breadth first order description and mapping of concatenated
    * trees.
    *
+   * @param depthLimiter the depth limiter by `vtkHyperTreeGrid`.
+   *
    * @param inputMask the mask provided by `vtkHyperTreeGrid`.
    *
    * @param numberOfVerticesPerDepth is self explanatory: from depth 0 to the maximum
@@ -261,9 +265,19 @@ public:
    * @warning Masked subtrees of the input are ignored, so the topology of the
    * output tree can differ from the input depending on that.
    */
-  virtual void ComputeBreadthFirstOrderDescriptor(vtkBitArray* inputMask,
+  virtual void ComputeBreadthFirstOrderDescriptor(unsigned int depthLimiter, vtkBitArray* inputMask,
     vtkTypeInt64Array* numberOfVerticesPerDepth, vtkBitArray* descriptor,
     vtkIdList* breadthFirstIdMap) = 0;
+
+  VTK_DEPRECATED_IN_9_4_0(
+    "You must use depthLimiter parameter for transmit the eponymous member of vtkHyperTreeGrid")
+  void ComputeBreadthFirstOrderDescriptor(vtkBitArray* inputMask,
+    vtkTypeInt64Array* numberOfVerticesPerDepth, vtkBitArray* descriptor,
+    vtkIdList* breadthFirstIdMap)
+  {
+    ComputeBreadthFirstOrderDescriptor(std::numeric_limits<unsigned int>::infinity(), inputMask,
+      numberOfVerticesPerDepth, descriptor, breadthFirstIdMap);
+  }
 
   /**
    * Copy the structure by sharing the decomposition description
@@ -286,8 +300,16 @@ public:
    * Set/Get tree index in hypertree grid.
    * Services for internal use between hypertree grid and hypertree.
    */
-  void SetTreeIndex(vtkIdType treeIndex) { this->Datas->TreeIndex = treeIndex; }
-  vtkIdType GetTreeIndex() const { return this->Datas->TreeIndex; }
+  void SetTreeIndex(vtkIdType treeIndex)
+  {
+    assert("pre: datas_non_nullptr" && this->Datas != nullptr);
+    this->Datas->TreeIndex = treeIndex;
+  }
+  vtkIdType GetTreeIndex() const
+  {
+    assert("pre: datas_non_nullptr" && this->Datas != nullptr);
+    return this->Datas->TreeIndex;
+  }
   ///@}
 
   /**
@@ -295,6 +317,7 @@ public:
    */
   unsigned int GetNumberOfLevels() const
   {
+    assert("pre: datas_non_nullptr" && this->Datas != nullptr);
     assert("post: result_greater_or_equal_to_one" && this->Datas->NumberOfLevels >= 1);
     return this->Datas->NumberOfLevels;
   }
@@ -302,18 +325,27 @@ public:
   /**
    * Return the number of all vertices (coarse and fine) in the tree.
    */
-  vtkIdType GetNumberOfVertices() const { return this->Datas->NumberOfVertices; }
+  vtkIdType GetNumberOfVertices() const
+  {
+    assert("pre: datas_non_nullptr" && this->Datas != nullptr);
+    return this->Datas->NumberOfVertices;
+  }
 
   /**
    * Return the number of nodes (coarse) in the tree.
    */
-  vtkIdType GetNumberOfNodes() const { return this->Datas->NumberOfNodes; }
+  vtkIdType GetNumberOfNodes() const
+  {
+    assert("pre: datas_non_nullptr" && this->Datas != nullptr);
+    return this->Datas->NumberOfNodes;
+  }
 
   /**
    * Return the number of leaf (fine) in the tree.
    */
   vtkIdType GetNumberOfLeaves() const
   {
+    assert("pre: datas_non_nullptr" && this->Datas != nullptr);
     return this->Datas->NumberOfVertices - this->Datas->NumberOfNodes;
   }
 
@@ -384,7 +416,7 @@ public:
    * by hypertree).
    * If false, the initialize has been done by SetGlobalIndexFromLocal (one
    * call by cell of hypertree).
-   * GetGlobalIndexFromLocel get the good value of global index mapping for
+   * GetGlobalIndexFromLocal get the good value of global index mapping for
    * one cell what ever the initialize metho used.
    */
   virtual bool IsGlobalIndexImplicit() = 0;
@@ -414,7 +446,11 @@ public:
    * Get the start global index for the current tree for implicit global
    * index mapping.
    */
-  vtkIdType GetGlobalIndexStart() const { return this->Datas->GlobalIndexStart; }
+  vtkIdType GetGlobalIndexStart() const
+  {
+    assert("pre: datas_non_nullptr" && this->Datas != nullptr);
+    return this->Datas->GlobalIndexStart;
+  }
 
   /**
    * Set the mapping between a node index in tree and a explicit global
@@ -458,7 +494,7 @@ public:
 
   /**
    * Return if a vertice identified by index in tree as a terminal node.
-   * For this, all childrens mus be all leaves.
+   * For this, all children must be all leaves.
    * \pre not_valid_index
    * \pre not_valid_child_index
    */
@@ -533,7 +569,7 @@ protected:
   // Storage of pre-computed per-level cell scales
   // In hypertree grid, one description by hypertree.
   // In Uniform hypertree grid, one description by hypertree grid
-  // (all cells, differents hypertree, are identicals by level).
+  // (all cells, different hypertree, are identical by level).
   mutable std::shared_ptr<vtkHyperTreeGridScales> Scales;
 
 private:

@@ -1,7 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-// VTK_DEPRECATED_IN_9_2_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkStaticCellLocator.h"
 
@@ -1015,7 +1013,7 @@ vtkIdType CellProcessor<T>::FindClosestPointWithinRadius(const double x[3], doub
   T numIds, j, cellId;
 
   using node = std::pair<double, vtkIdType>;
-  std::priority_queue<node, std::vector<node>, std::greater<node>> queue;
+  std::priority_queue<node, std::vector<node>, std::greater<>> queue;
 
   // first get ijk containing point
   vtkIdType binId = this->Binner->GetBinIndex(x);
@@ -1395,7 +1393,7 @@ void vtkStaticCellLocator::FindCellsWithinBounds(double* bbox, vtkIdList* cells)
   {
     return;
   }
-  return this->Processor->FindCellsWithinBounds(bbox, cells);
+  this->Processor->FindCellsWithinBounds(bbox, cells);
 }
 
 //------------------------------------------------------------------------------
@@ -1407,7 +1405,7 @@ void vtkStaticCellLocator::FindCellsAlongPlane(
   {
     return;
   }
-  return this->Processor->FindCellsAlongPlane(o, n, tol, cells);
+  this->Processor->FindCellsAlongPlane(o, n, tol, cells);
 }
 
 //------------------------------------------------------------------------------
@@ -1709,7 +1707,6 @@ void vtkStaticCellLocator::ShallowCopy(vtkAbstractCellLocator* locator)
   // we only copy what's actually used by vtkStaticCellLocator
 
   // vtkLocator parameters
-  this->SetDataSet(cellLocator->GetDataSet());
   this->SetUseExistingSearchStructure(cellLocator->GetUseExistingSearchStructure());
   this->SetAutomatic(cellLocator->GetAutomatic());
 
@@ -1798,6 +1795,7 @@ void vtkStaticCellLocator::ShallowCopy(vtkAbstractCellLocator* locator)
       processor->OffsetsShardPtr.get() ? processor->OffsetsShardPtr->data() : nullptr;
     this->Processor = processor;
   }
+  this->BuildTime.Modified();
 }
 
 //------------------------------------------------------------------------------

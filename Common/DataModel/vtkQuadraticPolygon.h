@@ -46,7 +46,7 @@ public:
   int GetNumberOfFaces() override { return 0; }
   vtkCell* GetEdge(int) override;
   vtkCell* GetFace(int) override { return nullptr; }
-  int IsPrimaryCell() override { return 0; }
+  int IsPrimaryCell() VTK_FUTURE_CONST override { return 0; }
 
   ///@{
   /**
@@ -72,8 +72,13 @@ public:
   int ParameterizePolygon(
     double p0[3], double p10[3], double& l10, double p20[3], double& l20, double n[3]);
   static int PointInPolygon(double x[3], int numPts, double* pts, double bounds[6], double n[3]);
-  int Triangulate(vtkIdList* outTris);
-  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override;
+  // Needed to remove warning "member function does not override any
+  // base class virtual member function"
+  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override
+  {
+    return vtkCell::Triangulate(index, ptIds, pts);
+  }
+  int TriangulateLocalIds(int index, vtkIdList* ptIds) override;
   int NonDegenerateTriangulate(vtkIdList* outTris);
   static double DistanceToPolygon(
     double x[3], int numPts, double* pts, double bounds[6], double closest[3]);
@@ -131,7 +136,7 @@ protected:
    */
   static void GetPermutationToPolygon(vtkIdType nb, vtkIdList* permutation);
   static void PermuteFromPolygon(vtkIdType nb, double* values);
-  static void ConvertFromPolygon(vtkIdList* ids);
+  static void ConvertFromPolygon(vtkIdType nb, vtkIdList* ids);
   ///@}
 
 private:

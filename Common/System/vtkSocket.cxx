@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSocket.h"
 
+#include "vtkLogger.h"
 #include "vtkObjectFactory.h"
 
 // The VTK_SOCKET_FAKE_API definition is given to the compiler
@@ -159,13 +160,36 @@ void vtkSocket::CloseSocket()
 }
 
 //------------------------------------------------------------------------------
-int vtkSocket::BindSocket(int socketdescriptor, int port)
+int vtkSocket::BindSocket(int socketdescriptor, int port, const std::string& bindAddr)
 {
 #ifndef VTK_SOCKET_FAKE_API
   struct sockaddr_in server;
 
   server.sin_family = AF_INET;
-  server.sin_addr.s_addr = INADDR_ANY;
+
+  // Cross-platform equivalent of inet_pton for IPv4 addresses with error reporting
+  server.sin_addr.s_addr = 0;
+  {
+    size_t lastDot = 0, nextDot = 0;
+    for (int section = 0; section < 4; section++)
+    {
+      nextDot = bindAddr.find('.', lastDot);
+      if (nextDot == std::string::npos)
+      {
+        nextDot = bindAddr.size();
+      }
+      int byte = std::stoi(bindAddr.substr(lastDot, nextDot - lastDot));
+      if (byte < 0 || byte > 255)
+      {
+        vtkSocketErrorMacro(vtkErrnoMacro, "Wrong bind address.");
+        return -1;
+      }
+      // Network big endian
+      server.sin_addr.s_addr += byte << (8 * section);
+      lastDot = nextDot + 1;
+    }
+  }
+
   server.sin_port = htons(port);
   // Allow the socket to be bound to an address that is already in use
   int opt = 1;
@@ -194,9 +218,16 @@ int vtkSocket::BindSocket(int socketdescriptor, int port)
   return 0;
 #else
   static_cast<void>(socketdescriptor);
+  static_cast<void>(bindAddr);
   static_cast<void>(port);
   return -1;
 #endif
+}
+
+//------------------------------------------------------------------------------
+int vtkSocket::BindSocket(int socketdescriptor, int port)
+{
+  return this->BindSocket(socketdescriptor, port, "0.0.0.0");
 }
 
 //------------------------------------------------------------------------------
@@ -575,15 +606,27 @@ int vtkSocket::Receive(void* data, int length, int readFully /*=1*/)
     }
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-    if ((nRecvd == vtkSocketErrorReturnMacro) && (WSAGetLastError() == WSAENOBUFS))
+    if ((nRecvd == vtkSocketErrorReturnMacro))
     {
-      // On long messages, Windows recv sometimes fails with WSAENOBUFS, but
-      // will work if you try again.
-      if ((tries++ < 1000))
+      int lastError = WSAGetLastError();
+      if (lastError == WSAECONNABORTED)
       {
-        Sleep(1);
-        continue;
+        // From the receiver we cannot know if the connection abort is expected or not, this is why
+        // we output a trace instead of an error.
+        vtkLog(TRACE, "Socket error: connection abort.");
+        return 0;
       }
+      else if (lastError == WSAENOBUFS)
+      {
+        // On long messages, Windows recv sometimes fails with WSAENOBUFS, but
+        // will work if you try again.
+        if ((tries++ < 1000))
+        {
+          Sleep(1);
+          continue;
+        }
+      }
+
       vtkSocketErrorMacro(vtkErrnoMacro, "Socket error in call to recv.");
       return 0;
     }

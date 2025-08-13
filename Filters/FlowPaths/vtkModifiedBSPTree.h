@@ -156,7 +156,7 @@ public:
    */
   static vtkModifiedBSPTree* New();
 
-  // Re-use any superclass signatures that we don't override.
+  // Reuse any superclass signatures that we don't override.
   using vtkAbstractCellLocator::FindCell;
   using vtkAbstractCellLocator::IntersectWithLine;
 
@@ -229,6 +229,8 @@ public:
 
   /**
    * Shallow copy of a vtkModifiedBSPTree.
+   *
+   * Before you shallow copy, make sure to call SetDataSet()
    */
   void ShallowCopy(vtkAbstractCellLocator* locator) override;
 

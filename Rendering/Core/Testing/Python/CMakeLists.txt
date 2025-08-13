@@ -1,9 +1,3 @@
-if(VTK_USE_GLSL_SHADERS)
-  set(glsl_tests
-    TestGLSLShader.py,NO_VALID
-    )
-endif()
-
 vtk_add_test_python(
   ImageActor.py
   ImageActorStressed.py
@@ -17,6 +11,7 @@ vtk_add_test_python(
   TestParallelCoordinates.py
   TestRotate.py
   TestTransformInterpolator.py
+  TestWorldVsPhysicalActors.py
   TransformConcatenation.py
   TransformCoverage.py
   TransformImageData.py

@@ -39,7 +39,7 @@
 //==============================================================================
 VTK_ABI_NAMESPACE_BEGIN
 static unsigned int vtkTimerLogCleanupCounter = 0;
-std::vector<vtkTimerLogEntry>* vtkTimerLogEntryVectorPtr = nullptr;
+static std::vector<vtkTimerLogEntry>* vtkTimerLogEntryVectorPtr = nullptr;
 
 vtkTimerLogCleanup::vtkTimerLogCleanup()
 {
@@ -239,7 +239,7 @@ void vtkTimerLog::MarkEventInternal(
 #endif
 
     global_entries[vtkTimerLog::NextEntry].Indent = vtkTimerLog::Indent;
-    global_entries[vtkTimerLog::NextEntry].WallTime = static_cast<double>(time_diff);
+    global_entries[vtkTimerLog::NextEntry].WallTime = time_diff;
     global_entries[vtkTimerLog::NextEntry].CpuTicks = ticks_diff;
     if (event)
     {

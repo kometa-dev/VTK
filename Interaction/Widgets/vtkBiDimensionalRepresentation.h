@@ -12,7 +12,7 @@
  * the four points are referred to as Point1, Point2, Point3 and
  * Point4. Point1 and Point2 define the first line; and Point3 and Point4
  * define the second orthogonal line.) This particular class is an abstract
- * class, contrete subclasses (e.g., vtkBiDimensionalRepresentation2D) actual
+ * class, concrete subclasses (e.g., vtkBiDimensionalRepresentation2D) actual
  * implement the widget.
  *
  * To create this widget, you click to place the first two points. The third
@@ -33,11 +33,13 @@
 
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkHandleRepresentation;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkBiDimensionalRepresentation : public vtkWidgetRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkBiDimensionalRepresentation
+  : public vtkWidgetRepresentation
 {
 public:
   ///@{
@@ -58,16 +60,16 @@ public:
   virtual void SetPoint2WorldPosition(double pos[3]);
   virtual void SetPoint3WorldPosition(double pos[3]);
   virtual void SetPoint4WorldPosition(double pos[3]);
-  virtual void GetPoint1WorldPosition(double pos[3]);
-  virtual void GetPoint2WorldPosition(double pos[3]);
+  virtual void GetPoint1WorldPosition(double pos[3]) VTK_FUTURE_CONST;
+  virtual void GetPoint2WorldPosition(double pos[3]) VTK_FUTURE_CONST;
   virtual void GetPoint3WorldPosition(double pos[3]);
   virtual void GetPoint4WorldPosition(double pos[3]);
   virtual void SetPoint1DisplayPosition(double pos[3]);
   virtual void SetPoint2DisplayPosition(double pos[3]);
   virtual void SetPoint3DisplayPosition(double pos[3]);
   virtual void SetPoint4DisplayPosition(double pos[3]);
-  virtual void GetPoint1DisplayPosition(double pos[3]);
-  virtual void GetPoint2DisplayPosition(double pos[3]);
+  virtual void GetPoint1DisplayPosition(double pos[3]) VTK_FUTURE_CONST;
+  virtual void GetPoint2DisplayPosition(double pos[3]) VTK_FUTURE_CONST;
   virtual void GetPoint3DisplayPosition(double pos[3]);
   virtual void GetPoint4DisplayPosition(double pos[3]);
   ///@}

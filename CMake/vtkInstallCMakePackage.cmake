@@ -19,6 +19,8 @@ string(REPLACE "VTK::" "" vtk_all_components "${vtk_modules}")
 set(_vtk_non_module_components
   WrapHierarchy
 
+  vtkbuild
+
   vtkpython
   pvtkpython
   WrapPython
@@ -26,7 +28,9 @@ set(_vtk_non_module_components
 
   vtkjava
   ParseJava
-  WrapJava)
+  WrapJava
+
+  vtkWebAssemblyTestLinkOptions)
 foreach (_vtk_non_module_component IN LISTS _vtk_non_module_components)
   if (TARGET "VTK::${_vtk_non_module_component}")
     list(APPEND vtk_all_components
@@ -34,9 +38,11 @@ foreach (_vtk_non_module_component IN LISTS _vtk_non_module_components)
   endif ()
 endforeach ()
 
-if (TARGET "VTK::vtkvtkm")
+if (TARGET "VTK::vtkviskores")
+  set(vtk_has_viskores ON)
   set(vtk_has_vtkm ON)
 else ()
+  set(vtk_has_viskores OFF)
   set(vtk_has_vtkm OFF)
 endif ()
 
@@ -100,7 +106,6 @@ set(vtk_cmake_module_files
   FindFontConfig.cmake
   FindFreetype.cmake
   FindGL2PS.cmake
-  FindGLEW.cmake
   FindJOGL.cmake
   FindJsonCpp.cmake
   FindLibHaru.cmake
@@ -116,7 +121,6 @@ set(vtk_cmake_module_files
   FindOGG.cmake
   FindOpenSlide.cmake
   FindOpenVR.cmake
-  FindOpenXR.cmake
   FindOpenXRRemoting.cmake
   FindOSMesa.cmake
   FindPEGTL.cmake
@@ -130,15 +134,20 @@ set(vtk_cmake_module_files
   vtkDetectLibraryType.cmake
   vtkEncodeString.cmake
   vtkHashSource.cmake
+  vtkMobileDevices.cmake
   vtkModule.cmake
   vtkModuleGraphviz.cmake
   vtkModuleJson.cmake
+  vtkModuleSerialization.cmake
   vtkModuleTesting.cmake
   vtkModuleWrapJava.cmake
   vtkModuleWrapPython.cmake
   vtkObjectFactory.cmake
   vtkObjectFactory.cxx.in
   vtkObjectFactory.h.in
+  vtkSerializationLibrariesRegistrar.cxx.in
+  vtkSerializationLibraryRegistrar.cxx.in
+  vtkSerializationLibraryRegistrar.h.in
   vtkTestingDriver.cmake
   vtkTestingRenderingDriver.cmake
   vtkTopologicalSort.cmake
@@ -151,7 +160,6 @@ set(vtk_cmake_patch_files
   patches/3.19/FindJPEG.cmake
   patches/3.19/FindLibArchive.cmake
   patches/3.19/FindSQLite3.cmake
-  patches/3.19/FindX11.cmake
   patches/3.20/FindGDAL.cmake
   patches/3.22/FindMPI/fortranparam_mpi.f90.in
   patches/3.22/FindMPI/libver_mpi.c
@@ -163,7 +171,8 @@ set(vtk_cmake_patch_files
   patches/3.23/FindPython/Support.cmake
   patches/3.23/FindPython3.cmake
   patches/99/FindHDF5.cmake
-  patches/99/FindOpenGL.cmake)
+  patches/99/FindOpenGL.cmake
+  patches/99/FindX11.cmake)
 
 set(vtk_cmake_files_to_install)
 foreach (vtk_cmake_module_file IN LISTS vtk_cmake_module_files vtk_cmake_patch_files)

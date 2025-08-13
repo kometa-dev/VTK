@@ -2,12 +2,18 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenXRManager.h"
 
+#include "vtkCamera.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkOpenXRManagerOpenGLGraphics.h"
+#include "vtkOpenXRRenderWindow.h"
+#include "vtkOpenXRSceneObserver.h"
 #include "vtkOpenXRUtilities.h"
+#include "vtkRendererCollection.h"
 #include "vtkWindows.h" // Does nothing if we are not on windows
+
+#include <cstring>
 
 #define VTK_CHECK_NULL_XRHANDLE(handle, msg)                                                       \
   if (handle == XR_NULL_HANDLE)                                                                    \
@@ -17,6 +23,68 @@
   }
 
 VTK_ABI_NAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+vtkOpenXRManager::InstanceVersion vtkOpenXRManager::QueryInstanceVersion(
+  vtkOpenXRManagerConnection* cs)
+{
+  if (!cs->Initialize())
+  {
+    vtkWarningWithObjectMacro(nullptr, "Failed to initialize connection strategy.");
+    return {};
+  }
+
+  std::vector<const char*> enabledExtensions; // enable cs extension, if any
+  if (std::strlen(cs->GetExtensionName()) != 0)
+  {
+    enabledExtensions.emplace_back(cs->GetExtensionName());
+  }
+
+  // Create the instance with enabled extensions.
+  XrInstanceCreateInfo createInfo{ XR_TYPE_INSTANCE_CREATE_INFO };
+  createInfo.applicationInfo = XrApplicationInfo{
+    "OpenXR with VTK",    // .applicationName
+    1,                    // .applicationVersion
+    "",                   // .engineName
+    1,                    // .engineVersion
+#ifdef XR_API_VERSION_1_0 // available with OpenXR 1.1.37 or later:
+    XR_API_VERSION_1_0,   // .apiVersion
+#else                     // for 1.1.36 and earlier:
+    XR_MAKE_VERSION(1, 0, XR_VERSION_PATCH(XR_CURRENT_API_VERSION)), // .apiVersion
+#endif
+  };
+  createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
+  createInfo.enabledExtensionNames = enabledExtensions.data();
+
+  XrInstance instance;
+  if (xrCreateInstance(&createInfo, &instance) != XR_SUCCESS)
+  {
+    vtkWarningWithObjectMacro(nullptr, "Failed to create instance for version query.");
+    return {};
+  }
+
+  XrInstanceProperties properties{ XR_TYPE_INSTANCE_PROPERTIES };
+  if (xrGetInstanceProperties(instance, &properties))
+  {
+    vtkWarningWithObjectMacro(nullptr, "Failed to get instance properties.");
+    return {};
+  }
+
+  InstanceVersion output;
+  output.Major = XR_VERSION_MAJOR(properties.runtimeVersion);
+  output.Minor = XR_VERSION_MINOR(properties.runtimeVersion);
+  output.Patch = XR_VERSION_PATCH(properties.runtimeVersion);
+
+  if (!cs->EndInitialize())
+  {
+    vtkWarningWithObjectMacro(nullptr, "Failed to terminate connection strategy initialization.");
+  }
+
+  xrDestroyInstance(instance);
+
+  return output;
+}
+
 //------------------------------------------------------------------------------
 vtkOpenXRManager::vtkOpenXRManager()
 {
@@ -28,15 +96,17 @@ vtkOpenXRManager::vtkOpenXRManager()
 }
 
 //------------------------------------------------------------------------------
-bool vtkOpenXRManager::Initialize(vtkOpenGLRenderWindow* helperWindow)
+bool vtkOpenXRManager::Initialize(vtkOpenXRRenderWindow* xrWindow)
 {
+  vtkOpenGLRenderWindow* helperWindow = xrWindow->GetHelperWindow();
+
   if (!this->ConnectionStrategy->Initialize())
   {
     vtkWarningWithObjectMacro(nullptr, "Failed to initialize connection strategy.");
     return false;
   }
 
-  if (!this->CreateInstance())
+  if (!this->CreateInstance(xrWindow))
   {
     vtkWarningWithObjectMacro(nullptr, "Initialize failed to CreateInstance");
     return false;
@@ -105,6 +175,12 @@ bool vtkOpenXRManager::Initialize(vtkOpenGLRenderWindow* helperWindow)
   if (!this->LoadControllerModels())
   {
     vtkWarningWithObjectMacro(nullptr, "Initialize failed to LoadController Models");
+    return false;
+  }
+
+  if (!this->ConnectionStrategy->EndInitialize())
+  {
+    vtkWarningWithObjectMacro(nullptr, "Failed to terminate connection strategy initialization.");
     return false;
   }
 
@@ -190,6 +266,10 @@ bool vtkOpenXRManager::BeginSession()
 //------------------------------------------------------------------------------
 bool vtkOpenXRManager::WaitAndBeginFrame()
 {
+  // Proactively reset the flag to avoid any attempted rendering in case
+  // the function exits prematurely.
+  this->ShouldRenderCurrentFrame = false;
+
   VTK_CHECK_NULL_XRHANDLE(this->Session, "vtkOpenXRManager::WaitAndBeginFrame, Session");
 
   // Wait frame
@@ -292,8 +372,13 @@ bool vtkOpenXRManager::LoadControllerModels()
 }
 
 //------------------------------------------------------------------------------
-bool vtkOpenXRManager::PrepareRendering(uint32_t eye, void* colorTextureId, void* depthTextureId)
+bool vtkOpenXRManager::PrepareRendering(
+  vtkOpenXRRenderWindow* win, void* colorTextureId, void* depthTextureId)
 {
+  // vtkOpenXRRenderWindow only supports a single renderer, so this is OK.
+  vtkCamera* camera = win->GetRenderers()->GetFirstRenderer()->GetActiveCamera();
+  const std::uint32_t eye = camera->GetLeftEye() == 1 ? 0 : 1;
+
   const vtkOpenXRManager::Swapchain_t& colorSwapchain = this->RenderResources->ColorSwapchains[eye];
   const vtkOpenXRManager::Swapchain_t& depthSwapchain = this->RenderResources->DepthSwapchains[eye];
 
@@ -340,11 +425,18 @@ bool vtkOpenXRManager::PrepareRendering(uint32_t eye, void* colorTextureId, void
 
     this->GraphicsStrategy->GetDepthSwapchainImage(eye, depthSwapchainImageIndex, depthTextureId);
 
+    std::array<double, 2> clippingPlanes;
+    camera->GetClippingRange(clippingPlanes.data());
+
+    double physscale = win->GetPhysicalScale();
+    double znear = clippingPlanes[0] / physscale;
+    double zfar = clippingPlanes[1] / physscale;
+
     this->RenderResources->DepthInfoViews[eye] = { XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR };
     this->RenderResources->DepthInfoViews[eye].minDepth = 0;
     this->RenderResources->DepthInfoViews[eye].maxDepth = 1;
-    this->RenderResources->DepthInfoViews[eye].nearZ = 0.1;
-    this->RenderResources->DepthInfoViews[eye].farZ = 20.0;
+    this->RenderResources->DepthInfoViews[eye].nearZ = znear;
+    this->RenderResources->DepthInfoViews[eye].farZ = zfar;
     this->RenderResources->DepthInfoViews[eye].subImage.swapchain = depthSwapchain.Swapchain;
     this->RenderResources->DepthInfoViews[eye].subImage.imageRect = imageRect;
     this->RenderResources->DepthInfoViews[eye].subImage.imageArrayIndex = 0;
@@ -601,7 +693,7 @@ bool vtkOpenXRManager::PrintReferenceSpaces()
 }
 
 //------------------------------------------------------------------------------
-std::vector<const char*> vtkOpenXRManager::SelectExtensions()
+std::vector<const char*> vtkOpenXRManager::SelectExtensions(vtkOpenXRRenderWindow* window)
 {
   // Fetch the list of extensions supported by the runtime.
   uint32_t extensionCount;
@@ -618,7 +710,8 @@ std::vector<const char*> vtkOpenXRManager::SelectExtensions()
 
   std::vector<const char*> enabledExtensions;
   // Add a specific extension to the list of extensions to be enabled, if it is supported.
-  auto EnableExtensionIfSupported = [&](const char* extensionName) {
+  auto EnableExtensionIfSupported = [&](const char* extensionName)
+  {
     for (uint32_t i = 0; i < extensionCount; i++)
     {
       if (strcmp(extensionProperties[i].extensionName, extensionName) == 0)
@@ -653,6 +746,22 @@ std::vector<const char*> vtkOpenXRManager::SelectExtensions()
 
   this->OptionalExtensions.RemotingSupported =
     EnableExtensionIfSupported(this->ConnectionStrategy->GetExtensionName());
+
+  if (window->GetUseDepthExtension())
+  {
+    this->OptionalExtensions.DepthExtensionSupported =
+      EnableExtensionIfSupported(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
+  }
+
+  if (window->GetEnableSceneUnderstanding())
+  {
+    this->OptionalExtensions.SceneUnderstandingSupported =
+      EnableExtensionIfSupported(XR_MSFT_SCENE_UNDERSTANDING_EXTENSION_NAME);
+
+    this->OptionalExtensions.SceneMarkerSupported =
+      this->OptionalExtensions.SceneUnderstandingSupported &&
+      EnableExtensionIfSupported(XR_MSFT_SCENE_MARKER_EXTENSION_NAME);
+  }
 
   this->PrintOptionalExtensions();
 
@@ -690,15 +799,23 @@ void vtkOpenXRManager::PrintOptionalExtensions()
   {
     std::cout << "Optional extensions Remoting is supported" << std::endl;
   }
+  if (this->OptionalExtensions.SceneUnderstandingSupported)
+  {
+    std::cout << "Optional extensions Scene Understanding is supported" << std::endl;
+  }
+  if (this->OptionalExtensions.SceneMarkerSupported)
+  {
+    std::cout << "Optional extensions Scene Marker is supported" << std::endl;
+  }
 }
 
 //------------------------------------------------------------------------------
 // Instance and extensions
 //------------------------------------------------------------------------------
-bool vtkOpenXRManager::CreateInstance()
+bool vtkOpenXRManager::CreateInstance(vtkOpenXRRenderWindow* window)
 {
   // Start by selection available extensions
-  const std::vector<const char*> enabledExtensions = this->SelectExtensions();
+  const std::vector<const char*> enabledExtensions = this->SelectExtensions(window);
 
   // Check that the requested rendering backend is supported
   if (!this->RenderingBackendExtensionSupported)
@@ -713,11 +830,15 @@ bool vtkOpenXRManager::CreateInstance()
   createInfo.enabledExtensionNames = enabledExtensions.data();
 
   XrApplicationInfo applicationInfo = {
-    "OpenXR with VTK",      // .applicationName
-    1,                      // .applicationVersion
-    "",                     // .engineName
-    1,                      // .engineVersion
-    XR_CURRENT_API_VERSION, // .apiVersion
+    "OpenXR with VTK",    // .applicationName
+    1,                    // .applicationVersion
+    "",                   // .engineName
+    1,                    // .engineVersion
+#ifdef XR_API_VERSION_1_0 // available with OpenXR 1.1.37 or later:
+    XR_API_VERSION_1_0,   // .apiVersion
+#else                     // for 1.1.36 and earlier:
+    XR_MAKE_VERSION(1, 0, XR_VERSION_PATCH(XR_CURRENT_API_VERSION)), // .apiVersion
+#endif
   };
 
   createInfo.applicationInfo = applicationInfo;
@@ -935,7 +1056,8 @@ std::tuple<int64_t, int64_t> vtkOpenXRManager::SelectSwapchainPixelFormats()
   // Choose the first runtime-preferred format that this app supports.
   auto selectPixelFormat = [&](const std::vector<int64_t>& runtimePreferredFormats,
                              const std::vector<int64_t>& applicationSupportedFormats,
-                             const std::string& formatName) {
+                             const std::string& formatName)
+  {
     auto found =
       std::find_first_of(std::begin(runtimePreferredFormats), std::end(runtimePreferredFormats),
         std::begin(applicationSupportedFormats), std::end(applicationSupportedFormats));

@@ -35,6 +35,7 @@
 
 #include "vtkObject.h"
 #include "vtkRenderingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractPropPicker;
@@ -45,11 +46,24 @@ class vtkCallbackCommand;
 class vtkObserverMediator;
 class vtkPickingManager;
 
-class VTKRENDERINGCORE_EXPORT vtkInteractorObserver : public vtkObject
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkInteractorObserver : public vtkObject
 {
 public:
   vtkTypeMacro(vtkInteractorObserver, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  ///@{
+  /**
+   * This method is used to associate the widget with the render window
+   * interactor.  Observers of the appropriate events invoked in the render
+   * window interactor are set up as a result of this method invocation.
+   * The SetInteractor() method must be invoked prior to enabling the
+   * vtkInteractorObserver.
+   * It automatically registers available pickers to the Picking Manager.
+   */
+  virtual void SetInteractor(vtkRenderWindowInteractor* iren);
+  vtkGetObjectMacro(Interactor, vtkRenderWindowInteractor);
+  ///@}
 
   /**
    * Methods for turning the interactor observer on and off, and determining
@@ -65,19 +79,6 @@ public:
   void EnabledOff() { this->SetEnabled(0); }
   void On() { this->SetEnabled(1); }
   void Off() { this->SetEnabled(0); }
-
-  ///@{
-  /**
-   * This method is used to associate the widget with the render window
-   * interactor.  Observers of the appropriate events invoked in the render
-   * window interactor are set up as a result of this method invocation.
-   * The SetInteractor() method must be invoked prior to enabling the
-   * vtkInteractorObserver.
-   * It automatically registers available pickers to the Picking Manager.
-   */
-  virtual void SetInteractor(vtkRenderWindowInteractor* iren);
-  vtkGetObjectMacro(Interactor, vtkRenderWindowInteractor);
-  ///@}
 
   ///@{
   /**

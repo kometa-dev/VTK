@@ -1,10 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
-// Hide VTK_DEPRECATED_IN_9_3_0() warnings for this class.
-#include "vtkSetGet.h"
-#define VTK_DEPRECATION_LEVEL 0
 #include "vtkLegacy.h"
+#include "vtkSetGet.h"
 
 #include "vtkCompositePolyDataMapper.h"
 
@@ -85,13 +83,7 @@ vtkCompositePolyDataMapper::vtkCompositePolyDataMapper()
 }
 
 //------------------------------------------------------------------------------
-vtkCompositePolyDataMapper::~vtkCompositePolyDataMapper()
-{
-  this->SetPointIdArrayName(nullptr);
-  this->SetCellIdArrayName(nullptr);
-  this->SetProcessIdArrayName(nullptr);
-  this->SetCompositeIdArrayName(nullptr);
-}
+vtkCompositePolyDataMapper::~vtkCompositePolyDataMapper() = default;
 
 //------------------------------------------------------------------------------
 // Specify the type of data this mapper can handle. If we are
@@ -175,10 +167,7 @@ void vtkCompositePolyDataMapper::ShallowCopy(vtkAbstractMapper* mapper)
   {
     this->SetCompositeDataDisplayAttributes(cpdm->GetCompositeDataDisplayAttributes());
     this->SetColorMissingArraysWithNanColor(cpdm->GetColorMissingArraysWithNanColor());
-    this->SetCellIdArrayName(cpdm->GetCellIdArrayName());
     this->SetCompositeIdArrayName(cpdm->GetCompositeIdArrayName());
-    this->SetPointIdArrayName(cpdm->GetPointIdArrayName());
-    this->SetProcessIdArrayName(cpdm->GetProcessIdArrayName());
   }
   // Now do superclass
   this->vtkPolyDataMapper::ShallowCopy(mapper);
@@ -258,15 +247,12 @@ vtkDataObjectTreeIterator* vtkCompositePolyDataMapper::MakeAnIterator(vtkComposi
 }
 
 //------------------------------------------------------------------------------
-// simple tests, the mapper is tolerant of being
-// called both on opaque and translucent
 bool vtkCompositePolyDataMapper::HasOpaqueGeometry()
 {
   return true;
 }
 
 //------------------------------------------------------------------------------
-// look at children
 bool vtkCompositePolyDataMapper::HasTranslucentPolygonalGeometry()
 {
   // Make sure that we have been properly initialized.
@@ -318,7 +304,7 @@ void vtkCompositePolyDataMapper::Render(vtkRenderer* renderer, vtkActor* actor)
 {
   auto& internals = (*this->Internals);
   internals.RenderedList.clear();
-  // Make sure that we have been propertly initialized.
+  // Make sure that we have been properly initialized.
   if (renderer->GetRenderWindow()->CheckAbortStatus())
   {
     return;
@@ -394,7 +380,7 @@ void vtkCompositePolyDataMapper::Render(vtkRenderer* renderer, vtkActor* actor)
       this->InterpolateScalarsBeforeMapping);
     internals.BlockState.ColorMode.push(this->ColorMode);
     internals.BlockState.ScalarRange.emplace(this->ScalarRange[0], this->ScalarRange[1]);
-    internals.BlockState.LookupTable.push(this->GetLookupTable());
+    internals.BlockState.LookupTable.emplace(this->GetLookupTable());
 
     {
       unsigned int flatIndex = 0;
@@ -491,7 +477,8 @@ vtkCompositePolyDataMapper::MapperHashType vtkCompositePolyDataMapper::InsertPol
 
   auto createBatchElement =
     [](vtkPolyData* _polydata,
-      unsigned int _flatIndex) -> vtkCompositePolyDataMapperDelegator::BatchElement {
+      unsigned int _flatIndex) -> vtkCompositePolyDataMapperDelegator::BatchElement
+  {
     vtkCompositePolyDataMapperDelegator::BatchElement element;
     element.PolyData = _polydata;
     element.FlatIndex = _flatIndex;
@@ -678,7 +665,6 @@ void vtkCompositePolyDataMapper::BuildRenderValues(
       inputItem->DiffuseColor = internals.BlockState.DiffuseColor.top();
       inputItem->SelectionColor = internals.BlockState.SelectionColor.top();
       inputItem->SelectionOpacity = internals.BlockState.SelectionOpacity.top();
-      inputItem->OverridesColor = (internals.BlockState.AmbientColor.size() > 1);
       inputItem->IsOpaque = (inputItem->Opacity >= 1.0) ? textureOpaque : false;
       inputItem->ScalarMode = internals.BlockState.ScalarMode.top();
       inputItem->ArrayAccessMode = internals.BlockState.ArrayAccessMode.top();
@@ -695,6 +681,46 @@ void vtkCompositePolyDataMapper::BuildRenderValues(
         internals.BlockState.ScalarRange.top()[0], internals.BlockState.ScalarRange.top()[1]);
       inputItem->LookupTable = internals.BlockState.LookupTable.top();
 
+      int cellFlag;
+      vtkDataArray* scalars =
+        vtkCompositePolyDataMapper::GetScalars(polydata, inputItem->ScalarMode,
+          inputItem->ArrayAccessMode, inputItem->ArrayId, inputItem->ArrayName.c_str(), cellFlag);
+      // When a color (r,g,b) is explicitly set for this block:
+      //  it is applied only when:
+      //    - (cond: 0) scalars are null
+      //        or
+      //    - (cond: 1) the ScalarVisibility is explicitly turned off for this block
+      //        or
+      //    - (cond: 2) the global ScalarVisibility is turned off
+      // Please do NOT condense these series of conditions.
+      // Preferably keep the logic understandable for new developers.
+      const bool hasAmbientColor = internals.BlockState.AmbientColor.size() > 1;
+      if (hasAmbientColor)
+      {
+        if (scalars != nullptr) // has a colorArray
+        {
+          if (overrides_scalar_visibility)
+          {
+            // the ScalarVisibility is explicitly turned off for this block (1)
+            inputItem->OverridesColor = !cda->GetBlockScalarVisibility(polydata);
+          }
+          else
+          {
+            // the ScalarVisibility is explicitly turned off for this block (2)
+            inputItem->OverridesColor = !this->ScalarVisibility;
+          }
+        }
+        else
+        {
+          // scalars are null (0)
+          inputItem->OverridesColor = true;
+        }
+      }
+      else
+      {
+        inputItem->OverridesColor = false;
+      }
+
       // Apply these on the delegate. These attributes are batch invariants.
       auto delegate = delegator->GetDelegate();
       delegate->SetInterpolateScalarsBeforeMapping(inputItem->InterpolateScalarsBeforeMapping);
@@ -706,10 +732,6 @@ void vtkCompositePolyDataMapper::BuildRenderValues(
         vtkScalarsToColors* lut = inputItem->LookupTable; // inputItem->LookupTable
         // ensure table is built
         lut->Build();
-        int cellFlag;
-        vtkDataArray* scalars =
-          vtkCompositePolyDataMapper::GetScalars(polydata, inputItem->ScalarMode,
-            inputItem->ArrayAccessMode, inputItem->ArrayId, inputItem->ArrayName.c_str(), cellFlag);
 
         unsigned char ghostsToSkip;
         vtkUnsignedCharArray* ghosts =
@@ -1037,31 +1059,6 @@ void vtkCompositePolyDataMapper::GetBlockColor(unsigned int index, double color[
     color[0] = 1.0;
     color[1] = 1.0;
     color[2] = 1.0;
-  }
-}
-
-//------------------------------------------------------------------------------
-double* vtkCompositePolyDataMapper::GetBlockColor(unsigned int index)
-{
-  VTK_LEGACY_REPLACED_BODY(double* vtkCompositePolyDataMapper::GetBlockColor(unsigned int index),
-    "VTK 9.3", void vtkCompositePolyDataMapper::GetBlockColor(unsigned int index, double color[3]));
-  static double white[3] = { 1.0, 1.0, 1.0 };
-
-  if (this->CompositeAttributes)
-  {
-    unsigned int start_index = 0;
-    auto dataObj = vtkCompositeDataDisplayAttributes::DataObjectFromIndex(
-      index, this->GetInputDataObject(0, 0), start_index);
-    if (dataObj)
-    {
-      this->CompositeAttributes->GetBlockColor(dataObj, this->ColorResult.data());
-    }
-
-    return this->ColorResult.data();
-  }
-  else
-  {
-    return white;
   }
 }
 

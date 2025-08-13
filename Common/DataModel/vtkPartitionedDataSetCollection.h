@@ -17,13 +17,15 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObjectTree.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALMANUAL
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkPartitionedDataSet;
 class vtkDataAssembly;
 class vtkDataSet;
 
-class VTKCOMMONDATAMODEL_EXPORT vtkPartitionedDataSetCollection : public vtkDataObjectTree
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALMANUAL vtkPartitionedDataSetCollection
+  : public vtkDataObjectTree
 {
 public:
   static vtkPartitionedDataSetCollection* New();
@@ -34,7 +36,7 @@ public:
    * Return class name of data type (see vtkType.h for
    * definitions).
    */
-  int GetDataObjectType() override { return VTK_PARTITIONED_DATA_SET_COLLECTION; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_PARTITIONED_DATA_SET_COLLECTION; }
 
   /**
    * Set the number of blocks. This will cause allocation if the new number of

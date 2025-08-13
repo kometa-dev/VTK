@@ -54,6 +54,16 @@ function (vtk_module_test_data)
   ExternalData_Expand_Arguments("${_vtk_build_TEST_DATA_TARGET}" _ ${data_args})
 endfunction ()
 
+# Opt-in option from projects using VTK to activate SSIM baseline comparison
+if (DEFINED DEFAULT_USE_SSIM_IMAGE_COMP AND DEFAULT_USE_SSIM_IMAGE_COMP)
+  set(default_image_compare "VTK_TESTING_IMAGE_COMPARE_METHOD=TIGHT_VALID")
+# We are compiling VTK standalone if we succeed the following condition
+elseif (DEFINED VTK_VERSION)
+  set(default_image_compare "VTK_TESTING_IMAGE_COMPARE_METHOD=TIGHT_VALID")
+else()
+  set(default_image_compare "VTK_TESTING_IMAGE_COMPARE_METHOD=LEGACY_VALID")
+endif()
+
 #[==[.rst:
 Creating test executables
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -72,20 +82,25 @@ Creating test executables
   convenience functions.
 #]==]
 function (vtk_module_test_executable name)
-  add_executable("${name}" ${ARGN})
+  add_executable("${name}")
+  target_sources("${name}"
+    PRIVATE
+      ${ARGN})
   get_property(test_depends GLOBAL
     PROPERTY "_vtk_module_${_vtk_build_test}_test_depends")
   get_property(test_optional_depends GLOBAL
     PROPERTY "_vtk_module_${_vtk_build_test}_test_optional_depends")
   set(optional_depends_flags)
   foreach (test_optional_depend IN LISTS test_optional_depends)
-    if (TARGET "${test_optional_depend}")
+    _vtk_module_optional_dependency_exists("${test_optional_depend}"
+      SATISFIED_VAR test_optional_depend_exists)
+    if (test_optional_depend_exists)
       list(APPEND test_depends
         "${test_optional_depend}")
     endif ()
     string(REPLACE "::" "_" safe_test_optional_depend "${test_optional_depend}")
     list(APPEND optional_depends_flags
-      "VTK_MODULE_ENABLE_${safe_test_optional_depend}=$<TARGET_EXISTS:${test_optional_depend}>")
+      "VTK_MODULE_ENABLE_${safe_test_optional_depend}=$<BOOL:${test_optional_depend_exists}>")
   endforeach ()
 
   if (_vtk_build_UTILITY_TARGET)
@@ -98,10 +113,14 @@ function (vtk_module_test_executable name)
     PRIVATE
       "${_vtk_build_test}"
       ${test_depends})
+  if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    target_link_libraries("${name}"
+      PRIVATE
+        VTK::vtkWebAssemblyTestLinkOptions)
+  endif ()
   target_compile_definitions("${name}"
     PRIVATE
       ${optional_depends_flags})
-
   vtk_module_autoinit(
     TARGETS "${name}"
     MODULES "${_vtk_build_test}"
@@ -302,6 +321,13 @@ C++ tests
     current source directory. If alternate baseline images are required,
     ``<NAME>`` may be suffixed by ``_1``, ``_2``, etc. The valid image is passed via
     the ``-V`` flag.
+    - ``TIGHT_VALID``: Uses euclidean type metrics to compare baselines. Baseline
+    comparison is sensitive to outliers in this setting.
+    - ``LOOSE_VALID``: Uses L1 type metrics to compare baselines. Baseline comparison
+    is somewhat more forgiving. Typical use cases involve rendering that is highly GPU
+    dependent, and baselines with text.
+    - ``LEGACY_VALID``: Uses legacy image compare. This metric generates a lot of
+    false negatives. It is recommended not to use it.
   - ``NO_OUTPUT``: The test does not need to write out any data to the
     filesystem. If it does, a directory which may be written to is passed via
     the ``-T`` flag.
@@ -313,7 +339,10 @@ function (vtk_add_test_cxx exename _tests)
   set(cxx_options
     NO_DATA
     NO_VALID
-    NO_OUTPUT)
+    NO_OUTPUT
+    TIGHT_VALID
+    LOOSE_VALID
+    LEGACY_VALID)
   _vtk_test_parse_args("${cxx_options}" "cxx" ${ARGN})
   _vtk_test_set_options("${cxx_options}" "" ${options})
 
@@ -329,7 +358,11 @@ function (vtk_add_test_cxx exename _tests)
 
   set(_vtk_skip_regex
     # Insufficient graphics resources.
-    "Attempt to use a texture buffer exceeding your hardware's limits")
+    "Attempt to use a texture buffer exceeding your hardware's limits"
+    # Vulkan driver not setup correctly.
+    "vulkan: No DRI3 support detected - required for presentation"
+    # OpenGL driver cannot render wide lines.
+    "a line width has been requested that is larger than your system supports")
 
   foreach (name IN LISTS names)
     _vtk_test_set_options("${cxx_options}" "local_" ${_${name}_options})
@@ -350,6 +383,17 @@ function (vtk_add_test_cxx exename _tests)
       set(_V -V "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/${test_name}.png,:}")
     endif ()
 
+    set(image_compare_method ${default_image_compare})
+    if (local_LEGACY_VALID)
+      set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=LEGACY_VALID")
+    elseif (local_LOOSE_VALID)
+      set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=LOOSE_VALID")
+    elseif (local_TIGHT_VALID)
+      set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=TIGHT_VALID")
+    endif ()
+
+    set(vtk_testing "VTK_TESTING=1;${image_compare_method}")
+
     if (VTK_USE_MPI AND
         VTK_SERIAL_TESTS_USE_MPIEXEC)
       set(_vtk_test_cxx_pre_args
@@ -358,11 +402,32 @@ function (vtk_add_test_cxx exename _tests)
         ${MPIEXEC_PREFLAGS})
     endif()
 
+    if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+      if (_vtk_test_cxx_wasm_enabled_in_browser)
+        set(_vtk_test_cxx_pre_args
+          "$<TARGET_FILE:Python3::Interpreter>"
+          "${VTK_SOURCE_DIR}/Testing/WebAssembly/runner.py"
+          "--engine=${VTK_TESTING_WASM_ENGINE}"
+          "--exit")
+      else ()
+        ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
+          NAME    "${_vtk_build_test}Cxx-${vtk_test_prefix}${test_name}"
+          COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+                  "--eval"
+                  "process.exit(125);") # all tests are skipped.
+        set_tests_properties("${_vtk_build_test}Cxx-${vtk_test_prefix}${test_name}"
+          PROPERTIES
+            LABELS "${_vtk_build_test_labels}"
+            SKIP_RETURN_CODE 125 # This must match VTK_SKIP_RETURN_CODE in vtkTesting.h
+          )
+        continue ()
+      endif ()
+    endif ()
     ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
       NAME    "${_vtk_build_test}Cxx-${vtk_test_prefix}${test_name}"
       COMMAND "${_vtk_test_cxx_pre_args}" "$<TARGET_FILE:${exename}>"
               "${test_arg}"
-              ${args}
+              "${args}"
               ${${_vtk_build_test}_ARGS}
               ${${test_name}_ARGS}
               ${_D} ${_T} ${_V})
@@ -371,8 +436,9 @@ function (vtk_add_test_cxx exename _tests)
         LABELS "${_vtk_build_test_labels}"
         FAIL_REGULAR_EXPRESSION "${_vtk_fail_regex}"
         SKIP_REGULAR_EXPRESSION "${_vtk_skip_regex}"
-        # This must match VTK_SKIP_RETURN_CODE in vtkTesting.h
-        SKIP_RETURN_CODE 125
+        # Disables anti-aliasing when rendering
+        ENVIRONMENT "${vtk_testing}"
+        SKIP_RETURN_CODE 125 # This must match VTK_SKIP_RETURN_CODE in vtkTesting.h
       )
 
     if (_vtk_testing_ld_preload)
@@ -380,7 +446,6 @@ function (vtk_add_test_cxx exename _tests)
         PROPERTY
           ENVIRONMENT "LD_PRELOAD=${_vtk_testing_ld_preload}")
     endif ()
-
     list(APPEND ${_tests} "${test_file}")
   endforeach ()
 
@@ -427,6 +492,9 @@ function (vtk_add_test_mpi exename _tests)
   set(mpi_options
     TESTING_DATA
     NO_VALID
+    LOOSE_VALID
+    TIGHT_VALID
+    LEGACY_VALID
     )
   _vtk_test_parse_args("${mpi_options}" "cxx" ${ARGN})
   _vtk_test_set_options("${mpi_options}" "" ${options})
@@ -435,7 +503,9 @@ function (vtk_add_test_mpi exename _tests)
 
   set(_vtk_skip_regex
     # Insufficient graphics resources.
-    "Attempt to use a texture buffer exceeding your hardware's limits")
+    "Attempt to use a texture buffer exceeding your hardware's limits"
+    # Vulkan driver not setup correctly.
+    "vulkan: No DRI3 support detected - required for presentation")
 
   set(default_numprocs ${VTK_MPI_NUMPROCS})
   if (${exename}_NUMPROCS)
@@ -449,6 +519,7 @@ function (vtk_add_test_mpi exename _tests)
     set(_D "")
     set(_T "")
     set(_V "")
+    set(image_compare_method ${default_image_compare})
     if (local_TESTING_DATA)
       set(_D -D "${_vtk_build_TEST_OUTPUT_DATA_DIRECTORY}")
       set(_T -T "${_vtk_build_TEST_OUTPUT_DIRECTORY}")
@@ -456,7 +527,16 @@ function (vtk_add_test_mpi exename _tests)
       if (NOT local_NO_VALID)
         set(_V -V "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/${test_name}.png,:}")
       endif ()
+      if (local_LEGACY_VALID)
+        set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=LEGACY_VALID")
+      elseif (local_LOOSE_VALID)
+        set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=LOOSE_VALID")
+      elseif (local_TIGHT_VALID)
+        set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=TIGHT_VALID")
+      endif ()
     endif ()
+
+    set(vtk_testing "VTK_TESTING=1;${image_compare_method}")
 
     set(numprocs ${default_numprocs})
     if (${test_name}_NUMPROCS)
@@ -473,15 +553,14 @@ function (vtk_add_test_mpi exename _tests)
               ${_D} ${_T} ${_V}
               ${args}
               ${${_vtk_build_test}_ARGS}
-              ${${test_name}_ARGS}
-              ${MPIEXEC_POSTFLAGS})
+              ${${test_name}_ARGS})
     set_tests_properties("${_vtk_build_test}Cxx-MPI-${vtk_test_prefix}${test_name}"
       PROPERTIES
         LABELS "${_vtk_build_test_labels}"
         PROCESSORS "${numprocs}"
         FAIL_REGULAR_EXPRESSION "${_vtk_fail_regex}"
         SKIP_REGULAR_EXPRESSION "${_vtk_skip_regex}"
-        # This must match VTK_SKIP_RETURN_CODE in vtkTesting.h"
+        ENVIRONMENT "${vtk_testing}"
         SKIP_RETURN_CODE 125
       )
 
@@ -604,6 +683,9 @@ Options:
 - ``NO_OUTPUT``
 - ``NO_RT``
 - ``JUST_VALID``
+- ``LEGACY_VALID``
+- ``TIGHT_VALID``
+- ``LOOSE_VALID``
 
 Each argument should be either an option, a test specification, or it is passed
 as flags to all tests declared in the group. The list of tests is set in the
@@ -627,9 +709,17 @@ Options:
    as is, without the use of ExternalData_add_test.
 - ``JUST_VALID``: Only applies when neither ``NO_VALID`` or ``NO_RT`` are present.
   If it is not specified, the test is run via ``vtkmodules.test.rtImageTest``.
+- ``TIGHT_VALID``: Default behavior if legacy image comparison method is turned off by default.
+  The baseline is tested using an euclidean metric, which is sensitive to outliers.
+- ``LOOSE_VALID``: The baseline is tested using an norm-1 metric, which is less sensitive to
+  outliers. It should typically be used when comparing text or when testing rendering that
+  varies a lot depending on the GPU drivers.
+- ``LEGACY_VALID``: Uses legacy image compare metric, which is more forgiving than the new one.
 
 Additional flags may be passed to tests using the ``${_vtk_build_test}_ARGS``
 variable or the ``<NAME>_ARGS`` variable.
+To use a different baseline name than ``<NAME>`` you can set
+``<NAME>_BASELINE_NAME`` variable. This is the name of the image file without extension.
 #]==]
 function (vtk_add_test_python)
   if (NOT _vtk_testing_python_exe)
@@ -643,6 +733,9 @@ function (vtk_add_test_python)
     NO_RT
     DIRECT_DATA
     JUST_VALID
+    LEGACY_VALID
+    TIGHT_VALID
+    LOOSE_VALID
     )
   _vtk_test_parse_args("${python_options}" "py" ${ARGN})
   _vtk_test_set_options("${python_options}" "" ${options})
@@ -651,7 +744,9 @@ function (vtk_add_test_python)
 
   set(_vtk_skip_regex
     # Insufficient graphics resources.
-    "Attempt to use a texture buffer exceeding your hardware's limits")
+    "Attempt to use a texture buffer exceeding your hardware's limits"
+    # Vulkan driver not setup correctly.
+    "vulkan: No DRI3 support detected - required for presentation")
 
   foreach (name IN LISTS names)
     _vtk_test_set_options("${python_options}" "local_" ${_${name}_options})
@@ -665,22 +760,35 @@ function (vtk_add_test_python)
     set(rtImageTest "")
     set(_B "")
     set(_V "")
+    set(image_compare_method ${default_image_compare})
     if (NOT local_NO_VALID)
+      if (DEFINED "${test_name}_BASELINE_NAME")
+        set(baseline_name "${${test_name}_BASELINE_NAME}")
+      else()
+        set(baseline_name "${test_name}")
+      endif()
       if (local_NO_RT)
         if (local_DIRECT_DATA)
           set(_B -B "${CMAKE_CURRENT_SOURCE_DIR}/Data/Baseline/")
         else ()
-          set(_B -B "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/,REGEX:${test_name}(-.*)?(_[0-9]+)?.png}")
+          set(_B -B "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/,REGEX:${baseline_name}(-.*)?(_[0-9]+)?.png}")
         endif()
       else ()
         if (local_DIRECT_DATA)
-          set(_V -V "${CMAKE_CURRENT_SOURCE_DIR}/Data/Baseline/${test_name}.png")
+          set(_V -V "${CMAKE_CURRENT_SOURCE_DIR}/Data/Baseline/${baseline_name}.png")
         else ()
-          set(_V -V "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/${test_name}.png,:}")
+          set(_V -V "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/${baseline_name}.png,:}")
         endif()
         if (NOT local_JUST_VALID)
           set(rtImageTest -m "vtkmodules.test.rtImageTest")
         endif ()
+      endif ()
+      if (local_LEGACY_VALID)
+        set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=LEGACY_VALID")
+      elseif (local_TIGHT_VALID)
+        set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=TIGHT_VALID")
+      elseif (local_LOOSE_VALID)
+        set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=LOOSE_VALID")
       endif ()
     endif ()
 
@@ -734,6 +842,7 @@ function (vtk_add_test_python)
         LABELS "${_vtk_build_test_labels}"
         FAIL_REGULAR_EXPRESSION "${_vtk_fail_regex}"
         SKIP_REGULAR_EXPRESSION "${_vtk_skip_regex}"
+        ENVIRONMENT "VTK_TESTING=1;${image_compare_method}"
         # This must match the skip() function in vtk/test/Testing.py"
         SKIP_RETURN_CODE 125
       )
@@ -743,6 +852,92 @@ function (vtk_add_test_python)
         PROPERTIES
           PROCESSORS "${numprocs}")
     endif ()
+  endforeach ()
+endfunction ()
+
+#[==[.rst:
+JavaScript tests
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. cmake:command:: vtk_add_test_module_javascript_node
+
+  This function declares JavaScript tests run with NodeJS.
+  Test files are required to use the `mjs` extension.
+  Additional arguments to `node` can be passed via `_vtk_node_args` variable.
+
+  .. code-block:: cmake
+
+    vtk_add_test_module_javascript_node(<VARNAME> <ARG>...)
+#]==]
+
+#[==[.rst:
+The ``_vtk_testing_nodejs_exe`` variable must point to the path of a `node` interpreter.
+#]==]
+
+#[==[.rst
+Options:
+
+- ``NO_DATA``
+- ``NO_OUTPUT``
+
+Each argument should be either an option, a test specification, or it is passed
+as flags to all tests declared in the group. The list of tests is set in the
+``<VARNAME>`` variable in the calling scope.
+
+Options:
+
+- ``NO_DATA``: The test does not need to know the test input data directory. If
+  it does, it is passed on the command line via the ``-D`` flag.
+- ``NO_OUTPUT``: The test does not need to write out any data to the
+  filesystem. If it does, a directory which may be written to is passed via
+  the ``-T`` flag.
+
+Additional flags may be passed to tests using the ``${_vtk_build_test}_ARGS``
+variable or the ``<NAME>_ARGS`` variable.
+#]==]
+function (vtk_add_test_module_javascript_node)
+  if (NOT _vtk_testing_nodejs_exe)
+    message(FATAL_ERROR "The \"_vtk_testing_nodejs_exe\" variable must point to a nodejs executable!")
+  endif ()
+  set(mjs_options
+    NO_DATA
+    NO_OUTPUT)
+  _vtk_test_parse_args("${mjs_options}" "mjs" ${ARGN})
+  _vtk_test_set_options("${mjs_options}" "" ${options})
+
+  set(_vtk_fail_regex
+    # vtkLogger
+    "(\n|^)ERROR: "
+    "ERR\\|"
+    # vtkDebugLeaks
+    "instance(s)? still around")
+
+  foreach (name IN LISTS names)
+    _vtk_test_set_options("${mjs_options}" "local_" ${_${name}_options})
+    _vtk_test_parse_name("${name}" "mjs")
+    set(_D "")
+    if (NOT local_NO_DATA)
+      set(_D -D "${_vtk_build_TEST_OUTPUT_DATA_DIRECTORY}")
+    endif ()
+
+    set(_T "")
+    if (NOT local_NO_OUTPUT)
+      set(_T -T "${_vtk_build_TEST_OUTPUT_DIRECTORY}")
+    endif ()
+    ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
+      NAME    "${_vtk_build_test}JavaScript-${test_name}"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      COMMAND ${_vtk_testing_nodejs_exe}
+              "${_vtk_node_args}"
+              "${test_file}"
+              ${${_vtk_build_test}_ARGS}
+              ${${test_name}_ARGS}
+              ${_D} ${_T})
+    set_tests_properties("${_vtk_build_test}JavaScript-${test_name}"
+      PROPERTIES
+        LABELS "${_vtk_build_test_labels}"
+        FAIL_REGULAR_EXPRESSION "${_vtk_fail_regex}"
+        SKIP_RETURN_CODE 125)
   endforeach ()
 endfunction ()
 
@@ -783,43 +978,93 @@ function (vtk_add_test_python_mpi)
   vtk_add_test_python(${ARGN})
 endfunction ()
 
+#[==[.rst:
+ABI Mangling tests
+""""""""""""""""""
+
+.. cmake:command:: vtk_add_test_mangling
+
+This function declares a test to verify that all of the exported symbols in the
+VTK module library contain the correct ABI mangling prefix. This test requires
+setting the option VTK_ABI_NAMESPACE_NAME to a value that is not "<DEFAULT>".
+
+Current limitations of this test are:
+- Does not run on non-UNIX platforms
+- Is not compatible with the option "VTK_ENABLE_KITS"
+- May not work outside of VTK itself
+
+  .. code-block:: cmake
+
+    vtk_add_test_mangling(module_name [EXEMPTIONS ...])
+
+Options:
+- ``EXEMPTIONS``: List of symbol patterns to excluded from the ABI mangling test
+  where it is known that the symbols do not support the ABI mangling but are still
+  exported. This option should be extremely rare to use, see the documentation on ABI
+  mangling for how the handle C and C++ symbols before adding an EXEMPTION.
+#]==]
 function (vtk_add_test_mangling module)
+  get_property(vtk_abi_namespace_name GLOBAL PROPERTY _vtk_abi_namespace_name)
+  if (vtk_abi_namespace_name STREQUAL "")
+    return()
+  endif ()
+
+  get_property(_vtkmoduletesting_nomangle_warnings_isset GLOBAL PROPERTY vtkmoduletesting_nomangle_warnings SET)
+  if (NOT _vtkmoduletesting_nomangle_warnings_isset)
+    set_property(GLOBAL PROPERTY vtkmoduletesting_nomangle_warnings FALSE)
+  endif ()
+  get_property(_vtkmoduletesting_nomangle_warnings GLOBAL PROPERTY vtkmoduletesting_nomangle_warnings)
+
+  if (_vtkmoduletesting_nomangle_warnings)
+    # Only warn on these issues once
+    return()
+  endif ()
+
+  if (VTK_ENABLE_KITS)
+    set(_vtkmoduletesting_nomangle_warnings TRUE)
+    message(WARNING "Mangling tests are not supported with VTK_ENABLE_KITS (https://gitlab.kitware.com/vtk/vtk/-/issues/19207)")
+  endif ()
+
   if (NOT UNIX)
-    return ()
+    set(_vtkmoduletesting_nomangle_warnings TRUE)
+    message(WARNING "Mangling tests are not supported on non-UNIX platforms")
+  endif ()
+
+  if (_vtkmoduletesting_nomangle_warnings)
+    set_property(GLOBAL PROPERTY vtkmoduletesting_nomangle_warnings "${_vtkmoduletesting_nomangle_warnings}")
+    return()
   endif ()
 
   cmake_parse_arguments(_vtk_mangling_test "" "" "EXEMPTIONS" ${ARGN})
 
-  get_property(vtk_abi_namespace_name GLOBAL PROPERTY _vtk_abi_namespace_name)
-  if (NOT vtk_abi_namespace_name STREQUAL "")
-    _vtk_module_real_target(_vtk_test_target "${module}")
-    if (CMAKE_VERSION VERSION_LESS "3.19")
-      get_property(target_type TARGET ${_vtk_test_target} PROPERTY TYPE)
-      # CMake 3.19 introduced support for regular properties on `INTERFACE`
-      # libraries. Before that, it was an error to ask for properties like
-      # `SOURCES`. Avoid the error in this case (there aren't any objects
-      # anyways, so no need to make any noise).
-      if (target_type STREQUAL "INTERFACE_LIBRARY")
-        return ()
-      endif ()
+  _vtk_module_real_target(_vtk_test_target "${module}")
+  if (CMAKE_VERSION VERSION_LESS "3.19")
+    get_property(target_type TARGET ${_vtk_test_target} PROPERTY TYPE)
+    # CMake 3.19 introduced support for regular properties on `INTERFACE`
+    # libraries. Before that, it was an error to ask for properties like
+    # `SOURCES`. Avoid the error in this case (there aren't any objects
+    # anyways, so no need to make any noise).
+    if (target_type STREQUAL "INTERFACE_LIBRARY")
+      return()
     endif ()
-    get_property(has_sources TARGET ${_vtk_test_target} PROPERTY SOURCES)
-    get_property(has_test GLOBAL PROPERTY "${module}_HAS_MANGLING_TEST" SET)
+  endif ()
+  get_property(has_sources TARGET ${_vtk_test_target} PROPERTY SOURCES)
+  get_property(has_test GLOBAL PROPERTY "${module}_HAS_MANGLING_TEST" SET)
 
-    if (NOT has_test AND has_sources)
-      set_property(GLOBAL PROPERTY "${module}_HAS_MANGLING_TEST" 1)
-      add_test(
-        NAME    "${module}-ManglingTest"
-        COMMAND "${Python3_EXECUTABLE}"
-                # TODO: What to do when using this from a VTK install?
-                "${VTK_SOURCE_DIR}/Testing/Core/CheckSymbolMangling.py"
-                "--files"
-                "$<TARGET_OBJECTS:${_vtk_test_target}>"
-                "--prefix"
-                # TODO: This is not included in vtk-config.
-                "${vtk_abi_namespace_name}"
-                "--exemptions"
-                "${_vtk_mangling_test_EXEMPTIONS}")
-    endif ()
+  if (NOT has_test AND has_sources)
+    set_property(GLOBAL PROPERTY "${module}_HAS_MANGLING_TEST" 1)
+    add_test(
+      NAME    "${module}-ManglingTest"
+      COMMAND "${Python3_EXECUTABLE}"
+              # TODO: What to do when using this from a VTK install?
+              "${VTK_SOURCE_DIR}/Testing/Core/CheckSymbolMangling.py"
+              "--files"
+              "$<TARGET_FILE:${_vtk_test_target}>"
+              "--prefix"
+              # TODO: This is not included in vtk-config.
+              "${vtk_abi_namespace_name}"
+              "--exemptions"
+              "${_vtk_mangling_test_EXEMPTIONS}")
+    set_property(TEST "${module}-ManglingTest" APPEND PROPERTY LABELS MANGLING)
   endif ()
 endfunction ()

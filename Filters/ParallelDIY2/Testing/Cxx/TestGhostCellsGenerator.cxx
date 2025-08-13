@@ -14,17 +14,19 @@
 #include "vtkCellArray.h"
 #include "vtkCellCenters.h"
 #include "vtkCellData.h"
+#include "vtkCellTypeSource.h"
 #include "vtkCommunicator.h"
+#include "vtkConeSource.h"
 #include "vtkDataArray.h"
 #include "vtkDataSet.h"
 #include "vtkDoubleArray.h"
-#include "vtkGenerateGlobalIds.h"
-#include "vtkGenerateProcessIds.h"
+#include "vtkGenerateTimeSteps.h"
 #include "vtkGhostCellsGenerator.h"
+#include "vtkGroupDataSetsFilter.h"
 #include "vtkIdTypeArray.h"
 #include "vtkImageData.h"
-#include "vtkIntArray.h"
 #include "vtkLogger.h"
+#include "vtkMathUtilities.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkMultiPieceDataSet.h"
 #include "vtkMultiProcessController.h"
@@ -35,6 +37,7 @@
 #include "vtkPointDataToCellData.h"
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
+#include "vtkRandomAttributeGenerator.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkRemoveGhosts.h"
 #include "vtkStaticPointLocator.h"
@@ -104,6 +107,57 @@ void FillImage(vtkImageData* image)
 }
 
 //----------------------------------------------------------------------------
+void FillImageCellDistance(vtkImageData* image)
+{
+  const vtkIdType nbCells = image->GetNumberOfCells();
+  vtkNew<vtkDoubleArray> array;
+  array->SetNumberOfTuples(nbCells);
+  array->SetName(GridArrayName);
+  image->GetCellData()->AddArray(array);
+
+  for (vtkIdType id = 0; id < nbCells; ++id)
+  {
+    vtkCell* cell = image->GetCell(id);
+    double* bounds = cell->GetBounds();
+    double coords[3] = { (bounds[1] + bounds[0]) / 2.0, (bounds[3] + bounds[2]) / 2.0,
+      (bounds[5] + bounds[4]) / 2.0 };
+    double squaredDistance = coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2];
+    array->SetValue(id, squaredDistance);
+  }
+}
+
+//----------------------------------------------------------------------------
+void FillImagePointDistance(vtkImageData* image)
+{
+  const vtkIdType nbPoints = image->GetNumberOfPoints();
+  vtkNew<vtkDoubleArray> array;
+  array->SetNumberOfTuples(nbPoints);
+  array->SetName(GridArrayName);
+  image->GetPointData()->AddArray(array);
+
+  for (vtkIdType id = 0; id < nbPoints; ++id)
+  {
+    double* coords = image->GetPoint(id);
+    double squaredDistance = coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2];
+    array->SetValue(id, squaredDistance);
+  }
+}
+
+//----------------------------------------------------------------------------
+void UpdateFieldData(vtkFieldData* fieldData, double factor)
+{
+  vtkDoubleArray* array =
+    vtkArrayDownCast<vtkDoubleArray>(fieldData->GetAbstractArray(GridArrayName));
+  const vtkIdType nbTuples = array->GetNumberOfTuples();
+
+  for (vtkIdType id = 0; id < nbTuples; ++id)
+  {
+    double value = array->GetValue(id);
+    array->SetValue(id, value * factor);
+  }
+}
+
+//----------------------------------------------------------------------------
 template <class GridDataSetT>
 void CopyGrid(vtkNew<GridDataSetT>& src, vtkStructuredGrid* dest)
 {
@@ -137,6 +191,50 @@ void SetCoordinates(vtkDataArray* array, int min, int max, const double* coordin
   {
     array->InsertTuple1(i, coordinates[MaxExtent + id]);
   }
+}
+
+//----------------------------------------------------------------------------
+bool TestImageCellDataDistance(vtkImageData* image)
+{
+  vtkDoubleArray* array =
+    vtkArrayDownCast<vtkDoubleArray>(image->GetCellData()->GetArray(GridArrayName));
+  const vtkIdType nbTuples = array->GetNumberOfTuples();
+
+  // Test that distance was correctly synced
+  for (vtkIdType id = 0; id < nbTuples; ++id)
+  {
+    vtkCell* cell = image->GetCell(id);
+    double* bounds = cell->GetBounds();
+    double coords[3] = { (bounds[1] + bounds[0]) / 2.0, (bounds[3] + bounds[2]) / 2.0,
+      (bounds[5] + bounds[4]) / 2.0 };
+    double refValue = coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2];
+    if (!vtkMathUtilities::FuzzyCompare(array->GetValue(id), refValue))
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool TestImagePointDataDistance(vtkImageData* image)
+{
+  vtkDoubleArray* array =
+    vtkArrayDownCast<vtkDoubleArray>(image->GetPointData()->GetArray(GridArrayName));
+  const vtkIdType nbTuples = array->GetNumberOfTuples();
+
+  for (vtkIdType id = 0; id < nbTuples; ++id)
+  {
+    double* coords = image->GetPoint(id);
+    double refValue = coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2];
+    if (!vtkMathUtilities::FuzzyCompare(array->GetValue(id), refValue))
+    {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -544,14 +642,10 @@ bool TestInterfacePointsSharing(vtkMultiProcessController* controller, int myran
     -MaxExtent, MaxExtent);
   FillImage(image);
 
-  vtkNew<vtkGenerateGlobalIds> GIDGenerator;
-  GIDGenerator->SetInputData(image);
-
-  vtkNew<vtkGenerateProcessIds> PIDGenerator;
-  PIDGenerator->SetInputConnection(GIDGenerator->GetOutputPort());
-
   vtkNew<vtkGhostCellsGenerator> generator;
-  generator->SetInputConnection(PIDGenerator->GetOutputPort());
+  generator->SetInputData(image);
+  generator->GenerateGlobalIdsOn();
+  generator->GenerateProcessIdsOn();
   generator->BuildIfRequiredOff();
   generator->SetController(controller);
   generator->SetNumberOfGhostLayers(1);
@@ -562,7 +656,7 @@ bool TestInterfacePointsSharing(vtkMultiProcessController* controller, int myran
     if (!AllRanksShareSamePointData(controller, output))
     {
       vtkLog(ERROR,
-        "All point data are not the same across blocks."
+        "1: All point data are not the same across blocks."
           << " This is likely happening at the interfaces. The process id of a ghost point needs"
           << " to be the process id of the owner of the point, even at the interfaces.");
       retVal = false;
@@ -571,10 +665,12 @@ bool TestInterfacePointsSharing(vtkMultiProcessController* controller, int myran
 
   // Testing point tagging at the interfaces on UG
   vtkNew<vtkAppendFilter> UGConverter;
-  UGConverter->SetInputConnection(PIDGenerator->GetOutputPort());
+  UGConverter->SetInputData(image);
 
   vtkNew<vtkGhostCellsGenerator> UGGenerator;
   UGGenerator->SetInputConnection(UGConverter->GetOutputPort());
+  UGGenerator->GenerateGlobalIdsOn();
+  UGGenerator->GenerateProcessIdsOn();
   UGGenerator->BuildIfRequiredOff();
   UGGenerator->SetNumberOfGhostLayers(0);
   UGGenerator->Update();
@@ -583,9 +679,61 @@ bool TestInterfacePointsSharing(vtkMultiProcessController* controller, int myran
         controller, vtkDataSet::SafeDownCast(UGGenerator->GetOutputDataObject(0))))
   {
     vtkLog(ERROR,
-      "All point data are not the same across blocks."
+      "2: All point data are not the same across blocks."
         << " This is likely happening at the interfaces. The process id of a ghost point needs"
         << " to be the process id of the owner of the point, even at the interfaces.");
+    retVal = false;
+  }
+
+  return retVal;
+}
+
+//----------------------------------------------------------------------------
+bool TestGhostDataSynchronization(vtkMultiProcessController* controller, int myrank)
+{
+  vtkLog(INFO, "Testing ghost data synchronization");
+  bool retVal = true;
+
+  vtkNew<vtkImageData> image;
+  image->SetExtent(myrank == 0 ? -MaxExtent : 0, myrank == 0 ? 0 : MaxExtent, -MaxExtent, MaxExtent,
+    -MaxExtent, MaxExtent);
+
+  // Fill image with distance values, multiplied by a factor depending on rank
+  FillImageCellDistance(image);
+  FillImagePointDistance(image);
+  UpdateFieldData(image->GetCellData(), myrank == 0 ? 2.0 : 0.5);
+  UpdateFieldData(image->GetPointData(), myrank == 0 ? 2.0 : 0.5);
+
+  vtkNew<vtkGhostCellsGenerator> generator;
+  generator->SetInputData(image);
+  generator->GenerateGlobalIdsOn();
+  generator->GenerateProcessIdsOn();
+  generator->SetController(controller);
+  generator->SetNumberOfGhostLayers(2); // Set to 2 to have ghost cells too
+  generator->BuildIfRequiredOff();
+  generator->Update();
+
+  // Multiply again the distance values with ghost to get back to initial distance
+  // So ghosts won't have the right factor, resulting in bad values
+  auto generatorOutput = vtkImageData::SafeDownCast(generator->GetOutputDataObject(0));
+  UpdateFieldData(generatorOutput->GetCellData(), myrank == 0 ? 0.5 : 2.0);
+  UpdateFieldData(generatorOutput->GetPointData(), myrank == 0 ? 0.5 : 2.0);
+
+  vtkNew<vtkGhostCellsGenerator> generatorSync;
+  generatorSync->SetInputData(generatorOutput);
+  generatorSync->SetController(controller);
+  generatorSync->SynchronizeOnlyOn();
+  generatorSync->Update();
+
+  auto syncOutput = vtkImageData::SafeDownCast(generatorSync->GetOutputDataObject(0));
+  if (!TestImageCellDataDistance(syncOutput))
+  {
+    vtkLog(ERROR, "Synchronization of cells failed.");
+    retVal = false;
+  }
+  if (!TestImagePointDataDistance(syncOutput))
+  {
+    vtkLog(ERROR, "Synchronization of points failed.");
     retVal = false;
   }
 
@@ -1833,12 +1981,12 @@ vtkSmartPointer<vtkUnstructuredGrid> Convert3DImageToUnstructuredGrid(
   }
 
   const int* extent = input->GetExtent();
-  vtkNew<vtkIdTypeArray> faces;
-  // half cells * number of faces in voxel [6] * (number of points in face + 1) [4 + 1]
-  faces->SetNumberOfValues((numberOfCells / 2) * (6 * 5 + 1));
+  vtkNew<vtkCellArray> faces;
+  // half cells * number of faces in voxel [6] * (number of points in face) [4]
+  faces->AllocateExact((numberOfCells / 2) * 6, (numberOfCells / 2) * (6 * 4));
 
-  vtkNew<vtkIdTypeArray> faceLocations;
-  faceLocations->SetNumberOfValues(numberOfCells);
+  vtkNew<vtkCellArray> faceLocations;
+  faceLocations->AllocateExact(numberOfCells, (numberOfCells / 2) * 6);
 
   vtkNew<vtkUnsignedCharArray> types;
   types->SetNumberOfValues(numberOfCells);
@@ -1865,72 +2013,70 @@ vtkSmartPointer<vtkUnstructuredGrid> Convert3DImageToUnstructuredGrid(
 
     if (producePolyhedrons && cellId % 2)
     {
-      vtkIdType id = ((cellId / 2) * (5 * 6 + 1));
-      faceLocations->SetValue(cellId, id);
+      vtkIdType pos = (cellId / 2) * 6;
+      faceLocations->InsertNextCell(6); // 6 faces.
+      faceLocations->InsertCellPoint(pos + 0);
+      faceLocations->InsertCellPoint(pos + 1);
+      faceLocations->InsertCellPoint(pos + 2);
+      faceLocations->InsertCellPoint(pos + 3);
+      faceLocations->InsertCellPoint(pos + 4);
+      faceLocations->InsertCellPoint(pos + 5);
 
       types->SetValue(cellId, VTK_POLYHEDRON);
 
-      faces->SetValue(id, 6); // 6 faces.
-      ++id;
-
       vtkIdType offsetId = connectivityId - 8;
-      faces->SetValue(id, 4); // 4 points per face.
+      faces->InsertNextCell(4); // 4 points per face.
       // Bottom face
-      faces->SetValue(id + 1, connectivity->GetValue(offsetId + 0));
-      faces->SetValue(id + 2, connectivity->GetValue(offsetId + 1));
-      faces->SetValue(id + 3, connectivity->GetValue(offsetId + 3));
-      faces->SetValue(id + 4, connectivity->GetValue(offsetId + 2));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 0));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 1));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 3));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 2));
 
-      id += 5;
-      faces->SetValue(id, 4); // 4 points per face.
+      faces->InsertNextCell(4); // 4 points per face.
       // Top face
-      faces->SetValue(id + 1, connectivity->GetValue(offsetId + 4));
-      faces->SetValue(id + 2, connectivity->GetValue(offsetId + 5));
-      faces->SetValue(id + 3, connectivity->GetValue(offsetId + 7));
-      faces->SetValue(id + 4, connectivity->GetValue(offsetId + 6));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 4));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 5));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 7));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 6));
 
-      id += 5;
-      faces->SetValue(id, 4); // 4 points per face.
+      faces->InsertNextCell(4); // 4 points per face.
       // Front face
-      faces->SetValue(id + 1, connectivity->GetValue(offsetId + 0));
-      faces->SetValue(id + 2, connectivity->GetValue(offsetId + 1));
-      faces->SetValue(id + 3, connectivity->GetValue(offsetId + 5));
-      faces->SetValue(id + 4, connectivity->GetValue(offsetId + 4));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 0));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 1));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 5));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 4));
 
-      id += 5;
-      faces->SetValue(id, 4); // 4 points per face.
+      faces->InsertNextCell(4); // 4 points per face.
       // Back face
-      faces->SetValue(id + 1, connectivity->GetValue(offsetId + 2));
-      faces->SetValue(id + 2, connectivity->GetValue(offsetId + 3));
-      faces->SetValue(id + 3, connectivity->GetValue(offsetId + 7));
-      faces->SetValue(id + 4, connectivity->GetValue(offsetId + 6));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 2));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 3));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 7));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 6));
 
-      id += 5;
-      faces->SetValue(id, 4); // 4 points per face.
+      faces->InsertNextCell(4); // 4 points per face.
       // Left face
-      faces->SetValue(id + 1, connectivity->GetValue(offsetId + 0));
-      faces->SetValue(id + 2, connectivity->GetValue(offsetId + 2));
-      faces->SetValue(id + 3, connectivity->GetValue(offsetId + 6));
-      faces->SetValue(id + 4, connectivity->GetValue(offsetId + 4));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 0));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 2));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 6));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 4));
 
-      id += 5;
-      faces->SetValue(id, 4); // 4 points per face.
+      faces->InsertNextCell(4); // 4 points per face.
       // Right face
-      faces->SetValue(id + 1, connectivity->GetValue(offsetId + 1));
-      faces->SetValue(id + 2, connectivity->GetValue(offsetId + 3));
-      faces->SetValue(id + 3, connectivity->GetValue(offsetId + 7));
-      faces->SetValue(id + 4, connectivity->GetValue(offsetId + 5));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 1));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 3));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 7));
+      faces->InsertCellPoint(connectivity->GetValue(offsetId + 5));
     }
     else
     {
-      faceLocations->SetValue(cellId, -1);
+      faceLocations->InsertNextCell(0);
       types->SetValue(cellId, VTK_VOXEL);
     }
   }
 
   if (producePolyhedrons)
   {
-    output->SetCells(types, cells, faceLocations, faces);
+    output->SetPolyhedralCells(types, cells, faceLocations, faces);
   }
   else
   {
@@ -3198,6 +3344,101 @@ bool TestPointPrecision(vtkMultiProcessController* controller, int myrank)
 
   return retVal;
 }
+
+int TestNonlinearCells(vtkMultiProcessController* controller)
+{
+  const std::set<int> SupportedCellTypes = {
+    VTK_TRIQUADRATIC_HEXAHEDRON,
+    VTK_LAGRANGE_HEXAHEDRON,
+    VTK_BEZIER_HEXAHEDRON,
+  };
+  bool retVal = true;
+
+  for (const auto cellType : SupportedCellTypes)
+  {
+
+    vtkNew<vtkCellTypeSource> cellTypeSource;
+    cellTypeSource->SetBlocksDimensions(2, 1, 1);
+    cellTypeSource->SetCellOrder(2);
+    cellTypeSource->SetCellType(cellType);
+    cellTypeSource->Update();
+
+    vtkNew<vtkGhostCellsGenerator> generator;
+    generator->SetInputData(cellTypeSource->GetOutput());
+    generator->GenerateGlobalIdsOn();
+    generator->GenerateProcessIdsOn();
+    generator->SetNumberOfGhostLayers(1);
+    generator->SetController(controller);
+    generator->BuildIfRequiredOff();
+    generator->Update();
+
+    auto output = vtkUnstructuredGrid::SafeDownCast(generator->GetOutputDataObject(0));
+    if (output->GetNumberOfPoints() != 48)
+    {
+      vtkLog(
+        ERROR, "The number of point is supposed to be 48 but is " << output->GetNumberOfPoints());
+      retVal = false;
+    }
+  }
+  return retVal;
+}
+
+bool TestStaticMeshCache()
+{
+  vtkLog(INFO, "Testing static mesh cache");
+
+  // Create the pipeline to produce the initial grid
+  vtkNew<vtkConeSource> cone1;
+  cone1->SetResolution(15);
+
+  vtkNew<vtkConeSource> cone2;
+  cone2->SetResolution(12);
+  cone2->SetCenter(2, 2, 2);
+
+  vtkNew<vtkGroupDataSetsFilter> group;
+  group->SetInputConnection(0, cone1->GetOutputPort());
+  group->AddInputConnection(0, cone2->GetOutputPort());
+  group->SetOutputTypeToPartitionedDataSetCollection();
+
+  vtkNew<vtkGenerateTimeSteps> addTime;
+  addTime->SetInputConnection(group->GetOutputPort());
+  addTime->AddTimeStepValue(0);
+  addTime->AddTimeStepValue(1);
+  addTime->AddTimeStepValue(2);
+  addTime->AddTimeStepValue(3);
+
+  vtkNew<vtkRandomAttributeGenerator> addScalars;
+  addScalars->SetInputConnection(addTime->GetOutputPort());
+  addScalars->GenerateAllDataOff();
+  addScalars->GenerateCellScalarsOn();
+  addScalars->SetDataTypeToDouble();
+  addScalars->SetComponentRange(0, 30);
+
+  vtkNew<vtkGhostCellsGenerator> ghostCellGenerator;
+  ghostCellGenerator->SetInputConnection(addScalars->GetOutputPort());
+  ghostCellGenerator->SetUseStaticMeshCache(true);
+  ghostCellGenerator->SetBuildIfRequired(true);
+  ghostCellGenerator->Update();
+
+  auto outputPDC =
+    vtkPartitionedDataSetCollection::SafeDownCast(ghostCellGenerator->GetOutputDataObject(0));
+  auto outputPD = vtkPolyData::SafeDownCast(outputPDC->GetPartitionAsDataObject(0, 0));
+  const auto initMeshTime = outputPD->GetMeshMTime();
+
+  ghostCellGenerator->UpdateTimeStep(2); // update scalars, not mesh
+
+  outputPDC =
+    vtkPartitionedDataSetCollection::SafeDownCast(ghostCellGenerator->GetOutputDataObject(0));
+  outputPD = vtkPolyData::SafeDownCast(outputPDC->GetPartitionAsDataObject(0, 0));
+
+  if (outputPD->GetMeshMTime() != initMeshTime)
+  {
+    vtkLog(ERROR, "GetMeshMTime has changed, mesh was not properly cached");
+    return false;
+  }
+
+  return true;
+}
 } // anonymous namespace
 
 //----------------------------------------------------------------------------
@@ -3236,6 +3477,21 @@ int TestGhostCellsGenerator(int argc, char* argv[])
   }
 
   if (!TestInterfacePointsSharing(contr, myrank))
+  {
+    retVal = EXIT_FAILURE;
+  }
+
+  if (!TestGhostDataSynchronization(contr, myrank))
+  {
+    retVal = EXIT_FAILURE;
+  }
+
+  if (!TestNonlinearCells(contr))
+  {
+    retVal = EXIT_FAILURE;
+  }
+
+  if (!TestStaticMeshCache())
   {
     retVal = EXIT_FAILURE;
   }

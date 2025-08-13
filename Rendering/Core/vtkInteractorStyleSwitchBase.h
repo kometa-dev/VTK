@@ -18,15 +18,18 @@
 
 #include "vtkInteractorStyle.h"
 #include "vtkRenderingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
-class VTKRENDERINGCORE_EXPORT vtkInteractorStyleSwitchBase : public vtkInteractorStyle
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkInteractorStyleSwitchBase
+  : public vtkInteractorStyle
 {
 public:
   static vtkInteractorStyleSwitchBase* New();
   vtkTypeMacro(vtkInteractorStyleSwitchBase, vtkInteractorStyle);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   vtkRenderWindowInteractor* GetInteractor() override;
 
 protected:

@@ -21,6 +21,7 @@
 
 #include "vtkInteractionWidgetsModule.h" // needed for export macro
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
@@ -37,7 +38,7 @@ class vtkTextProperty;
 class vtkTexture;
 class vtkTubeFilter;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkCameraOrientationRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkCameraOrientationRepresentation
   : public vtkWidgetRepresentation
 {
 public:
@@ -101,7 +102,8 @@ public:
   /**
    * Get/Set the widget anchor type
    */
-  AnchorType GetAnchorPosition() { return this->AnchorPosition; }
+  vtkSetEnumMacro(AnchorPosition, AnchorType);
+  vtkGetEnumMacro(AnchorPosition, AnchorType);
   void AnchorToLowerLeft()
   {
     this->AnchorPosition = AnchorType::LowerLeft;
@@ -194,6 +196,54 @@ public:
 
   ///@{
   /**
+   * Set/Get the '+' axis label text.
+   */
+  void SetXPlusLabelText(const std::string& label)
+  {
+    this->AxisLabelsText[0][0] = label;
+    this->Modified();
+  }
+  std::string GetXPlusLabelText() { return this->AxisLabelsText[0][0]; }
+  void SetYPlusLabelText(const std::string& label)
+  {
+    this->AxisLabelsText[1][0] = label;
+    this->Modified();
+  }
+  std::string GetYPlusLabelText() { return this->AxisLabelsText[1][0]; }
+  void SetZPlusLabelText(const std::string& label)
+  {
+    this->AxisLabelsText[2][0] = label;
+    this->Modified();
+  }
+  std::string GetZPlusLabelText() { return this->AxisLabelsText[2][0]; }
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get the '-' axis label text.
+   */
+  void SetXMinusLabelText(const std::string& label)
+  {
+    this->AxisLabelsText[0][1] = label;
+    this->Modified();
+  }
+  std::string GetXMinusLabelText() { return this->AxisLabelsText[0][1]; }
+  void SetYMinusLabelText(const std::string& label)
+  {
+    this->AxisLabelsText[1][1] = label;
+    this->Modified();
+  }
+  std::string GetYMinusLabelText() { return this->AxisLabelsText[1][1]; }
+  void SetZMinusLabelText(const std::string& label)
+  {
+    this->AxisLabelsText[2][1] = label;
+    this->Modified();
+  }
+  std::string GetZMinusLabelText() { return this->AxisLabelsText[2][1]; }
+  ///@}
+
+  ///@{
+  /**
    * Get the '+' axis label properties.
    */
   vtkTextProperty* GetXPlusLabelProperty();
@@ -240,7 +290,7 @@ public:
   /**
    * These are methods that satisfy vtkWidgetRepresentation's API.
    */
-  void PlaceWidget(double*) override{}; // this representation is an overlay. Doesn't need this.
+  void PlaceWidget(double*) override {} // this representation is an overlay. Doesn't need this.
   void BuildRepresentation() override;
   void StartWidgetInteraction(double eventPos[2]) override;
   void WidgetInteraction(double newEventPos[2]) override;
@@ -314,7 +364,7 @@ protected:
   int Size[2] = { 120, 120 };  // In display coords.
 
   // Geometrical, textual, interaction description of the representation.
-  const char* AxisLabelsText[3][2] = { { "X", "-X" }, { "Y", "-Y" }, { "Z", "-Z" } };
+  std::string AxisLabelsText[3][2] = { { "X", "-X" }, { "Y", "-Y" }, { "Z", "-Z" } };
   double Azimuth = 0.;
   double Back[3] = { 0., 0., -1. };
   double Bounds[6] = {};

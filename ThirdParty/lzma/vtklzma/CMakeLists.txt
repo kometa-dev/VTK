@@ -227,7 +227,7 @@ set(private_headers
   src/liblzma/check/crc32_table_le.h
   src/liblzma/check/crc64_table_be.h
   src/liblzma/check/crc64_table_le.h
-  src/liblzma/check/crc_macros.h
+  src/liblzma/check/crc_common.h
   src/liblzma/common/alone_decoder.h
   src/liblzma/common/block_buffer_encoder.h
   src/liblzma/common/block_decoder.h
@@ -286,13 +286,11 @@ set(headers
   src/liblzma/api/vtk_lzma_mangle.h)
 
 vtk_module_add_module(VTK::lzma
+  HEADER_DIRECTORIES
   SOURCES ${sources}
   HEADERS ${headers}
   PRIVATE_HEADERS ${private_headers}
-  HEADERS_SUBDIR "vtklzma/src/liblzma/api")
-vtk_module_install_headers(
-  DIRECTORIES "src/liblzma/api/lzma"
-  SUBDIR      "vtklzma/src/liblzma/api")
+  HEADERS_SUBDIR "vtklzma")
 set_target_properties(lzma
   PROPERTIES
     C_STANDARD 99

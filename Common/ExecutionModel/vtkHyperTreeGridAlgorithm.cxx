@@ -174,6 +174,11 @@ vtkTypeBool vtkHyperTreeGridAlgorithm::ProcessRequest(
     return this->RequestUpdateExtent(request, inputVector, outputVector);
   }
 
+  if (request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_TIME()))
+  {
+    return this->RequestUpdateTime(request, inputVector, outputVector);
+  }
+
   // execute information
   if (request->Has(vtkDemandDrivenPipeline::REQUEST_INFORMATION()))
   {
@@ -199,6 +204,14 @@ int vtkHyperTreeGridAlgorithm::FillOutputPortInformation(int, vtkInformation* in
 
 //------------------------------------------------------------------------------
 int vtkHyperTreeGridAlgorithm::RequestInformation(
+  vtkInformation*, vtkInformationVector**, vtkInformationVector*)
+{
+  // Do nothing and let subclasses handle it if needed
+  return 1;
+}
+
+//------------------------------------------------------------------------------
+int vtkHyperTreeGridAlgorithm::RequestUpdateTime(
   vtkInformation*, vtkInformationVector**, vtkInformationVector*)
 {
   // Do nothing and let subclasses handle it if needed
@@ -243,7 +256,7 @@ int vtkHyperTreeGridAlgorithm::RequestData(vtkInformation* vtkNotUsed(request),
     return 0;
   }
 
-  this->OutData = nullptr; // JB Pourquoi mettre au niveau de Algorithm le OutData ?
+  this->OutData = nullptr;
 
   // Process all trees in input grid and generate input data object
   // only if extents are correct

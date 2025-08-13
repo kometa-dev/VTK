@@ -2,8 +2,6 @@ NAME
   VTK::IOADIOS2
 LIBRARY_NAME
   vtkIOADIOS2
-KIT
-  VTK::IO
 SPDX_LICENSE_IDENTIFIER
   LicenseRef-BSD-3-Clause-Sandia-USGov
 SPDX_COPYRIGHT_TEXT
@@ -22,10 +20,10 @@ DEPENDS
 OPTIONAL_DEPENDS
   VTK::ParallelMPI
   VTK::mpi
-  VTK::vtksys
-  VTK::pugixml
 PRIVATE_DEPENDS
   VTK::CommonDataModel
+  VTK::vtksys
+  VTK::pugixml
 TEST_DEPENDS
   VTK::IOLegacy
   VTK::IOXML

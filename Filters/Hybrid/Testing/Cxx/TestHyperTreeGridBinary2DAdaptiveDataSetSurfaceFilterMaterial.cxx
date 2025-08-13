@@ -41,6 +41,7 @@ int TestHyperTreeGridBinary2DAdaptiveDataSetSurfaceFilterMaterial(int argc, char
   vtkNew<vtkRenderer> renderer;
   surface->SetRenderer(renderer);
   surface->SetInputConnection(htGrid->GetOutputPort());
+  surface->SetViewPointDepend(false);
   surface->Update();
   vtkPolyData* pd = surface->GetOutput();
   double* range = pd->GetCellData()->GetArray("Depth")->GetRange();
@@ -88,10 +89,13 @@ int TestHyperTreeGridBinary2DAdaptiveDataSetSurfaceFilterMaterial(int argc, char
   vtkNew<vtkRenderWindowInteractor> iren;
   iren->SetRenderWindow(renWin);
 
+  surface->SetViewPointDepend(true);
+  surface->Update();
+
   // Render and test
   renWin->Render();
 
-  int retVal = vtkRegressionTestImageThreshold(renWin, 30);
+  int retVal = vtkRegressionTestImageThreshold(renWin, 0.05);
   if (retVal == vtkRegressionTester::DO_INTERACTOR)
   {
     iren->Start();

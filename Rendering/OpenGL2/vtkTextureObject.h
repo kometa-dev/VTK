@@ -15,6 +15,7 @@
 #include "vtkObject.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkWeakPointer.h"            // for render context
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLBufferObject;
@@ -26,7 +27,7 @@ class vtkShaderProgram;
 class vtkWindow;
 class vtkGenericOpenGLResourceFreeCallback;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkTextureObject : public vtkObject
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkTextureObject : public vtkObject
 {
 public:
   // DepthTextureCompareFunction values.
@@ -43,19 +44,15 @@ public:
     NumberOfDepthTextureCompareFunctions
   };
 
-// ClampToBorder is not supported in ES 2.0
-// Wrap values.
-#ifndef GL_ES_VERSION_3_0
-  enum { ClampToEdge = 0, Repeat, MirroredRepeat, ClampToBorder, NumberOfWrapModes };
-#else
+  // Wrap values.
   enum
   {
     ClampToEdge = 0,
     Repeat,
     MirroredRepeat,
+    ClampToBorder,
     NumberOfWrapModes
   };
-#endif
 
   // MinificationFilter values.
   enum
@@ -193,6 +190,15 @@ public:
     unsigned int width, unsigned int height, int numComps, int dataType, void* data);
 
   /**
+   * Create a 2D texture array from client memory
+   * `data` contains a pointer to the layers of the texture array.
+   * All layers must be the same size and contiguous in memory.
+   * If `data` is null, the texture is allocated without initialization.
+   */
+  bool Create2DArrayFromRaw(
+    unsigned int width, unsigned int height, int numComps, int dataType, int nbLayers, void* data);
+
+  /**
    * Create a 2D depth texture using a raw pointer.
    * This is a blocking call. If you can, use PBO instead.
    * raw can be null in order to allocate texture without initialization.
@@ -232,7 +238,7 @@ public:
    * shaderSupportsTextureInt is true if the shader has an alternate
    * implementation supporting sampler with integer values.
    * Even if the card supports texture int, it does not mean that
-   * the implementor of the shader made a version that supports texture int.
+   * the implementer of the shader made a version that supports texture int.
    */
   bool Create1D(int numComps, vtkPixelBufferObject* pbo, bool shaderSupportsTextureInt);
 
@@ -641,16 +647,16 @@ public:
    * for optional extensions are set then the test fails when support
    * for them is not found.
    */
-  static bool IsSupported(vtkOpenGLRenderWindow*, bool /* requireTexFloat */,
-    bool /* requireDepthFloat */, bool /* requireTexInt */)
-  {
-    return true;
-  }
+  static bool IsSupported(vtkOpenGLRenderWindow* renWin, bool requireTexFloat,
+    bool requireDepthFloat, bool requireTexInt);
 
   /**
    * Check for feature support, without any optional features.
    */
-  static bool IsSupported(vtkOpenGLRenderWindow*) { return true; }
+  static bool IsSupported(vtkOpenGLRenderWindow* renWin)
+  {
+    return vtkTextureObject::IsSupported(renWin, false, false, false);
+  }
 
   ///@{
   /**
@@ -731,6 +737,11 @@ protected:
   ~vtkTextureObject() override;
 
   vtkGenericOpenGLResourceFreeCallback* ResourceCallback;
+
+  /**
+   * Load all necessary extensions.
+   */
+  bool LoadRequiredExtensions(vtkOpenGLRenderWindow* renWin);
 
   /**
    * Creates a texture handle if not already created.

@@ -148,7 +148,7 @@ void vtkCurvatures::GetMeanCurvature(vtkPolyData* mesh)
         polyData->GetPoint(vertices_n->GetId(0), vn0);
         polyData->GetPoint(vertices_n->GetId(1), vn1);
         polyData->GetPoint(vertices_n->GetId(2), vn2);
-        Af += double(vtkTriangle::TriangleArea(vn0, vn1, vn2));
+        Af += vtkTriangle::TriangleArea(vn0, vn1, vn2);
         // compute normal of n
         vtkTriangle::ComputeNormal(vn0, vn1, vn2, n_n);
         // the cosine is n_f * n_n
@@ -204,7 +204,7 @@ void vtkCurvatures::GetMeanCurvature(vtkPolyData* mesh)
   mesh->GetPointData()->SetActiveScalars("Mean_Curvature");
 
   vtkDebugMacro("Set Values of Mean Curvature: Done");
-};
+}
 //--------------------------------------------
 #define CLAMP_MACRO(v) ((v) < (-1) ? (-1) : (v) > (1) ? (1) : (v))
 void vtkCurvatures::GetGaussCurvature(vtkPolyData* output)
@@ -317,7 +317,7 @@ void vtkCurvatures::ComputeGaussCurvature(
     alpha2 = vtkMath::Pi() - vtkMath::AngleBetweenVectors(e0, e1);
 
     // surf. area
-    A = double(vtkTriangle::TriangleArea(v0, v1, v2));
+    A = vtkTriangle::TriangleArea(v0, v1, v2);
     // UPDATE
     dA[vert[0]] += A;
     dA[vert[1]] += A;

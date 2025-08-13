@@ -35,8 +35,10 @@
 #define vtkScalarsToColors_h
 
 #include "vtkCommonCoreModule.h" // For export macro
+#include "vtkDeprecation.h"      // For VTK_DEPRECATED_IN_9_5_0
 #include "vtkObject.h"
-#include "vtkVariant.h" // Set/get annotation methods require variants.
+#include "vtkVariant.h"       // Set/get annotation methods require variants.
+#include "vtkWrappingHints.h" // For VTK_MARSHALMANUAL
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
@@ -46,7 +48,7 @@ class vtkAbstractArray;
 class vtkStringArray;
 class vtkUnsignedCharArray;
 
-class VTKCOMMONCORE_EXPORT vtkScalarsToColors : public vtkObject
+class VTKCOMMONCORE_EXPORT VTK_MARSHALMANUAL vtkScalarsToColors : public vtkObject
 {
 public:
   vtkTypeMacro(vtkScalarsToColors, vtkObject);
@@ -118,7 +120,7 @@ public:
   {
     double rgb[3];
     this->GetColor(x, rgb);
-    return static_cast<double>(rgb[0] * 0.30 + rgb[1] * 0.59 + rgb[2] * 0.11);
+    return rgb[0] * 0.30 + rgb[1] * 0.59 + rgb[2] * 0.11;
   }
 
   ///@{
@@ -152,9 +154,9 @@ public:
    * When the component argument is -1, then the this object uses its own
    * selected technique to change a vector into a scalar to map.
    */
-  virtual vtkUnsignedCharArray* MapScalars(
+  virtual VTK_NEWINSTANCE vtkUnsignedCharArray* MapScalars(
     vtkDataArray* scalars, int colorMode, int component, int outputFormat = VTK_RGBA);
-  virtual vtkUnsignedCharArray* MapScalars(
+  virtual VTK_NEWINSTANCE vtkUnsignedCharArray* MapScalars(
     vtkAbstractArray* scalars, int colorMode, int component, int outputFormat = VTK_RGBA);
   ///@}
 
@@ -406,7 +408,8 @@ protected:
    * method instantiates a vtkUnsignedCharArray and returns it. The user is
    * responsible for managing the memory.
    */
-  vtkUnsignedCharArray* ConvertToRGBA(vtkDataArray* colors, int numComp, int numTuples);
+  VTK_NEWINSTANCE vtkUnsignedCharArray* ConvertToRGBA(
+    vtkDataArray* colors, int numComp, int numTuples);
 
   /**
    * An internal method for converting vectors to magnitudes, used as
@@ -444,7 +447,7 @@ protected:
   int VectorSize;
 
 #if !defined(VTK_LEGACY_REMOVE)
-  // Obsolete, kept so subclasses will still compile
+  VTK_DEPRECATED_IN_9_5_0("UseMagnitude is ignored and will be removed")
   int UseMagnitude;
 #endif
 

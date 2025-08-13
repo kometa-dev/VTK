@@ -10,11 +10,14 @@ set(classes
   vtkExtractSubsetWithSeed
   vtkGenerateGlobalIds
   vtkGhostCellsGenerator
+  vtkNativePartitioningStrategy
   vtkOverlappingCellsDetector
+  vtkPartitioningStrategy
   vtkPResampleToImage
   vtkPResampleWithDataSet
   vtkProbeLineFilter
-  vtkRedistributeDataSetFilter)
+  vtkRedistributeDataSetFilter
+  vtkStitchImageDataWithGhosts)
 
 set(nowrap_classes
   vtkDIYKdTreeUtilities)

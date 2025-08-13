@@ -82,6 +82,11 @@ vtkTypeBool vtkCellGridAlgorithm::ProcessRequest(
     return this->RequestUpdateExtent(request, inputVector, outputVector);
   }
 
+  if (request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_TIME()))
+  {
+    return this->RequestUpdateTime(request, inputVector, outputVector);
+  }
+
   // execute information
   if (request->Has(vtkDemandDrivenPipeline::REQUEST_INFORMATION()))
   {
@@ -132,6 +137,13 @@ int vtkCellGridAlgorithm::RequestUpdateExtent(vtkInformation* vtkNotUsed(request
 }
 
 //------------------------------------------------------------------------------
+int vtkCellGridAlgorithm::RequestUpdateTime(
+  vtkInformation*, vtkInformationVector**, vtkInformationVector*)
+{
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 // This is the superclasses style of Execute method.  Convert it into
 // an imaging style Execute method.
 int vtkCellGridAlgorithm::RequestData(vtkInformation* vtkNotUsed(request),
@@ -162,6 +174,96 @@ void vtkCellGridAlgorithm::AddInputData(vtkDataObject* input)
 void vtkCellGridAlgorithm::AddInputData(int index, vtkDataObject* input)
 {
   this->AddInputDataInternal(index, input);
+}
+
+//------------------------------------------------------------------------------
+void vtkCellGridAlgorithm::SetInputAttributeToProcess(
+  int idx, int port, int connection, const char* name)
+{
+  this->SetInputArrayToProcess(idx, port, connection, vtkDataObject::FIELD_ASSOCIATION_CELLS, name);
+}
+
+//------------------------------------------------------------------------------
+vtkCellAttribute* vtkCellGridAlgorithm::GetInputCellAttributeToProcess(
+  int idx, int connection, vtkInformationVector** inputVector)
+{
+  int association = vtkDataObject::FIELD_ASSOCIATION_NONE;
+  return this->GetInputCellAttributeToProcess(idx, connection, inputVector, association);
+}
+
+//------------------------------------------------------------------------------
+vtkCellAttribute* vtkCellGridAlgorithm::GetInputCellAttributeToProcess(
+  int idx, int connection, vtkInformationVector** inputVector, int& association)
+{
+  vtkInformationVector* inArrayVec = this->Information->Get(INPUT_ARRAYS_TO_PROCESS());
+  if (!inArrayVec)
+  {
+    vtkErrorMacro("Attempt to get an input attribute for an index that has not been specified");
+    return nullptr;
+  }
+  vtkInformation* inArrayInfo = inArrayVec->GetInformationObject(idx);
+  if (!inArrayInfo)
+  {
+    vtkErrorMacro(
+      "Attempt to get an input attribute for an index (" << idx << ") that has not been specified");
+    return nullptr;
+  }
+
+  int port = inArrayInfo->Get(INPUT_PORT());
+  vtkInformation* inInfo = inputVector[port]->GetInformationObject(connection);
+  auto* input = vtkCellGrid::SafeDownCast(inInfo->Get(vtkDataObject::DATA_OBJECT()));
+
+  return this->GetInputCellAttributeToProcess(idx, input, association);
+}
+
+//------------------------------------------------------------------------------
+vtkCellAttribute* vtkCellGridAlgorithm::GetInputCellAttributeToProcess(int idx, vtkCellGrid* input)
+{
+  int association = vtkDataObject::FIELD_ASSOCIATION_NONE;
+  return this->GetInputCellAttributeToProcess(idx, input, association);
+}
+
+//------------------------------------------------------------------------------
+vtkCellAttribute* vtkCellGridAlgorithm::GetInputCellAttributeToProcess(
+  int idx, vtkCellGrid* input, int& association)
+{
+  if (!input)
+  {
+    return nullptr;
+  }
+
+  vtkInformationVector* inArrayVec = this->Information->Get(INPUT_ARRAYS_TO_PROCESS());
+  if (!inArrayVec)
+  {
+    vtkErrorMacro("Attempt to get an input array for an index that has not been specified");
+    return nullptr;
+  }
+  vtkInformation* inArrayInfo = inArrayVec->GetInformationObject(idx);
+  if (!inArrayInfo)
+  {
+    vtkErrorMacro("Attempt to get an input array for an index that has not been specified");
+    return nullptr;
+  }
+
+  int fieldAssoc = inArrayInfo->Get(vtkDataObject::FIELD_ASSOCIATION());
+  association = fieldAssoc;
+
+  // For now, only FIELD_ASSOCIATION_CELLS can produce a vtkCellAttribute.
+  // Requesting any other field association will yield a null pointer.
+  if (fieldAssoc != vtkDataObject::FIELD_ASSOCIATION_CELLS)
+  {
+    return nullptr;
+  }
+
+  if (inArrayInfo->Has(vtkDataObject::FIELD_NAME()))
+  {
+    const char* name = inArrayInfo->Get(vtkDataObject::FIELD_NAME());
+    return input->GetCellAttributeByName(name);
+  }
+  else
+  {
+    return nullptr;
+  }
 }
 
 VTK_ABI_NAMESPACE_END

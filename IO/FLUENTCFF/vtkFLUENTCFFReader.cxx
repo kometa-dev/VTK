@@ -7,7 +7,7 @@
 // Terry E. Jordan (Department of Energy, National Energy Technology
 // Laboratory) & Douglas McCorkle (Iowa State University)
 //
-// This class could be improved for memory performance but the developper
+// This class could be improved for memory performance but the developer
 // will need to rewrite entirely the structure of the class.
 
 #include "vtkFLUENTCFFReader.h"
@@ -108,14 +108,33 @@ int vtkFLUENTCFFReader::RequestData(vtkInformation* vtkNotUsed(request),
     vtkErrorMacro("Unable to read the Case CFF file. The structure of the file may have changed.");
     return 0;
   }
-  this->CleanCells();
-  this->PopulateCellNodes();
-  this->GetNumberOfCellZones();
+
+  try
+  {
+    this->CleanCells();
+    this->PopulateCellNodes();
+    this->GetNumberOfCellZones();
+  }
+  catch (std::runtime_error const& e)
+  {
+    vtkErrorMacro(<< e.what());
+    return 0;
+  }
+
   this->NumberOfScalars = 0;
   this->NumberOfVectors = 0;
   if (this->FileState == DataState::AVAILABLE)
   {
-    int flagData = this->GetData();
+    int flagData = 0;
+    try
+    {
+      flagData = this->GetData();
+    }
+    catch (std::runtime_error const& e)
+    {
+      vtkErrorMacro(<< e.what());
+      return 0;
+    }
     if (flagData == 0)
     {
       vtkErrorMacro(
@@ -126,6 +145,13 @@ int vtkFLUENTCFFReader::RequestData(vtkInformation* vtkNotUsed(request),
     this->FileState = DataState::LOADED;
   }
   this->Faces.clear();
+
+  // Transfer structures for VTK polyhedron cells
+  vtkNew<vtkCellArray> faces;
+  vtkNew<vtkIntArray> nodes;
+  vtkNew<vtkIntArray> nodesOffset;
+  nodes->SetNumberOfComponents(1);
+  nodesOffset->SetNumberOfComponents(1);
 
   // Convert Fluent format to VTK
   this->NumberOfCells = static_cast<vtkIdType>(this->Cells.size());
@@ -140,7 +166,7 @@ int vtkFLUENTCFFReader::RequestData(vtkInformation* vtkNotUsed(request),
     g = vtkUnstructuredGrid::New();
   }
 
-  for (const auto& cell : this->Cells)
+  for (auto& cell : this->Cells)
   {
     size_t location = std::find(this->CellZones.begin(), this->CellZones.end(), cell.zone) -
       this->CellZones.begin();
@@ -197,32 +223,36 @@ int vtkFLUENTCFFReader::RequestData(vtkInformation* vtkNotUsed(request),
     else if (cell.type == 7)
     {
       vtkNew<vtkIdList> pointIds;
+      nodes->SetArray(cell.nodes.data(), cell.nodes.size(), 1);
+      nodesOffset->SetArray(cell.nodesOffset.data(), cell.nodesOffset.size(), 1);
+      faces->SetData(nodesOffset, nodes);
       for (size_t j = 0; j < cell.nodes.size(); j++)
       {
-        pointIds->InsertNextId(static_cast<vtkIdType>(cell.nodes[j]));
+        pointIds->InsertUniqueId(static_cast<vtkIdType>(cell.nodes[j]));
       }
-      grid[location]->InsertNextCell(VTK_POLYHEDRON, pointIds);
+      grid[location]->InsertNextCell(
+        VTK_POLYHEDRON, pointIds->GetNumberOfIds(), pointIds->GetPointer(0), faces);
     }
   }
 
   // Scalar Data
-  for (const auto& ScalarDataChunk : this->ScalarDataChunks)
+  for (const auto& scalarDataChunk : this->ScalarDataChunks)
   {
-    if (this->CellDataArraySelection->ArrayIsEnabled(ScalarDataChunk.variableName.c_str()))
+    if (this->CellDataArraySelection->ArrayIsEnabled(scalarDataChunk.variableName.c_str()))
     {
       for (size_t location = 0; location < this->CellZones.size(); location++)
       {
         vtkNew<vtkDoubleArray> v;
         unsigned int i = 0;
-        for (size_t m = 0; m < ScalarDataChunk.scalarData.size(); m++)
+        for (size_t m = 0; m < scalarDataChunk.scalarData.size(); m++)
         {
           if (this->Cells[m].zone == this->CellZones[location])
           {
-            v->InsertValue(static_cast<vtkIdType>(i), ScalarDataChunk.scalarData[m]);
+            v->InsertValue(static_cast<vtkIdType>(i), scalarDataChunk.scalarData[m]);
             i++;
           }
         }
-        v->SetName(ScalarDataChunk.variableName.c_str());
+        v->SetName(scalarDataChunk.variableName.c_str());
         grid[location]->GetCellData()->AddArray(v);
       }
     }
@@ -230,28 +260,28 @@ int vtkFLUENTCFFReader::RequestData(vtkInformation* vtkNotUsed(request),
   this->ScalarDataChunks.clear();
 
   // Vector Data
-  for (const auto& VectorDataChunk : VectorDataChunks)
+  for (const auto& vectorDataChunk : VectorDataChunks)
   {
-    if (this->CellDataArraySelection->ArrayIsEnabled(VectorDataChunk.variableName.c_str()))
+    if (this->CellDataArraySelection->ArrayIsEnabled(vectorDataChunk.variableName.c_str()))
     {
       for (size_t location = 0; location < this->CellZones.size(); location++)
       {
         vtkNew<vtkDoubleArray> v;
-        v->SetNumberOfComponents(static_cast<int>(VectorDataChunk.dim));
-        for (size_t k = 0; k < VectorDataChunk.dim; k++)
+        v->SetNumberOfComponents(static_cast<int>(vectorDataChunk.dim));
+        for (size_t k = 0; k < vectorDataChunk.dim; k++)
         {
           unsigned int i = 0;
-          for (size_t m = 0; m < VectorDataChunk.vectorData.size() / VectorDataChunk.dim; m++)
+          for (size_t m = 0; m < vectorDataChunk.vectorData.size() / vectorDataChunk.dim; m++)
           {
             if (this->Cells[m].zone == this->CellZones[location])
             {
               v->InsertComponent(static_cast<vtkIdType>(i), static_cast<int>(k),
-                VectorDataChunk.vectorData[k + VectorDataChunk.dim * m]);
+                vectorDataChunk.vectorData[k + vectorDataChunk.dim * m]);
               i++;
             }
           }
         }
-        v->SetName(VectorDataChunk.variableName.c_str());
+        v->SetName(vectorDataChunk.variableName.c_str());
         grid[location]->GetCellData()->AddArray(v);
       }
     }
@@ -336,7 +366,16 @@ int vtkFLUENTCFFReader::RequestInformation(vtkInformation* vtkNotUsed(request),
 
   if (this->FileState == DataState::AVAILABLE)
   {
-    int flagData = this->GetMetaData();
+    int flagData = 0;
+    try
+    {
+      flagData = this->GetMetaData();
+    }
+    catch (std::runtime_error const& e)
+    {
+      vtkErrorMacro(<< e.what());
+      return 0;
+    }
     if (flagData == 0)
     {
       vtkErrorMacro(
@@ -360,6 +399,14 @@ int vtkFLUENTCFFReader::RequestInformation(vtkInformation* vtkNotUsed(request),
 //------------------------------------------------------------------------------
 bool vtkFLUENTCFFReader::OpenCaseFile(const std::string& filename)
 {
+  // Check if hdf5 lib contains zlib (DEFLATE)
+  htri_t avail = H5Zfilter_avail(H5Z_FILTER_DEFLATE);
+  if (!avail)
+  {
+    vtkErrorMacro("The current build is not compatible with this reader, HDF5 library misses ZLIB "
+                  "compatibility.");
+    return false;
+  }
   // Check if the file is HDF5 or exist
   htri_t file_type = H5Fis_hdf5(filename.c_str());
   if (file_type != 1)
@@ -1655,7 +1702,7 @@ void vtkFLUENTCFFReader::PopulateCellTree()
     // If cell is parent cell -> interpolate data from children
     if (cell.parent == 1)
     {
-      for (auto& ScalarDataChunk : this->ScalarDataChunks)
+      for (auto& scalarDataChunk : this->ScalarDataChunks)
       {
         double data = 0.0;
         int ncell = 0;
@@ -1663,16 +1710,16 @@ void vtkFLUENTCFFReader::PopulateCellTree()
         {
           if (this->Cells[cell.childId[j]].parent == 0)
           {
-            data += ScalarDataChunk.scalarData[cell.childId[j]];
+            data += scalarDataChunk.scalarData[cell.childId[j]];
             ncell++;
           }
         }
-        ScalarDataChunk.scalarData.emplace_back(
+        scalarDataChunk.scalarData.emplace_back(
           (ncell != 0 ? data / static_cast<double>(ncell) : 0.0));
       }
-      for (auto& VectorDataChunk : this->VectorDataChunks)
+      for (auto& vectorDataChunk : this->VectorDataChunks)
       {
-        for (size_t k = 0; k < VectorDataChunk.dim; k++)
+        for (size_t k = 0; k < vectorDataChunk.dim; k++)
         {
           double data = 0.0;
           int ncell = 0;
@@ -1680,11 +1727,11 @@ void vtkFLUENTCFFReader::PopulateCellTree()
           {
             if (this->Cells[cell.childId[j]].parent == 0)
             {
-              data += VectorDataChunk.vectorData[k + VectorDataChunk.dim * cell.childId[j]];
+              data += vectorDataChunk.vectorData[k + vectorDataChunk.dim * cell.childId[j]];
               ncell++;
             }
           }
-          VectorDataChunk.vectorData.emplace_back(
+          vectorDataChunk.vectorData.emplace_back(
             (ncell != 0 ? data / static_cast<double>(ncell) : 0.0));
         }
       }
@@ -1861,6 +1908,13 @@ void vtkFLUENTCFFReader::PopulateHexahedronCell(int i)
 {
   this->Cells[i].nodes.resize(8);
 
+  // Throw error when number of face of hexahedron cell is below 4.
+  // Number of face should be 6 but you can find the 8 corner points with at least 4 faces.
+  if (this->Cells[i].faces.size() < 4)
+  {
+    throw std::runtime_error("Some cells of the domain are incompatible with this reader.");
+  }
+
   if (this->Faces[this->Cells[i].faces[0]].c0 == i)
   {
     for (int j = 0; j < 4; j++)
@@ -1877,7 +1931,7 @@ void vtkFLUENTCFFReader::PopulateHexahedronCell(int i)
   }
 
   //  Look for opposite face of hexahedron
-  for (int j = 1; j < 6; j++)
+  for (size_t j = 1; j < this->Cells[i].faces.size(); j++)
   {
     int flag = 0;
     for (int k = 0; k < 4; k++)
@@ -1911,7 +1965,7 @@ void vtkFLUENTCFFReader::PopulateHexahedronCell(int i)
 
   //  Find the face with points 0 and 1 in them.
   int f01[4] = { -1, -1, -1, -1 };
-  for (int j = 1; j < 6; j++)
+  for (size_t j = 1; j < this->Cells[i].faces.size(); j++)
   {
     int flag0 = 0;
     int flag1 = 0;
@@ -1947,7 +2001,7 @@ void vtkFLUENTCFFReader::PopulateHexahedronCell(int i)
 
   //  Find the face with points 0 and 3 in them.
   int f03[4] = { -1, -1, -1, -1 };
-  for (int j = 1; j < 6; j++)
+  for (size_t j = 1; j < this->Cells[i].faces.size(); j++)
   {
     int flag0 = 0;
     int flag1 = 0;
@@ -2236,24 +2290,21 @@ void vtkFLUENTCFFReader::PopulateWedgeCell(int i)
 void vtkFLUENTCFFReader::PopulatePolyhedronCell(int i)
 {
   // Reconstruct polyhedron cell for VTK
-  // For polyhedron cell, a special ptIds input format is required:
-  // (numCellFaces, numFace0Pts, id1, id2, id3, numFace1Pts,id1, id2, id3, ...)
-
-  this->Cells[i].nodes.push_back(static_cast<int>(this->Cells[i].faces.size()));
+  // For polyhedron cell, a special ptIds input format is used:
+  // nodes stores the nodeIds while nodesOffset stores the node Offset for each faces
+  int currentOffset = 0;
+  this->Cells[i].nodesOffset.push_back(currentOffset);
   for (size_t j = 0; j < this->Cells[i].faces.size(); j++)
   {
     size_t numFacePts = this->Faces[this->Cells[i].faces[j]].nodes.size();
     if (numFacePts != 0)
     {
-      this->Cells[i].nodes.push_back(static_cast<int>(numFacePts));
+      currentOffset += static_cast<int>(numFacePts);
+      this->Cells[i].nodesOffset.push_back(currentOffset);
       for (size_t k = 0; k < numFacePts; k++)
       {
         this->Cells[i].nodes.push_back(this->Faces[this->Cells[i].faces[j]].nodes[k]);
       }
-    }
-    else
-    {
-      this->Cells[i].nodes[0]--;
     }
   }
 }

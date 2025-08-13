@@ -33,6 +33,7 @@
 #include "vtkSeedWidget.h"
 #include "vtkSmartPointer.h"
 #include "vtkSphereHandleRepresentation.h"
+#include "vtkTesting.h"
 #include "vtkTimerLog.h"
 #include "vtksys/FStream.hxx"
 
@@ -285,10 +286,11 @@ public:
   void Execute(vtkObject* caller, unsigned long, void*) override
   {
     vtkRenderWindowInteractor* iren = static_cast<vtkRenderWindowInteractor*>(caller);
+    char* cKeySym = iren->GetKeySym();
+    std::string keySym = cKeySym != nullptr ? cKeySym : "";
 
     // Enable/Disable the PickingManager
-    if ((!strcmp(iren->GetKeySym(), "Control_L") || !strcmp(iren->GetKeySym(), "Control_R")) &&
-      iren->GetPickingManager())
+    if ((keySym == "Control_L" || keySym == "Control_R") && iren->GetPickingManager())
     {
       if (!iren->GetPickingManager()->GetEnabled())
       {
@@ -302,7 +304,7 @@ public:
       }
     }
     // Enable/Disable the Optimization on render events.
-    else if (!strcmp(iren->GetKeySym(), "o") && iren->GetPickingManager())
+    else if (keySym == "o" && iren->GetPickingManager())
     {
       if (!iren->GetPickingManager()->GetOptimizeOnInteractorEvents())
       {
@@ -429,6 +431,14 @@ int TestPickingManagerSeedWidget(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   //
   vtkNew<vtkRenderer> ren1;
   vtkNew<vtkRenderWindow> renWin;
+  if (renWin->IsA("vtkOSOpenGLRenderWindow"))
+  {
+    // we cannot run in OSMesa.
+    // Note: I am not sure why but this is how things were before.
+    // This test was excluded from the build when VTK_OPENGL_HAS_OSMESA (old setting)
+    // was `ON`.
+    return VTK_SKIP_RETURN_CODE;
+  }
   renWin->AddRenderer(ren1);
 
   vtkNew<vtkRenderWindowInteractor> iren;

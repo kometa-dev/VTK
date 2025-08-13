@@ -17,9 +17,10 @@
 
 #include "vtkObject.h"
 #include "vtkRenderingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
-class VTKRENDERINGCORE_EXPORT vtkTextProperty : public vtkObject
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkTextProperty : public vtkObject
 {
 public:
   vtkTypeMacro(vtkTextProperty, vtkObject);
@@ -69,13 +70,17 @@ public:
   /**
    * Convenience method to set the background color and the opacity at once
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   void SetBackgroundRGBA(double rgba[4]);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   void SetBackgroundRGBA(double r, double g, double b, double a);
 
   /**
    * Convenience method to get the background color and the opacity at once
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   void GetBackgroundRGBA(double rgba[4]);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   void GetBackgroundRGBA(double& r, double& g, double& b, double& a);
   ///@}
 
@@ -211,7 +216,7 @@ public:
 
   ///@{
   /**
-   * If this property is on, text is aligned to drawn pixels not to font metrix.
+   * If this property is on, text is aligned to drawn pixels not to font matrix.
    * If the text does not include descents, the bounding box will not extend below
    * the baseline. This option can be used to get centered labels. It does not
    * work well if the string changes as the string position will move around.

@@ -73,23 +73,20 @@ VTK_ABI_NAMESPACE_BEGIN
 class vtkXMLWriterHelper
 {
 public:
-  static inline void SetProgressPartial(vtkXMLWriter* writer, double progress)
+  static void SetProgressPartial(vtkXMLWriter* writer, double progress)
   {
     writer->SetProgressPartial(progress);
   }
-  static inline int WriteBinaryDataBlock(
+  static int WriteBinaryDataBlock(
     vtkXMLWriter* writer, unsigned char* in_data, size_t numWords, int wordType)
   {
     return writer->WriteBinaryDataBlock(in_data, numWords, wordType);
   }
-  static inline void* GetInt32IdTypeBuffer(vtkXMLWriter* writer)
+  static void* GetInt32IdTypeBuffer(vtkXMLWriter* writer)
   {
     return static_cast<void*>(writer->Int32IdTypeBuffer);
   }
-  static inline unsigned char* GetByteSwapBuffer(vtkXMLWriter* writer)
-  {
-    return writer->ByteSwapBuffer;
-  }
+  static unsigned char* GetByteSwapBuffer(vtkXMLWriter* writer) { return writer->ByteSwapBuffer; }
 };
 
 namespace
@@ -175,7 +172,7 @@ struct WriteBinaryDataBlockWorker
     size_t blockSize = this->Writer->GetBlockSize();
 
     // Prepare a pointer and counter to move through the data.
-    unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+    unsigned char* ptr = data;
     size_t totalBytes = (this->NumWords + 7) / 8;
     size_t bytesLeft = totalBytes;
 
@@ -717,9 +714,9 @@ int vtkXMLWriter::WriteInternal()
 }
 
 //------------------------------------------------------------------------------
-vtkDataSet* vtkXMLWriter::GetInputAsDataSet()
+vtkDataSet* vtkXMLWriter::GetDataSetInput()
 {
-  return static_cast<vtkDataSet*>(this->GetInput());
+  return vtkDataSet::SafeDownCast(this->GetInput());
 }
 
 //------------------------------------------------------------------------------
@@ -2177,14 +2174,14 @@ void vtkXMLWriter::UpdateFieldData(vtkFieldData* fieldDataCopy)
   vtkFieldData* fieldData = input->GetFieldData();
   vtkInformation* meta = input->GetInformation();
   bool hasTime = meta->Has(vtkDataObject::DATA_TIME_STEP()) != 0;
-  if ((!fieldData || !fieldData->GetNumberOfArrays()) && !hasTime)
+  if ((!fieldData || !fieldData->GetNumberOfArrays()) && (!hasTime || !this->GetWriteTimeValue()))
   {
     fieldDataCopy->Initialize();
     return;
   }
 
   fieldDataCopy->ShallowCopy(fieldData);
-  if (hasTime)
+  if (hasTime && this->GetWriteTimeValue())
   {
     vtkNew<vtkDoubleArray> time;
     time->SetNumberOfTuples(1);
@@ -2480,7 +2477,8 @@ void vtkXMLWriter::WritePointDataAppendedData(
     if (d)
     {
       // ranges are only written in case of Data Arrays.
-      double* range = d->GetRange(-1);
+      double range[2];
+      d->GetRange(range, -1);
       this->ForwardAppendedDataDouble(
         pdManager->GetElement(i).GetRangeMinPosition(timestep), range[0], "RangeMin");
       this->ForwardAppendedDataDouble(
@@ -2568,7 +2566,8 @@ void vtkXMLWriter::WriteCellDataAppendedData(
     vtkDataArray* d = vtkArrayDownCast<vtkDataArray>(a);
     if (d)
     {
-      double* range = d->GetRange(-1);
+      double range[2];
+      d->GetRange(range, -1);
       this->ForwardAppendedDataDouble(
         cdManager->GetElement(i).GetRangeMinPosition(timestep), range[0], "RangeMin");
       this->ForwardAppendedDataDouble(
@@ -2937,6 +2936,24 @@ void vtkXMLWriter::WritePArray(vtkAbstractArray* a, vtkIndent indent, const char
   {
     this->WriteScalarAttribute("NumberOfComponents", a->GetNumberOfComponents());
   }
+
+  // always write out component names, even if only 1 component
+  std::ostringstream buff;
+  const char* compName = nullptr;
+  for (int i = 0; i < a->GetNumberOfComponents(); ++i)
+  {
+    // get the component names
+    buff << "ComponentName" << i;
+    compName = a->GetComponentName(i);
+    if (compName)
+    {
+      this->WriteStringAttribute(buff.str().c_str(), compName);
+      compName = nullptr;
+    }
+    buff.str("");
+    buff.clear();
+  }
+
   os << "/>\n";
 
   os.flush();

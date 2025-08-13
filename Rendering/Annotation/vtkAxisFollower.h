@@ -19,6 +19,7 @@
 
 #include "vtkFollower.h"
 #include "vtkRenderingAnnotationModule.h" // For export macro
+#include "vtkWrappingHints.h"             // For VTK_MARSHALAUTO
 
 #include "vtkWeakPointer.h" // For vtkWeakPointer
 
@@ -27,7 +28,7 @@ VTK_ABI_NAMESPACE_BEGIN
 class vtkAxisActor;
 class vtkRenderer;
 
-class VTKRENDERINGANNOTATION_EXPORT vtkAxisFollower : public vtkFollower
+class VTKRENDERINGANNOTATION_EXPORT VTK_MARSHALAUTO vtkAxisFollower : public vtkFollower
 {
 public:
   vtkTypeMacro(vtkAxisFollower, vtkFollower);
@@ -128,7 +129,7 @@ public:
    * Overridden to disable this function, and use ComputeTransformMatrix instead, as
    * we need a renderer to compute the transform matrix
    */
-  void ComputeMatrix() override{};
+  void ComputeMatrix() override {}
 
   /**
    * Generate the matrix based on ivars. This method overloads its superclasses

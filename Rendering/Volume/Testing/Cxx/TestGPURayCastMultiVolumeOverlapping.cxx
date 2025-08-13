@@ -47,7 +47,8 @@ public:
       case vtkCommand::KeyPressEvent:
       {
         auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
-        const std::string key = interactor->GetKeySym();
+        const char* ckey = interactor->GetKeySym();
+        const std::string key = ckey != nullptr ? ckey : "";
 
         double times[3] = { 0, 0, 0 };
         double timesAngle[3] = { 0, 0, 0 };
@@ -121,7 +122,7 @@ public:
     }
 
     this->RenderWindow->Render();
-  };
+  }
 
   void SetVolume(vtkProp3D* vol) { this->Volume = vol; }
 

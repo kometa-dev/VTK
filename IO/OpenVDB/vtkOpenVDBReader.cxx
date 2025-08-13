@@ -319,8 +319,9 @@ struct PopulateImageDataArray
     const int maxSubIdx = imgDims[0] * imgDims[1];
     const int maxIdx = maxSubIdx * imgDims[2];
 
-    vtkSMPTools::For(
-      0, maxIdx, [this, maxSubIdx, &imgDims, grid, dataArray](vtkIdType idx, vtkIdType endIdx) {
+    vtkSMPTools::For(0, maxIdx,
+      [this, maxSubIdx, &imgDims, grid, dataArray](vtkIdType idx, vtkIdType endIdx)
+      {
         typename GridType::Accessor accessor = grid->getAccessor();
         float downsamplingFactor = this->dataInfo->DownsamplingFactor;
 
@@ -808,6 +809,12 @@ vtkOpenVDBReader::vtkOpenVDBReader()
   openvdb::initialize();
 }
 
+//------------------------------------------------------------------------------
+vtkOpenVDBReader::~vtkOpenVDBReader()
+{
+  this->SetFileName(nullptr);
+}
+
 //------------------------------------------------------------------------
 bool vtkOpenVDBReader::LoadFile()
 {
@@ -1071,7 +1078,7 @@ int vtkOpenVDBReader::RequestData(vtkInformation* vtkNotUsed(request),
     // inside each vtkResDataLeafInformation, there is one array per requested grid
     for (const auto& gridInfo : imgDataInfo.GridsInfo)
     {
-      // instanciate the correct data array type (according to the OpenVDB grid type)
+      // instantiate the correct data array type (according to the OpenVDB grid type)
       vtkSmartPointer<vtkDataArray> dataArray = ::InstanciateVtkArrayType(gridInfo->Grid);
       if (!dataArray)
       {

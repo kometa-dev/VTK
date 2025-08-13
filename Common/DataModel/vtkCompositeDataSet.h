@@ -23,7 +23,7 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObject.h"
-#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_3_0
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include <vector> // For GetDataSets
 
@@ -35,7 +35,7 @@ class vtkInformation;
 class vtkInformationStringKey;
 class vtkInformationIntegerKey;
 
-class VTKCOMMONDATAMODEL_EXPORT vtkCompositeDataSet : public vtkDataObject
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkCompositeDataSet : public vtkDataObject
 {
 public:
   vtkTypeMacro(vtkCompositeDataSet, vtkDataObject);
@@ -50,7 +50,7 @@ public:
    * Return class name of data type (see vtkType.h for
    * definitions).
    */
-  int GetDataObjectType() override { return VTK_COMPOSITE_DATA_SET; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_COMPOSITE_DATA_SET; }
 
   /**
    * Copies the tree structure from the input. All pointers to non-composite
@@ -114,12 +114,6 @@ public:
   virtual void CompositeShallowCopy(vtkCompositeDataSet* src);
 
   /**
-   * @deprecated RecursiveShallowCopy method, @see ShallowCopy
-   */
-  VTK_DEPRECATED_IN_9_3_0("Use ShallowCopy instead.")
-  virtual void RecursiveShallowCopy(vtkDataObject* src);
-
-  /**
    * Returns the total number of points of all blocks. This will
    * iterate over all blocks and call GetNumberOfPoints() so it
    * might be expensive.
@@ -175,6 +169,11 @@ public:
    */
   template <class DataSetT = vtkDataSet>
   static std::vector<DataSetT*> GetDataSets(vtkDataObject* dobj, bool preserveNull = false);
+
+  /**
+   * Returns true for POINT or CELL, false otherwise
+   */
+  bool SupportsGhostArray(int type) override;
 
 protected:
   vtkCompositeDataSet();

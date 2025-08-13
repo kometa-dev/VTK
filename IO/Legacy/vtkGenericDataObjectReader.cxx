@@ -1,15 +1,20 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+
+// VTK_DEPRECATED_IN_9_5_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkGenericDataObjectReader.h"
 
+#include "vtkCellGrid.h"
 #include "vtkCompositeDataReader.h"
 #include "vtkDirectedGraph.h"
 #include "vtkGraph.h"
 #include "vtkGraphReader.h"
-#include "vtkHierarchicalBoxDataSet.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
+#include "vtkLegacyCellGridReader.h"
 #include "vtkMolecule.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkMultiPieceDataSet.h"
@@ -143,7 +148,7 @@ vtkDataObject* vtkGenericDataObjectReader::CreateOutput(vtkDataObject* currentOu
       output = vtkMultiPieceDataSet::New();
       break;
     case VTK_HIERARCHICAL_BOX_DATA_SET:
-      output = vtkHierarchicalBoxDataSet::New();
+      output = vtkOverlappingAMR::New();
       break;
     case VTK_OVERLAPPING_AMR:
       output = vtkOverlappingAMR::New();
@@ -238,6 +243,11 @@ int vtkGenericDataObjectReader::ReadMeshSimple(const std::string& fname, vtkData
 
   switch (this->ReadOutputType())
   {
+    case VTK_CELL_GRID:
+    {
+      this->ReadData<vtkLegacyCellGridReader, vtkCellGrid>(fname.c_str(), "vtkCellGrid", output);
+      return 1;
+    }
     case VTK_MOLECULE:
     {
       this->ReadData<vtkGraphReader, vtkMolecule>(fname.c_str(), "vtkMolecule", output);
@@ -313,20 +323,20 @@ int vtkGenericDataObjectReader::ReadMeshSimple(const std::string& fname, vtkData
     }
     case VTK_HIERARCHICAL_BOX_DATA_SET:
     {
-      this->ReadData<vtkCompositeDataReader, vtkHierarchicalBoxDataSet>(
-        fname.c_str(), "vtkHierarchicalBoxDataSet", output);
+      this->ReadData<vtkCompositeDataReader, vtkOverlappingAMR>(
+        fname.c_str(), "vtkOverlappingAMR", output);
       return 1;
     }
     case VTK_OVERLAPPING_AMR:
     {
       this->ReadData<vtkCompositeDataReader, vtkOverlappingAMR>(
-        fname.c_str(), "vtkHierarchicalBoxDataSet", output);
+        fname.c_str(), "vtkOverlappingAMR", output);
       return 1;
     }
     case VTK_NON_OVERLAPPING_AMR:
     {
       this->ReadData<vtkCompositeDataReader, vtkNonOverlappingAMR>(
-        fname.c_str(), "vtkHierarchicalBoxDataSet", output);
+        fname.c_str(), "vtkNonOverlappingAMR", output);
       return 1;
     }
     case VTK_PARTITIONED_DATA_SET:
@@ -379,6 +389,10 @@ int vtkGenericDataObjectReader::ReadOutputType()
 
     this->CloseVTKFile();
 
+    if (!strncmp(this->LowerCase(line), "cell_grid", 9))
+    {
+      return VTK_CELL_GRID;
+    }
     if (!strncmp(this->LowerCase(line), "molecule", 8))
     {
       return VTK_MOLECULE;
@@ -461,6 +475,11 @@ int vtkGenericDataObjectReader::ReadOutputType()
   }
 
   return -1;
+}
+
+vtkCellGrid* vtkGenericDataObjectReader::GetCellGridOutput()
+{
+  return vtkCellGrid::SafeDownCast(this->GetOutput());
 }
 
 vtkGraph* vtkGenericDataObjectReader::GetGraphOutput()

@@ -1,19 +1,34 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <vtkXMLUniformGridAMRWriter.h>
+
 #include "vtkCellData.h"
 #include "vtkCellIterator.h"
+#include "vtkCompositeDataIterator.h"
 #include "vtkConduitSource.h"
 #include "vtkImageData.h"
 #include "vtkLogger.h"
+#include "vtkMultiProcessController.h"
 #include "vtkNew.h"
+#include "vtkOverlappingAMR.h"
 #include "vtkPartitionedDataSet.h"
+#include "vtkPointData.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkSmartPointer.h"
 #include "vtkStructuredGrid.h"
+#include "vtkTestUtilities.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkVector.h"
 
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
+#include "vtkMPIController.h"
+#else
+#include "vtkDummyController.h"
+#endif
+
+#include "Grid.hxx"
+#include <catalyst_conduit.hpp>
 #include <catalyst_conduit_blueprint.hpp>
 
 #define VERIFY(x, ...)                                                                             \
@@ -26,6 +41,7 @@
 namespace
 {
 
+//----------------------------------------------------------------------------
 vtkSmartPointer<vtkDataObject> Convert(const conduit_cpp::Node& node)
 {
   vtkNew<vtkConduitSource> source;
@@ -34,9 +50,13 @@ vtkSmartPointer<vtkDataObject> Convert(const conduit_cpp::Node& node)
   return source->GetOutputDataObject(0);
 }
 
+//----------------------------------------------------------------------------
 void CreateUniformMesh(
   unsigned int nptsX, unsigned int nptsY, unsigned int nptsZ, conduit_cpp::Node& res)
 {
+  auto controller = vtkMultiProcessController::GetGlobalController();
+  auto rank = controller->GetLocalProcessId();
+
   // Create the structure
   conduit_cpp::Node coords = res["coordsets/coords"];
   coords["type"] = "uniform";
@@ -52,7 +72,7 @@ void CreateUniformMesh(
   // -10 to 10 in each dim
   conduit_cpp::Node origin = coords["origin"];
   origin["x"] = -10.0;
-  origin["y"] = -10.0;
+  origin["y"] = -10.0 + 20 * rank;
 
   if (nptsZ > 1)
   {
@@ -72,10 +92,12 @@ void CreateUniformMesh(
   res["topologies/mesh/coordset"] = "coords";
 }
 
+//----------------------------------------------------------------------------
 bool ValidateMeshTypeUniform()
 {
   conduit_cpp::Node mesh;
   CreateUniformMesh(3, 3, 3, mesh);
+
   auto data = Convert(mesh);
   VERIFY(vtkPartitionedDataSet::SafeDownCast(data) != nullptr,
     "incorrect data type, expected vtkPartitionedDataSet, got %s", vtkLogIdentifier(data));
@@ -93,17 +115,12 @@ bool ValidateMeshTypeUniform()
   return true;
 }
 
-void CreateRectilinearMesh(
-  unsigned int nptsX, unsigned int nptsY, unsigned int nptsZ, conduit_cpp::Node& res)
+//----------------------------------------------------------------------------
+void GenerateValues(unsigned int nptsX, unsigned int nptsY, unsigned int nptsZ,
+  std::vector<double>& x, std::vector<double>& y, std::vector<double>& z)
 {
-  conduit_cpp::Node coords = res["coordsets/coords"];
-  coords["type"] = "rectilinear";
-
-  std::vector<double> x;
   x.resize(nptsX);
-  std::vector<double> y;
   y.resize(nptsY);
-  std::vector<double> z;
 
   if (nptsZ > 1)
   {
@@ -136,6 +153,19 @@ void CreateRectilinearMesh(
       z[k] = -10.0 + k * dz;
     }
   }
+}
+
+//----------------------------------------------------------------------------
+void CreateRectilinearMesh(
+  unsigned int nptsX, unsigned int nptsY, unsigned int nptsZ, conduit_cpp::Node& res)
+{
+  conduit_cpp::Node coords = res["coordsets/coords"];
+  coords["type"] = "rectilinear";
+
+  std::vector<double> x;
+  std::vector<double> y;
+  std::vector<double> z;
+  GenerateValues(nptsX, nptsY, nptsZ, x, y, z);
 
   conduit_cpp::Node coordVals = coords["values"];
   coordVals["x"].set(x);
@@ -150,6 +180,7 @@ void CreateRectilinearMesh(
   res["topologies/mesh/coordset"] = "coords";
 }
 
+//----------------------------------------------------------------------------
 bool ValidateMeshTypeRectilinear()
 {
   conduit_cpp::Node mesh;
@@ -168,9 +199,28 @@ bool ValidateMeshTypeRectilinear()
   VERIFY(dims[1] == 3, "incorrect y dimension expected=3, got=%d", dims[1]);
   VERIFY(dims[2] == 3, "incorrect z dimension expected=3, got=%d", dims[2]);
 
+  // Expected values
+  std::vector<double> x;
+  std::vector<double> y;
+  std::vector<double> z;
+  GenerateValues(3, 3, 3, x, y, z);
+  for (unsigned int i = 0; i < 3; i++)
+  {
+    VERIFY(x[i] == rg->GetXCoordinates()->GetComponent(i, 0),
+      "incorrect x value at %d: expected=%g, got=%g", i, x[i],
+      rg->GetXCoordinates()->GetComponent(i, 0));
+    VERIFY(y[i] == rg->GetYCoordinates()->GetComponent(i, 0),
+      "incorrect y value at %d: expected=%g, got=%g", i, y[i],
+      rg->GetYCoordinates()->GetComponent(i, 0));
+    VERIFY(z[i] == rg->GetZCoordinates()->GetComponent(i, 0),
+      "incorrect z value at %d: expected=%g, got=%g", i, z[i],
+      rg->GetZCoordinates()->GetComponent(i, 0));
+  }
+
   return true;
 }
 
+//----------------------------------------------------------------------------
 void CreateCoords(
   unsigned int nptsX, unsigned int nptsY, unsigned int nptsZ, conduit_cpp::Node& res)
 {
@@ -244,6 +294,7 @@ void CreateCoords(
   }
 }
 
+//----------------------------------------------------------------------------
 void CreateStructuredMesh(
   unsigned int nptsX, unsigned int nptsY, unsigned int nptsZ, conduit_cpp::Node& res)
 {
@@ -259,6 +310,7 @@ void CreateStructuredMesh(
   }
 }
 
+//----------------------------------------------------------------------------
 bool ValidateMeshTypeStructured()
 {
   conduit_cpp::Node mesh;
@@ -280,6 +332,36 @@ bool ValidateMeshTypeStructured()
   return true;
 }
 
+//----------------------------------------------------------------------------
+void CreatePointSet(
+  unsigned int nptsX, unsigned int nptsY, unsigned int nptsZ, conduit_cpp::Node& res)
+{
+  CreateCoords(nptsX, nptsY, nptsZ, res);
+
+  res["topologies/mesh/type"] = "points";
+  res["topologies/mesh/coordset"] = "coords";
+}
+
+//----------------------------------------------------------------------------
+bool ValidateMeshTypePoints()
+{
+  conduit_cpp::Node mesh;
+  CreatePointSet(3, 3, 3, mesh);
+  auto data = Convert(mesh);
+  VERIFY(vtkPartitionedDataSet::SafeDownCast(data) != nullptr,
+    "incorrect data type, expected vtkPartitionedDataSet, got %s", vtkLogIdentifier(data));
+  auto pds = vtkPartitionedDataSet::SafeDownCast(data);
+  VERIFY(pds->GetNumberOfPartitions() == 1, "incorrect number of partitions, expected 1, got %d",
+    pds->GetNumberOfPartitions());
+  auto ps = vtkPointSet::SafeDownCast(pds->GetPartition(0));
+  VERIFY(ps != nullptr, "missing partition 0");
+
+  VERIFY(ps->GetNumberOfPoints() == 27, "incorrect number of points, expected 27, got %lld",
+    ps->GetNumberOfPoints());
+  return true;
+}
+
+//----------------------------------------------------------------------------
 void CreateTrisMesh(unsigned int nptsX, unsigned int nptsY, conduit_cpp::Node& res)
 {
   CreateStructuredMesh(nptsX, nptsY, 1, res);
@@ -331,8 +413,13 @@ void CreateTrisMesh(unsigned int nptsX, unsigned int nptsY, conduit_cpp::Node& r
     values[i] = i + 0.0;
   }
   resFields["values"].set(values);
+
+  conduit_cpp::Node resFieldsMetaData = res["state/metadata/vtk_fields/field"];
+  resFieldsMetaData["attribute_type"] =
+    vtkDataSetAttributes::GetAttributeTypeAsString(vtkDataSetAttributes::SCALARS);
 }
 
+//----------------------------------------------------------------------------
 bool ValidateMeshTypeUnstructured()
 {
   conduit_cpp::Node mesh;
@@ -352,18 +439,20 @@ bool ValidateMeshTypeUnstructured()
     ug->GetNumberOfPoints());
   VERIFY(ug->GetNumberOfCells() == 8, "incorrect number of cells, expected 8, got %lld",
     ug->GetNumberOfCells());
-  VERIFY(ug->GetCellData()->GetArray("field") != nullptr, "missing 'field' cell-data array");
+  VERIFY(ug->GetCellData()->GetAttribute(vtkDataSetAttributes::SCALARS) != nullptr,
+    "missing 'field' cell-data array with attribute '%s'",
+    vtkDataSetAttributes::GetAttributeTypeAsString(vtkDataSetAttributes::SCALARS));
   return true;
 }
 
-bool CheckFieldDataMeshConversion(conduit_cpp::Node& mesh_node, int expected_number_of_arrays,
+//----------------------------------------------------------------------------
+bool CheckFieldData(vtkDataObject* data, int expected_number_of_arrays,
   const std::string& expected_array_name, int expected_number_of_components,
   std::vector<vtkVariant> expected_values)
 {
-  auto data = Convert(mesh_node);
   auto field_data = data->GetFieldData();
   VERIFY(field_data->GetNumberOfArrays() == expected_number_of_arrays,
-    "incorrect number of arrays in field data, expected 0, got %d",
+    "incorrect number of arrays in field data, expected %d, got %d", expected_number_of_arrays,
     field_data->GetNumberOfArrays());
 
   if (expected_number_of_arrays > 0)
@@ -371,7 +460,7 @@ bool CheckFieldDataMeshConversion(conduit_cpp::Node& mesh_node, int expected_num
     auto field_array = field_data->GetAbstractArray(0);
 
     VERIFY(std::string(field_array->GetName()) == expected_array_name,
-      "wrong array name, expected \"integer_field_data\", got %s", field_array->GetName());
+      "wrong array name, expected %s, got %s", expected_array_name.c_str(), field_array->GetName());
     VERIFY(field_array->GetNumberOfComponents() == expected_number_of_components,
       "wrong number of component");
     VERIFY(static_cast<size_t>(field_array->GetNumberOfTuples()) == expected_values.size(),
@@ -385,8 +474,152 @@ bool CheckFieldDataMeshConversion(conduit_cpp::Node& mesh_node, int expected_num
   return true;
 }
 
+//----------------------------------------------------------------------------
+bool CheckFieldDataMeshConversion(conduit_cpp::Node& mesh_node, int expected_number_of_arrays,
+  const std::string& expected_array_name, int expected_number_of_components,
+  std::vector<vtkVariant> expected_values)
+{
+  auto data = Convert(mesh_node);
+
+  CheckFieldData(data, expected_number_of_arrays, expected_array_name,
+    expected_number_of_components, expected_values);
+  auto pds = vtkPartitionedDataSet::SafeDownCast(data);
+  VERIFY(pds->GetNumberOfPartitions() == 1, "incorrect number of partitions, expected 1, got %d",
+    pds->GetNumberOfPartitions());
+  auto img = vtkImageData::SafeDownCast(pds->GetPartition(0));
+
+  CheckFieldData(img, expected_number_of_arrays, expected_array_name, expected_number_of_components,
+    expected_values);
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool ValidateDistributedAMR()
+{
+  auto controller = vtkMultiProcessController::GetGlobalController();
+  auto rank = controller->GetLocalProcessId();
+
+  conduit_cpp::Node amrmesh;
+
+  auto domain = amrmesh["domain0"];
+
+  // Each rank contains a new level
+  int level = rank;
+
+  domain["state/domain_id"] = rank;
+  domain["state/cycle"] = 0;
+  domain["state/time"] = 0;
+  domain["state/level"] = level;
+
+  auto coords = domain["coordsets/coords"];
+  coords["type"] = "uniform";
+  coords["dims/i"] = 3;
+  coords["dims/j"] = 3;
+  coords["dims/k"] = 3;
+  // spacing depends on level
+  coords["spacing/dx"] = 1. / std::pow(2, level);
+  coords["spacing/dy"] = 1. / std::pow(2, level);
+  coords["spacing/dz"] = 1. / std::pow(2, level);
+  coords["origin/x"] = 0.0;
+  coords["origin/y"] = 0.0;
+  coords["origin/z"] = 0.0;
+
+  auto topo = domain["topologies/topo"];
+  topo["type"] = "uniform";
+  topo["coordset"] = "coords";
+
+  vtkNew<vtkConduitSource> source;
+  source->SetUseAMRMeshProtocol(true);
+  source->SetNode(conduit_cpp::c_node(&amrmesh));
+  source->Update();
+  auto data = source->GetOutputDataObject(0);
+
+  VERIFY(vtkOverlappingAMR::SafeDownCast(data) != nullptr,
+    "Incorrect data type, expected vtkOverlappingAMR, got %s", vtkLogIdentifier(data));
+
+  auto amr = vtkOverlappingAMR::SafeDownCast(data);
+  amr->Audit();
+  int generatedLevels = amr->GetNumberOfLevels();
+  auto nbOfProcess = controller->GetNumberOfProcesses();
+  VERIFY(generatedLevels == nbOfProcess, "Incorrect number of levels, expexts %d but has %d",
+    generatedLevels, nbOfProcess);
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool ValidateMeshTypeAMR(const std::string& file)
+{
+  conduit_cpp::Node mesh;
+  // read in an example mesh dataset
+  conduit_node_load(conduit_cpp::c_node(&mesh), file.c_str(), "");
+
+  // add in point data
+  std::string field_name = "pointfield";
+  double field_value = 1;
+  size_t num_children = mesh["data"].number_of_children();
+  for (size_t i = 0; i < num_children; i++)
+  {
+    conduit_cpp::Node amr_block = mesh["data"].child(i);
+    int i_dimension = amr_block["coordsets/coords/dims/i"].to_int32();
+    int j_dimension = amr_block["coordsets/coords/dims/j"].to_int32();
+    int k_dimension = amr_block["coordsets/coords/dims/k"].to_int32();
+    conduit_cpp::Node fields = amr_block["fields"];
+    conduit_cpp::Node point_field = fields[field_name];
+    point_field["association"] = "vertex";
+    point_field["topology"] = "topo";
+    std::vector<double> point_values(
+      (i_dimension + 1) * (j_dimension + 1) * (k_dimension + 1), field_value);
+    point_field["values"] = point_values;
+  }
+
+  const auto& meshdata = mesh["data"];
+  // run vtk conduit source
+  vtkNew<vtkConduitSource> source;
+  source->SetUseAMRMeshProtocol(true);
+  source->SetNode(conduit_cpp::c_node(&meshdata));
+  source->Update();
+  auto data = source->GetOutputDataObject(0);
+
+  VERIFY(vtkOverlappingAMR::SafeDownCast(data) != nullptr,
+    "Incorrect data type, expected vtkOverlappingAMR, got %s", vtkLogIdentifier(data));
+
+  auto amr = vtkOverlappingAMR::SafeDownCast(data);
+
+  std::vector<double> bounds(6);
+  std::vector<double> origin(3);
+
+  amr->GetBounds(bounds.data());
+  amr->GetOrigin(0, 0, origin.data());
+
+  VERIFY(bounds[0] == 0 && bounds[1] == 1 && bounds[2] == 0 && bounds[3] == 1 && bounds[4] == 0 &&
+      bounds[5] == 1,
+    "Incorrect AMR bounds");
+
+  VERIFY(origin[0] == 0 && origin[1] == 0 && origin[2] == 0, "Incorrect AMR origin");
+
+  vtkSmartPointer<vtkCompositeDataIterator> iter;
+  iter.TakeReference(amr->NewIterator());
+  iter->InitTraversal();
+  for (iter->GoToFirstItem(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
+  {
+    vtkDataSet* block = vtkDataSet::SafeDownCast(iter->GetCurrentDataObject());
+    VERIFY(block->GetCellData()->GetArray("density") != nullptr, "Incorrect AMR cell data");
+    double range[2] = { -1, -1 };
+    block->GetPointData()->GetArray(field_name.c_str())->GetRange(range);
+    VERIFY(range[0] == field_value && range[1] == field_value, "Incorrect AMR point data");
+  }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
 bool ValidateFieldData()
 {
+  auto controller = vtkMultiProcessController::GetGlobalController();
+  auto rank = controller->GetLocalProcessId();
+
   conduit_cpp::Node mesh;
   CreateUniformMesh(3, 3, 3, mesh);
 
@@ -398,8 +631,8 @@ bool ValidateFieldData()
 
   field_data_node.remove(0);
   auto integer_field_data = field_data_node["integer_field_data"];
-  integer_field_data.set_int64(42);
-  VERIFY(CheckFieldDataMeshConversion(mesh, 1, integer_field_data.name(), 1, { 42 }),
+  integer_field_data.set_int64(42 + rank);
+  VERIFY(CheckFieldDataMeshConversion(mesh, 1, integer_field_data.name(), 1, { 42 + rank }),
     "Verification failed for integer field data.");
 
   field_data_node.remove(0);
@@ -439,7 +672,83 @@ bool ValidateFieldData()
   return true;
 }
 
-bool ValidateRectlinearGridWithDifferentDimensions()
+//----------------------------------------------------------------------------
+bool ValidateAscentGhostCellData()
+{
+  conduit_cpp::Node mesh;
+  CreateUniformMesh(3, 3, 3, mesh);
+
+  std::vector<int> cellGhosts(8, 0);
+  cellGhosts[2] = 1;
+
+  conduit_cpp::Node resCellFields = mesh["fields/ascent_ghosts"];
+  resCellFields["association"] = "element";
+  resCellFields["topology"] = "mesh";
+  resCellFields["volume_dependent"] = "false";
+  resCellFields["values"] = cellGhosts;
+
+  std::vector<int> cellGhostValuesToReplace(1, 1);
+  std::vector<int> cellGhostReplacementValues(1, vtkDataSetAttributes::HIDDENCELL);
+
+  std::vector<int> cellGhostsMetaData(1, 1);
+  conduit_cpp::Node ghostMetaData = mesh["state/metadata/vtk_fields/ascent_ghosts"];
+  ghostMetaData["attribute_type"] = "Ghosts";
+  ghostMetaData["values_to_replace"] = cellGhostValuesToReplace;
+  ghostMetaData["replacement_values"] = cellGhostReplacementValues;
+
+  auto data = Convert(mesh);
+  auto pds = vtkPartitionedDataSet::SafeDownCast(data);
+  VERIFY(pds->GetNumberOfPartitions() == 1, "incorrect number of partitions, expected 1, got %d",
+    pds->GetNumberOfPartitions());
+  auto img = vtkImageData::SafeDownCast(pds->GetPartition(0));
+  VERIFY(img != nullptr, "missing partition 0");
+  auto array = vtkUnsignedCharArray::SafeDownCast(img->GetCellData()->GetGhostArray());
+  VERIFY(array != nullptr &&
+      array->GetValue(2) == static_cast<unsigned char>(vtkDataSetAttributes::HIDDENCELL),
+    "Verification failed for converting Ascent ghost cell data");
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool ValidateAscentGhostPointData()
+{
+  conduit_cpp::Node mesh;
+  CreateUniformMesh(3, 3, 3, mesh);
+
+  std::vector<int> pointGhosts(27, 0);
+  pointGhosts[2] = 1;
+
+  conduit_cpp::Node resPointFields = mesh["fields/ascent_ghosts"];
+  resPointFields["association"] = "vertex";
+  resPointFields["topology"] = "mesh";
+  resPointFields["values"] = pointGhosts;
+
+  std::vector<int> pointGhostValuesToReplace(1, 1);
+  std::vector<int> pointGhostReplacementValues(1, vtkDataSetAttributes::HIDDENPOINT);
+
+  std::vector<int> cellGhostsMetaData(1, 1);
+  conduit_cpp::Node ghostMetaData = mesh["state/metadata/vtk_fields/ascent_ghosts"];
+  ghostMetaData["attribute_type"] = "Ghosts";
+  ghostMetaData["values_to_replace"] = pointGhostValuesToReplace;
+  ghostMetaData["replacement_values"] = pointGhostReplacementValues;
+
+  auto data = Convert(mesh);
+  auto pds = vtkPartitionedDataSet::SafeDownCast(data);
+  VERIFY(pds->GetNumberOfPartitions() == 1, "incorrect number of partitions, expected 1, got %d",
+    pds->GetNumberOfPartitions());
+  auto img = vtkImageData::SafeDownCast(pds->GetPartition(0));
+  VERIFY(img != nullptr, "missing partition 0");
+  auto array = vtkUnsignedCharArray::SafeDownCast(img->GetPointData()->GetGhostArray());
+  VERIFY(array != nullptr &&
+      array->GetValue(2) == static_cast<unsigned char>(vtkDataSetAttributes::HIDDENPOINT),
+    "Verification failed for converting Ascent ghost point data");
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool ValidateRectilinearGridWithDifferentDimensions()
 {
   conduit_cpp::Node mesh;
   CreateRectilinearMesh(3, 2, 1, mesh);
@@ -460,6 +769,7 @@ bool ValidateRectlinearGridWithDifferentDimensions()
   return true;
 }
 
+//----------------------------------------------------------------------------
 bool Validate1DRectilinearGrid()
 {
   conduit_cpp::Node mesh;
@@ -492,15 +802,16 @@ bool Validate1DRectilinearGrid()
   return true;
 }
 
-inline unsigned int calc(unsigned int i, unsigned int j, unsigned int k, unsigned int I,
+//----------------------------------------------------------------------------
+inline unsigned int GetLinearIndex3D(unsigned int i, unsigned int j, unsigned int k, unsigned int I,
   unsigned int J, unsigned int K, unsigned int nx, unsigned int ny)
 {
   return (i + I) + (j + J) * nx + (k + K) * (nx * ny);
 }
 
+//----------------------------------------------------------------------------
 void CreateMixedUnstructuredMesh2D(unsigned int npts_x, unsigned int npts_y, conduit_cpp::Node& res)
 {
-  conduit_cpp::Node mesh;
   CreateCoords(npts_x, npts_y, 1, res);
 
   const unsigned int nele_x = npts_x - 1;
@@ -549,13 +860,13 @@ void CreateMixedUnstructuredMesh2D(unsigned int npts_x, unsigned int npts_y, con
           offsets[idx_elem + 2] = offsets[idx_elem + 1] + TrianglePointCount;
         }
 
-        connectivity[idx + 0] = calc(0, 0, 0, i, j, 0, npts_x, npts_y);
-        connectivity[idx + 1] = calc(1, 0, 0, i, j, 0, npts_x, npts_y);
-        connectivity[idx + 2] = calc(1, 1, 0, i, j, 0, npts_x, npts_y);
+        connectivity[idx + 0] = GetLinearIndex3D(0, 0, 0, i, j, 0, npts_x, npts_y);
+        connectivity[idx + 1] = GetLinearIndex3D(1, 0, 0, i, j, 0, npts_x, npts_y);
+        connectivity[idx + 2] = GetLinearIndex3D(1, 1, 0, i, j, 0, npts_x, npts_y);
 
-        connectivity[idx + 3] = calc(0, 0, 0, i, j, 0, npts_x, npts_y);
-        connectivity[idx + 4] = calc(1, 1, 0, i, j, 0, npts_x, npts_y);
-        connectivity[idx + 5] = calc(0, 1, 0, i, j, 0, npts_x, npts_y);
+        connectivity[idx + 3] = GetLinearIndex3D(0, 0, 0, i, j, 0, npts_x, npts_y);
+        connectivity[idx + 4] = GetLinearIndex3D(1, 1, 0, i, j, 0, npts_x, npts_y);
+        connectivity[idx + 5] = GetLinearIndex3D(0, 1, 0, i, j, 0, npts_x, npts_y);
 
         idx_elem += 2;
         idx += 6;
@@ -571,10 +882,10 @@ void CreateMixedUnstructuredMesh2D(unsigned int npts_x, unsigned int npts_y, con
           offsets[idx_elem + 1] = offsets[idx_elem + 0] + QuadPointCount;
         }
 
-        connectivity[idx + 0] = calc(0, 0, 0, i, j, 0, npts_x, npts_y);
-        connectivity[idx + 1] = calc(1, 0, 0, i, j, 0, npts_x, npts_y);
-        connectivity[idx + 2] = calc(1, 1, 0, i, j, 0, npts_x, npts_y);
-        connectivity[idx + 3] = calc(0, 1, 0, i, j, 0, npts_x, npts_y);
+        connectivity[idx + 0] = GetLinearIndex3D(0, 0, 0, i, j, 0, npts_x, npts_y);
+        connectivity[idx + 1] = GetLinearIndex3D(1, 0, 0, i, j, 0, npts_x, npts_y);
+        connectivity[idx + 2] = GetLinearIndex3D(1, 1, 0, i, j, 0, npts_x, npts_y);
+        connectivity[idx + 3] = GetLinearIndex3D(0, 1, 0, i, j, 0, npts_x, npts_y);
 
         idx_elem += 1;
         idx += 4;
@@ -589,6 +900,7 @@ void CreateMixedUnstructuredMesh2D(unsigned int npts_x, unsigned int npts_y, con
   elements["connectivity"].set(connectivity);
 }
 
+//----------------------------------------------------------------------------
 bool ValidateMeshTypeMixed2D()
 {
   conduit_cpp::Node mesh;
@@ -635,10 +947,100 @@ bool ValidateMeshTypeMixed2D()
   return true;
 }
 
-void CreateMixedUnstructuredMesh(
+//----------------------------------------------------------------------------
+void CreateWedgeAndPyramidUnstructuredMesh(
   unsigned int nptsX, unsigned int nptsY, unsigned int nptsZ, conduit_cpp::Node& res)
 {
   conduit_cpp::Node mesh;
+  CreateCoords(nptsX, nptsY, nptsZ, res);
+
+  res["topologies/mesh/type"] = "unstructured";
+  res["topologies/mesh/coordset"] = "coords";
+
+  const unsigned int nElementX = nptsX - 1;
+  const unsigned int nElementY = nptsY - 1;
+  const unsigned int nElementZ = nptsZ - 1;
+  const unsigned int nElementX2 = nElementX / 2;
+  const unsigned int nPyramid = nElementZ * nElementY * (nElementX2 + nElementX % 2);
+  const unsigned int nWedge = nElementZ * nElementY * nElementX2;
+  const unsigned int nEle = nPyramid + nWedge;
+
+  res["topologies/mesh/elements/shape"] = "mixed";
+  res["topologies/mesh/elements/shape_map/pyramid"] = VTK_PYRAMID;
+  res["topologies/mesh/elements/shape_map/wedge"] = VTK_WEDGE;
+
+  std::vector<unsigned int> elemConnectivity, elemShapes, elemSizes, elemOffsets;
+  elemShapes.resize(nEle);
+  elemSizes.resize(nEle);
+  elemOffsets.resize(nEle);
+  elemConnectivity.resize(nPyramid * 5 + nWedge * 6);
+  elemOffsets[0] = 0;
+
+  unsigned int idxElem = 0;
+  unsigned int idx = 0;
+
+  for (unsigned int k = 0; k < nElementZ; ++k)
+  {
+    for (unsigned int j = 0; j < nElementZ; ++j)
+    {
+      for (unsigned int i = 0; i < nElementX; ++i)
+      {
+        if (i % 2 == 0) // pyramid
+        {
+          constexpr int pyramidPointCount = 5;
+
+          elemShapes[idxElem] = VTK_PYRAMID;
+          elemSizes[idxElem] = pyramidPointCount;
+          if (idxElem + 1 < elemOffsets.size())
+          {
+            elemOffsets[idxElem + 1] = elemOffsets[idxElem] + pyramidPointCount;
+          }
+
+          elemConnectivity[idx + 0] = GetLinearIndex3D(0, 0, 0, i, j, k, nptsX, nptsY);
+          elemConnectivity[idx + 1] = GetLinearIndex3D(1, 0, 0, i, j, k, nptsX, nptsY);
+          elemConnectivity[idx + 2] = GetLinearIndex3D(1, 1, 0, i, j, k, nptsX, nptsY);
+          elemConnectivity[idx + 3] = GetLinearIndex3D(0, 1, 0, i, j, k, nptsX, nptsY);
+          elemConnectivity[idx + 4] = GetLinearIndex3D(0, 0, 1, i, j, k, nptsX, nptsY);
+
+          idxElem += 1;
+          idx += pyramidPointCount;
+        }
+        else
+        {
+          constexpr int wedgePointCount = 6;
+
+          elemShapes[idxElem] = VTK_WEDGE;
+          elemSizes[idxElem] = wedgePointCount;
+          if (idxElem + 1 < elemOffsets.size())
+          {
+            elemOffsets[idxElem + 1] = elemOffsets[idxElem] + wedgePointCount;
+          }
+
+          elemConnectivity[idx + 0] = GetLinearIndex3D(0, 0, 0, i, j, k, nptsX, nptsY);
+          elemConnectivity[idx + 1] = GetLinearIndex3D(1, 0, 0, i, j, k, nptsX, nptsY);
+          elemConnectivity[idx + 2] = GetLinearIndex3D(1, 1, 0, i, j, k, nptsX, nptsY);
+          elemConnectivity[idx + 3] = GetLinearIndex3D(0, 1, 0, i, j, k, nptsX, nptsY);
+          elemConnectivity[idx + 4] = GetLinearIndex3D(0, 0, 1, i, j, k, nptsX, nptsY);
+          elemConnectivity[idx + 5] = GetLinearIndex3D(1, 0, 1, i, j, k, nptsX, nptsY);
+
+          idxElem += 1;
+          idx += wedgePointCount;
+        }
+      }
+    }
+  }
+
+  auto elements = res["topologies/mesh/elements"];
+  elements["shapes"].set(elemShapes);
+  elements["offsets"].set(elemOffsets);
+  elements["sizes"].set(elemSizes);
+  elements["connectivity"].set(elemConnectivity);
+}
+
+//----------------------------------------------------------------------------
+void CreateMixedUnstructuredMesh(
+  unsigned int nptsX, unsigned int nptsY, unsigned int nptsZ, conduit_cpp::Node& res)
+{
   CreateCoords(nptsX, nptsY, nptsZ, res);
 
   res["state/time"] = 3.1415;
@@ -707,14 +1109,14 @@ void CreateMixedUnstructuredMesh(
             elem_offsets[idx_elem + 1] = elem_offsets[idx_elem] + HexaPointCount;
           }
 
-          elem_connectivity[idx + 0] = calc(0, 0, 0, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 1] = calc(1, 0, 0, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 2] = calc(1, 1, 0, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 3] = calc(0, 1, 0, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 4] = calc(0, 0, 1, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 5] = calc(1, 0, 1, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 6] = calc(1, 1, 1, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 7] = calc(0, 1, 1, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 0] = GetLinearIndex3D(0, 0, 0, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 1] = GetLinearIndex3D(1, 0, 0, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 2] = GetLinearIndex3D(1, 1, 0, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 3] = GetLinearIndex3D(0, 1, 0, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 4] = GetLinearIndex3D(0, 0, 1, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 5] = GetLinearIndex3D(1, 0, 1, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 6] = GetLinearIndex3D(1, 1, 1, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 7] = GetLinearIndex3D(0, 1, 1, i, j, k, nptsX, nptsY);
 
           idx_elem += 1;
           idx += HexaPointCount;
@@ -744,20 +1146,20 @@ void CreateMixedUnstructuredMesh(
             elem_offsets[idx_elem + 4] = elem_offsets[idx_elem + 3] + WedgeFaceCount;
           }
 
-          elem_connectivity[idx + 0] = calc(0, 0, 0, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 1] = calc(1, 0, 0, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 2] = calc(0, 1, 0, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 3] = calc(0, 0, 1, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 0] = GetLinearIndex3D(0, 0, 0, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 1] = GetLinearIndex3D(1, 0, 0, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 2] = GetLinearIndex3D(0, 1, 0, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 3] = GetLinearIndex3D(0, 0, 1, i, j, k, nptsX, nptsY);
 
-          elem_connectivity[idx + 4] = calc(1, 0, 0, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 5] = calc(1, 0, 1, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 6] = calc(0, 0, 1, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 7] = calc(0, 1, 1, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 4] = GetLinearIndex3D(1, 0, 0, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 5] = GetLinearIndex3D(1, 0, 1, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 6] = GetLinearIndex3D(0, 0, 1, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 7] = GetLinearIndex3D(0, 1, 1, i, j, k, nptsX, nptsY);
 
-          elem_connectivity[idx + 8] = calc(0, 0, 1, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 9] = calc(0, 1, 1, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 10] = calc(0, 1, 0, i, j, k, nptsX, nptsY);
-          elem_connectivity[idx + 11] = calc(1, 0, 0, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 8] = GetLinearIndex3D(0, 0, 1, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 9] = GetLinearIndex3D(0, 1, 1, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 10] = GetLinearIndex3D(0, 1, 0, i, j, k, nptsX, nptsY);
+          elem_connectivity[idx + 11] = GetLinearIndex3D(1, 0, 0, i, j, k, nptsX, nptsY);
 
           // note: there are no shared faces in this example
           elem_connectivity[idx + 12] = 0 + WedgeFaceCount * polyhedronCounter;
@@ -787,28 +1189,28 @@ void CreateMixedUnstructuredMesh(
             subelem_offsets[idx_elem2 + 5] = subelem_offsets[idx_elem2 + 4] + TrianglePointCount;
           }
 
-          subelem_connectivity[idx2 + 0] = calc(1, 0, 0, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 1] = calc(1, 0, 1, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 2] = calc(0, 1, 1, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 3] = calc(0, 1, 0, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 0] = GetLinearIndex3D(1, 0, 0, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 1] = GetLinearIndex3D(1, 0, 1, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 2] = GetLinearIndex3D(0, 1, 1, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 3] = GetLinearIndex3D(0, 1, 0, i, j, k, nptsX, nptsY);
 
-          subelem_connectivity[idx2 + 4] = calc(1, 0, 0, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 5] = calc(1, 1, 0, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 6] = calc(1, 1, 1, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 7] = calc(1, 0, 1, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 4] = GetLinearIndex3D(1, 0, 0, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 5] = GetLinearIndex3D(1, 1, 0, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 6] = GetLinearIndex3D(1, 1, 1, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 7] = GetLinearIndex3D(1, 0, 1, i, j, k, nptsX, nptsY);
 
-          subelem_connectivity[idx2 + 8] = calc(1, 1, 0, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 9] = calc(0, 1, 0, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 10] = calc(0, 1, 1, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 11] = calc(1, 1, 1, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 8] = GetLinearIndex3D(1, 1, 0, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 9] = GetLinearIndex3D(0, 1, 0, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 10] = GetLinearIndex3D(0, 1, 1, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 11] = GetLinearIndex3D(1, 1, 1, i, j, k, nptsX, nptsY);
 
-          subelem_connectivity[idx2 + 12] = calc(1, 0, 0, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 13] = calc(0, 1, 0, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 14] = calc(1, 1, 0, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 12] = GetLinearIndex3D(1, 0, 0, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 13] = GetLinearIndex3D(0, 1, 0, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 14] = GetLinearIndex3D(1, 1, 0, i, j, k, nptsX, nptsY);
 
-          subelem_connectivity[idx2 + 15] = calc(1, 1, 1, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 16] = calc(0, 1, 1, i, j, k, nptsX, nptsY);
-          subelem_connectivity[idx2 + 17] = calc(1, 0, 1, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 15] = GetLinearIndex3D(1, 1, 1, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 16] = GetLinearIndex3D(0, 1, 1, i, j, k, nptsX, nptsY);
+          subelem_connectivity[idx2 + 17] = GetLinearIndex3D(1, 0, 1, i, j, k, nptsX, nptsY);
 
           idx_elem += 4; // three tets, 1 polyhedron
           idx += 3 * TetraPointCount + WedgeFaceCount;
@@ -833,16 +1235,17 @@ void CreateMixedUnstructuredMesh(
   subelements["connectivity"].set(subelem_connectivity);
 }
 
+//----------------------------------------------------------------------------
 bool ValidateMeshTypeMixed()
 {
   conduit_cpp::Node mesh;
   constexpr int nX = 5, nY = 5, nZ = 5;
   CreateMixedUnstructuredMesh(5, 5, 5, mesh);
-  const auto data = Convert(mesh);
+  auto data = Convert(mesh);
 
   VERIFY(vtkPartitionedDataSet::SafeDownCast(data) != nullptr,
     "incorrect data type, expected vtkPartitionedDataSet, got %s", vtkLogIdentifier(data));
-  const auto pds = vtkPartitionedDataSet::SafeDownCast(data);
+  auto pds = vtkPartitionedDataSet::SafeDownCast(data);
   VERIFY(pds->GetNumberOfPartitions() == 1, "incorrect number of partitions, expected 1, got %d",
     pds->GetNumberOfPartitions());
   auto ug = vtkUnstructuredGrid::SafeDownCast(pds->GetPartition(0));
@@ -857,7 +1260,7 @@ bool ValidateMeshTypeMixed()
   VERIFY(ug->GetNumberOfCells() == 160, "expected 160 cells, got %lld", ug->GetNumberOfCells());
 
   // check cell types
-  const auto it = vtkSmartPointer<vtkCellIterator>::Take(ug->NewCellIterator());
+  auto it = vtkSmartPointer<vtkCellIterator>::Take(ug->NewCellIterator());
 
   int nPolyhedra(0), nTetra(0), nHexa(0), nCells(0);
   for (it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
@@ -896,17 +1299,210 @@ bool ValidateMeshTypeMixed()
   VERIFY(nHexa == 32, "Expected 32 hexahedra, got %d", nHexa);
   VERIFY(nPolyhedra == 32, "Expected 32 polyhedra, got %d", nPolyhedra);
 
+  // Test Wedge and Pyramid cell type
+  conduit_cpp::Node mesh2;
+  CreateWedgeAndPyramidUnstructuredMesh(5, 5, 5, mesh2);
+  data = Convert(mesh2);
+
+  VERIFY(vtkPartitionedDataSet::SafeDownCast(data) != nullptr,
+    "incorrect data type, expected vtkPartitionedDataSet, got %s", vtkLogIdentifier(data));
+  pds = vtkPartitionedDataSet::SafeDownCast(data);
+  VERIFY(pds->GetNumberOfPartitions() == 1, "incorrect number of partitions, expected 1, got %d",
+    pds->GetNumberOfPartitions());
+  ug = vtkUnstructuredGrid::SafeDownCast(pds->GetPartition(0));
+
+  VERIFY(ug->GetNumberOfPoints() == nX * nY * nZ, "expected %d points got %lld", nX * nY * nZ,
+    ug->GetNumberOfPoints());
+
+  // 64 cells expected: 4 layers of
+  //                     - 2 columns with 4 pyramids
+  //                     - 2 columns with 4 wedges
+  //                     32 pyramids + 32 wedges
+  VERIFY(ug->GetNumberOfCells() == 64, "expected 64 cells, got %lld", ug->GetNumberOfCells());
+
+  // check cell types
+  it = vtkSmartPointer<vtkCellIterator>::Take(ug->NewCellIterator());
+
+  int nPyramids(0), nWedges(0);
+  nCells = 0;
+  for (it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
+  {
+    ++nCells;
+    const int cellType = it->GetCellType();
+    switch (cellType)
+    {
+      case VTK_PYRAMID:
+      {
+        ++nPyramids;
+        break;
+      }
+      case VTK_WEDGE:
+      {
+        ++nWedges;
+        break;
+      }
+      default:
+      {
+        vtkLog(ERROR, "Expected only pyramids and wedges.");
+        return false;
+      }
+    }
+  }
+
+  VERIFY(nCells == 64, "Expected 64 cells, got %d", nCells);
+  VERIFY(nPyramids == 32, "Expected 32 pyramids, got %d", nPyramids);
+  VERIFY(nWedges == 32, "Expected 32 wedges, got %d", nWedges);
+
+  return true;
+}
+
+void CreatePolyhedra(Grid& grid, Attributes& attribs, unsigned int nx, unsigned int ny,
+  unsigned int nz, conduit_cpp::Node& mesh)
+{
+  unsigned int numPoints[3] = { nx, ny, nz };
+  double spacing[3] = { 1, 1.1, 1.3 };
+  grid.Initialize(numPoints, spacing);
+  attribs.Initialize(&grid);
+  attribs.UpdateFields(0);
+
+  mesh["coordsets/coords/type"].set("explicit");
+
+  mesh["coordsets/coords/values/x"].set_external(const_cast<double*>(grid.GetPoints().data()),
+    grid.GetNumberOfPoints(), /*offset=*/0, /*stride=*/3 * sizeof(double));
+  mesh["coordsets/coords/values/y"].set_external(const_cast<double*>(grid.GetPoints().data()),
+    grid.GetNumberOfPoints(),
+    /*offset=*/sizeof(double), /*stride=*/3 * sizeof(double));
+  mesh["coordsets/coords/values/z"].set_external(const_cast<double*>(grid.GetPoints().data()),
+    grid.GetNumberOfPoints(),
+    /*offset=*/2 * sizeof(double), /*stride=*/3 * sizeof(double));
+
+  // Next, add topology
+  mesh["topologies/mesh/type"].set("unstructured");
+  mesh["topologies/mesh/coordset"].set("coords");
+
+  // add elements
+  using VecT = std::vector<unsigned int>;
+
+  mesh["topologies/mesh/elements/shape"].set("polyhedral");
+  mesh["topologies/mesh/elements/connectivity"].set_external(
+    const_cast<VecT&>(grid.GetPolyhedralCells().Connectivity));
+  mesh["topologies/mesh/elements/sizes"].set_external(
+    const_cast<VecT&>(grid.GetPolyhedralCells().Sizes));
+  mesh["topologies/mesh/elements/offsets"].set_external(
+    const_cast<VecT&>(grid.GetPolyhedralCells().Offsets));
+
+  // add faces (aka subelements)
+  mesh["topologies/mesh/subelements/shape"].set("polygonal");
+  mesh["topologies/mesh/subelements/connectivity"].set_external(
+    const_cast<VecT&>(grid.GetPolygonalFaces().Connectivity));
+  mesh["topologies/mesh/subelements/sizes"].set_external(
+    const_cast<VecT&>(grid.GetPolygonalFaces().Sizes));
+  mesh["topologies/mesh/subelements/offsets"].set_external(
+    const_cast<VecT&>(grid.GetPolygonalFaces().Offsets));
+
+  // Finally, add fields.
+  auto fields = mesh["fields"];
+  fields["velocity/association"].set("vertex");
+  fields["velocity/topology"].set("mesh");
+  fields["velocity/volume_dependent"].set("false");
+
+  // velocity is stored in non-interlaced form (unlike points).
+  fields["velocity/values/x"].set_external(
+    attribs.GetVelocityArray().data(), grid.GetNumberOfPoints(), /*offset=*/0);
+  fields["velocity/values/y"].set_external(attribs.GetVelocityArray().data(),
+    grid.GetNumberOfPoints(),
+    /*offset=*/grid.GetNumberOfPoints() * sizeof(double));
+  fields["velocity/values/z"].set_external(attribs.GetVelocityArray().data(),
+    grid.GetNumberOfPoints(),
+    /*offset=*/grid.GetNumberOfPoints() * sizeof(double) * 2);
+
+  // pressure is cell-data.
+  fields["pressure/association"].set("element");
+  fields["pressure/topology"].set("mesh");
+  fields["pressure/volume_dependent"].set("false");
+  fields["pressure/values"].set_external(
+    attribs.GetPressureArray().data(), grid.GetNumberOfCells());
+}
+
+bool ValidatePolyhedra()
+{
+  conduit_cpp::Node mesh;
+  constexpr int nX = 4, nY = 4, nZ = 4;
+  Grid grid;
+  Attributes attribs;
+  CreatePolyhedra(grid, attribs, nX, nY, nZ, mesh);
+  auto values = mesh["fields/velocity/values"];
+  auto data = Convert(mesh);
+
+  VERIFY(vtkPartitionedDataSet::SafeDownCast(data) != nullptr,
+    "incorrect data type, expected vtkPartitionedDataSet, got %s", vtkLogIdentifier(data));
+  auto pds = vtkPartitionedDataSet::SafeDownCast(data);
+  VERIFY(pds->GetNumberOfPartitions() == 1, "incorrect number of partitions, expected 1, got %d",
+    pds->GetNumberOfPartitions());
+  auto ug = vtkUnstructuredGrid::SafeDownCast(pds->GetPartition(0));
+
+  VERIFY(ug->GetNumberOfPoints() == static_cast<vtkIdType>(grid.GetNumberOfPoints()),
+    "expected %zu points got %lld", grid.GetNumberOfPoints(), ug->GetNumberOfPoints());
+
+  VERIFY(ug->GetNumberOfCells() == static_cast<vtkIdType>(grid.GetNumberOfCells()),
+    "expected %zu cells, got %lld", grid.GetNumberOfCells(), ug->GetNumberOfCells());
+
+  // check cell types
+  auto it = vtkSmartPointer<vtkCellIterator>::Take(ug->NewCellIterator());
+
+  vtkIdType nPolyhedra(0);
+  for (it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
+  {
+    const int cellType = it->GetCellType();
+    switch (cellType)
+    {
+      case VTK_POLYHEDRON:
+      {
+        ++nPolyhedra;
+        const vtkIdType nFaces = it->GetNumberOfFaces();
+        VERIFY(nFaces == 6, "Expected 6 faces, got %lld", nFaces);
+        break;
+      }
+      default:
+      {
+        vtkLog(ERROR, "Expected only polyhedra.");
+        return false;
+      }
+    }
+  }
+
+  VERIFY(nPolyhedra == static_cast<vtkIdType>(grid.GetNumberOfCells()),
+    "Expected %zu polyhedra, got %lld", grid.GetNumberOfCells(), nPolyhedra);
   return true;
 }
 
 } // end namespace
 
-int TestConduitSource(int, char*[])
+//----------------------------------------------------------------------------
+int TestConduitSource(int argc, char** argv)
 {
-  return ValidateMeshTypeUniform() && ValidateMeshTypeRectilinear() &&
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
+  vtkNew<vtkMPIController> controller;
+#else
+  vtkNew<vtkDummyController> controller;
+#endif
+  controller->Initialize(&argc, &argv);
+  vtkMultiProcessController::SetGlobalController(controller);
+
+  std::string amrFile =
+    vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/Conduit/bp_amr_example.json");
+
+  auto ret = ValidateMeshTypeUniform() && ValidateMeshTypeRectilinear() &&
       ValidateMeshTypeStructured() && ValidateMeshTypeUnstructured() && ValidateFieldData() &&
-      ValidateRectlinearGridWithDifferentDimensions() && Validate1DRectilinearGrid() &&
-      ValidateMeshTypeMixed() && ValidateMeshTypeMixed2D()
+      ValidateRectilinearGridWithDifferentDimensions() && Validate1DRectilinearGrid() &&
+      ValidateMeshTypeMixed() && ValidateMeshTypeMixed2D() && ValidateMeshTypeAMR(amrFile) &&
+      ValidateAscentGhostCellData() && ValidateAscentGhostPointData() && ValidateMeshTypePoints() &&
+      ValidateDistributedAMR() && ValidatePolyhedra()
+
     ? EXIT_SUCCESS
     : EXIT_FAILURE;
+
+  controller->Finalize();
+
+  return ret;
 }

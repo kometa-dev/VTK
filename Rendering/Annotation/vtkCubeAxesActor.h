@@ -45,10 +45,10 @@
 #define vtkCubeAxesActor_h
 
 #include "vtkActor.h"
-#include "vtkDeprecation.h"               // For deprecation macro
 #include "vtkNew.h"                       // For vtkNew
 #include "vtkRenderingAnnotationModule.h" // For export macro
 #include "vtkSmartPointer.h"              // For vtkSmartPointer
+#include "vtkWrappingHints.h"             // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAxisActor;
@@ -56,7 +56,7 @@ class vtkCamera;
 class vtkTextProperty;
 class vtkStringArray;
 
-class VTKRENDERINGANNOTATION_EXPORT vtkCubeAxesActor : public vtkActor
+class VTKRENDERINGANNOTATION_EXPORT VTK_MARSHALAUTO vtkCubeAxesActor : public vtkActor
 {
 public:
   vtkTypeMacro(vtkCubeAxesActor, vtkActor);
@@ -160,13 +160,8 @@ public:
    * Explicitly specify the offset between title and labels.
    * Default: (20.0, 20.0).
    */
-  VTK_DEPRECATED_IN_9_3_0("Use the new setters as it's now a 2d vector")
-  void SetTitleOffset(double titleOffsetY);
-  VTK_DEPRECATED_IN_9_3_0("Use the new getter as it's now a 2d vector")
-  double GetTitleOffset();
   void SetTitleOffset(double titleOffset[2]);
-  // TODO: Replace getter with macro once deprecated one is removed
-  void GetTitleOffset(double& titleOffsetX, double& titleOffsetY);
+  vtkGetVector2Macro(TitleOffset, double);
   ///@}
 
   ///@{
@@ -426,15 +421,31 @@ public:
   vtkBooleanMacro(DrawZGridpolys, bool);
   ///@}
 
+  ///@{
   /**
    * Returns the text property for the title on an axis.
    */
   vtkTextProperty* GetTitleTextProperty(int);
+  void SetXAxesTitleProperty(vtkTextProperty*);
+  vtkTextProperty* GetXAxesTitleProperty();
+  void SetYAxesTitleProperty(vtkTextProperty*);
+  vtkTextProperty* GetYAxesTitleProperty();
+  void SetZAxesTitleProperty(vtkTextProperty*);
+  vtkTextProperty* GetZAxesTitleProperty();
+  ///@}
 
+  ///@{
   /**
    * Returns the text property for the labels on an axis.
    */
   vtkTextProperty* GetLabelTextProperty(int);
+  void SetXAxesLabelProperty(vtkTextProperty*);
+  vtkTextProperty* GetXAxesLabelProperty();
+  void SetYAxesLabelProperty(vtkTextProperty*);
+  vtkTextProperty* GetYAxesLabelProperty();
+  void SetZAxesLabelProperty(vtkTextProperty*);
+  vtkTextProperty* GetZAxesLabelProperty();
+  ///@}
 
   ///@{
   /**

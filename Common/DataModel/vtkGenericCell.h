@@ -53,12 +53,17 @@ public:
   void DeepCopy(vtkCell* c) override;
   int GetCellType() override;
   int GetCellDimension() override;
-  int IsLinear() override;
+  int IsLinear() VTK_FUTURE_CONST override;
   int RequiresInitialization() override;
   void Initialize() override;
-  int RequiresExplicitFaceRepresentation() override;
+  int RequiresExplicitFaceRepresentation() VTK_FUTURE_CONST override;
+  VTK_DEPRECATED_IN_9_4_0("Use SetCellFaces.")
   void SetFaces(vtkIdType* faces) override;
+  VTK_DEPRECATED_IN_9_4_0("Use GetCellFaces.")
   vtkIdType* GetFaces() override;
+  int SetCellFaces(vtkCellArray* faces);
+  vtkCellArray* GetCellFaces();
+  void GetCellFaces(vtkCellArray* faces);
   int GetNumberOfEdges() override;
   int GetNumberOfFaces() override;
   vtkCell* GetEdge(int edgeId) override;
@@ -76,11 +81,13 @@ public:
   int IntersectWithLine(const double p1[3], const double p2[3], double tol, double& t, double x[3],
     double pcoords[3], int& subId) override;
   int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override;
+  int TriangulateLocalIds(int index, vtkIdList* ptIds) override;
+  int TriangulateIds(int index, vtkIdList* ptIds) override;
   void Derivatives(
     int subId, const double pcoords[3], const double* values, int dim, double* derivs) override;
   int GetParametricCenter(double pcoords[3]) override;
   double* GetParametricCoords() override;
-  int IsPrimaryCell() override;
+  int IsPrimaryCell() VTK_FUTURE_CONST override;
   ///@}
 
   ///@{

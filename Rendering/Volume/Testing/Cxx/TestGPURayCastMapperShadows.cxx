@@ -57,7 +57,7 @@ public:
       CoordsMin[i] = min[i];
       CoordsMax[i] = max[i];
     }
-  };
+  }
   ImageDataAABox(double min_x, double min_y, double min_z, double max_x, double max_y, double max_z,
     double value = 0.0)
   {
@@ -70,8 +70,10 @@ public:
     BoxValue = value;
   }
   ~ImageDataAABox() = default;
+  ImageDataAABox(ImageDataAABox const&) = default;
+  ImageDataAABox& operator=(ImageDataAABox const&) = default;
 
-  void SetValue(double value) { BoxValue = value; };
+  void SetValue(double value) { BoxValue = value; }
 
   void AddBoxToArray(vtkFloatArray* data, vtkImageData* grid)
   {
@@ -114,7 +116,7 @@ public:
         }
       }
     }
-  };
+  }
 };
 
 typedef std::vector<ImageDataAABox> BoxList;

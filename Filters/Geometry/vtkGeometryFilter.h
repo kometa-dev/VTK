@@ -256,43 +256,6 @@ public:
   vtkBooleanMacro(FastMode, bool);
   ///@}
 
-  ///@{
-  /**
-   * If fast mode is enabled, then Degree controls which cells are
-   * visited. Basically, any cell connected to a point with connectivity
-   * degree <= is visited and processed. Low degree points tend to be
-   * located on the boundary of datasets - thus attached cells frequently
-   * produce output boundary fragments.
-   */
-  VTK_DEPRECATED_IN_9_2_0("This method is no longer used and has no effect.")
-  virtual void SetDegree(unsigned int vtkNotUsed(arg)) {}
-  VTK_DEPRECATED_IN_9_2_0("This method is no longer used and has no effect.")
-  virtual unsigned int GetDegreeMinValue() { return 1; }
-  VTK_DEPRECATED_IN_9_2_0("This method is no longer used and has no effect.")
-  virtual unsigned int GetDegreeMaxValue() { return static_cast<int>(~0u >> 1); }
-  VTK_DEPRECATED_IN_9_2_0("This method is no longer used and has no effect.")
-  virtual unsigned int GetDegree() { return 4; }
-  ///@}
-
-  ///@{
-  /**
-   * Set / get a spatial locator for merging points. By default an instance
-   * of vtkMergePoints is used. (This method is now deprecated and has no
-   * effect.)
-   */
-  VTK_DEPRECATED_IN_9_2_0("This method is no longer used and has no effect.")
-  void SetLocator(vtkIncrementalPointLocator* locator);
-  VTK_DEPRECATED_IN_9_2_0("This method is no longer used and has no effect.")
-  vtkGetObjectMacro(Locator, vtkIncrementalPointLocator);
-  ///@}
-
-  /**
-   * Create default locator. Used to create one when none is specified.
-   * This method is now deprecated.
-   */
-  VTK_DEPRECATED_IN_9_2_0("This method is no longer used and has no effect.")
-  void CreateDefaultLocator();
-
   // The following are methods compatible with vtkDataSetSurfaceFilter.
 
   ///@{
@@ -385,6 +348,17 @@ public:
 
   ///@{
   /**
+   * When two volumetric cells of different order are connected by their corners (for instance, a
+   * quadratic hexahedron next to a linear hexahedron ), the internal face is rendered and is not
+   * considered as a ghost cell. To remove these faces, switch MatchBoundariesIgnoringCellOrder to 1
+   * (default is 0).
+   */
+  vtkSetMacro(MatchBoundariesIgnoringCellOrder, int);
+  vtkGetMacro(MatchBoundariesIgnoringCellOrder, int);
+  ///@}
+
+  ///@{
+  /**
    * Disable delegation to an internal vtkDataSetSurfaceFilter.
    */
   vtkSetMacro(Delegation, vtkTypeBool);
@@ -422,14 +396,8 @@ public:
     vtkDataSet* input, vtkPolyData* output, vtkGeometryFilterHelper* info, vtkPolyData* exc);
   virtual int UnstructuredGridExecute(vtkDataSet* input, vtkPolyData* output);
 
-  VTK_DEPRECATED_IN_9_3_0("Use the new version that has int* instead of vtkInformation*")
-  int StructuredExecute(vtkDataSet* input, vtkPolyData* output, vtkInformation* inInfo,
-    vtkPolyData* exc, bool* extractFace = nullptr);
   int StructuredExecute(vtkDataSet* input, vtkPolyData* output, int* wholeExtent, vtkPolyData* exc,
     bool* extractFace = nullptr);
-  VTK_DEPRECATED_IN_9_3_0("Use the new version that has int* instead of vtkInformation*")
-  virtual int StructuredExecute(
-    vtkDataSet* input, vtkPolyData* output, vtkInformation* inInfo, bool* extractFace = nullptr);
   virtual int StructuredExecute(
     vtkDataSet* input, vtkPolyData* output, int* wholeExt, bool* extractFace = nullptr);
 
@@ -472,6 +440,7 @@ protected:
   char* OriginalPointIdsName;
 
   int NonlinearSubdivisionLevel;
+  int MatchBoundariesIgnoringCellOrder;
 
   vtkTypeBool Delegation;
 

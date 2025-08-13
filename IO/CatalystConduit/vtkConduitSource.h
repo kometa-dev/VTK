@@ -20,6 +20,7 @@
 #define vtkConduitSource_h
 
 #include "vtkDataObjectAlgorithm.h"
+
 #include "vtkIOCatalystConduitModule.h" // for exports
 
 #include "conduit.h" // for conduit_node
@@ -36,7 +37,19 @@ public:
 
   ///@{
   /**
-   * vtkConduitSource supports single 'mesh' and multiple 'mesh' (aka 'multimesh') protocols.
+   * vtkConduitSource supports single 'mesh' and multiple 'mesh' (aka 'multimesh')
+   * as well as AMR mesh (aka 'amrmesh') protocols.
+   * Set this to true if the source is handling amrmesh (default is false).
+   */
+  vtkSetMacro(UseAMRMeshProtocol, bool);
+  vtkGetMacro(UseAMRMeshProtocol, bool);
+  vtkBooleanMacro(UseAMRMeshProtocol, bool);
+  ///@}
+
+  ///@{
+  /**
+   * vtkConduitSource supports single 'mesh' and multiple 'mesh' (aka 'multimesh')
+   * as well as AMR mesh (aka 'amrmesh') protocols.
    * Set this to true if the source is handling multimesh (default is false).
    */
   vtkSetMacro(UseMultiMeshProtocol, bool);
@@ -90,12 +103,23 @@ protected:
   int RequestInformation(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
 
+  ///@{
+  /**
+   * Generate actual output and fill the given data object with it.
+   * Return true if data is correctly generated.
+   */
+  bool GenerateAMR(vtkDataObject* output);
+  bool GeneratePartitionedDataSet(vtkDataObject* output);
+  bool GeneratePartitionedDataSetCollection(vtkDataObject* output);
+  ///@}
+
 private:
   vtkConduitSource(const vtkConduitSource&) = delete;
   void operator=(const vtkConduitSource&) = delete;
 
   class vtkInternals;
   std::unique_ptr<vtkInternals> Internals;
+  bool UseAMRMeshProtocol;
   bool UseMultiMeshProtocol;
   bool OutputMultiBlock;
 };

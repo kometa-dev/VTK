@@ -5,9 +5,9 @@
 
 #include "vtkAMRBox.h"
 #include "vtkAMRInformation.h"
+#include "vtkDataAssembly.h"
 #include "vtkDoubleArray.h"
 #include "vtkGenericDataObjectWriter.h"
-#include "vtkHierarchicalBoxDataSet.h"
 #include "vtkInformation.h"
 #include "vtkIntArray.h"
 #include "vtkMultiBlockDataSet.h"
@@ -18,6 +18,7 @@
 #include "vtkOverlappingAMR.h"
 #include "vtkPartitionedDataSet.h"
 #include "vtkPartitionedDataSetCollection.h"
+#include "vtkStringArray.h"
 #include "vtkUniformGrid.h"
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
@@ -80,7 +81,6 @@ void vtkCompositeDataWriter::WriteData()
   }
 
   vtkMultiBlockDataSet* mb = vtkMultiBlockDataSet::SafeDownCast(input);
-  vtkHierarchicalBoxDataSet* hb = vtkHierarchicalBoxDataSet::SafeDownCast(input);
   vtkOverlappingAMR* oamr = vtkOverlappingAMR::SafeDownCast(input);
   vtkNonOverlappingAMR* noamr = vtkNonOverlappingAMR::SafeDownCast(input);
   vtkMultiPieceDataSet* mp = vtkMultiPieceDataSet::SafeDownCast(input);
@@ -92,14 +92,6 @@ void vtkCompositeDataWriter::WriteData()
     if (!this->WriteCompositeData(fp, mb))
     {
       vtkErrorMacro("Error writing multiblock dataset.");
-    }
-  }
-  else if (hb)
-  {
-    *fp << "DATASET HIERARCHICAL_BOX\n";
-    if (!this->WriteCompositeData(fp, hb))
-    {
-      vtkErrorMacro("Error writing hierarchical-box dataset.");
     }
   }
   else if (oamr)
@@ -218,7 +210,7 @@ bool vtkCompositeDataWriter::WriteCompositeData(ostream* fp, vtkPartitionedDataS
   *fp << "CHILDREN " << pd->GetNumberOfPartitions() << "\n";
   for (unsigned int cc = 0; cc < pd->GetNumberOfPartitions(); cc++)
   {
-    vtkDataSet* partition = pd->GetPartition(cc);
+    auto* partition = pd->GetPartitionAsDataObject(cc);
     *fp << "CHILD " << (partition ? partition->GetDataObjectType() : -1);
     if (pd->HasMetaData(cc) && pd->GetMetaData(cc)->Has(vtkCompositeDataSet::NAME()))
     {
@@ -262,15 +254,29 @@ bool vtkCompositeDataWriter::WriteCompositeData(ostream* fp, vtkPartitionedDataS
     }
     *fp << "ENDCHILD\n";
   }
+  if (pd->GetDataAssembly())
+  {
+    const auto dataAssemblyStr = pd->GetDataAssembly()->SerializeToXML(vtkIndent());
+    *fp << "DATAASSEMBLY 1 \n";
+    vtkNew<vtkStringArray> dataAssemblyArray;
+    dataAssemblyArray->SetName("DataAssembly");
+    dataAssemblyArray->InsertNextValue(dataAssemblyStr);
+    this->WriteArray(fp, dataAssemblyArray->GetDataType(), dataAssemblyArray, "",
+      dataAssemblyArray->GetNumberOfTuples(), dataAssemblyArray->GetNumberOfComponents());
+  }
+  else
+  {
+    *fp << "DATAASSEMBLY 0\n";
+  }
 
   return true;
 }
 
 //------------------------------------------------------------------------------
-bool vtkCompositeDataWriter::WriteCompositeData(ostream* fp, vtkHierarchicalBoxDataSet* hb)
+bool vtkCompositeDataWriter::WriteCompositeData(ostream* fp, vtkHierarchicalBoxDataSet* amr)
 {
   (void)fp;
-  (void)hb;
+  (void)amr;
   vtkErrorMacro("This isn't supported yet.");
   return false;
 }
@@ -350,10 +356,10 @@ bool vtkCompositeDataWriter::WriteCompositeData(ostream* fp, vtkOverlappingAMR* 
 }
 
 //------------------------------------------------------------------------------
-bool vtkCompositeDataWriter::WriteCompositeData(ostream* fp, vtkNonOverlappingAMR* hb)
+bool vtkCompositeDataWriter::WriteCompositeData(ostream* fp, vtkNonOverlappingAMR* amr)
 {
   (void)fp;
-  (void)hb;
+  (void)amr;
   vtkErrorMacro("This isn't supported yet.");
   return false;
 }

@@ -29,10 +29,11 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObjectTree.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALMANUAL
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
-class VTKCOMMONDATAMODEL_EXPORT vtkPartitionedDataSet : public vtkDataObjectTree
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALMANUAL vtkPartitionedDataSet : public vtkDataObjectTree
 {
 public:
   static vtkPartitionedDataSet* New();
@@ -43,7 +44,7 @@ public:
    * Return class name of data type (see vtkType.h for
    * definitions).
    */
-  int GetDataObjectType() override { return VTK_PARTITIONED_DATA_SET; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_PARTITIONED_DATA_SET; }
 
   /**
    * Set the number of partitions. This will cause allocation if the new number of

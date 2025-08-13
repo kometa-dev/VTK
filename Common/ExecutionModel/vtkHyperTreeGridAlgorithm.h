@@ -123,6 +123,8 @@ protected:
    */
   virtual int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*);
 
+  virtual int RequestUpdateTime(vtkInformation*, vtkInformationVector**, vtkInformationVector*);
+
   /**
    * Main routine to process individual trees in the grid
    * This is pure virtual method to be implemented by concrete algorithms
@@ -147,7 +149,7 @@ protected:
 
   ///@{
   /**
-   * JB Si a vrai, l'objet output aura le meme type que le type d'objet en entree input.
+   * If set, the output object will have the same type as the input object.
    */
   bool AppropriateOutput;
   ///@}

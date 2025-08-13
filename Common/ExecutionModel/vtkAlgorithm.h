@@ -22,6 +22,7 @@
 
 #include "vtkCommonExecutionModelModule.h" // For export macro
 #include "vtkObject.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALMANUAL
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
@@ -39,7 +40,7 @@ class vtkInformationStringVectorKey;
 class vtkInformationVector;
 class vtkProgressObserver;
 
-class VTKCOMMONEXECUTIONMODEL_EXPORT vtkAlgorithm : public vtkObject
+class VTKCOMMONEXECUTIONMODEL_EXPORT VTK_MARSHALMANUAL vtkAlgorithm : public vtkObject
 {
 public:
   static vtkAlgorithm* New();
@@ -226,8 +227,8 @@ public:
   void SetContainerAlgorithm(vtkAlgorithm* containerAlg)
   {
     this->ContainerAlgorithm = containerAlg;
-  };
-  vtkAlgorithm* GetContainerAlgorithm() { return this->ContainerAlgorithm; };
+  }
+  vtkAlgorithm* GetContainerAlgorithm() { return this->ContainerAlgorithm; }
   ///@}
 
   ///@{
@@ -345,45 +346,88 @@ public:
 
   ///@{
   /**
-   * Set the input data arrays that this algorithm will
-   * process. Specifically the idx array that this algorithm will process
-   * (starting from 0) is the array on port, connection with the specified
-   * association and name or attribute type (such as SCALARS). The
-   * fieldAssociation refers to which field in the data object the array is
-   * stored. See vtkDataObject::FieldAssociations for detail.
+   * Set the input data arrays that this algorithm will process.
+   * Default to SetInputArrayToProcess(0, 0, 0, fieldAssociation, name)
+   * @param name: the name of the array to process
+   * @param fieldAssociation: the field in the data object where the array is stored.
+   * See vtkDataObject::FieldAssociations for detail.
+   *
+   * @see void SetInputArrayToProcess(int, int, int, int, const char*)
+   */
+  void SetInputArrayToProcess(const char* name, int fieldAssociation);
+  /**
+   * Set the input data arrays that this algorithm will process.
+   *
+   * Array is expected to be in the input data object specified by (port, connection),
+   * and is stored under the given fieldAssociation with given name
+   * Internally, this algorithm references it at idx position.
+   *
+   * Full signature with array name.
+   *
+   * @param idx: the intern index of the array, in vtkAlgorithm scope.
+   * Useful for algorithm expecting different arrays to work.
+   * @param port: the algorithm input port of the data object where to look for the requested array.
+   * See @ref GetInputDataObject
+   * @param connection: the algorithm input connection of the data object where to look for the
+   * requested array. See @ref GetInputDataObject
+   * @param fieldAssociation: the field in the data object where the array is stored.
+   * See vtkDataObject::FieldAssociations for detail.
+   * @param name: the name of the array to process
    */
   virtual void SetInputArrayToProcess(
     int idx, int port, int connection, int fieldAssociation, const char* name);
+  /**
+   * Set the input data arrays that this algorithm will process.
+   * Full signature with attribute type.
+   * @param idx: the intern index of the array, in vtkAlgorithm scope.
+   * Useful for algorithm expecting different arrays to work.
+   * @param port: the algorithm input port of the data object where to look for the requested array.
+   * See @ref GetInputDataObject
+   * @param connection: the algorithm input connection of the data object where to look for the
+   * requested array. See @ref GetInputDataObject
+   * @param fieldAssociation: the field in the data object where the array is stored.
+   * See vtkDataObject::FieldAssociations for detail.
+   * @param fieldAttributeType: the attribute type related to the array to use.
+   * See vtkDataSetAttributes::AttributeTypes for possible values.
+   */
   virtual void SetInputArrayToProcess(
     int idx, int port, int connection, int fieldAssociation, int fieldAttributeType);
-  virtual void SetInputArrayToProcess(int idx, vtkInformation* info);
-  ///@}
 
   /**
-   * String based versions of SetInputArrayToProcess(). Because
+   * Set the input data arrays that this algorithm will process.
+   * Alternative variant that copy information into relevant InputArrayInformation.
+   * See @ref GetInputArrayInformation
+   */
+  virtual void SetInputArrayToProcess(int idx, vtkInformation* info);
+
+  /**
+   * Set the input data arrays that this algorithm will process.
+   * String based version of SetInputArrayToProcess(). Because
    * fieldAssociation and fieldAttributeType are enums, they cannot be
    * easily accessed from scripting language. These methods provides an
    * easy and safe way of passing association and attribute type
-   * information. Field association is one of the following:
-   * @verbatim
-   * vtkDataObject::FIELD_ASSOCIATION_POINTS
-   * vtkDataObject::FIELD_ASSOCIATION_CELLS
-   * vtkDataObject::FIELD_ASSOCIATION_NONE
-   * vtkDataObject::FIELD_ASSOCIATION_POINTS_THEN_CELLS
-   * @endverbatim
+   * information.
+   *
+   * Field association is one of the following:
+   * - vtkDataObject::FIELD_ASSOCIATION_POINTS
+   * - vtkDataObject::FIELD_ASSOCIATION_CELLS
+   * - vtkDataObject::FIELD_ASSOCIATION_NONE
+   * - vtkDataObject::FIELD_ASSOCIATION_POINTS_THEN_CELLS
+   *
    * Attribute type is one of the following:
-   * @verbatim
-   * vtkDataSetAttributes::SCALARS
-   * vtkDataSetAttributes::VECTORS
-   * vtkDataSetAttributes::NORMALS
-   * vtkDataSetAttributes::TCOORDS
-   * vtkDataSetAttributes::TENSORS
-   * @endverbatim
+   * - vtkDataSetAttributes::SCALARS
+   * - vtkDataSetAttributes::VECTORS
+   * - vtkDataSetAttributes::NORMALS
+   * - vtkDataSetAttributes::TCOORDS
+   * - vtkDataSetAttributes::TENSORS
+   *
    * If the last argument is not an attribute type, it is assumed to
    * be an array name.
+   * @see void SetInputArrayToProcess(int, int, int, int, int)
    */
   virtual void SetInputArrayToProcess(int idx, int port, int connection,
     const char* fieldAssociation, const char* attributeTypeorName);
+  ///@}
 
   /**
    * Get the info object for the specified input array to this algorithm
@@ -560,7 +604,9 @@ public:
   /**
    * Bring this algorithm's outputs up-to-date.
    */
+  VTK_UNBLOCKTHREADS
   virtual void Update(int port);
+  VTK_UNBLOCKTHREADS
   virtual void Update();
   ///@}
 
@@ -609,6 +655,7 @@ public:
    * to its first output port.
    * Supports extent request.
    */
+  VTK_UNBLOCKTHREADS
   virtual int UpdateExtent(const int extents[6]);
 
   /**
@@ -617,12 +664,14 @@ public:
    * Update(int port, vtkInformationVector* requests) for details.
    * Supports time, piece (optional) and extent (optional) requests.
    */
+  VTK_UNBLOCKTHREADS
   virtual int UpdateTimeStep(double time, int piece = -1, int numPieces = 1, int ghostLevels = 0,
     const int extents[6] = nullptr);
 
   /**
    * Bring the algorithm's information up-to-date.
    */
+  VTK_UNBLOCKTHREADS
   virtual void UpdateInformation();
 
   /**
@@ -638,6 +687,7 @@ public:
   /**
    * Bring this algorithm's outputs up-to-date.
    */
+  VTK_UNBLOCKTHREADS
   virtual void UpdateWholeExtent();
 
   /**
@@ -725,6 +775,27 @@ public:
   void SetProgressObserver(vtkProgressObserver*);
   vtkGetObjectMacro(ProgressObserver, vtkProgressObserver);
   ///@}
+
+  ///@{
+  /**
+   * Set to all output ports of this algorithm the information key
+   * `vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS()`. This should
+   * be set on sources of pipelines for which all timesteps are not necessarily
+   * all available at once. This is typically the case for visualization in situ.
+   *
+   * @note Default value in `vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS_RESET`.
+   * `vtkStreamingDemandDrivenPipeline` will set it to `NO_PRIOR_TEMPORAL_ACCESS_CONTINUE' after
+   * execution of the first time step.
+   */
+  void SetNoPriorTemporalAccessInformationKey(int key);
+  void SetNoPriorTemporalAccessInformationKey();
+  ///@}
+
+  /**
+   * Removes any information key `vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS()`
+   * to all output ports of this `vtkAlgorithm`.
+   */
+  void RemoveNoPriorTemporalAccessInformationKey();
 
 protected:
   vtkAlgorithm();

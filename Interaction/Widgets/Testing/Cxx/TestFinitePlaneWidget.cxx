@@ -14,7 +14,8 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
 
-const char eventLog[] = "EnterEvent 273 40 0 0 0 0 0\n"
+const char eventLog[] = "# StreamVersion 1\n"
+                        "EnterEvent 273 40 0 0 0 0 0\n"
                         "MouseMoveEvent 273 40 0 0 0 0 0\n"
                         "RenderEvent 273 40 0 0 0 0 0\n"
                         "RenderEvent 273 40 0 0 0 0 0\n"
@@ -390,6 +391,7 @@ int TestFinitePlaneWidget(int, char*[])
   fpr2->SetTubing(false);
   fpr2->SetDrawPlane(false);
   fpr2->SetHandles(false);
+  fpr2->SetRectangularShape(false);
 
   double bounds2[6] = { 1.2, 2.2, 0, 1, 0, 1 };
   fpr2->PlaceWidget(bounds2);

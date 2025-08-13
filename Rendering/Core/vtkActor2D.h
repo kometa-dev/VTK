@@ -20,12 +20,13 @@
 #include "vtkCoordinate.h" // For vtkViewportCoordinateMacro
 #include "vtkProp.h"
 #include "vtkRenderingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkMapper2D;
 class vtkProperty2D;
 
-class VTKRENDERINGCORE_EXPORT vtkActor2D : public vtkProp
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkActor2D : public vtkProp
 {
 public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
@@ -86,6 +87,7 @@ public:
    * The position variable controls the lower left corner of the Actor2D
    */
   vtkViewportCoordinateMacro(Position);
+  vtkSetObjectMacro(PositionCoordinate, vtkCoordinate);
   ///@}
 
   /**
@@ -101,6 +103,7 @@ public:
    * Some 2D actor subclasses ignore the position2 variable
    */
   vtkViewportCoordinateMacro(Position2);
+  vtkSetObjectMacro(Position2Coordinate, vtkCoordinate);
   ///@}
 
   ///@{

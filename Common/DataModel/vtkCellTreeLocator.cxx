@@ -1,7 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-// VTK_DEPRECATED_IN_9_2_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkCellTreeLocator.h"
 
@@ -84,33 +82,27 @@ struct vtkCellTree
       return ((dir[2] > 0) ? POS_Z : NEG_Z);
     }
   }
-  inline static double _getMinDistPOS_X(
-    const double origin[3], const double dir[3], const double B[6])
+  static double _getMinDistPOS_X(const double origin[3], const double dir[3], const double B[6])
   {
     return ((B[0] - origin[0]) / dir[0]);
   }
-  inline static double _getMinDistNEG_X(
-    const double origin[3], const double dir[3], const double B[6])
+  static double _getMinDistNEG_X(const double origin[3], const double dir[3], const double B[6])
   {
     return ((B[1] - origin[0]) / dir[0]);
   }
-  inline static double _getMinDistPOS_Y(
-    const double origin[3], const double dir[3], const double B[6])
+  static double _getMinDistPOS_Y(const double origin[3], const double dir[3], const double B[6])
   {
     return ((B[2] - origin[1]) / dir[1]);
   }
-  inline static double _getMinDistNEG_Y(
-    const double origin[3], const double dir[3], const double B[6])
+  static double _getMinDistNEG_Y(const double origin[3], const double dir[3], const double B[6])
   {
     return ((B[3] - origin[1]) / dir[1]);
   }
-  inline static double _getMinDistPOS_Z(
-    const double origin[3], const double dir[3], const double B[6])
+  static double _getMinDistPOS_Z(const double origin[3], const double dir[3], const double B[6])
   {
     return ((B[4] - origin[2]) / dir[2]);
   }
-  inline static double _getMinDistNEG_Z(
-    const double origin[3], const double dir[3], const double B[6])
+  static double _getMinDistNEG_Z(const double origin[3], const double dir[3], const double B[6])
   {
     return ((B[5] - origin[2]) / dir[2]);
   }
@@ -137,31 +129,31 @@ struct CellTreeNode
   /**
    * b is an array containing left max and right min values
    */
-  inline void MakeNode(const T& left, const T& d, const double b[2])
+  void MakeNode(const T& left, const T& d, const double b[2])
   {
     this->Index = (d & 3) | (left << 2);
     this->LeftMax = b[0];
     this->RightMin = b[1];
   }
-  inline void SetChildren(const T& left)
+  void SetChildren(const T& left)
   {
     // In index 2 LSBs (Least Significant Bits) store the dimension. MSBs store the position
     this->Index = this->GetDimension() | (left << 2);
   }
-  inline bool IsNode() const
+  bool IsNode() const
   {
     return (this->Index & 3) != 3; // For a leaf 2 LSBs in index is 3
   }
-  inline T GetLeftChildIndex() const { return (this->Index >> 2); }
-  inline T GetRightChildIndex() const
+  T GetLeftChildIndex() const { return (this->Index >> 2); }
+  T GetRightChildIndex() const
   {
     // Right child node is adjacent to the Left child node in the data structure
     return (this->Index >> 2) + 1;
   }
-  inline T GetDimension() const { return this->Index & 3; }
-  inline const double& GetLeftMaxValue() const { return this->LeftMax; }
-  inline const double& GetRightMinValue() const { return this->RightMin; }
-  inline void MakeLeaf(const T& start, const T& size)
+  T GetDimension() const { return this->Index & 3; }
+  const double& GetLeftMaxValue() const { return this->LeftMax; }
+  const double& GetRightMinValue() const { return this->RightMin; }
+  void MakeLeaf(const T& start, const T& size)
   {
     this->Index = 3;
     this->Sz = size;
@@ -309,7 +301,7 @@ private:
     {
     }
 
-    inline void Add(const double& min, const double& max)
+    void Add(const double& min, const double& max)
     {
       ++this->Cnt;
       if (min < this->Min)
@@ -338,7 +330,7 @@ private:
     {
     }
 
-    inline bool operator()(const CellInfo& pc0, const CellInfo& pc1)
+    bool operator()(const CellInfo& pc0, const CellInfo& pc1)
     {
       return (pc0.Min[this->D] + pc0.Max[this->D]) < (pc1.Min[this->D] + pc1.Max[this->D]);
     }
@@ -354,10 +346,7 @@ private:
     {
     }
 
-    inline bool operator()(const CellInfo& pc)
-    {
-      return pc.Min[this->D] + pc.Max[this->D] < this->P;
-    }
+    bool operator()(const CellInfo& pc) { return pc.Min[this->D] + pc.Max[this->D] < this->P; }
   };
 
   struct SplitInfo
@@ -454,8 +443,13 @@ private:
     CellInfo* mid = begin;
 
     const double ext[3] = { max[0] - min[0], max[1] - min[1], max[2] - min[2] };
-    const double iext[3] = { this->NumberOfBuckets / ext[0], this->NumberOfBuckets / ext[1],
-      this->NumberOfBuckets / ext[2] };
+    double iext[3];
+
+    for (uint8_t comp = 0; comp < 3; ++comp)
+    {
+      double const ext_comp = ext[comp];
+      iext[comp] = ext_comp == 0.0 ? this->NumberOfBuckets : this->NumberOfBuckets / ext_comp;
+    }
 
     buckets.Reset();
 
@@ -504,8 +498,6 @@ private:
           }
         }
 
-        // JB : added if (...) to stop floating point error if rmin is unset
-        // this happens when some buckets are empty (bad volume calc)
         if (lMaxValue != -VTK_DOUBLE_MAX && rMinValue != VTK_DOUBLE_MAX)
         {
           sum += buckets[d][n].Cnt;
@@ -1376,7 +1368,7 @@ void vtkCellTreeLocator::FindCellsWithinBounds(double* bbox, vtkIdList* cells)
   {
     return;
   }
-  return this->Tree->FindCellsWithinBounds(bbox, cells);
+  this->Tree->FindCellsWithinBounds(bbox, cells);
 }
 
 //------------------------------------------------------------------------------
@@ -1427,7 +1419,6 @@ void vtkCellTreeLocator::ShallowCopy(vtkAbstractCellLocator* locator)
   // we only copy what's actually used by vtkCellTreeLocator
 
   // vtkLocator parameters
-  this->SetDataSet(cellLocator->GetDataSet());
   this->SetUseExistingSearchStructure(cellLocator->GetUseExistingSearchStructure());
 
   // vtkAbstractCellLocator parameters
@@ -1444,7 +1435,7 @@ void vtkCellTreeLocator::ShallowCopy(vtkAbstractCellLocator* locator)
     auto cellLocatorTree = static_cast<CellTree<vtkIdType>*>(cellLocator->Tree);
     auto tree = new CellTree<vtkIdType>(this);
     tree->Locator = this;
-    tree->DataSet = cellLocatorTree->DataSet;
+    tree->DataSet = this->DataSet;
     tree->Leaves = cellLocatorTree->Leaves;
     tree->Nodes = cellLocatorTree->Nodes;
     std::copy_n(cellLocatorTree->DataBBox, 6, tree->DataBBox);
@@ -1455,12 +1446,13 @@ void vtkCellTreeLocator::ShallowCopy(vtkAbstractCellLocator* locator)
     auto cellLocatorTree = static_cast<CellTree<int>*>(cellLocator->Tree);
     auto tree = new CellTree<int>(this);
     tree->Locator = this;
-    tree->DataSet = cellLocatorTree->DataSet;
+    tree->DataSet = this->DataSet;
     tree->Leaves = cellLocatorTree->Leaves;
     tree->Nodes = cellLocatorTree->Nodes;
     std::copy_n(cellLocatorTree->DataBBox, 6, tree->DataBBox);
     this->Tree = tree;
   }
+  this->BuildTime.Modified();
 }
 
 //------------------------------------------------------------------------------

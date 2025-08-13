@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDGSidesResponder
- * @brief   Respond to a query on one particular type of cell.
+ * @brief   Compute the sides on the outside surface of a collection of DG cells.
  *
- * This is pure virtual base class that all responder types must inherit.
  */
 
 #ifndef vtkDGSidesResponder_h
 #define vtkDGSidesResponder_h
 
-#include "vtkFiltersCellGridModule.h" // for export macro
+#include "vtkFiltersCellGridModule.h" // For export macro.
 
 #include "vtkCellGridResponder.h"
-#include "vtkCellGridSidesQuery.h" // for inheritance
+#include "vtkCellGridSidesQuery.h" // For inheritance.
+#include "vtkDGCell.h"             // For Shape enum.
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCellMetadata;
@@ -32,6 +32,21 @@ public:
 protected:
   vtkDGSidesResponder() = default;
   ~vtkDGSidesResponder() override = default;
+
+  bool HashSides(vtkCellGridSidesQuery* query, vtkDGCell* cellType);
+  bool SummarizeSides(vtkCellGridSidesQuery* query, vtkDGCell* cellType);
+  bool GenerateSideSets(vtkCellGridSidesQuery* query, vtkDGCell* cellType);
+  static bool ProcessSidesOfInput(
+    vtkCellGridSidesQuery* query, vtkDGCell::Shape sideShape, vtkDGCell::Shape cellShape);
+
+  /// Called by HashSides to recursively hash sides of sides of a cell.
+  ///
+  /// This is only used when processing entries of vtkDGCell::GetSideSpecs()
+  /// (and not when processing vtkDGCell::GetCellSpec()).
+  void HashSidesOfSide(vtkCellGridSidesQuery* query, vtkDGCell* cellType,
+    vtkDGCell::Shape sourceShape, std::vector<vtkIdType>& side,
+    const std::vector<vtkIdType>& sidesOfSide, vtkIdType cellId,
+    const std::vector<vtkTypeInt64>& entry, std::set<int>& sidesVisited, vtkDataArray* ngm);
 
 private:
   vtkDGSidesResponder(const vtkDGSidesResponder&) = delete;

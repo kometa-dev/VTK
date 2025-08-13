@@ -49,7 +49,7 @@ private:
   th_ycbcr_buffer thImage;   // the Y'CbCr image buffer
   ogg_stream_state oggState; // the ogg stream state (has to be cleared)
   FILE* outFile;             // the output file stream
-  bool haveImageData;        // indicater whether a frame has to be encoded
+  bool haveImageData;        // indicator whether a frame has to be encoded
                              // (for the leap-frogging)
 
   int openedFile;
@@ -172,8 +172,8 @@ int vtkOggTheoraWriterInternal::Start()
     // make sure there's nothing left laying around...
     delete[] this->thImage[i].data;
     // allocate the image plane
-    size_t siz = this->thImage[i].width * this->thImage[i].height;
-    this->thImage[i].data = new unsigned char[siz];
+    size_t size = this->thImage[i].width * this->thImage[i].height;
+    this->thImage[i].data = new unsigned char[size];
   }
 
   // thInfo is no longer needed

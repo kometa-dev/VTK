@@ -76,9 +76,11 @@ public:
   double* GetValues();
   void GetValues(double* contourValues);
   void SetNumberOfContours(int number);
-  vtkIdType GetNumberOfContours();
+  int GetNumberOfContours();
   void GenerateValues(int numContours, double range[2]);
   void GenerateValues(int numContours, double rangeStart, double rangeEnd);
+  void SetContourValues(const std::vector<double>& values);
+  std::vector<double> GetContourValues();
   ///@}
 
   /**
@@ -93,13 +95,15 @@ public:
    * processed by filters that modify topology or geometry, it may be
    * wise to turn Normals and Gradients off.
    * This setting defaults to On for vtkImageData, vtkRectilinearGrid,
-   * vtkStructuredGrid, and vtkUnstructuredGrid inputs, and Off for all others.
-   * This default behavior is to preserve the behavior of an older version of
-   * this filter, which would ignore this setting for certain inputs.
+   * vtkStructuredGrid, and vtkUnstructuredGrid inputs.
+   * For others, it defaults to the special value -1 which indicates
+   * that the caller has made no explicit choice and will result in
+   * the normals being computed. This behaviour is a holdover for
+   * backwards compatibility and you really should set this to 0 or 1.
    */
-  vtkSetMacro(ComputeNormals, vtkTypeBool);
-  vtkGetMacro(ComputeNormals, vtkTypeBool);
-  vtkBooleanMacro(ComputeNormals, vtkTypeBool);
+  vtkSetMacro(ComputeNormals, int);
+  vtkGetMacro(ComputeNormals, int);
+  vtkBooleanMacro(ComputeNormals, int);
   ///@}
 
   ///@{
@@ -204,6 +208,16 @@ public:
   vtkBooleanMacro(FastMode, bool);
   ///@}
 
+  /**
+   * Sets the name of the input array to be used for generating
+   * the isosurfaces. This is a convenience method and it calls
+   * SetInputArrayToProcess().
+   */
+  void SetInputArray(const std::string& name)
+  {
+    this->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, name.c_str());
+  }
+
 protected:
   vtkContourFilter();
   ~vtkContourFilter() override;
@@ -216,7 +230,7 @@ protected:
   int FillInputPortInformation(int port, vtkInformation* info) override;
 
   vtkNew<vtkContourValues> ContourValues;
-  vtkTypeBool ComputeNormals;
+  int ComputeNormals;
   vtkTypeBool ComputeGradients;
   vtkTypeBool ComputeScalars;
   vtkIncrementalPointLocator* Locator;
@@ -294,7 +308,7 @@ inline void vtkContourFilter::SetNumberOfContours(int number)
 /**
  * Get the number of contours in the list of contour values.
  */
-inline vtkIdType vtkContourFilter::GetNumberOfContours()
+inline int vtkContourFilter::GetNumberOfContours()
 {
   return this->ContourValues->GetNumberOfContours();
 }
@@ -315,6 +329,37 @@ inline void vtkContourFilter::GenerateValues(int numContours, double range[2])
 inline void vtkContourFilter::GenerateValues(int numContours, double rangeStart, double rangeEnd)
 {
   this->ContourValues->GenerateValues(numContours, rangeStart, rangeEnd);
+}
+
+/**
+ * Convenience method to set all of the contour values at once.
+ * Loops over the vector elements and calls SetValue()
+ */
+inline void vtkContourFilter::SetContourValues(const std::vector<double>& values)
+{
+  int numContours = static_cast<int>(values.size());
+  this->SetNumberOfContours(numContours);
+  for (int i = 0; i < numContours; i++)
+  {
+    this->SetValue(i, values[i]);
+  }
+}
+
+/**
+ * Convenience method to get all of the contour values at once.
+ * The returned vector is a copy and cannot be used to modify
+ * contour values.
+ */
+inline std::vector<double> vtkContourFilter::GetContourValues()
+{
+  std::vector<double> contours;
+  int numContours = this->GetNumberOfContours();
+  contours.reserve(numContours);
+  for (int i = 0; i < numContours; i++)
+  {
+    contours.push_back(this->GetValue(i));
+  }
+  return contours;
 }
 
 VTK_ABI_NAMESPACE_END

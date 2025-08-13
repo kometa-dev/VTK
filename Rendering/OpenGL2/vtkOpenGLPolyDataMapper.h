@@ -17,6 +17,7 @@
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkShader.h"                 // for methods
 #include "vtkStateStorage.h"           // used for ivars
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 
 #include <map>    // for map
 #include <tuple>  // for tuple
@@ -39,7 +40,7 @@ class vtkTextureObject;
 class vtkTransform;
 class vtkOpenGLShaderProperty;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkOpenGLPolyDataMapper : public vtkPolyDataMapper
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkOpenGLPolyDataMapper : public vtkPolyDataMapper
 {
 public:
   static vtkOpenGLPolyDataMapper* New();
@@ -74,7 +75,9 @@ public:
    */
   void ReleaseGraphicsResources(vtkWindow*) override;
 
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkGetMacro(PopulateSelectionSettings, int);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void SetPopulateSelectionSettings(int v) { this->PopulateSelectionSettings = v; }
 
   /**
@@ -89,43 +92,6 @@ public:
   // calls to get the input and allow for rendering of
   // other polydata (not the input)
   vtkPolyData* CurrentInput;
-
-  ///@{
-  /**
-   * By default, this class uses the dataset's point and cell ids during
-   * rendering. However, one can override those by specifying cell and point
-   * data arrays to use instead. Currently, only vtkIdType array is supported.
-   * Set to NULL string (default) to use the point ids instead.
-   */
-  vtkSetStringMacro(PointIdArrayName);
-  vtkGetStringMacro(PointIdArrayName);
-  vtkSetStringMacro(CellIdArrayName);
-  vtkGetStringMacro(CellIdArrayName);
-  ///@}
-
-  ///@{
-  /**
-   * If this class should override the process id using a data-array,
-   * set this variable to the name of the array to use. It must be a
-   * point-array.
-   */
-  vtkSetStringMacro(ProcessIdArrayName);
-  vtkGetStringMacro(ProcessIdArrayName);
-  ///@}
-
-  ///@{
-  /**
-   * Generally, this class can render the composite id when iterating
-   * over composite datasets. However in some cases (as in AMR), the rendered
-   * structure may not correspond to the input data, in which case we need
-   * to provide a cell array that can be used to render in the composite id in
-   * selection passes. Set to NULL (default) to not override the composite id
-   * color set by vtkCompositePainter if any.
-   * The array *MUST* be a cell array and of type vtkUnsignedIntArray.
-   */
-  vtkSetStringMacro(CompositeIdArrayName);
-  vtkGetStringMacro(CompositeIdArrayName);
-  ///@}
 
   /**
    * Make a shallow copy of this mapper.
@@ -382,7 +348,8 @@ protected:
   //  ColorInternalTexture
   //  Actors texture
   //  Properties textures
-  virtual std::vector<std::pair<vtkTexture*, std::string>> GetTextures(vtkActor* actor);
+  typedef std::pair<vtkTexture*, std::string> texinfo;
+  virtual std::vector<texinfo> GetTextures(vtkActor* actor);
 
   // do we have textures coordinates that require special handling
   virtual bool HaveTCoords(vtkPolyData* poly);
@@ -394,8 +361,22 @@ protected:
   class primitiveInfo
   {
   public:
-    int LastLightComplexity;
+    /**
+     * Represent the type of lighting used.
+     *
+     * Forwarded from vtkOpenGLRenderer::LightingComplexityEnum.
+     */
+    enum LightingTypeEnum
+    {
+      NoLighting = 0,
+      Headlight = 1,
+      Directional = 2,
+      Positional = 3
+    };
+    LightingTypeEnum LastLightComplexity = NoLighting;
+
     int LastLightCount;
+
     vtkTimeStamp LightComplexityChanged;
 
     // Caches the vtkOpenGLRenderPass::RenderPasses() information.
@@ -422,7 +403,7 @@ protected:
   vtkOpenGLTexture* InternalColorTexture;
 
   int PopulateSelectionSettings;
-  int PrimitiveIDOffset;
+  vtkIdType PrimitiveIDOffset;
 
   vtkMatrix4x4* TempMatrix4;
   vtkMatrix3x3* TempMatrix3;
@@ -454,12 +435,6 @@ protected:
   vtkOpenGLBufferObject* EdgeBuffer;
   std::vector<unsigned char> EdgeValues;
   virtual bool DrawingEdges(vtkRenderer*, vtkActor*);
-
-  // additional picking indirection
-  char* PointIdArrayName;
-  char* CellIdArrayName;
-  char* ProcessIdArrayName;
-  char* CompositeIdArrayName;
 
   class ExtraAttributeValue
   {
@@ -500,6 +475,9 @@ protected:
     unsigned int processId, unsigned int compositeIndex, vtkIdType selectedId);
 
   vtkNew<vtkCellArray> SelectionArrays[4];
+
+  vtkMTimeType EnvironmentTextureTime = 0;
+  vtkTexture* EnvironmentTexture = nullptr;
 
 private:
   vtkOpenGLPolyDataMapper(const vtkOpenGLPolyDataMapper&) = delete;

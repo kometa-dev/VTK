@@ -24,6 +24,12 @@ VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperTreeGridGeometricLocator);
 
 //------------------------------------------------------------------------------
+void vtkHyperTreeGridGeometricLocator::PrintSelf(ostream& os, vtkIndent indent)
+{
+  this->Superclass::PrintSelf(os, indent);
+}
+
+//------------------------------------------------------------------------------
 void vtkHyperTreeGridGeometricLocator::SetHTG(vtkHyperTreeGrid* cand)
 {
   this->Superclass::SetHTG(cand);
@@ -65,6 +71,14 @@ vtkIdType vtkHyperTreeGridGeometricLocator::Search(
   // Get the index of the tree it's in
   vtkIdType treeId;
   this->HTG->GetIndexFromLevelZeroCoordinates(treeId, bin[0], bin[1], bin[2]);
+
+  // If there is no tree to explore, no need to go beyond.
+  // This can happen e.g. in a distributed environment.
+  if (this->HTG->GetTree(treeId) == nullptr)
+  {
+    return -1;
+  }
+
   // Create cursor for looking for the point
   this->HTG->InitializeNonOrientedGeometryCursor(cursor, treeId, false);
   // recurse
@@ -631,7 +645,8 @@ bool vtkHyperTreeGridGeometricLocator::ConstructCell(
     cell->PointIds->SetId(iP, iP);
   }
 
-  auto cubePoint = [dim, origin, size](std::bitset<3>& pos, std::vector<double>* cubePt) {
+  auto cubePoint = [dim, origin, size](std::bitset<3>& pos, std::vector<double>* cubePt)
+  {
     for (unsigned int d = 0; d < dim; d++)
     {
       cubePt->at(d) = origin[d] + pos[d] * size[d];
@@ -660,7 +675,8 @@ void vtkHyperTreeGridGeometricLocator::GetZeroLevelOriginAndSize(
   double* origin, double* sizes) const
 {
   unsigned int dim = this->HTG->GetDimension();
-  auto getOriginSize = [](vtkDataArray* compArray, double& ori, double& s) {
+  auto getOriginSize = [](vtkDataArray* compArray, double& ori, double& s)
+  {
     ori = compArray->GetComponent(0, 0);
     s = compArray->GetComponent(compArray->GetNumberOfTuples() - 1, 0) - ori;
   };

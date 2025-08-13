@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-// SPDX-License-Identifier: BSD-3-CLAUSE
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPCANormalEstimation.h"
 
@@ -38,7 +38,7 @@ namespace Utils
  * Otherwise, SampleSize (K) points are reselected.
  */
 template <typename T>
-static void FindPoints(vtkAbstractPointLocator* locator, T* inPts, double x[3], int searchMode,
+void FindPoints(vtkAbstractPointLocator* locator, T* inPts, double x[3], int searchMode,
   int sampleSize, double radius, vtkIdList* ids)
 {
   switch (searchMode)
@@ -318,6 +318,13 @@ int vtkPCANormalEstimation::RequestData(vtkInformation* vtkNotUsed(request),
   output->GetPointData()->PassData(input->GetPointData());
   output->GetPointData()->SetNormals(normals);
   normals->Delete();
+
+  // Convert to point cloud
+  vtkNew<vtkConvertToPointCloud> convertToPointCloud;
+  convertToPointCloud->SetInputData(output);
+  convertToPointCloud->SetCellGenerationMode(this->CellGenerationMode);
+  convertToPointCloud->Update();
+  output->ShallowCopy(convertToPointCloud->GetOutput());
 
   return 1;
 }

@@ -31,8 +31,8 @@ static void vtkWrapPython_CheckPreconds(FILE* fp, ClassInfo* data, FunctionInfo*
 static void vtkWrapPython_SaveArgs(FILE* fp, FunctionInfo* currentFunction);
 
 /* generate the code that calls the C++ method */
-static void vtkWrapPython_GenerateMethodCall(
-  FILE* fp, FunctionInfo* currentFunction, ClassInfo* data, HierarchyInfo* hinfo, int is_vtkobject);
+static void vtkWrapPython_GenerateMethodCall(FILE* fp, FunctionInfo* currentFunction,
+  const ClassInfo* data, const HierarchyInfo* hinfo, int is_vtkobject);
 
 /* Write back to all the reference arguments and array arguments */
 static void vtkWrapPython_WriteBackToArgs(FILE* fp, ClassInfo* data, FunctionInfo* currentFunction);
@@ -49,9 +49,9 @@ static int vtkWrapPython_CountAllOccurrences(
 
 /* -------------------------------------------------------------------- */
 /* Declare all local variables used by the wrapper method */
-void vtkWrapPython_DeclareVariables(FILE* fp, ClassInfo* data, FunctionInfo* theFunc)
+void vtkWrapPython_DeclareVariables(FILE* fp, const ClassInfo* data, const FunctionInfo* theFunc)
 {
-  ValueInfo* arg;
+  const ValueInfo* arg;
   int i, n;
 
   n = vtkWrap_CountWrappedParameters(theFunc);
@@ -204,7 +204,7 @@ void vtkWrapPython_DeclareVariables(FILE* fp, ClassInfo* data, FunctionInfo* the
 /* -------------------------------------------------------------------- */
 /* Write the code to convert one argument with vtkPythonArgs */
 void vtkWrapPython_GetSingleArgument(
-  FILE* fp, ClassInfo* data, int i, ValueInfo* arg, int static_call)
+  FILE* fp, const ClassInfo* data, int i, const ValueInfo* arg, int static_call)
 {
   const char* prefix = "ap.";
   const char* cp;
@@ -336,7 +336,7 @@ void vtkWrapPython_GetSingleArgument(
 /* Write the code to convert the arguments with vtkPythonArgs */
 static void vtkWrapPython_GetAllParameters(FILE* fp, ClassInfo* data, FunctionInfo* currentFunction)
 {
-  ValueInfo* arg;
+  const ValueInfo* arg;
   int requiredArgs, totalArgs;
   int i;
 
@@ -430,7 +430,7 @@ static void vtkWrapPython_SubstituteCode(
 
       if (!matched) /* check for parameters */
       {
-        ValueInfo* arg = NULL;
+        const ValueInfo* arg = NULL;
 
         /* check for positional parameter "#n" */
         if (t.tok == '#' && vtkParse_NextToken(&t) && t.tok == TOK_NUMBER)
@@ -480,7 +480,7 @@ static void vtkWrapPython_SubstituteCode(
       {
         for (j = 0; j < data->NumberOfItems; j++)
         {
-          ItemInfo* item = &data->Items[j];
+          const ItemInfo* item = &data->Items[j];
           const char* name = NULL;
           int is_static = 0;
 
@@ -563,7 +563,8 @@ static void vtkWrapPython_CheckPreconds(FILE* fp, ClassInfo* data, FunctionInfo*
 
 /* -------------------------------------------------------------------- */
 /* Convert values into python object and return them within python */
-void vtkWrapPython_ReturnValue(FILE* fp, ClassInfo* data, ValueInfo* val, int static_call)
+void vtkWrapPython_ReturnValue(
+  FILE* fp, const ClassInfo* data, const ValueInfo* val, int static_call)
 {
   char pythonname[1024];
   const char* deref = "";
@@ -742,7 +743,7 @@ static int vtkWrapPython_CountAllOccurrences(
 void vtkWrapPython_SaveArgs(FILE* fp, FunctionInfo* currentFunction)
 {
   const char* asterisks = "**********";
-  ValueInfo* arg;
+  const ValueInfo* arg;
   int i, j, n, m;
   int noneDone = 1;
 
@@ -797,11 +798,11 @@ void vtkWrapPython_SaveArgs(FILE* fp, FunctionInfo* currentFunction)
 
 /* -------------------------------------------------------------------- */
 /* generate the code that calls the C++ method */
-static void vtkWrapPython_GenerateMethodCall(
-  FILE* fp, FunctionInfo* currentFunction, ClassInfo* data, HierarchyInfo* hinfo, int is_vtkobject)
+static void vtkWrapPython_GenerateMethodCall(FILE* fp, FunctionInfo* currentFunction,
+  const ClassInfo* data, const HierarchyInfo* hinfo, int is_vtkobject)
 {
   char methodname[256];
-  ValueInfo* arg;
+  const ValueInfo* arg;
   int totalArgs;
   int is_constructor;
   int i, k, n;
@@ -809,6 +810,17 @@ static void vtkWrapPython_GenerateMethodCall(
   totalArgs = vtkWrap_CountWrappedParameters(currentFunction);
 
   is_constructor = vtkWrap_IsConstructor(data, currentFunction);
+
+  /* add code to allow Python threads during C++ execution */
+  if (currentFunction->ReturnValue &&
+    (currentFunction->ReturnValue->Attributes & VTK_PARSE_UNBLOCKTHREADS) != 0)
+  {
+    fprintf(fp,
+      "#ifdef VTK_PYTHON_FULL_THREADSAFE\n"
+      "    PyThreadState *ts = PyEval_SaveThread();\n"
+      "#endif\n"
+      "\n");
+  }
 
   /* for vtkobjects, do a bound call and an unbound call */
   n = 1;
@@ -974,6 +986,17 @@ static void vtkWrapPython_GenerateMethodCall(
   }
 
   fprintf(fp, "\n");
+
+  /* restore thread state */
+  if (currentFunction->ReturnValue &&
+    (currentFunction->ReturnValue->Attributes & VTK_PARSE_UNBLOCKTHREADS) != 0)
+  {
+    fprintf(fp,
+      "#ifdef VTK_PYTHON_FULL_THREADSAFE\n"
+      "    PyEval_RestoreThread(ts);\n"
+      "#endif\n"
+      "\n");
+  }
 }
 
 /* -------------------------------------------------------------------- */
@@ -983,7 +1006,7 @@ static void vtkWrapPython_GenerateMethodCall(
 static void vtkWrapPython_WriteBackToArgs(FILE* fp, ClassInfo* data, FunctionInfo* currentFunction)
 {
   const char* asterisks = "**********";
-  ValueInfo* arg;
+  const ValueInfo* arg;
   int i, j, n, m;
 
   /* do nothing for SetVector macros */
@@ -1096,7 +1119,7 @@ static void vtkWrapPython_WriteBackToArgs(FILE* fp, ClassInfo* data, FunctionInf
 /* Free any temporaries that were needed for the C++ method call*/
 static void vtkWrapPython_FreeTemporaries(FILE* fp, FunctionInfo* currentFunction)
 {
-  ValueInfo* arg;
+  const ValueInfo* arg;
   int i, j, n;
 
   n = vtkWrap_CountWrappedParameters(currentFunction);
@@ -1135,7 +1158,7 @@ static void vtkWrapPython_FreeTemporaries(FILE* fp, FunctionInfo* currentFunctio
 /* Write out the code for one method (including all its overloads) */
 
 void vtkWrapPython_GenerateOneMethod(FILE* fp, const char* classname, ClassInfo* data,
-  FileInfo* finfo, HierarchyInfo* hinfo, FunctionInfo* wrappedFunctions[],
+  FileInfo* finfo, const HierarchyInfo* hinfo, FunctionInfo* wrappedFunctions[],
   int numberOfWrappedFunctions, int fnum, int is_vtkobject, int do_constructors)
 {
   FunctionInfo* theFunc;
@@ -1145,7 +1168,7 @@ void vtkWrapPython_GenerateOneMethod(FILE* fp, const char* classname, ClassInfo*
   int occCounter;
   int all_static = 0;
   char* cp;
-  int* overloadMap = NULL;
+  const int* overloadMap = NULL;
   int maxArgs = 0;
   int overlap = 0;
 
@@ -1196,12 +1219,24 @@ void vtkWrapPython_GenerateOneMethod(FILE* fp, const char* classname, ClassInfo*
       /* Use vtkPythonArgs to convert python args to C args */
       if (is_vtkobject && !theOccurrence->IsStatic)
       {
-        fprintf(fp,
-          "  vtkPythonArgs ap(self, args, \"%s\");\n"
-          "  vtkObjectBase *vp = ap.GetSelfPointer(self, args);\n"
-          "  %s *op = static_cast<%s *>(vp);\n"
-          "\n",
-          theOccurrence->Name, data->Name, data->Name);
+        if (strcmp(data->Name, "vtkObjectBase") == 0)
+        {
+          fprintf(fp,
+            "  vtkPythonArgs ap(self, args, \"%s\");\n"
+            "  vtkObjectBase *vp = ap.GetSelfPointer(self, args);\n"
+            "  vtkObjectBase *op = vp;\n"
+            "\n",
+            theOccurrence->Name);
+        }
+        else
+        {
+          fprintf(fp,
+            "  vtkPythonArgs ap(self, args, \"%s\");\n"
+            "  vtkObjectBase *vp = ap.GetSelfPointer(self, args);\n"
+            "  %s *op = static_cast<%s *>(vp);\n"
+            "\n",
+            theOccurrence->Name, data->Name, data->Name);
+        }
       }
       else if (!theOccurrence->IsStatic && !do_constructors)
       {

@@ -25,19 +25,21 @@
  * Use this filter in combination with vtkSelectVisiblePoints if you want
  * to label only points that are visible. If you want to label cells rather
  * than points, use the filter vtkCellCenters to generate points at the
- * center of the cells. Also, you can use the class vtkIdFilter to
+ * center of the cells. Also, you can use the class vtkGenerateIds to
  * generate ids as scalars or field data, which can then be labeled.
  *
  * @sa
  * vtkMapper2D vtkActor2D vtkTextMapper vtkTextProperty vtkSelectVisiblePoints
- * vtkIdFilter vtkCellCenters
+ * vtkGenerateIds vtkCellCenters
  */
 
 #ifndef vtkLabeledDataMapper_h
 #define vtkLabeledDataMapper_h
 
+#include "vtkLabeledDatatypeDefinitions.h" // For Data type Definitions
 #include "vtkMapper2D.h"
 #include "vtkRenderingLabelModule.h" // For export macro
+#include "vtkWrappingHints.h"        // For VTK_MARSHALAUTO
 
 #include <cassert> // For assert macro
 
@@ -48,15 +50,7 @@ class vtkTextMapper;
 class vtkTextProperty;
 class vtkTransform;
 
-#define VTK_LABEL_IDS 0
-#define VTK_LABEL_SCALARS 1
-#define VTK_LABEL_VECTORS 2
-#define VTK_LABEL_NORMALS 3
-#define VTK_LABEL_TCOORDS 4
-#define VTK_LABEL_TENSORS 5
-#define VTK_LABEL_FIELD_DATA 6
-
-class VTKRENDERINGLABEL_EXPORT vtkLabeledDataMapper : public vtkMapper2D
+class VTKRENDERINGLABEL_EXPORT VTK_MARSHALAUTO vtkLabeledDataMapper : public vtkMapper2D
 {
 public:
   /**
@@ -111,7 +105,7 @@ public:
    * only applicable if field data is labeled.  This will clear
    * FieldDataName when set.
    */
-  void SetFieldDataArray(int arrayIndex);
+  vtkSetClampMacro(FieldDataArray, int, 0, VTK_INT_MAX);
   vtkGetMacro(FieldDataArray, int);
   ///@}
 
@@ -121,7 +115,7 @@ public:
    * variable is only applicable if field data is labeled.  This will
    * override FieldDataArray when set.
    */
-  void SetFieldDataName(const char* arrayName);
+  vtkSetStringMacro(FieldDataName)
   vtkGetStringMacro(FieldDataName);
   ///@}
 

@@ -10,20 +10,15 @@
 #include "vtkCamera.h"
 #include "vtkCellArray.h"
 #include "vtkCellArrayIterator.h"
-#include "vtkCellData.h"
-#include "vtkGenericCell.h"
-#include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
-#include "vtkPointData.h"
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
 #include "vtkPolygon.h"
 #include "vtkProp3D.h"
 #include "vtkTransform.h"
-#include "vtkUnsignedIntArray.h"
 
 #include <map>
 
@@ -34,7 +29,7 @@ vtkCxxSetObjectMacro(vtkPolyDataSilhouette, Camera, vtkCamera);
 
 struct vtkOrderedEdge
 {
-  inline vtkOrderedEdge(vtkIdType a, vtkIdType b)
+  vtkOrderedEdge(vtkIdType a, vtkIdType b)
   {
     if (a <= b)
     {
@@ -47,7 +42,7 @@ struct vtkOrderedEdge
       p2 = a;
     }
   }
-  inline bool operator<(const vtkOrderedEdge& oe) const
+  bool operator<(const vtkOrderedEdge& oe) const
   {
     return (p1 < oe.p1) || ((p1 == oe.p1) && (p2 < oe.p2));
   }
@@ -58,7 +53,7 @@ struct vtkTwoNormals
 {
   double leftNormal[3];  // normal of the left polygon
   double rightNormal[3]; // normal of the right polygon
-  inline vtkTwoNormals()
+  vtkTwoNormals()
   {
     leftNormal[0] = 0.0;
     leftNormal[1] = 0.0;
@@ -77,7 +72,7 @@ public:
   std::map<vtkOrderedEdge, vtkTwoNormals> edges;
   bool* edgeFlag;
   vtkCellArray* lines;
-  inline vtkPolyDataEdges()
+  vtkPolyDataEdges()
     : edgeFlag(nullptr)
     , lines(nullptr)
   {
@@ -316,9 +311,12 @@ int vtkPolyDataSilhouette::RequestData(vtkInformation* vtkNotUsed(request),
     }
 
     // build output data set (lines)
-    vtkIdTypeArray* la = vtkIdTypeArray::New();
-    la->SetNumberOfValues(3 * silhouetteEdges);
-    vtkIdType* laPtr = la->WritePointer(0, 3 * silhouetteEdges);
+    if (this->PreComp->lines != nullptr)
+    {
+      this->PreComp->lines->Delete();
+    }
+    this->PreComp->lines = vtkCellArray::New();
+    this->PreComp->lines->AllocateEstimate(silhouetteEdges, 2);
 
     i = 0;
     silhouetteEdges = 0;
@@ -327,21 +325,10 @@ int vtkPolyDataSilhouette::RequestData(vtkInformation* vtkNotUsed(request),
     {
       if (this->PreComp->edgeFlag[i])
       {
-        laPtr[silhouetteEdges * 3 + 0] = 2;
-        laPtr[silhouetteEdges * 3 + 1] = it->first.p1;
-        laPtr[silhouetteEdges * 3 + 2] = it->first.p2;
-        ++silhouetteEdges;
+        this->PreComp->lines->InsertNextCell({ it->first.p1, it->first.p2 });
       }
       ++i;
     }
-
-    if (this->PreComp->lines == nullptr)
-    {
-      this->PreComp->lines = vtkCellArray::New();
-    }
-    this->PreComp->lines->AllocateEstimate(silhouetteEdges, 2);
-    this->PreComp->lines->ImportLegacyFormat(la);
-    la->Delete();
   }
 
   output->Initialize();

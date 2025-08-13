@@ -812,11 +812,12 @@ participate in autoinit.
 
 External modules are found using CMake's [`find_package`][cmake-find_package]
 mechanism. In addition to the arguments supported by
-{cmake:command}`vtk_module_find_package` (except `PRIVATE`), information about the found
-package is used to construct a module target which represents the third party
-package. The preferred mechanism is to give a list of imported targets to the
-`LIBRARIES` argument. These will be added to the `INTERFACE` of the module and
-provide the third party package for use within the module system.
+{cmake:command}`vtk_module_find_package` (except `PRIVATE` and
+`PRIVATE_IF_SHARED`), information about the found package is used to construct
+a module target which represents the third party package. The preferred
+mechanism is to give a list of imported targets to the `LIBRARIES` argument.
+These will be added to the `INTERFACE` of the module and provide the third
+party package for use within the module system.
 
 If imported targets are not available (they really should be created if not),
 variable names may be passed to `INCLUDE_DIRS`, `LIBRARIES`, and `DEFINITIONS`
@@ -945,7 +946,7 @@ Similarly all collected copyright texts are joined using a new line.
 
 #### SPDX arguments in `vtk_module_build`
 
-Support for SPDX file generation requires to specifiy the following
+Support for SPDX file generation requires to specify the following
 {cmake:command}`vtk_module_build` arguments:
 
 - `GENERATE_SPDX`
@@ -986,7 +987,7 @@ the `PackageLicenseConcluded` SPDX field.
 
 :::{note}
 The SPDX generation system do not and cannot replace the `LICENSE_FILES` mechanism.
-Indeed, certains license (e.g Apache 2.0) requires additonal files (e.g `NOTICE`) to
+Indeed, certains license (e.g Apache 2.0) requires additional files (e.g `NOTICE`) to
 also be distributed.
 :::
 

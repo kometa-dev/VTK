@@ -23,6 +23,22 @@ bool VTKCOMMONCORE_EXPORT GetSingleThreadOpenMP();
 void VTKCOMMONCORE_EXPORT vtkSMPToolsImplForOpenMP(vtkIdType first, vtkIdType last, vtkIdType grain,
   ExecuteFunctorPtrType functorExecuter, void* functor, bool nestedActivated);
 
+//------------------------------------------------------------------------------
+// Address the static initialization order 'fiasco' by implementing
+// the schwarz counter idiom.
+class VTKCOMMONCORE_EXPORT vtkSMPToolsImplOpenMPInitialize
+{
+public:
+  vtkSMPToolsImplOpenMPInitialize();
+  ~vtkSMPToolsImplOpenMPInitialize();
+};
+
+//--------------------------------------------------------------------------------
+// This instance will show up in any translation unit that uses vtkSMPToolsImpl.
+// It will make sure vtkSMPToolsImpl statics are initialized before there are used
+// and finalized when they are done being used.
+static vtkSMPToolsImplOpenMPInitialize vtkSMPToolsImplOpenMPInitializer;
+
 //--------------------------------------------------------------------------------
 template <typename FunctorInternal>
 void ExecuteFunctorOpenMP(void* functor, vtkIdType from, vtkIdType grain, vtkIdType last)
@@ -129,15 +145,19 @@ void vtkSMPToolsImpl<BackendType::OpenMP>::Sort(
 
 //--------------------------------------------------------------------------------
 template <>
-void vtkSMPToolsImpl<BackendType::OpenMP>::Initialize(int);
+VTKCOMMONCORE_EXPORT void vtkSMPToolsImpl<BackendType::OpenMP>::Initialize(int);
 
 //--------------------------------------------------------------------------------
 template <>
-int vtkSMPToolsImpl<BackendType::OpenMP>::GetEstimatedNumberOfThreads();
+VTKCOMMONCORE_EXPORT int vtkSMPToolsImpl<BackendType::OpenMP>::GetEstimatedNumberOfThreads();
 
 //--------------------------------------------------------------------------------
 template <>
-bool vtkSMPToolsImpl<BackendType::OpenMP>::GetSingleThread();
+VTKCOMMONCORE_EXPORT int vtkSMPToolsImpl<BackendType::OpenMP>::GetEstimatedDefaultNumberOfThreads();
+
+//--------------------------------------------------------------------------------
+template <>
+VTKCOMMONCORE_EXPORT bool vtkSMPToolsImpl<BackendType::OpenMP>::GetSingleThread();
 
 VTK_ABI_NAMESPACE_END
 } // namespace smp

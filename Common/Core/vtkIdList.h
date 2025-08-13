@@ -14,9 +14,10 @@
 
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkObject.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
-class VTKCOMMONCORE_EXPORT vtkIdList : public vtkObject
+class VTKCOMMONCORE_EXPORT VTK_MARSHALAUTO vtkIdList : public vtkObject
 {
 public:
   ///@{
@@ -149,7 +150,7 @@ public:
    * Return -1 if id specified is not contained in the list; otherwise return
    * the position in the list.
    */
-  vtkIdType IsId(vtkIdType vtkid);
+  vtkIdType IsId(vtkIdType vtkid) VTK_FUTURE_CONST;
 
   /**
    * Intersect this list with another vtkIdList. Updates current list according
@@ -233,7 +234,7 @@ inline vtkIdType vtkIdList::InsertNextId(const vtkIdType vtkid)
   return this->NumberOfIds - 1;
 }
 
-inline vtkIdType vtkIdList::IsId(vtkIdType vtkid)
+inline vtkIdType vtkIdList::IsId(vtkIdType vtkid) VTK_FUTURE_CONST
 {
   vtkIdType *ptr, i;
   for (ptr = this->Ids, i = 0; i < this->NumberOfIds; i++, ptr++)

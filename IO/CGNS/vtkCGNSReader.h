@@ -85,6 +85,21 @@ public:
    */
   vtkDataArraySelection* GetFamilySelection();
 
+  /**
+   * Return selection of cell arrays.
+   */
+  vtkGetMacro(CellDataArraySelection, vtkDataArraySelection*);
+
+  /**
+   * Return selection of face arrays.
+   */
+  vtkGetMacro(FaceDataArraySelection, vtkDataArraySelection*);
+
+  /**
+   * Return selection of point arrays.
+   */
+  vtkGetMacro(PointDataArraySelection, vtkDataArraySelection*);
+
   ///@{
   /**
    * API to select bases to read. These calls simply forward to the
@@ -170,6 +185,16 @@ public:
   vtkSetMacro(LoadBndPatch, bool);
   vtkGetMacro(LoadBndPatch, bool);
   vtkBooleanMacro(LoadBndPatch, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Enable/disable loading of surface patches. In contrast to LoadBndPatch this loads elements of
+   * +++ that do not have an associated boundary condition patch. Defaults to false.
+   */
+  vtkSetMacro(LoadSurfacePatch, bool);
+  vtkGetMacro(LoadSurfacePatch, bool);
+  vtkBooleanMacro(LoadSurfacePatch, bool);
   ///@}
 
   ///@{
@@ -341,6 +366,7 @@ private:
   std::string FileName;
   int DataLocation = vtkCGNSReader::CELL_DATA;
   bool LoadBndPatch = false;
+  bool LoadSurfacePatch = false;
   bool LoadMesh = true;
   int DoublePrecisionMesh = 1;
   int CreateEachSolutionAsBlock = 0;

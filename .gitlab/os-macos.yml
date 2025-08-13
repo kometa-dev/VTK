@@ -7,7 +7,7 @@
         GIT_CLONE_PATH: "$CI_BUILDS_DIR/vtk-ci-ext/$CI_CONCURRENT_ID"
         # TODO: Factor this out so that each job selects the Xcode version to
         # use so that different versions can be tested in a single pipeline.
-        DEVELOPER_DIR: "/Applications/Xcode-14.2.app/Contents/Developer"
+        DEVELOPER_DIR: "/Applications/Xcode-16.1.app/Contents/Developer"
 
 .wheel_macos_arm64:
     extends: .macos
@@ -47,25 +47,19 @@
         PYTHON_VERSION_SUFFIX: "3.12"
         _PYTHON_HOST_PLATFORM: "macosx-11.0-arm64"
 
+.wheel_macos313_arm64:
+    extends: .wheel_macos_arm64
+
+    variables:
+        CMAKE_CONFIGURATION: wheel_macos313_arm64
+        PYTHON_VERSION_SUFFIX: "3.13"
+        _PYTHON_HOST_PLATFORM: "macosx-11.0-arm64"
+
 .wheel_macos_x86_64:
     extends: .macos
 
     variables:
         VTK_INSTALL: 1
-
-.wheel_macos36_x86_64:
-    extends: .wheel_macos_x86_64
-
-    variables:
-        CMAKE_CONFIGURATION: wheel_macos36_x86_64
-        PYTHON_VERSION_SUFFIX: "3.6"
-
-.wheel_macos37_x86_64:
-    extends: .wheel_macos_x86_64
-
-    variables:
-        CMAKE_CONFIGURATION: wheel_macos37_x86_64
-        PYTHON_VERSION_SUFFIX: "3.7"
 
 .wheel_macos38_x86_64:
     extends: .wheel_macos_x86_64
@@ -105,6 +99,13 @@
         PYTHON_VERSION_SUFFIX: "3.12"
         _PYTHON_HOST_PLATFORM: "macosx-10.10-x86_64"
 
+.wheel_macos313_x86_64:
+    extends: .wheel_macos_x86_64
+
+    variables:
+        CMAKE_CONFIGURATION: wheel_macos313_x86_64
+        PYTHON_VERSION_SUFFIX: "3.13"
+        _PYTHON_HOST_PLATFORM: "macosx-10.10-x86_64"
 ### Build and test
 
 .macos_build:
@@ -144,30 +145,42 @@
     variables:
         CMAKE_CONFIGURATION: macos_x86_64_kits_python_qt_ext_vtk
 
+.macos_x86_64_java:
+    extends: .macos_build
+    variables:
+        CMAKE_CONFIGURATION: macos_x86_64_java
+        VTK_INSTALL: 1
+
+.macos_arm64_java:
+    extends: .macos_build
+    variables:
+        CMAKE_CONFIGURATION: macos_arm64_java
+        VTK_INSTALL: 1
+
 ## Tags
 
-.macos_builder_tags:
+.macos_x86_64_builder_tags:
     tags:
         - vtk
         - macos-x86_64
         - shell
-        - xcode-14.2
+        - xcode-16.1
         - nonconcurrent
 
-.macos_wheel_builder_tags:
+.macos_x86_64_wheel_builder_tags:
     tags:
         - vtk
         - macos-x86_64
         - shell
-        - xcode-14.2
+        - xcode-16.1
         - concurrent
 
-.macos_ext_builder_tags:
+.macos_x86_64_ext_builder_tags:
     tags:
         - vtk
         - macos-x86_64
         - shell
-        - xcode-14.2
+        - xcode-16.1
         - concurrent
 
 .macos_arm64_builder_tags:
@@ -175,7 +188,7 @@
         - vtk
         - macos-arm64
         - shell
-        - xcode-14.2
+        - xcode-16.1
         - nonconcurrent
 
 .macos_arm64_wheel_builder_tags:
@@ -183,7 +196,7 @@
         - vtk
         - macos-arm64
         - shell
-        - xcode-14.2
+        - xcode-16.1
         - concurrent
 
 ## macOS-specific scripts
@@ -201,22 +214,46 @@
     - git submodule foreach --recursive cmake -P "$PWD/.gitlab/ci/fetch_submodule.cmake"
     - git submodule sync --recursive
     - git submodule update --init --recursive
+    - cmake -P "$PWD/.gitlab/ci/fetch_tags.cmake"
+
+.before_script_java_macos: &before_script_java_macos
+    - cmake -P .gitlab/ci/download_java.cmake
+    - export JAVA_HOME=$PWD/.gitlab/jdk/Contents/Home/
+    - cmake -P .gitlab/ci/download_maven.cmake
+    - export PATH="$PWD/.gitlab/maven/bin:$PATH"
+    - 'mvn dependency:get "-Dmaven.repo.local=$GIT_CLONE_PATH/.gitlab/m2" "-Dartifact=org.jogamp.gluegen:gluegen-rt:2.3.2"'
+    - 'mvn dependency:get "-Dmaven.repo.local=$GIT_CLONE_PATH/.gitlab/m2" "-Dartifact=org.jogamp.gluegen:gluegen-rt:2.3.2:jar:natives-macosx-universal"'
+    - 'mvn dependency:get "-Dmaven.repo.local=$GIT_CLONE_PATH/.gitlab/m2" "-Dartifact=org.jogamp.jogl:jogl-all:2.3.2"'
+    - 'mvn dependency:get "-Dmaven.repo.local=$GIT_CLONE_PATH/.gitlab/m2" "-Dartifact=org.jogamp.jogl:jogl-all:2.3.2:jar:natives-macosx-universal"'
+    - ls -R $GIT_CLONE_PATH/.gitlab/m2
+
+.script_macos: &script_macos
+    - .gitlab/ci/sccache.sh
+    # Allow the server to already be running.
+    - "sccache --start-server || :"
+    - sccache --show-stats
+    - ctest -VV -S .gitlab/ci/ctest_configure.cmake
+    - ctest -VV -S .gitlab/ci/ctest_build.cmake &> $GIT_CLONE_PATH/compile_output.log
+    - sccache --show-stats
+    - exec .gitlab/ci/check_warnings.sh .
+
+.before_script_macos_deps: &before_script_macos_deps
+    # currently not downloading adios for macos wheels
+    # this way we can only get it for non-wheel macos builds
+    - cmake -P .gitlab/ci/download_adios2.cmake
+    - export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:$PWD/.gitlab/adios2
 
 .cmake_build_macos:
     stage: build
     extends: .warning_policy
-
     script:
         - *before_script_macos
-        - .gitlab/ci/sccache.sh
-        # Allow the server to already be running.
-        - "sccache --start-server || :"
-        - sccache --show-stats
-        - ctest -VV -S .gitlab/ci/ctest_configure.cmake
-        - ctest -VV -S .gitlab/ci/ctest_build.cmake &> $GIT_CLONE_PATH/compile_output.log
-        - sccache --show-stats
-        - exec .gitlab/ci/check_warnings.sh .
-
+        - *before_script_macos_deps
+        - "$DEVELOPER_DIR/Library/Frameworks/Python3.framework/Versions/Current/bin/python3 -m venv build/ci-venv"
+        - . build/ci-venv/bin/activate
+        - PYTHON_VERSION_SUFFIX=`python -c 'import sys;print(f"{sys.version_info[0]}.{sys.version_info[1]}")'`
+        - pip install -r $PWD/.gitlab/ci/requirements-wheel$PYTHON_VERSION_SUFFIX-test.txt
+        - *script_macos
     interruptible: true
 
 .cmake_test_macos:
@@ -224,6 +261,16 @@
 
     script:
         - *before_script_macos
+        - *before_script_macos_deps
+        - PYTHON_VERSION_SUFFIX=`"$DEVELOPER_DIR/Library/Frameworks/Python3.framework/Versions/Current/bin/python3" -c 'import sys;print(f"{sys.version_info[0]}.{sys.version_info[1]}")'`
+        # Reuse the venv from the build step (avoids version changes between
+        # build and testing).
+        # This is set up manually because venv activate does not set
+        # PYTHONPATH which is needed for vtkpython to find the venv packages
+        # https://gitlab.kitware.com/vtk/vtk/-/issues/19539
+        - export PATH=$PWD/build/ci-venv/bin:$PATH
+        - export PYTHONPATH=$PWD/build/ci-venv/lib/python$PYTHON_VERSION_SUFFIX/site-packages
+        - build/bin/vtkpython -c "import xarray"
         - ctest --output-on-failure -V -S .gitlab/ci/ctest_test.cmake
     interruptible: true
 
@@ -282,6 +329,7 @@
           # Needed to rebuild some dependencies which don't have arm64-compatible wheels yet.
         - '[ "$( uname -m )" = "arm64" ] && pip install wheel'
         - pip install twine
+        - pip install -r $PWD/.gitlab/ci/requirements-wheel$PYTHON_VERSION_SUFFIX-test.txt
         - twine check build/dist/*.whl
         - pip install build/dist/*.whl
         - python -c "import vtk"
@@ -289,3 +337,12 @@
         - ctest -V --output-on-failure -S .gitlab/ci/ctest_test_external_wheel.cmake
         - exec .gitlab/ci/check_warnings.sh ./Testing/ExternalWheel
     interruptible: true
+
+.cmake_build_java_macos:
+    stage: build
+    extends: .cmake_build_macos
+    script:
+        - *before_script_macos
+        - *before_script_java_macos
+        - *before_script_macos_deps
+        - *script_macos

@@ -3,8 +3,10 @@
 
 #include "vtkAbstractArray.h"
 
+#include "vtkArrayDispatch.h"
 #include "vtkBitArray.h"
 #include "vtkCharArray.h"
+#include "vtkDataArrayRange.h"
 #include "vtkDoubleArray.h"
 #include "vtkFloatArray.h"
 #include "vtkIdList.h"
@@ -58,6 +60,17 @@ VTK_ABI_NAMESPACE_END
 namespace
 {
 typedef std::vector<std::string*> vtkInternalComponentNameBase;
+
+struct PrintDataArrayWorker
+{
+  template <typename InArrayT>
+  void operator()(InArrayT* inArray, std::ostream& outStream)
+  {
+    using T = vtk::GetAPIType<InArrayT>;
+    const auto inRange = vtk::DataArrayValueRange(inArray);
+    std::copy(inRange.begin(), inRange.end(), std::ostream_iterator<T>(outStream, " "));
+  }
+};
 }
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -466,6 +479,40 @@ vtkAbstractArray* vtkAbstractArray::CreateArray(int dataType)
   return vtkDoubleArray::New();
 }
 
+bool vtkAbstractArray::IsIntegral() const
+{
+  if (!this->IsNumeric())
+  {
+    return false;
+  }
+  int dtype = this->GetDataType();
+  switch (dtype)
+  {
+    case VTK_VOID:
+      return false;
+    case VTK_BIT:
+    case VTK_CHAR:
+    case VTK_SIGNED_CHAR:
+    case VTK_UNSIGNED_CHAR:
+    case VTK_SHORT:
+    case VTK_UNSIGNED_SHORT:
+    case VTK_INT:
+    case VTK_UNSIGNED_INT:
+    case VTK_LONG:
+    case VTK_UNSIGNED_LONG:
+    case VTK_ID_TYPE:
+    case VTK_LONG_LONG:
+    case VTK_UNSIGNED_LONG_LONG:
+      return true;
+    default:
+    case VTK_FLOAT:
+    case VTK_DOUBLE:
+    case VTK_STRING:
+    case VTK_OPAQUE:
+      return false;
+  }
+}
+
 //------------------------------------------------------------------------------
 template <typename T>
 vtkVariant vtkAbstractArrayGetVariantValue(T* arr, vtkIdType index)
@@ -481,6 +528,8 @@ vtkVariant vtkAbstractArray::GetVariantValue(vtkIdType valueIdx)
   {
     vtkExtraExtendedTemplateMacro(val = vtkAbstractArrayGetVariantValue(
                                     static_cast<VTK_TT*>(this->GetVoidPointer(0)), valueIdx));
+    vtkTemplateMacroCase(
+      VTK_BIT, int, val = static_cast<VTK_TT>(static_cast<vtkBitArray*>(this)->GetValue(valueIdx)));
   }
   return val;
 }
@@ -861,5 +910,26 @@ void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimum
   params[0] = uncertainty;
   params[1] = minimumProminence;
   this->GetInformation()->Set(DISCRETE_VALUE_SAMPLE_PARAMETERS(), params, 2);
+}
+
+//------------------------------------------------------------------------------
+void vtkAbstractArray::PrintValues(ostream& os)
+{
+  if (auto* dataArray = vtkDataArray::SafeDownCast(this))
+  {
+    using Dispatcher = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::AllTypes>;
+    ::PrintDataArrayWorker worker;
+    if (!Dispatcher::Execute(dataArray, worker, os))
+    {
+      worker(dataArray, os);
+    }
+  }
+  else
+  {
+    for (vtkIdType ii = 0; ii < this->GetNumberOfValues(); ++ii)
+    {
+      os << this->GetVariantValue(ii).ToString() << ' ';
+    }
+  }
 }
 VTK_ABI_NAMESPACE_END

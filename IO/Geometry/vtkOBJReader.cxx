@@ -206,7 +206,8 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
   std::string tcoordsName; // name of active tcoords
   int lineNumber = 0;      // current line number
 
-  const auto flushLine = [this, &parser, &lineNumber]() {
+  const auto flushLine = [this, &parser, &lineNumber]()
+  {
     std::string remaining;
 
     auto result = parser->Parse(remaining);
@@ -242,9 +243,9 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
         }
         else
         {
-          // Otherwise remove leading whitespaces
+          // Otherwise remove leading blankspaces
           result = parser->DiscardUntil(
-            [](char c) { return !std::isspace(static_cast<unsigned char>(c)); });
+            [](char c) { return !std::isblank(static_cast<unsigned char>(c)); });
           if (result != vtkParseResult::Ok)
           {
             continue;
@@ -329,7 +330,22 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
         }
       }
 
+      // Check last value (which is optional)
+      double w{};
+      result = parser->Parse(w);
+      if (result == vtkParseResult::Error)
+      {
+        vtkErrorMacro(<< "Unexpected token at L." << lineNumber);
+        return 0;
+      }
+
       points->InsertNextPoint(point.data());
+
+      // skip flushLine if we consumed end of line or whole stream
+      if (result == vtkParseResult::EndOfLine || result == vtkParseResult::EndOfStream)
+      {
+        continue;
+      }
 
       result = flushLine();
     }
@@ -347,7 +363,22 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
         }
       }
 
+      // Check last value (which is optional)
+      double z{};
+      result = parser->Parse(z);
+      if (result == vtkParseResult::Error)
+      {
+        vtkErrorMacro(<< "Unexpected token at L." << lineNumber);
+        return 0;
+      }
+
       tcoords->InsertNextTuple(tcoord.data());
+
+      // skip flushLine if we consumed end of line or whole stream
+      if (result == vtkParseResult::EndOfLine || result == vtkParseResult::EndOfStream)
+      {
+        continue;
+      }
 
       result = flushLine();
     }
@@ -384,13 +415,15 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
         {
           if (vert < 0)
           {
-            pointElems->InsertCellPoint(pointCount + vert);
-          }
-          else
-          {
-            pointElems->InsertCellPoint(vert - 1);
+            vert = pointCount + vert + 1;
           }
 
+          if (vert <= 0)
+          {
+            vtkErrorMacro(<< "Unexpected point index value: " << vert);
+            return 0;
+          }
+          pointElems->InsertCellPoint(vert - 1);
           ++vertCount;
         }
         else if (result == vtkParseResult::Error)
@@ -440,13 +473,15 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
         {
           if (vert < 0)
           {
-            lineElems->InsertCellPoint(pointCount + vert);
-          }
-          else
-          {
-            lineElems->InsertCellPoint(vert - 1);
+            vert = pointCount + vert + 1;
           }
 
+          if (vert <= 0)
+          {
+            vtkErrorMacro(<< "Unexpected point index value: " << vert);
+            return 0;
+          }
+          lineElems->InsertCellPoint(vert - 1);
           ++vertCount;
 
           char c = 0;
@@ -500,8 +535,8 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
     else if (command == "f") // face
     {
       const auto globalVertexCount = points->GetNumberOfPoints();
-      const auto globalTcoordCount = normals->GetNumberOfTuples();
-      const auto globalNormalCount = tcoords->GetNumberOfTuples();
+      const auto globalTcoordCount = tcoords->GetNumberOfTuples();
+      const auto globalNormalCount = normals->GetNumberOfTuples();
 
       // We don't yet know how many points are to come
       vertexPolys->InsertNextCell(0);
@@ -532,6 +567,11 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
             vertexAbs = vertex - 1;
           }
 
+          if (vertexAbs < 0)
+          {
+            vtkErrorMacro(<< "Unexpected point index value: " << vertexAbs);
+            return 0;
+          }
           vertexPolys->InsertCellPoint(vertexAbs);
 
           if (!cellWithNotTextureFound)
@@ -573,6 +613,11 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
 
               tcoordCount++;
 
+              if (tcoordAbs < 0)
+              {
+                vtkErrorMacro(<< "Unexpected point index value: " << tcoordAbs);
+                return 0;
+              }
               tcoordPolys->InsertCellPoint(tcoordAbs);
 
               if (tcoordsMap.empty()) // no active tcoords, create the default one
@@ -627,6 +672,11 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
                 normalAbs = normal - 1;
               }
 
+              if (normalAbs < 0)
+              {
+                vtkErrorMacro(<< "Unexpected point index value: " << normalAbs);
+                return 0;
+              }
               normalPolys->InsertCellPoint(normalAbs);
 
               if (normalAbs != vertexAbs)
@@ -711,7 +761,11 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
   const bool hasMaterial =
     materialCount > 1 || (materialCount == 1 && materialNames->GetValue(0) != noMaterialName);
 
-  if (!normalsMatchVertices || !tcoordsMatchVertices)
+  // Fixing the OBJ is done because OBJ files can index normals, vertices and tcoords independently
+  // but VTK cannot.
+  const bool needFix = !normalsMatchVertices || !tcoordsMatchVertices;
+
+  if (needFix)
   {
     vtkDebugMacro(<< "Duplicating vertices so that tcoords and normals are correct");
 
@@ -756,6 +810,7 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
     vtkNew<vtkIdList> normalIds;
     vtkNew<vtkIdList> tmpCell;
 
+    int matId = 0;
     for (vtkIdType celli = 0; celli < vertexPolys->GetNumberOfCells(); ++celli)
     {
       vertexPolys->GetCellAtId(celli, vertexIds);
@@ -774,7 +829,6 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
       const auto normalCount = normalIds->GetNumberOfIds();
       const auto tcoordCount = tcoordIds->GetNumberOfIds();
 
-      int matId = 0;
       if (hasTcoords)
       {
         // keep a record of the material for each cell
@@ -890,10 +944,10 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
 
     if (hasMaterial)
     {
+      int matId = 0;
       // keep a record of the material for each cell
       for (vtkIdType celli = 0; celli < vertexPolys->GetNumberOfCells(); ++celli)
       {
-        int matId = 0;
         const auto citer = startCellToMaterialName.find(celli);
         if (citer != startCellToMaterialName.end())
         {
@@ -909,12 +963,14 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
   // Fill output
   output->SetPoints(points);
 
-  if (pointElems->GetNumberOfCells() > 0)
+  // TODO: Support fixing for points
+  if (pointElems->GetNumberOfCells() > 0 && !needFix)
   {
     output->SetVerts(pointElems);
   }
 
-  if (lineElems->GetNumberOfCells() > 0)
+  // TODO: Support fixing for lines
+  if (lineElems->GetNumberOfCells() > 0 && !needFix)
   {
     output->SetLines(lineElems);
   }

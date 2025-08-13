@@ -2264,7 +2264,7 @@ void vtkSimpleCellTessellator::TessellateFace(vtkGenericAdaptorCell* cell,
       ++i;
     }
 
-    this->Polygon->Triangulate(this->TriangleIds);
+    this->Polygon->TriangulateLocalIds(0, this->TriangleIds);
 
     // now iterate over any sub-triangle and call triangulateface on it
     vtkIdType pts[3];
@@ -2405,7 +2405,7 @@ void vtkSimpleCellTessellator::Triangulate(vtkGenericAdaptorCell* cell,
       ++i;
     }
 
-    this->Polygon->Triangulate(this->TriangleIds);
+    this->Polygon->TriangulateLocalIds(0, this->TriangleIds);
 
     // now iterate over any sub-triangle and call triangulateface on it
     vtkIdType pts[3];
@@ -2613,7 +2613,7 @@ int vtkSimpleCellTessellator::GetNumberOfCellsUsingFace(int faceId)
 
 //------------------------------------------------------------------------------
 // Description:
-// Allocate some memory if Scalars does not exists or is smaller than size.
+// Allocate some memory if Scalars does not exist or is smaller than size.
 // \pre positive_size: size>0
 void vtkSimpleCellTessellator::AllocateScalars(int size)
 {

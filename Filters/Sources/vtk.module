@@ -6,6 +6,8 @@ KIT
   VTK::Filters
 GROUPS
   StandAlone
+DESCRIPTION
+  Filters that construct VTK data from scratch.
 SPDX_LICENSE_IDENTIFIER
   LicenseRef-BSD-3-Clause-Sandia-USGov
 SPDX_COPYRIGHT_TEXT
@@ -32,11 +34,15 @@ TEST_DEPENDS
   VTK::FiltersGeometry
   VTK::FiltersHyperTree
   VTK::FiltersModeling
+  VTK::FiltersParallel
   VTK::FiltersVerdict
   VTK::IOParallel
   VTK::IOXML
   VTK::InteractionStyle
   VTK::RenderingFreeType
   VTK::RenderingOpenGL2
+  VTK::RenderingParallel
   VTK::TestingCore
   VTK::TestingRendering
+TEST_OPTIONAL_DEPENDS
+  VTK::ParallelMPI

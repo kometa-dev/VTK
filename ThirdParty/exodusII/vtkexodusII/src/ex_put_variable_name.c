@@ -1,5 +1,5 @@
 /*
- * Copyright(C) 1999-2020 National Technology & Engineering Solutions
+ * Copyright(C) 1999-2020, 2025 National Technology & Engineering Solutions
  * of Sandia, LLC (NTESS).  Under the terms of Contract DE-NA0003525 with
  * NTESS, the U.S. Government retains certain rights in this software.
  *
@@ -38,14 +38,14 @@
 
 int ex_put_variable_name(int exoid, ex_entity_type obj_type, int var_num, const char *var_name)
 {
-  int         status;
-  int         varid;
+  int         status = 0;
+  int         varid  = 0;
   char        errmsg[MAX_ERR_LENGTH];
-  const char *vname;
+  const char *vname = NULL;
 
   EX_FUNC_ENTER();
 
-  if (ex__check_valid_file_id(exoid, __func__) == EX_FATAL) {
+  if (exi_check_valid_file_id(exoid, __func__) == EX_FATAL) {
     EX_FUNC_LEAVE(EX_FATAL);
   }
 
@@ -78,7 +78,7 @@ int ex_put_variable_name(int exoid, ex_entity_type obj_type, int var_num, const 
   }
 
   /* write EXODUS variable name */
-  status = ex__put_name(exoid, varid, var_num - 1, var_name, obj_type, "variable", __func__);
+  status = exi_put_name(exoid, varid, var_num - 1, var_name, obj_type, "variable", __func__);
 
   EX_FUNC_LEAVE(status);
 }

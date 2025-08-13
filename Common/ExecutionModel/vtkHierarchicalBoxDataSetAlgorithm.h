@@ -15,10 +15,12 @@
 
 #include "vtkAlgorithm.h"
 #include "vtkCommonExecutionModelModule.h" // For export macro
+#include "vtkDeprecation.h"                // For VTK_DEPRECATED_IN_9_5_0
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkHierarchicalBoxDataSet;
-class VTKCOMMONEXECUTIONMODEL_EXPORT vtkHierarchicalBoxDataSetAlgorithm : public vtkAlgorithm
+class VTK_DEPRECATED_IN_9_5_0("Please use `vtkOverlappingAMRAlgorithm` instead.")
+  VTKCOMMONEXECUTIONMODEL_EXPORT vtkHierarchicalBoxDataSetAlgorithm : public vtkAlgorithm
 {
 public:
   static vtkHierarchicalBoxDataSetAlgorithm* New();
@@ -90,6 +92,11 @@ protected:
     return 1;
   }
   ///@}
+
+  virtual int RequestUpdateTime(vtkInformation*, vtkInformationVector**, vtkInformationVector*)
+  {
+    return 1;
+  }
 
   // Create a default executive.
   vtkExecutive* CreateDefaultExecutive() override;

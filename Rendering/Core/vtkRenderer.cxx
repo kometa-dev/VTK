@@ -21,11 +21,12 @@
 #include "vtkRenderPass.h"
 #include "vtkRenderTimerLog.h"
 #include "vtkRenderWindow.h"
+#include "vtkRendererCollection.h"
 #include "vtkRendererDelegate.h"
 #include "vtkSelectionNode.h"
 #include "vtkTexture.h"
 #include "vtkTimerLog.h"
-#include "vtkVectorOperators.h"
+#include "vtkVector.h"
 
 #include <sstream>
 
@@ -415,7 +416,7 @@ void vtkRenderer::Render()
   {
     // Measure the actual RenderTime
     t2 = vtkTimerLog::GetUniversalTime();
-    this->LastRenderTimeInSeconds = static_cast<double>(t2 - t1);
+    this->LastRenderTimeInSeconds = t2 - t1;
 
     if (this->LastRenderTimeInSeconds == 0.0)
     {
@@ -567,7 +568,7 @@ void vtkRenderer::AllocateTime()
   this->ComputeAspect();
 
   // It is very likely that the culler framework will call our
-  // GetActiveCamera (say, to get the view frustrum planes for example).
+  // GetActiveCamera (say, to get the view frustum planes for example).
   // This does not reset the camera anymore. If no camera has been
   // created though, we want it not only to be created but also reset
   // so that it behaves nicely for people who never bother with the camera
@@ -1479,20 +1480,62 @@ void vtkRenderer::SetRenderWindow(vtkRenderWindow* renwin)
 // Given a pixel location, return the Z value
 double vtkRenderer::GetZ(int x, int y)
 {
-  float* zPtr;
-  double z;
+  int* size = this->GetSize();
+  if (x < 0 || y < 0 || x > size[0] || y > size[1])
+  {
+    return 1.0; // outside of renderer
+  }
 
-  zPtr = this->RenderWindow->GetZbufferData(x, y, x, y);
-  if (zPtr)
+  if (!this->SafeGetZ)
   {
-    z = *zPtr;
-    delete[] zPtr;
+    // Assume depth buffer is valid and up to date
+    return this->RenderWindow->GetZbufferDataAtPoint(x, y);
   }
-  else
+
+  // Skip volumes because we are only interested in Z-buffer values that are not updated by volumes
+  vtkNew<vtkPropCollection> propsList;
+  this->PickFromProps = propsList;
+
+  vtkCollectionSimpleIterator pit;
+  this->Props->InitTraversal(pit);
+  for (vtkProp* prop = this->Props->GetNextProp(pit); prop; prop = this->Props->GetNextProp(pit))
   {
-    z = 1.0;
+    prop->GetActors(PickFromProps);
+    prop->GetActors2D(PickFromProps);
   }
-  return z;
+
+  // Use a hardware selector because calling
+  // this->RenderWindow->GetZbufferData when having multiple renderers always
+  // results in a z-buffer value from the last rendered renderer
+  vtkNew<vtkHardwareSelector> hsel;
+  hsel->SetActorPassOnly(true);
+  hsel->SetCaptureZValues(true);
+  hsel->SetRenderer(this);
+  hsel->SetArea(static_cast<unsigned int>(x), static_cast<unsigned int>(y),
+    static_cast<unsigned int>(x), static_cast<unsigned int>(y));
+  vtkSmartPointer<vtkSelection> sel;
+  sel.TakeReference(hsel->Select());
+
+  // Reset pick list
+  this->PickFromProps = nullptr;
+
+  // find the closest z-buffer value
+  if (sel && sel->GetNode(0))
+  {
+    double closestDepth = 1.0;
+    unsigned int numPicked = sel->GetNumberOfNodes();
+    for (unsigned int pIdx = 0; pIdx < numPicked; pIdx++)
+    {
+      vtkSelectionNode* selnode = sel->GetNode(pIdx);
+      double adepth = selnode->GetProperties()->Get(vtkSelectionNode::ZBUFFER_VALUE());
+      if (adepth < closestDepth)
+        closestDepth = adepth;
+    }
+
+    return closestDepth;
+  }
+
+  return 1.0; // nothing selected
 }
 
 // Convert view point coordinates to world coordinates.
@@ -1933,6 +1976,7 @@ vtkAssemblyPath* vtkRenderer::PickProp(double selectionX1, double selectionY1, d
     // store the list of picked props
     vtkProp* closestProp = nullptr;
     double closestDepth = 2.0;
+    unsigned int closestIdx = 0;
     this->PickResultProps = vtkPropCollection::New();
     unsigned int numPicked = sel->GetNumberOfNodes();
     for (unsigned int pIdx = 0; pIdx < numPicked; pIdx++)
@@ -1948,12 +1992,23 @@ vtkAssemblyPath* vtkRenderer::PickProp(double selectionX1, double selectionY1, d
         {
           closestProp = aProp;
           closestDepth = adepth;
+          closestIdx = pIdx;
         }
       }
     }
     if (closestProp == nullptr)
     {
       return nullptr;
+    }
+    if (closestIdx != 0)
+    {
+      // reorder the selection so that the closest / picked prop is the first selection node
+      std::string nodeNameZero = sel->GetNodeNameAtIndex(0);
+      std::string nodeNameClosest = sel->GetNodeNameAtIndex(closestIdx);
+
+      vtkSmartPointer<vtkSelectionNode> temp = sel->GetNode(nodeNameZero);
+      sel->SetNode(nodeNameZero, sel->GetNode(nodeNameClosest));
+      sel->SetNode(nodeNameClosest, temp);
     }
     closestProp->InitPathTraversal();
     this->PickedProp = closestProp->GetNextPath();

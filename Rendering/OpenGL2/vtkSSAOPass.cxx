@@ -3,8 +3,10 @@
 
 #include "vtkSSAOPass.h"
 
+#include "vtkInformation.h"
 #include "vtkMatrix4x4.h"
 #include "vtkObjectFactory.h"
+#include "vtkOpenGLActor.h"
 #include "vtkOpenGLCamera.h"
 #include "vtkOpenGLError.h"
 #include "vtkOpenGLFramebufferObject.h"
@@ -19,9 +21,11 @@
 #include "vtkRenderState.h"
 #include "vtkRenderer.h"
 #include "vtkShaderProgram.h"
-#include "vtkTextureObject.h"
+#include "vtkVolume.h"
+#include "vtkVolumeProperty.h"
 
 #include <random>
+#include <sstream>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSSAOPass);
@@ -145,7 +149,7 @@ void vtkSSAOPass::InitializeGraphicsResources(vtkOpenGLRenderWindow* renWin, int
   {
     this->DepthTexture = vtkTextureObject::New();
     this->DepthTexture->SetContext(renWin);
-    this->DepthTexture->AllocateDepth(w, h, vtkTextureObject::Float32);
+    this->DepthTexture->AllocateDepth(w, h, this->DepthFormat);
   }
 
   if (this->FrameBufferObject == nullptr)
@@ -190,7 +194,8 @@ void vtkSSAOPass::ComputeKernel()
 bool vtkSSAOPass::SetShaderParameters(vtkShaderProgram* vtkNotUsed(program),
   vtkAbstractMapper* mapper, vtkProp* vtkNotUsed(prop), vtkOpenGLVertexArrayObject* vtkNotUsed(VAO))
 {
-  if (vtkOpenGLPolyDataMapper::SafeDownCast(mapper) != nullptr)
+  if (vtkOpenGLPolyDataMapper::SafeDownCast(mapper) != nullptr ||
+    mapper->IsA("vtkOpenGLGPUVolumeRayCastMapper"))
   {
     this->FrameBufferObject->ActivateDrawBuffers(3);
   }
@@ -198,8 +203,42 @@ bool vtkSSAOPass::SetShaderParameters(vtkShaderProgram* vtkNotUsed(program),
   {
     this->FrameBufferObject->ActivateDrawBuffers(1);
   }
-
   return true;
+}
+
+//------------------------------------------------------------------------------
+void vtkSSAOPass::PreRenderProp(vtkProp* prop)
+{
+  // Create information and add the vtkOpenGLRenderPass information key
+  this->Superclass::PreRenderProp(prop);
+
+  vtkVolume* volume = vtkVolume::SafeDownCast(prop);
+  if (volume)
+  {
+    // Shading must be enabled to compute normals
+    if (!volume->GetProperty()->GetShade())
+    {
+      vtkErrorMacro("Shading must be enabled for volumes to support SSAO.");
+    }
+
+    vtkInformation* info = volume->GetPropertyKeys();
+    info->Set(vtkOpenGLActor::GLDepthMaskOverride(), 1);
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkSSAOPass::PostRenderProp(vtkProp* prop)
+{
+  // Clean the vtkOpenGLRenderPass information key
+  this->Superclass::PostRenderProp(prop);
+
+  // Clean the GLDepthMaskOverride information key
+  vtkVolume* volume = vtkVolume::SafeDownCast(prop);
+  if (volume)
+  {
+    vtkInformation* info = volume->GetPropertyKeys();
+    info->Remove(vtkOpenGLActor::GLDepthMaskOverride());
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -217,13 +256,28 @@ void vtkSSAOPass::RenderDelegate(const vtkRenderState* s, int w, int h)
   this->FrameBufferObject->AddDepthAttachment(this->DepthTexture);
   this->FrameBufferObject->StartNonOrtho(w, h);
 
+  // Clear color and depth.
+  // This is only required for the vtkRenderer built-in UseSSAO feature
+  // where the DelegatePass does not use a vtkCameraPass for clearing.
   vtkOpenGLRenderer* glRen = vtkOpenGLRenderer::SafeDownCast(s->GetRenderer());
+  if (glRen && glRen->GetUseSSAO() && glRen->GetErase())
+  {
+    vtkOpenGLState* ostate = glRen->GetState();
+    GLbitfield clear_mask = 0;
+    if (!glRen->Transparent())
+    {
+      clear_mask |= GL_COLOR_BUFFER_BIT;
+    }
 
-  vtkOpenGLState* ostate = glRen->GetState();
-  ostate->vtkglClear(GL_COLOR_BUFFER_BIT);
-  ostate->vtkglDepthMask(GL_TRUE);
-  ostate->vtkglClearDepth(1.0);
-  ostate->vtkglClear(GL_DEPTH_BUFFER_BIT);
+    if (!glRen->GetPreserveDepthBuffer())
+    {
+      ostate->vtkglClearDepth(static_cast<GLclampf>(1.0));
+      clear_mask |= GL_DEPTH_BUFFER_BIT;
+      ostate->vtkglDepthMask(GL_TRUE);
+    }
+
+    ostate->vtkglClear(clear_mask);
+  }
 
   this->DelegatePass->Render(s);
   this->NumberOfRenderedProps += this->DelegatePass->GetNumberOfRenderedProps();
@@ -268,6 +322,7 @@ void vtkSSAOPass::RenderSSAO(vtkOpenGLRenderWindow* renWin, vtkMatrix4x4* projec
 
     std::stringstream ssImpl;
     ssImpl
+      << std::scientific
       << "\n"
          "  float occlusion = 0.0;\n"
          "  float depth = texture(texDepth, texCoord).r;\n"
@@ -305,7 +360,8 @@ void vtkSSAOPass::RenderSSAO(vtkOpenGLRenderWindow* renWin, vtkMatrix4x4* projec
          "      occlusion = occlusion / float(kernelSize);\n"
          "    }\n"
          "  }\n"
-         "  gl_FragData[0] = vec4(vec3(1.0 - occlusion), 1.0);\n";
+         "  gl_FragData[0] = vec4(vec3(1.0 - clamp((occlusion - ("
+      << this->IntensityShift << ")) * (" << this->IntensityScale << "), 0.0, 1.0)), 1.0); \n";
 
     vtkShaderProgram::Substitute(FSSource, "//VTK::FSQ::Impl", ssImpl.str());
 
@@ -520,6 +576,33 @@ bool vtkSSAOPass::PreReplaceShaderValues(std::string& vtkNotUsed(vertexShader),
       false);
   }
 
+  if (mapper->IsA("vtkOpenGLGPUVolumeRayCastMapper"))
+  {
+    vtkShaderProgram::Substitute(fragmentShader, "//VTK::ComputeLighting::Dec",
+      "vec3 g_dataNormal; \n"
+      "//VTK::ComputeLighting::Dec\n",
+      false);
+    vtkShaderProgram::Substitute(fragmentShader, "//VTK::RenderToImage::Dec",
+      "//VTK::RenderToImage::Dec\n"
+      "  //VTK::SSAO::Dec\n",
+      false);
+
+    vtkShaderProgram::Substitute(fragmentShader, "//VTK::RenderToImage::Init",
+      "//VTK::RenderToImage::Init\n"
+      "  //VTK::SSAO::Init\n",
+      false);
+
+    vtkShaderProgram::Substitute(fragmentShader, "//VTK::RenderToImage::Impl",
+      "//VTK::RenderToImage::Impl\n"
+      "  //VTK::SSAO::Impl\n",
+      false);
+
+    vtkShaderProgram::Substitute(fragmentShader, "//VTK::RenderToImage::Exit",
+      "//VTK::RenderToImage::Exit\n"
+      "  //VTK::SSAO::Exit\n",
+      false);
+  }
+
   return true;
 }
 
@@ -551,6 +634,54 @@ bool vtkSSAOPass::PostReplaceShaderValues(std::string& vtkNotUsed(vertexShader),
         false);
     }
   }
+
+  if (mapper->IsA("vtkOpenGLGPUVolumeRayCastMapper"))
+  {
+    vtkShaderProgram::Substitute(fragmentShader, "//VTK::SSAO::Dec",
+      "vec3 l_ssaoFragNormal;\n"
+      "vec3 l_ssaoFragPos;\n"
+      "bool l_ssaoUpdateDepth;\n",
+      false);
+
+    vtkShaderProgram::Substitute(fragmentShader, "//VTK::SSAO::Init",
+      "l_ssaoFragPos = vec3(-1.0);\n"
+      "l_ssaoUpdateDepth = true;\n",
+      false);
+
+    std::stringstream ssaoImpl;
+    ssaoImpl << "if (!g_skip && g_fragColor.a > " << this->VolumeOpacityThreshold
+             << " && l_ssaoUpdateDepth)\n"
+                "{\n"
+                "  l_ssaoFragPos = g_dataPos;\n"
+                "  l_ssaoFragNormal = g_dataNormal;\n"
+                "  l_ssaoUpdateDepth = false;\n"
+                "}";
+    vtkShaderProgram::Substitute(fragmentShader, "//VTK::SSAO::Impl", ssaoImpl.str(), false);
+
+    vtkShaderProgram::Substitute(fragmentShader, "//VTK::SSAO::Exit",
+      "if (l_ssaoFragPos == vec3(-1.0))\n"
+      "{\n"
+      "  gl_FragDepth = 1.0;\n"
+      "}\n"
+      "else\n"
+      "{\n"
+      "  vec4 depthValue = in_projectionMatrix * in_modelViewMatrix *\n"
+      "                    in_volumeMatrix[0] * in_textureDatasetMatrix[0] *\n"
+      "                    vec4(l_ssaoFragPos, 1.0);\n"
+      "  depthValue /= depthValue.w;\n"
+      "  gl_FragDepth = 0.5 * (gl_DepthRange.far - gl_DepthRange.near) * depthValue.z + 0.5 * "
+      "(gl_DepthRange.far + gl_DepthRange.near);\n"
+      "  gl_FragData[1] = in_modelViewMatrix * in_volumeMatrix[0] * in_textureDatasetMatrix[0] * "
+      "vec4(l_ssaoFragPos, 1.0);\n"
+      "  gl_FragData[2] = vec4(normalize(l_ssaoFragNormal), 1.0);\n"
+      "}",
+      false);
+  }
+
+  vtkShaderProgram::Substitute(fragmentShader, "//VTK::ComputeLighting::Exit",
+    "//VTK::ComputeLighting::Exit\n"
+    "g_dataNormal = -shading_gradient.xyz;",
+    false);
 
   return true;
 }

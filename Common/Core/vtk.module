@@ -22,9 +22,11 @@ LICENSE_FILES
 DEPENDS
   VTK::kwiml
   VTK::vtksys
+  VTK::token
+  VTK::nlohmannjson
 PRIVATE_DEPENDS
-  VTK::utf8
   VTK::fast_float
+  VTK::doubleconversion
 OPTIONAL_DEPENDS
   VTK::loguru
 TEST_DEPENDS
@@ -35,3 +37,5 @@ TEST_DEPENDS
   VTK::TestingCore
   VTK::vtksys
   VTK::fmt
+  VTK::scn
+INCLUDE_MARSHAL

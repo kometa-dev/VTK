@@ -687,7 +687,7 @@ vtkObjectBase* vtkPythonUtil::GetPointerFromObject(PyObject* obj, const char* re
 #endif
     snprintf(error_string, sizeof(error_string), "method requires a %.500s, a %.500s was provided.",
       vtkPythonUtil::PythonicClassName(result_type),
-      vtkPythonUtil::PythonicClassName(((vtkObjectBase*)ptr)->GetClassName()));
+      vtkPythonUtil::PythonicClassName(ptr->GetClassName()));
     PyErr_SetString(PyExc_TypeError, error_string);
     return nullptr;
   }
@@ -695,14 +695,16 @@ vtkObjectBase* vtkPythonUtil::GetPointerFromObject(PyObject* obj, const char* re
 
 //----------------
 // union of long int and pointer
-union vtkPythonUtilPointerUnion {
+union vtkPythonUtilPointerUnion
+{
   void* p;
   uintptr_t l;
 };
 
 //----------------
 // union of long int and pointer
-union vtkPythonUtilConstPointerUnion {
+union vtkPythonUtilConstPointerUnion
+{
   const void* p;
   uintptr_t l;
 };
@@ -1039,6 +1041,17 @@ bool vtkPythonUtil::ImportModule(const char* fullname, PyObject* globals)
 void vtkPythonUtil::AddModule(const char* name)
 {
   vtkPythonMap->ModuleList->push_back(name);
+
+  // Register module name into pending list for deferred side module loading
+  PyObject* pModule = PyImport_ImportModule("vtkmodules");
+  PyObject* pFunc = PyObject_GetAttrString(pModule, "on_vtk_module_init");
+  PyObject* pArgs = PyTuple_New(1);
+  PyTuple_SetItem(pArgs, 0, PyUnicode_FromString(name));
+  PyObject* execVal = PyObject_CallObject(pFunc, pArgs);
+  Py_DECREF(execVal);
+  Py_DECREF(pArgs);
+  Py_DECREF(pFunc);
+  Py_DECREF(pModule);
 }
 
 //------------------------------------------------------------------------------
@@ -1197,5 +1210,35 @@ void vtkPythonVoidFuncArgDelete(void* arg)
   {
     Py_DECREF(func);
   }
+}
+
+//------------------------------------------------------------------------------
+PyGetSetDef* vtkPythonUtil::FindGetSetDescriptor(PyTypeObject* pytype, PyObject* key)
+{
+  // Check if tp_dict is present
+  if (pytype->tp_dict != nullptr && PyDict_Check(pytype->tp_dict))
+  {
+    // Check if the attribute is in the dictionary
+    PyObject* attr = PyDict_GetItem(pytype->tp_dict, key);
+    if (attr != nullptr)
+    {
+      PyDescrObject* descr = (PyDescrObject*)attr;
+      if (pytype == descr->d_type || PyType_IsSubtype(pytype, descr->d_type))
+      {
+        PyGetSetDescrObject* getsetDescr = (PyGetSetDescrObject*)descr;
+        if (getsetDescr->d_getset != nullptr)
+        {
+          return getsetDescr->d_getset;
+        }
+      }
+    }
+  }
+  // Recursively check in base types
+  if (pytype->tp_base != nullptr)
+  {
+    return vtkPythonUtil::FindGetSetDescriptor(pytype->tp_base, key);
+  }
+  // No matching getset descriptor found
+  return nullptr;
 }
 VTK_ABI_NAMESPACE_END

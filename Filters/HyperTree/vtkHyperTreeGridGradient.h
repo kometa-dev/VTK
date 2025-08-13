@@ -7,6 +7,11 @@
  *
  * This filter compute the gradient of a given cell scalars array on a
  * Hyper Tree Grid. This result in a new array attached to the original input.
+ * This filter does not support masks.
+ * In practice the mask is ignored during the processing of this filters and re-attached to the
+ * output, leading to masked cell being taken into account for the gradient computation of visible
+ * cells. This leads to the gradient being influenced by masked cells. This should only impact cells
+ * on the boundary, where gradient is already ill-defined.
  *
  * @sa
  * vtkHyperTreeGrid vtkHyperTreeGridAlgorithm vtkGradientFilter
@@ -22,7 +27,6 @@
 
 #include "vtkFiltersHyperTreeModule.h" // For export macro
 
-#include "vtkDeprecation.h" // for deprecatin S/GetRenderWindow
 #include "vtkHyperTreeGridAlgorithm.h"
 #include "vtkNew.h"          // for internal fields
 #include "vtkSmartPointer.h" // for internal fields
@@ -65,10 +69,6 @@ public:
    */
   vtkSetStringMacro(GradientArrayName);
   vtkGetStringMacro(GradientArrayName);
-  VTK_DEPRECATED_IN_9_3_0("Please use unambiguous SetGradientArrayName method instead.")
-  void SetResultArrayName(std::string name) { this->SetGradientArrayName(name.c_str()); }
-  VTK_DEPRECATED_IN_9_3_0("Please use unambiguous GetGradientArrayName method instead.")
-  std::string GetResultArrayName() { return std::string(this->GetGradientArrayName()); }
   ///@}
 
   ///@{

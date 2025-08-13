@@ -2,17 +2,25 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTesting.h"
 
+#include "vtkAlgorithmOutput.h"
 #include "vtkDataArray.h"
+#include "vtkDataArrayRange.h"
 #include "vtkDataSet.h"
 #include "vtkDoubleArray.h"
+#include "vtkDummyController.h"
 #include "vtkFloatArray.h"
 #include "vtkImageClip.h"
 #include "vtkImageData.h"
 #include "vtkImageDifference.h"
 #include "vtkImageExtractComponents.h"
+#include "vtkImageRGBToXYZ.h"
+#include "vtkImageSSIM.h"
 #include "vtkImageShiftScale.h"
+#include "vtkImageXYZToLAB.h"
 #include "vtkInformation.h"
 #include "vtkInteractorEventRecorder.h"
+#include "vtkLogger.h"
+#include "vtkMultiProcessController.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPNGReader.h"
@@ -21,12 +29,23 @@
 #include "vtkPointSet.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
+#include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkTimerLog.h"
 #include "vtkWindowToImageFilter.h"
 
+#include "vtkImageRGBToHSI.h"
+
 #include <sstream>
 #include <vtksys/SystemTools.hxx>
+
+#include <array>
+#include <numeric>
+
+#ifdef __EMSCRIPTEN__
+#include "vtkTestUtilities.h"
+#endif
+#include "vtkXMLImageDataWriter.h"
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTesting);
@@ -120,6 +139,7 @@ vtkTesting::vtkTesting()
   this->TempDirectory = nullptr;
   this->BorderOffset = 0;
   this->Verbose = 0;
+  this->Controller = vtkSmartPointer<vtkDummyController>::New();
 
   // on construction we start the timer
   this->StartCPUTime = vtkTimerLog::GetCPUTime();
@@ -133,6 +153,22 @@ vtkTesting::~vtkTesting()
   this->SetValidImageFileName(nullptr);
   this->SetDataRoot(nullptr);
   this->SetTempDirectory(nullptr);
+}
+
+//------------------------------------------------------------------------------
+vtkMultiProcessController* vtkTesting::GetController() const
+{
+  return this->Controller;
+}
+
+//------------------------------------------------------------------------------
+void vtkTesting::SetController(vtkMultiProcessController* controller)
+{
+  vtkSetSmartPointerBodyMacro(Controller, vtkMultiProcessController, controller);
+  if (!this->Controller)
+  {
+    this->Controller = vtkSmartPointer<vtkDummyController>::New();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -214,7 +250,8 @@ const char* vtkTesting::GetValidImageFileName()
     {
       const char* ch = this->Args[i + 1].c_str();
       if (ch[0] == '/'
-#ifdef _WIN32
+#if defined(_WIN32) ||                                                                             \
+  defined(__EMSCRIPTEN__) // Emscripten too, because the file could be on a windows server.
         || (ch[0] >= 'a' && ch[0] <= 'z' && ch[1] == ':') ||
         (ch[0] >= 'A' && ch[0] <= 'Z' && ch[1] == ':')
 #endif
@@ -349,23 +386,9 @@ void vtkTesting::SetFrontBuffer(vtkTypeBool frontBuffer)
 }
 
 //------------------------------------------------------------------------------
-int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh)
-{
-  int result = this->RegressionTest(imageSource, thresh, cout);
-
-  cout << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
-  cout << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
-  cout << "</DartMeasurement>\n";
-  cout << "<DartMeasurement name=\"CPUTime\" type=\"numeric/double\">";
-  cout << vtkTimerLog::GetCPUTime() - this->StartCPUTime;
-  cout << "</DartMeasurement>\n";
-
-  return result;
-}
-//------------------------------------------------------------------------------
 int vtkTesting::RegressionTestAndCaptureOutput(double thresh, ostream& os)
 {
-  int result = this->RegressionTest(thresh, os);
+  const int result = this->RegressionTest(thresh, os);
 
   os << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
   os << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
@@ -376,12 +399,29 @@ int vtkTesting::RegressionTestAndCaptureOutput(double thresh, ostream& os)
 
   return result;
 }
+
 //------------------------------------------------------------------------------
 int vtkTesting::RegressionTest(double thresh)
 {
-  int result = this->RegressionTestAndCaptureOutput(thresh, cout);
+  const int result = this->RegressionTest(thresh, cout);
+  cout << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
+  cout << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
+  cout << "</DartMeasurement>\n";
+  cout << "<DartMeasurement name=\"CPUTime\" type=\"numeric/double\">";
+  cout << vtkTimerLog::GetCPUTime() - this->StartCPUTime;
+  cout << "</DartMeasurement>\n";
   return result;
 }
+
+//------------------------------------------------------------------------------
+int vtkTesting::RegressionTest(double thresh, std::string& output)
+{
+  std::ostringstream os;
+  const int result = this->RegressionTest(thresh, os);
+  output = os.str();
+  return result;
+}
+
 //------------------------------------------------------------------------------
 int vtkTesting::RegressionTest(double thresh, ostream& os)
 {
@@ -412,16 +452,19 @@ int vtkTesting::RegressionTest(double thresh, ostream& os)
   rtW2if->Update();
   this->RenderWindow->SetSwapBuffers(swapBuffers); // restore swap state.
   int res = this->RegressionTest(rtW2if, thresh, out1);
-  if (res == FAILED)
+  int recvRes;
+  this->Controller->AllReduce(&res, &recvRes, 1, vtkCommunicator::MIN_OP);
+  if (recvRes == FAILED)
   {
     std::ostringstream out2;
     // tell it to read front buffer
     rtW2if->ReadFrontBufferOn();
     rtW2if->Update();
     res = this->RegressionTest(rtW2if, thresh, out2);
+    this->Controller->AllReduce(&res, &recvRes, 1, vtkCommunicator::MAX_OP);
     // If both tests fail, rerun the backbuffer tests to recreate the test
     // image. Otherwise an incorrect image will be uploaded to CDash.
-    if (res == PASSED)
+    if (recvRes == PASSED)
     {
       os << out2.str();
     }
@@ -442,18 +485,42 @@ int vtkTesting::RegressionTest(double thresh, ostream& os)
   {
     os << out1.str();
   }
-  return res;
+  return this->Controller->GetLocalProcessId() == 0 ? res : NOT_RUN;
 }
+
 //------------------------------------------------------------------------------
 int vtkTesting::RegressionTest(const string& pngFileName, double thresh)
 {
-  return this->RegressionTest(pngFileName, thresh, cout);
+  const int result = this->RegressionTest(pngFileName, thresh, cout);
+  cout << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
+  cout << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
+  cout << "</DartMeasurement>\n";
+  cout << "<DartMeasurement name=\"CPUTime\" type=\"numeric/double\">";
+  cout << vtkTimerLog::GetCPUTime() - this->StartCPUTime;
+  cout << "</DartMeasurement>\n";
+  return result;
 }
+
+//------------------------------------------------------------------------------
+int vtkTesting::RegressionTest(const std::string& pngFileName, double thresh, std::string& output)
+{
+  std::ostringstream os;
+  const int result = this->RegressionTest(pngFileName, thresh, os);
+  output = os.str();
+  return result;
+}
+
 //------------------------------------------------------------------------------
 int vtkTesting::RegressionTest(const string& pngFileName, double thresh, ostream& os)
 {
   vtkNew<vtkPNGReader> inputReader;
+
+#ifdef __EMSCRIPTEN__
+  std::string sandboxName = vtkEmscriptenTestUtilities::PreloadDataFile(pngFileName.c_str());
+  inputReader->SetFileName(sandboxName.c_str());
+#else
   inputReader->SetFileName(pngFileName.c_str());
+#endif
   inputReader->Update();
 
   vtkAlgorithm* src = inputReader;
@@ -471,12 +538,42 @@ int vtkTesting::RegressionTest(const string& pngFileName, double thresh, ostream
 
   return this->RegressionTest(src, thresh, os);
 }
+
+//------------------------------------------------------------------------------
+int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh)
+{
+  const int result = this->RegressionTest(imageSource, thresh, cout);
+  cout << "<DartMeasurement name=\"WallTime\" type=\"numeric/double\">";
+  cout << vtkTimerLog::GetUniversalTime() - this->StartWallTime;
+  cout << "</DartMeasurement>\n";
+  cout << "<DartMeasurement name=\"CPUTime\" type=\"numeric/double\">";
+  cout << vtkTimerLog::GetCPUTime() - this->StartCPUTime;
+  cout << "</DartMeasurement>\n";
+
+  return result;
+}
+
+int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, std::string& output)
+{
+  std::ostringstream os;
+  const int result = this->RegressionTest(imageSource, thresh, os);
+  output = os.str();
+  return result;
+}
+
 //------------------------------------------------------------------------------
 int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream& os)
 {
   // do a get to compute the real value
   this->GetValidImageFileName();
   string tmpDir = this->GetTempDirectory();
+
+  // Make sure the tmpDir actual exists
+  if (!vtksys::SystemTools::MakeDirectory(tmpDir))
+  {
+    vtkWarningMacro("Could not create a temporary directory to write images to:'"
+      << tmpDir << "'. Output images may be missing.");
+  }
 
   // construct the names for the error images
   string validName = this->ValidImageFileName;
@@ -491,14 +588,34 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
   string bestImageFileName = this->ValidImageFileName;
 
   // check the valid image
+#ifdef __EMSCRIPTEN__
+  vtkEmscriptenTestUtilities::PreloadDataFile(this->ValidImageFileName, validName);
+  FILE* rtFin = vtksys::SystemTools::Fopen(validName, "r");
+#else
   FILE* rtFin = vtksys::SystemTools::Fopen(this->ValidImageFileName, "r");
+#endif
   if (rtFin)
   {
     fclose(rtFin);
   }
-  else // there was no valid image, so write one to the temp dir
+  else if (!tmpDir.empty()) // there was no valid image, so write one to the temp dir
   {
     string vImage = tmpDir + "/" + validName;
+#ifdef __EMSCRIPTEN__
+    vtkNew<vtkPNGWriter> rtPngw;
+    rtPngw->SetWriteToMemory(true);
+    rtPngw->SetInputConnection(imageSource->GetOutputPort());
+    rtPngw->Write();
+    auto* result = rtPngw->GetResult();
+    vtkEmscriptenTestUtilities::DumpFile(
+      vImage, result->GetPointer(0), result->GetDataTypeSize() * result->GetDataSize());
+    os << "<DartMeasurement name=\"ImageNotFound\" type=\"text/string\">"
+       << this->ValidImageFileName << "</DartMeasurement>" << endl;
+    // Write out the image upload tag for the test image.
+    os << "<DartMeasurementFile name=\"TestImage\" type=\"image/png\">";
+    os << vImage;
+    os << "</DartMeasurementFile>";
+#else
     rtFin = vtksys::SystemTools::Fopen(vImage, "wb");
     if (rtFin)
     {
@@ -518,13 +635,18 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
     {
       vtkErrorMacro("Could not open file '" << vImage << "' for writing.");
     }
+#endif
     return FAILED;
   }
 
   imageSource->Update();
 
   vtkNew<vtkPNGReader> rtPng;
+#ifdef __EMSCRIPTEN__
+  rtPng->SetFileName(validName.c_str());
+#else
   rtPng->SetFileName(this->ValidImageFileName);
+#endif
   rtPng->Update();
 
   vtkNew<vtkImageExtractComponents> rtExtract;
@@ -532,7 +654,42 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
   rtExtract->SetComponents(0, 1, 2);
   rtExtract->Update();
 
-  vtkNew<vtkImageDifference> rtId;
+  auto createLegacyDiffFilter = [](vtkAlgorithm* source, vtkAlgorithm* extract)
+  {
+    auto alg = vtkSmartPointer<vtkAlgorithm>::Take(vtkImageDifference::New());
+    alg->SetInputConnection(source->GetOutputPort());
+    alg->SetInputConnection(1, extract->GetOutputPort());
+    return alg;
+  };
+
+  auto createSSIMFilter = [](vtkAlgorithm* source, vtkAlgorithm* extract)
+  {
+    auto createPipeline = [](vtkAlgorithm* alg)
+    {
+      vtkNew<vtkImageShiftScale> normalizer;
+      vtkNew<vtkImageRGBToXYZ> rgb2xyz;
+      vtkNew<vtkImageXYZToLAB> xyz2lab;
+
+      normalizer->SetScale(1.0 / 255);
+      normalizer->SetOutputScalarTypeToDouble();
+      normalizer->SetInputConnection(alg->GetOutputPort());
+      rgb2xyz->SetInputConnection(normalizer->GetOutputPort());
+      xyz2lab->SetInputConnection(rgb2xyz->GetOutputPort());
+
+      return xyz2lab;
+    };
+
+    auto pipeline1 = createPipeline(source);
+    auto pipeline2 = createPipeline(extract);
+
+    auto ssim = vtkImageSSIM::New();
+    ssim->SetInputToLab();
+    ssim->ClampNegativeValuesOn();
+    auto alg = vtkSmartPointer<vtkAlgorithm>::Take(ssim);
+    alg->SetInputConnection(pipeline1->GetOutputPort());
+    alg->SetInputConnection(1, pipeline2->GetOutputPort());
+    return alg;
+  };
 
   vtkNew<vtkImageClip> ic1;
   ic1->SetClipData(1);
@@ -551,21 +708,106 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
     wExt2[2] + this->BorderOffset, wExt2[3] - this->BorderOffset, wExt2[4], wExt2[5]);
 
   int ext1[6], ext2[6];
-  rtId->SetInputConnection(ic1->GetOutputPort());
   ic1->Update();
   ic1->GetOutput()->GetExtent(ext1);
-  rtId->SetImageConnection(ic2->GetOutputPort());
   ic2->Update();
   ic2->GetOutput()->GetExtent(ext2);
 
   double minError = VTK_DOUBLE_MAX;
 
+  enum
+  {
+    LEGACY,
+    LOOSE,
+    TIGHT,
+    NONE
+  };
+
+  int imageCompareMethod = []
+  {
+    auto imageCompareString = []
+    {
+      if (!vtksys::SystemTools::HasEnv("VTK_TESTING_IMAGE_COMPARE_METHOD"))
+      {
+        vtkLog(WARNING, "Environment variable VTK_TESTING_IMAGE_COMPARE_METHOD is not set.");
+        return std::string("LEGACY_VALID");
+      }
+
+      return std::string(vtksys::SystemTools::GetEnv("VTK_TESTING_IMAGE_COMPARE_METHOD"));
+    }();
+
+    vtkLog(INFO, "Using " << imageCompareString << " image comparison method.");
+    if (imageCompareString == "LEGACY_VALID")
+    {
+      return LEGACY;
+    }
+    else if (imageCompareString == "TIGHT_VALID")
+    {
+      return TIGHT;
+    }
+    else if (imageCompareString == "LOOSE_VALID")
+    {
+      return LOOSE;
+    }
+    return NONE;
+  }();
+
+  auto rtId =
+    imageCompareMethod == LEGACY ? createLegacyDiffFilter(ic1, ic2) : createSSIMFilter(ic1, ic2);
+
+  auto executeComparison = [&](double& err)
+  {
+    rtId->Update();
+
+    vtkDoubleArray* scalars = vtkArrayDownCast<vtkDoubleArray>(
+      vtkDataSet::SafeDownCast(rtId->GetOutputDataObject(0))->GetPointData()->GetScalars());
+
+    if (imageCompareMethod == LEGACY)
+    {
+      err = vtkImageDifference::SafeDownCast(rtId)->GetThresholdedError();
+    }
+    else
+    {
+      assert(scalars);
+      double tight, loose;
+      vtkImageSSIM::ComputeErrorMetrics(scalars, tight, loose);
+
+      vtkLog(INFO,
+        "When comparing images, error is defined as the maximum of all individual"
+          << " values within the used method (TIGHT or LOOSE) using the threshold " << thresh);
+      vtkLog(
+        INFO, "Error computations on Lab channels using Minkownski and Wasserstein distances:");
+      vtkLog(INFO, "TIGHT_VALID metric (euclidean): " << tight);
+      vtkLog(INFO, "LOOSE_VALID metric (manhattan / earth's mover): " << loose);
+      vtkLog(INFO,
+        "Note: if the test fails but is visually acceptable, one can make the test pass"
+          << " by changing the method (TIGHT_VALID vs LOOSE_VALID) and the threshold in CMake.");
+
+      switch (imageCompareMethod)
+      {
+        case TIGHT:
+        {
+          err = tight;
+          break;
+        }
+        case LOOSE:
+          err = loose;
+          break;
+        default:
+          vtkLog(ERROR,
+            "Image comparison method not set correctly."
+              << " If not using the \"LEGACY_VALID\" method, it should be \"TIGHT_VALID\" or "
+                 "\"LOOSE_VALID\");");
+      }
+    }
+  };
+
   if ((ext2[1] - ext2[0]) == (ext1[1] - ext1[0]) && (ext2[3] - ext2[2]) == (ext1[3] - ext1[2]) &&
     (ext2[5] - ext2[4]) == (ext1[5] - ext1[4]))
   {
-    // Cannot compute difference unless image sizes are the same
-    rtId->Update();
-    minError = rtId->GetThresholdedError();
+    vtkLog(INFO, "Comparing baselines using the default image baseline.");
+
+    executeComparison(minError);
   }
 
   this->ImageDifference = minError;
@@ -574,7 +816,7 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
   {
     // Make sure there was actually a difference image before
     // accepting the error measure.
-    vtkImageData* output = rtId->GetOutput();
+    vtkImageData* output = vtkImageData::SafeDownCast(rtId->GetOutputDataObject(0));
     if (output)
     {
       int dims[3];
@@ -603,6 +845,16 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
   while (!passed)
   {
     newFileName = IncrementFileName(this->ValidImageFileName, count);
+#ifdef __EMSCRIPTEN__
+    std::string hostFileName = std::string(newFileName);
+    // sandboxes the host file using the stem
+    std::string sandboxedFileName = vtksys::SystemTools::GetFilenameName(hostFileName);
+    vtkEmscriptenTestUtilities::PreloadDataFile(hostFileName.c_str(), sandboxedFileName);
+    // so that subsequent code uses the sandboxed file name instead of host file name.
+    delete[] newFileName;
+    newFileName = new char[sandboxedFileName.size() + 1];
+    strcpy(newFileName, sandboxedFileName.c_str());
+#endif
     if (!LookForFile(newFileName))
     {
       delete[] newFileName;
@@ -618,13 +870,13 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
       wExt2[2] + this->BorderOffset, wExt2[3] - this->BorderOffset, wExt2[4], wExt2[5]);
     ic2->UpdateWholeExtent();
 
-    rtId->GetImage()->GetExtent(ext2);
+    vtkImageData::SafeDownCast(ic2->GetOutputDataObject(0))->GetExtent(ext2);
     if ((ext2[1] - ext2[0]) == (ext1[1] - ext1[0]) && (ext2[3] - ext2[2]) == (ext1[3] - ext1[2]) &&
       (ext2[5] - ext2[4]) == (ext1[5] - ext1[4]))
     {
+      vtkLog(INFO, "Trying another baseline.");
       // Cannot compute difference unless image sizes are the same
-      rtId->Update();
-      error = rtId->GetThresholdedError();
+      executeComparison(error);
     }
     else
     {
@@ -635,7 +887,7 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
     {
       // Make sure there was actually a difference image before
       // accepting the error measure.
-      vtkImageData* output = rtId->GetOutput();
+      vtkImageData* output = vtkImageData::SafeDownCast(rtId->GetOutputDataObject(0));
       if (output)
       {
         int dims[3];
@@ -684,6 +936,21 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
 
   // write out the image that was generated
   string testImageFileName = tmpDir + "/" + validName;
+#ifdef __EMSCRIPTEN__
+  {
+    vtkNew<vtkPNGWriter> rtPngw;
+    rtPngw->SetWriteToMemory(true);
+    rtPngw->SetInputConnection(imageSource->GetOutputPort());
+    rtPngw->Write();
+    auto* result = rtPngw->GetResult();
+    vtkEmscriptenTestUtilities::DumpFile(
+      testImageFileName, result->GetPointer(0), result->GetDataTypeSize() * result->GetDataSize());
+    // Write out the image upload tag for the test image.
+    os << "<DartMeasurementFile name=\"TestImage\" type=\"image/png\">";
+    os << testImageFileName;
+    os << "</DartMeasurementFile>\n";
+  }
+#else
   FILE* testImageFile = vtksys::SystemTools::Fopen(testImageFileName, "wb");
   if (testImageFile)
   {
@@ -704,21 +971,32 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
                                           << "' for "
                                              "writing.");
   }
+#endif
 
   os << "Failed Image Test ( " << validName << " ) : " << minError << endl;
   if (errIndex >= 0)
   {
     newFileName = IncrementFileName(this->ValidImageFileName, errIndex);
+#ifdef __EMSCRIPTEN__
+    std::string sandboxedFileName = vtkEmscriptenTestUtilities::PreloadDataFile(newFileName);
+    delete[] newFileName;
+    newFileName = new char[sandboxedFileName.size() + 1];
+    strcpy(newFileName, sandboxedFileName.c_str());
+#endif
     rtPng->SetFileName(newFileName);
     delete[] newFileName;
   }
   else
   {
+#ifdef __EMSCRIPTEN__
+    rtPng->SetFileName(validName.c_str());
+#else
     rtPng->SetFileName(this->ValidImageFileName);
+#endif
   }
 
   rtPng->Update();
-  rtId->GetImage()->GetExtent(ext2);
+  vtkImageData::SafeDownCast(ic2->GetOutputDataObject(0))->GetExtent(ext2);
 
   // If no image differences produced an image, do not write a
   // difference image.
@@ -743,7 +1021,7 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
   rtId->Update();
 
   // test the directory for writing
-  if (hasDiff)
+  if (hasDiff && !tmpDir.empty())
   {
     string diffFilename = tmpDir + "/" + validName;
     string::size_type dotPos = diffFilename.rfind('.');
@@ -751,18 +1029,70 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
     {
       diffFilename = diffFilename.substr(0, dotPos);
     }
+
+    if (imageCompareMethod != LEGACY)
+    {
+      auto ssim = vtkImageData::SafeDownCast(rtId->GetOutputDataObject(0));
+      vtkDataSet* current = vtkDataSet::SafeDownCast(rtId->GetExecutive()->GetInputData(0, 0));
+      vtkDataSet* baseline = vtkDataSet::SafeDownCast(rtId->GetExecutive()->GetInputData(1, 0));
+      auto addOriginalArray = [&ssim](vtkDataSet* ds, std::string&& name)
+      {
+        vtkDataArray* scalars = ds->GetPointData()->GetScalars();
+        auto array = vtkSmartPointer<vtkDataArray>::Take(scalars->NewInstance());
+        array->ShallowCopy(scalars);
+        array->SetName(name.c_str());
+        ssim->GetPointData()->AddArray(array);
+      };
+      addOriginalArray(baseline, "Baseline");
+      addOriginalArray(current, "Current");
+
+      std::string vtiName = diffFilename + ".vti";
+
+#ifdef __EMSCRIPTEN__
+      {
+        vtkNew<vtkXMLImageDataWriter> vtiWriter;
+        vtiWriter->WriteToOutputStringOn();
+        vtiWriter->SetInputData(ssim);
+        vtiWriter->Write();
+        const auto result = vtiWriter->GetOutputString();
+        vtkEmscriptenTestUtilities::DumpFile(vtiName, result.data(), result.size());
+      }
+#else
+      vtkNew<vtkXMLImageDataWriter> vtiWriter;
+      vtiWriter->SetFileName(vtiName.c_str());
+      vtiWriter->SetInputData(ssim);
+      vtiWriter->Write();
+#endif
+    }
+
     diffFilename += ".diff.png";
+
+    // write out the difference image gamma adjusted for the dashboard
+    vtkNew<vtkImageShiftScale> rtGamma;
+    rtGamma->SetInputConnection(rtId->GetOutputPort());
+    rtGamma->SetShift(0);
+    rtGamma->SetScale(imageCompareMethod == LEGACY ? 10 : 255);
+    rtGamma->SetOutputScalarTypeToUnsignedChar();
+    rtGamma->ClampOverflowOn();
+
+#ifdef __EMSCRIPTEN__
+    {
+      vtkNew<vtkPNGWriter> rtPngw;
+      rtPngw->SetWriteToMemory(true);
+      rtPngw->SetInputConnection(rtGamma->GetOutputPort());
+      rtPngw->Write();
+      const auto result = rtPngw->GetResult();
+      vtkEmscriptenTestUtilities::DumpFile(
+        diffFilename, result->GetPointer(0), result->GetDataTypeSize() * result->GetDataSize());
+      os << "<DartMeasurementFile name=\"DifferenceImage\" type=\"image/png\">";
+      os << diffFilename;
+      os << "</DartMeasurementFile>";
+    }
+#else
     FILE* rtDout = vtksys::SystemTools::Fopen(diffFilename, "wb");
     if (rtDout)
     {
       fclose(rtDout);
-
-      // write out the difference image gamma adjusted for the dashboard
-      vtkNew<vtkImageShiftScale> rtGamma;
-      rtGamma->SetInputConnection(rtId->GetOutputPort());
-      rtGamma->SetShift(0);
-      rtGamma->SetScale(10);
-      rtGamma->ClampOverflowOn();
 
       vtkNew<vtkPNGWriter> rtPngw;
       rtPngw->SetFileName(diffFilename.c_str());
@@ -777,6 +1107,7 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
     {
       vtkErrorMacro("Could not open file '" << diffFilename << "' for writing.");
     }
+#endif
   }
 
   os << "<DartMeasurementFile name=\"ValidImage\" type=\"image/png\">";
@@ -785,6 +1116,7 @@ int vtkTesting::RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream
 
   return FAILED;
 }
+
 //------------------------------------------------------------------------------
 int vtkTesting::Test(int argc, char* argv[], vtkRenderWindow* rw, double thresh)
 {
@@ -803,7 +1135,7 @@ int vtkTesting::Test(int argc, char* argv[], vtkRenderWindow* rw, double thresh)
   {
     testing->SetRenderWindow(rw);
 
-    return testing->RegressionTestAndCaptureOutput(thresh, cout);
+    return testing->RegressionTest(thresh, cout);
   }
   return NOT_RUN;
 }

@@ -10,10 +10,34 @@ https://github.com/sandialabs/seacas
 
 For bug reports, documentation errors, and enhancement suggestions, contact:
 - Gregory D. Sjaardema
-- WEB:   https://github.com/sandialabs/seacas/issues
+- WEB:   https://github.com/sandialabs/seacas
 - EMAIL: gdsjaar@sandia.gov
 - EMAIL: gsjaardema@gmail.com
-- PHONE: (505) 844-2701 (office)
+
+\section db_types Database Types
+
+The IOSS system supports multiple database formats.  The default format is the Sandia-developed Exodus format.  The list below shows all supported
+database input and/or output formats.  Not all of these may be available on all builds; the supported databases on a particular installation can be
+determined by running the `io_info --config` program.
+
+Type             | Input/Output  | Description
+-----------------|---------------|--------------------------
+exodus           | Input/Output  | Sandia-developed database system for unstructured mesh input/output (https://sandialabs.github.io/seacas-docs/sphinx/html/index.html#exodus-library)
+cgns             | Input/Output  | CFD General Notation System (https://cgns.github.io/)
+generated        | Input         | Generate an unstructured hex/shell mesh using a token string (Iogn::GeneratedMesh::GeneratedMesh)
+textmesh         | Input         | Generate an unstructured mesh using a token string
+heartbeat        | Output        | A text based output for global values
+pamgen           | Input         | (https://trilinos.github.io/pamgen.html)
+gen_struc        | Input         | Generate a structured mesh using a token string (IxJxK)
+catalyst_exodus  | Output        | Visualization pipeline, exodus-based
+catalyst_cgns    | Output        | Visualization pipeline, cgns-based
+null             | Output        | No data written to disk, no calculations done by ioss
+exonull          | Output        | No data written to disk, but uses all of the exodus io database infrastructure/calculations
+adios            | Input/Output  | Adaptable Input/Output system, (https://adios2.readthedocs.io/en/latest/)
+faodel           | Input/Output  | (https://github.com/faodel/faodel)
+exodusii         | Input/Output  | alias for exodus
+genesis          | Input/Output  | alias for exodus
+par_cgns         | Input/Output  | alias for parallel CGNS
 
 \section properties Properties
 
@@ -84,6 +108,7 @@ PARALLEL_IO_MODE | netcdf4, hdf5, pnetcdf, (mpiio and mpiposix are deprecated)
  FIELD_STRIP_TRAILING_UNDERSCORE | on / [off] | If `FIELD_SUFFIX_SEPARATOR` is empty and there are fields that end with an underscore, then strip the underscore. (`a_x`, `a_y`, `a_z` is vector field `a`).
  IGNORE_ATTRIBUTE_NAMES   | on/[off] | Do not read the attribute names that may exist on an input database. Instead for an element block with N attributes, the fields will be named `attribute_1` ... `attribute_N`
  SURFACE_SPLIT_TYPE       | {type} | Specify how to split sidesets into homogeneous sideblocks. Either an integer or string: 1 or `TOPOLOGY`, 2 or `BLOCK`, 3 or `NO_SPLIT`.  Default is `TOPOLOGY` if not specified.
+ DUPLICATE_FIELD_NAME_BEHAVIOR | {behavior} | Determine how to handle duplicate incompatible fields on a database.  Valid values are `IGNORE`, `WARNING`, or `ERROR` (default).  An incompatible field is two or more fields with the same name, but different sizes or roles or types.
 
 ## Output Database-Related Properties
  Property        | Value  | Description
@@ -111,7 +136,7 @@ PARALLEL_IO_MODE | netcdf4, hdf5, pnetcdf, (mpiio and mpiposix are deprecated)
 The `overlay` specifies the number of output steps which will be
 overlaid on top of the currently written step before advancing to the
 next step on the database.
-     
+
 For example, if output every 0.1 seconds and the overlay count is
 specified as 2, then IOSS will write time 0.1 to step 1 of the
 database.  It will then write 0.2 and 0.3 also to step 1.  It will
@@ -120,7 +145,7 @@ then increment the database step and write 0.4 to step 2 and overlay
 to completion), the database would have times 0.3, 0.6, 0.9,
 ... However, if there were a problem during the analysis, the last
 step on the database would contain an intermediate step.
-     
+
 The `cycle_count` specifies the number of restart steps which will be
 written to the restart database before previously written steps are
 overwritten.  For example, if the `cycle` count is 5 and output is
@@ -130,16 +155,16 @@ with data from time 0.6, the second with time 0.7.  At time 0.8, the
 database would contain data at times 0.6, 0.7, 0.8, 0.4, 0.5.  Note
 that time will not necessarily be monotonically increasing on a
 database that specifies the cycle count.
-     
+
 The cycle count and overlay count can both be used at the same time
 also.  The basic formula is:
-```     
+```
    db_step = (((output_step - 1) / overlay) % cycle) + 1
-```     
+```
 where `output_step` is the step that this would have been on the
 database in a normal write (1,2,3,....) and `db_step` is the step
 number that this will be written to.
-    
+
 If you only want the last step available on the database,
 use `set_cycle_count(1)`.
 
@@ -151,16 +176,18 @@ timesteps will be written to each file.  If we have `cycle=2` and
 file. Then, the first file will be reopened and steps 0.7, 0.8, and
 0.9 will be written to the first file.
 
- 
+
 ## Properties for the heartbeat output
  Property              | Value  | Description
 -----------------------|:------:|-----------------------------------------------------------
-  FILE_FORMAT          | [default], spyhis, csv, ts_csv, text, ts_text | predefined formats for heartbeat output. `ts_` outputs timestamp.
-  FLUSH_INTERVAL       | int   | Minimum time interval between flushing heartbeat data to disk.  Default is 10 seconds
+  FILE_FORMAT          | [default], spyhis, csv, ts_csv, text, ts_text | predefined formats for heartbeat output. The ones starting with `ts_` output timestamps.
+  FLUSH_INTERVAL       | int   | Minimum time interval between flushing heartbeat data to disk.  Default is 10 seconds.  Set to 0 to flush every step (bad performance)
+  HEARTBEAT_FLUSH_INTERVAL | int   | Minimum time interval between flushing heartbeat data to disk.  Default is 10 seconds (Same as FLUSH_INTERVAL, but doesn't affect other database types)
   TIME_STAMP_FORMAT    | [%H:%M:%S] | Format used to format time stamp.  See strftime man page
   SHOW_TIME_STAMP      | on/off | Should the output lines be preceded by the timestamp
   FIELD_SEPARATOR      | [, ]   | separator to be used between output fields.
-  PRECISION            | 0..16 [5] | Precision used for floating point output.
+  FULL_PRECISION       | on/[off] | output will contain as many digits as needed to fully represent the doubles value.  FIELD_WIDTH will be ignored for doubles if this is specified.
+  PRECISION            | -1..16 [5] | Precision used for floating point output. If set to `-1`, then the output will contain as many digits as needed to fully represent the doubles value.  FIELD_WIDTH will be ignored for doubles if precision is set to -1.
   FIELD_WIDTH          | 0.. |  Width of an output field. If 0, then use natural width.
   SHOW_LABELS          | on/[off]  | Should each field be preceded by its name (ke=1.3e9, ie=2.0e9)
   SHOW_LEGEND          | [on]/off  | Should a legend be printed at the beginning of the output showing the field names for each column of data.
@@ -170,9 +197,9 @@ file. Then, the first file will be reopened and steps 0.7, 0.8, and
 
  Property              | Value  | Description
 -----------------------|:------:|-----------------------------------------------------------
-MEMORY_READ        | on/[off]   | experimental
-MEMORY_WRITE       | on/[off]   | experimental
-ENABLE_FILE_GROUPS | on/[off]   | experimental
+MEMORY_READ        | on/[off]   | experimental. Read a file into memory at open time, operate on it without disk accesses.
+MEMORY_WRITE       | on/[off]   | experimental. Open and read a file into memory or create and optionally write it back out to disk when nc_close() is called.
+ENABLE_FILE_GROUPS | on/[off]   | experimental.  Opens database in netcdf-4 non-classic mode which is what is required to support groups at netCDF level.
 MINIMAL_NEMESIS_INFO | on/[off] | special case, omit all nemesis data except for nodal communication map
 OMIT_EXODUS_NUM_MAPS | on/[off] | special case, do not output the node and element numbering map.
 EXODUS_CALL_GET_ALL_TIMES| [on] / off | special case -- should the `ex_get_all_times()` function be called.  See below.

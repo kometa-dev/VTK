@@ -52,25 +52,17 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkPointSet.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include "vtkCellArray.h"         // Needed for inline methods
 #include "vtkCellLinks.h"         // Needed for inline methods
 #include "vtkPolyDataInternals.h" // Needed for inline methods
 
 VTK_ABI_NAMESPACE_BEGIN
-class vtkVertex;
-class vtkPolyVertex;
-class vtkLine;
-class vtkPolyLine;
-class vtkTriangle;
-class vtkQuad;
-class vtkPolygon;
-class vtkTriangleStrip;
-class vtkEmptyCell;
 struct vtkPolyDataDummyContainter;
 class vtkIncrementalPointLocator;
 
-class VTKCOMMONDATAMODEL_EXPORT vtkPolyData : public vtkPointSet
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkPolyData : public vtkPointSet
 {
 public:
   static vtkPolyData* New();
@@ -82,7 +74,7 @@ public:
   /**
    * Return what type of dataset this is.
    */
-  int GetDataObjectType() override { return VTK_POLY_DATA; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_POLY_DATA; }
 
   /**
    * Copy the geometric and topological structure of an input poly data object.
@@ -162,6 +154,15 @@ public:
    * Return the maximum cell size in this poly data.
    */
   int GetMaxCellSize() override;
+
+  ///@{
+  /**
+   * Get the maximum/minimum spatial dimensionality of the data
+   * which is the maximum/minimum  dimension of all cells.
+   */
+  int GetMaxSpatialDimension() override;
+  int GetMinSpatialDimension() override;
+  ///@}
 
   /**
    * Maps the cell at position `cellId` inside the `vtkPolyData` to its location in the
@@ -370,11 +371,9 @@ public:
 
   ///@{
   /**
-   * Set/Get the links that you created possibly without using BuildLinks.
-   *
-   * Note: Only vtkCellLinks are currently supported.
+   * Set/Get the links that were created possibly without using BuildLinks.
    */
-  virtual void SetLinks(vtkAbstractCellLinks* links);
+  vtkSetSmartPointerMacro(Links, vtkAbstractCellLinks);
   vtkGetSmartPointerMacro(Links, vtkAbstractCellLinks);
   ///@}
 
@@ -677,7 +676,7 @@ public:
    * track the changes on the mesh separately from the data arrays
    * (eg. static mesh over time with transient data).
    */
-  virtual vtkMTimeType GetMeshMTime();
+  vtkMTimeType GetMeshMTime() override;
 
   /**
    * Get MTime which also considers its cell array MTime.
@@ -706,17 +705,6 @@ protected:
 
   vtkCellArray* GetCellArrayInternal(TaggedCellId tag);
 
-  // constant cell objects returned by GetCell called.
-  vtkSmartPointer<vtkVertex> Vertex;
-  vtkSmartPointer<vtkPolyVertex> PolyVertex;
-  vtkSmartPointer<vtkLine> Line;
-  vtkSmartPointer<vtkPolyLine> PolyLine;
-  vtkSmartPointer<vtkTriangle> Triangle;
-  vtkSmartPointer<vtkQuad> Quad;
-  vtkSmartPointer<vtkPolygon> Polygon;
-  vtkSmartPointer<vtkTriangleStrip> TriangleStrip;
-  vtkSmartPointer<vtkEmptyCell> EmptyCell;
-
   // points inherited
   // point data (i.e., scalars, vectors, normals, tcoords) inherited
   vtkSmartPointer<vtkCellArray> Verts;
@@ -727,7 +715,7 @@ protected:
   // supporting structures for more complex topological operations
   // built only when necessary
   vtkSmartPointer<CellMap> Cells;
-  vtkSmartPointer<vtkCellLinks> Links;
+  vtkSmartPointer<vtkAbstractCellLinks> Links;
 
   vtkNew<vtkIdList> LegacyBuffer;
 
@@ -745,13 +733,6 @@ private:
   vtkPolyData(const vtkPolyData&) = delete;
   void operator=(const vtkPolyData&) = delete;
 };
-
-//------------------------------------------------------------------------------
-inline void vtkPolyData::GetPointCells(vtkIdType ptId, vtkIdType& ncells, vtkIdType*& cells)
-{
-  ncells = this->Links->GetNcells(ptId);
-  cells = this->Links->GetCells(ptId);
-}
 
 //------------------------------------------------------------------------------
 inline vtkIdType vtkPolyData::GetNumberOfCells()
@@ -804,36 +785,6 @@ inline vtkIdType vtkPolyData::GetCellSize(vtkIdType cellId)
 }
 
 //------------------------------------------------------------------------------
-inline int vtkPolyData::IsTriangle(int v1, int v2, int v3)
-{
-  vtkIdType n1;
-  int i, j, tVerts[3];
-  vtkIdType* cells;
-  const vtkIdType* tVerts2;
-  vtkIdType n2;
-
-  tVerts[0] = v1;
-  tVerts[1] = v2;
-  tVerts[2] = v3;
-
-  for (i = 0; i < 3; i++)
-  {
-    this->GetPointCells(tVerts[i], n1, cells);
-    for (j = 0; j < n1; j++)
-    {
-      this->GetCellPoints(cells[j], n2, tVerts2);
-      if ((tVerts[0] == tVerts2[0] || tVerts[0] == tVerts2[1] || tVerts[0] == tVerts2[2]) &&
-        (tVerts[1] == tVerts2[0] || tVerts[1] == tVerts2[1] || tVerts[1] == tVerts2[2]) &&
-        (tVerts[2] == tVerts2[0] || tVerts[2] == tVerts2[1] || tVerts[2] == tVerts2[2]))
-      {
-        return 1;
-      }
-    }
-  }
-  return 0;
-}
-
-//------------------------------------------------------------------------------
 inline int vtkPolyData::IsPointUsedByCell(vtkIdType ptId, vtkIdType cellId)
 {
   vtkIdType npts;
@@ -854,7 +805,7 @@ inline int vtkPolyData::IsPointUsedByCell(vtkIdType ptId, vtkIdType cellId)
 //------------------------------------------------------------------------------
 inline void vtkPolyData::DeletePoint(vtkIdType ptId)
 {
-  this->Links->DeletePoint(ptId);
+  static_cast<vtkCellLinks*>(this->Links.Get())->DeletePoint(ptId);
 }
 
 //------------------------------------------------------------------------------
@@ -870,9 +821,10 @@ inline void vtkPolyData::RemoveCellReference(vtkIdType cellId)
   vtkIdType npts;
 
   this->GetCellPoints(cellId, npts, pts);
+  auto links = static_cast<vtkCellLinks*>(this->Links.Get());
   for (vtkIdType i = 0; i < npts; i++)
   {
-    this->Links->RemoveCellReference(cellId, pts[i]);
+    links->RemoveCellReference(cellId, pts[i]);
   }
 }
 
@@ -883,16 +835,17 @@ inline void vtkPolyData::AddCellReference(vtkIdType cellId)
   vtkIdType npts;
 
   this->GetCellPoints(cellId, npts, pts);
+  auto links = static_cast<vtkCellLinks*>(this->Links.Get());
   for (vtkIdType i = 0; i < npts; i++)
   {
-    this->Links->AddCellReference(cellId, pts[i]);
+    links->AddCellReference(cellId, pts[i]);
   }
 }
 
 //------------------------------------------------------------------------------
 inline void vtkPolyData::ResizeCellList(vtkIdType ptId, int size)
 {
-  this->Links->ResizeCellList(ptId, size);
+  static_cast<vtkCellLinks*>(this->Links.Get())->ResizeCellList(ptId, size);
 }
 
 //------------------------------------------------------------------------------
@@ -979,9 +932,11 @@ inline void vtkPolyData::GetCellPoints(
     npts = 0;
     pts = nullptr;
   }
-
-  vtkCellArray* cells = this->GetCellArrayInternal(tag);
-  cells->GetCellAtId(tag.GetCellId(), npts, pts, ptIds);
+  else
+  {
+    vtkCellArray* cells = this->GetCellArrayInternal(tag);
+    cells->GetCellAtId(tag.GetCellId(), npts, pts, ptIds);
+  }
 }
 
 VTK_ABI_NAMESPACE_END

@@ -1,5 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+
+// VTK_DEPRECATED_IN_9_5_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkGenericDataObjectWriter.h"
 
 #include "vtkCompositeDataSet.h"
@@ -10,6 +14,7 @@
 #include "vtkGraphWriter.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
+#include "vtkLegacyCellGridWriter.h"
 #include "vtkObjectFactory.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataWriter.h"
@@ -53,6 +58,9 @@ void vtkGenericDataObjectWriter::WriteData()
     case VTK_COMPOSITE_DATA_SET:
       vtkErrorMacro(<< "Cannot write composite data set");
       return;
+    case VTK_CELL_GRID:
+      writer = CreateWriter<vtkLegacyCellGridWriter>(input);
+      break;
     case VTK_DATA_OBJECT:
       vtkErrorMacro(<< "Cannot write data object");
       return;
@@ -140,6 +148,7 @@ void vtkGenericDataObjectWriter::WriteData()
   writer->SetLookupTableName(this->LookupTableName);
   writer->SetFieldDataName(this->FieldDataName);
   writer->SetFileType(this->FileType);
+  writer->SetFileVersion(this->FileVersion);
   writer->SetDebug(this->Debug);
   writer->SetWriteToOutputString(this->WriteToOutputString);
   writer->Write();

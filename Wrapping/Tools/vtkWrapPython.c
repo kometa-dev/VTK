@@ -31,18 +31,18 @@ void vtkParseOutput(FILE* fp, FileInfo* data);
 /* prototypes for the methods used by the python wrappers */
 
 /* get the header file for the named VTK class */
-static const char* vtkWrapPython_ClassHeader(HierarchyInfo* hinfo, const char* classname);
+static const char* vtkWrapPython_ClassHeader(const HierarchyInfo* hinfo, const char* classname);
 
 /* get the module for the named VTK class */
-static const char* vtkWrapPython_ClassModule(HierarchyInfo* hinfo, const char* classname);
+static const char* vtkWrapPython_ClassModule(const HierarchyInfo* hinfo, const char* classname);
 
 /* print out headers for any special types used by methods */
 static void vtkWrapPython_GenerateSpecialHeaders(
-  FILE* fp, FileInfo* file_info, HierarchyInfo* hinfo);
+  FILE* fp, FileInfo* file_info, const HierarchyInfo* hinfo);
 
 /* -------------------------------------------------------------------- */
 /* Get the header file for the specified class */
-static const char* vtkWrapPython_ClassHeader(HierarchyInfo* hinfo, const char* classname)
+static const char* vtkWrapPython_ClassHeader(const HierarchyInfo* hinfo, const char* classname)
 {
   HierarchyEntry* entry;
 
@@ -61,7 +61,7 @@ static const char* vtkWrapPython_ClassHeader(HierarchyInfo* hinfo, const char* c
 
 /* -------------------------------------------------------------------- */
 /* Get the module for the specified class */
-static const char* vtkWrapPython_ClassModule(HierarchyInfo* hinfo, const char* classname)
+static const char* vtkWrapPython_ClassModule(const HierarchyInfo* hinfo, const char* classname)
 {
   HierarchyEntry* entry;
 
@@ -81,7 +81,7 @@ static const char* vtkWrapPython_ClassModule(HierarchyInfo* hinfo, const char* c
 /* -------------------------------------------------------------------- */
 /* generate includes for any special types that are used */
 static void vtkWrapPython_GenerateSpecialHeaders(
-  FILE* fp, FileInfo* file_info, HierarchyInfo* hinfo)
+  FILE* fp, FileInfo* file_info, const HierarchyInfo* hinfo)
 {
   const char** types;
   int numTypes = 0;
@@ -90,7 +90,7 @@ static void vtkWrapPython_GenerateSpecialHeaders(
   const char* classname;
   const char* ownincfile = "";
   ClassInfo* data;
-  ValueInfo* val;
+  const ValueInfo* val;
   const char** includedHeaders = NULL;
   size_t nIncludedHeaders = 0;
 
@@ -232,6 +232,13 @@ static void vtkWrapPython_GenerateSpecialHeaders(
       "#include \"vtkScaledSOADataArrayTemplate.h\"\n"
       "#endif\n");
   }
+  /* special case for the way vtkGenericDataArray template is used */
+  if (data && strcmp(data->Name, "vtkAlgorithm") == 0)
+  {
+    fprintf(fp, "#include \"vtkAlgorithmOutput.h\"\n");
+    fprintf(fp, "#include \"vtkTrivialProducer.h\"\n");
+    fprintf(fp, "#include \"vtkDataObject.h\"\n");
+  }
 
   free((char**)types);
 }
@@ -246,7 +253,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   unsigned char* wrapAsVTKObject;
   ClassInfo* data = NULL;
   NamespaceInfo* contents;
-  OptionInfo* options;
+  const OptionInfo* options;
   HierarchyInfo* hinfo = NULL;
   FileInfo* file_info;
   FILE* fp;
@@ -299,7 +306,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     char* etext = strerror(e);
     etext = (etext ? etext : "Unknown error");
     fprintf(stderr, "Error %d opening output file %s: %s\n", e, options->OutputFileName, etext);
-    exit(1);
+    return vtkParse_FinalizeMain(1);
   }
 
   /* get the filename without the extension */
@@ -388,7 +395,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
 
   /* do the export of the main entry point */
   fprintf(
-    fp, "extern \"C\" { %s void PyVTKAddFile_%s(PyObject *dict); }\n", "VTK_ABI_EXPORT", name);
+    fp, "extern \"C\" { %s void PyVTKAddFile_%s(PyObject *dict); }\n", "VTK_ABI_HIDDEN", name);
 
   /* get the module that is being wrapped */
   data = file_info->MainClass;
@@ -443,7 +450,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
       data->IsAbstract = 0;
       for (j = 0; j < data->NumberOfFunctions; j++)
       {
-        FunctionInfo* func = data->Functions[j];
+        const FunctionInfo* func = data->Functions[j];
         if (func && func->IsPureVirtual)
         {
           data->IsAbstract = 1;
@@ -480,8 +487,8 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   }
 
   /* The function for adding everything to the module dict */
-  wrapped_anything =
-    (numberOfWrappedClasses || numberOfWrappedNamespaces || contents->NumberOfConstants);
+  wrapped_anything = (numberOfWrappedClasses || numberOfWrappedNamespaces ||
+    contents->NumberOfConstants || contents->NumberOfEnums);
   fprintf(fp,
     "void PyVTKAddFile_%s(\n"
     "  PyObject *%s)\n"
@@ -591,5 +598,10 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
 
   vtkParse_Free(file_info);
 
-  return 0;
+  if (!wrapped_anything)
+  {
+    vtkWrap_WarnEmpty(options);
+  }
+
+  return vtkParse_FinalizeMain(0);
 }

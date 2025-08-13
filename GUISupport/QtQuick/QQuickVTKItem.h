@@ -44,7 +44,7 @@ public:
 
   ///@{
   /**
-   * This is where the VTK initializiation should be done including creating a pipeline and
+   * This is where the VTK initialization should be done including creating a pipeline and
    * attaching it to the window
    *
    * \note All VTK objects are owned by and run on the QML render thread!!  This means you CAN NOT
@@ -52,7 +52,7 @@ public:
    * dispatch_async() functions!!
    *
    * \note All VTK objects must be stored in the vtkUserData object returned from this method.
-   *       They will be destroyed if the underlaying QSGNode (which must contain all VTK objects) is
+   *       They will be destroyed if the underlying QSGNode (which must contain all VTK objects) is
    * destroyed.
    *
    * \note At any moment the QML SceneGraph can decide to delete the underlying QSGNode.
@@ -71,7 +71,8 @@ public:
    */
   virtual vtkUserData initializeVTK(vtkRenderWindow* renderWindow)
   {
-    Q_UNUSED(renderWindow) return {};
+    Q_UNUSED(renderWindow)
+    return {};
   }
   ///@}
 
@@ -122,9 +123,49 @@ public:
   void dispatch_async(std::function<void(vtkRenderWindow* renderWindow, vtkUserData userData)> f);
   ///@}
 
-protected:
+  /**
+   * Schedules an update on the vtkRenderWindow encapsulated in this item
+   *
+   * This function triggers a render on the VTK render window and ensures that the render happens on
+   * the QML render thread.
+   *
+   * \note This public method can be invoked after updating a VTK pipeline parameter
+   * programmatically to update the item.
+   */
   void scheduleRender();
 
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
+  ///@{
+  /**
+   * Individual slots for the three pinch handler signals in QML namely,
+   * translationChanged, scaleChanged, rotationChanged. This allows a multi-touch QtQuick
+   * application to interact with this QQuickVTKItem.
+   *
+   * To use in qml:
+   *
+   * @code{qml}
+   *
+   *   QVTKItem{
+   *     id: qvtkitem
+   *     anchors.fill: parent
+   *   }
+   *   PinchHandler {
+   *     id: pch
+   *     target: null
+   *     onRotationChanged: (delta) => qvtkitem.pinchHandlerRotate(pch.centroid.position, delta)
+   *     onScaleChanged: (delta) => qvtkitem.pinchHandlerScale(pch.centroid.position, delta)
+   *     onTranslationChanged: (delta) => qvtkitem.pinchHandlerTranslate(pch.centroid.position,
+   *      delta)
+   *   }
+   *
+   * @endcode
+   */
+  Q_INVOKABLE void pinchHandlerRotate(const QPointF& position, double delta);
+  Q_INVOKABLE void pinchHandlerScale(const QPointF& position, double delta);
+  Q_INVOKABLE void pinchHandlerTranslate(const QPointF& position, const QVector2D& delta);
+  ///@}
+
+protected:
   bool event(QEvent*) override;
 
   QSGNode* updatePaintNode(QSGNode*, UpdatePaintNodeData*) override;

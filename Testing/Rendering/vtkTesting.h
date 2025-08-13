@@ -50,7 +50,9 @@
 #ifndef vtkTesting_h
 #define vtkTesting_h
 
+#include "vtkDeprecation.h" // For VTK_DEPRECATED_9_4_0
 #include "vtkObject.h"
+#include "vtkSmartPointer.h"           // for vtkSmartPointer
 #include "vtkTestingRenderingModule.h" // For export macro
 #include <string>                      // STL Header used for argv
 #include <vector>                      // STL Header used for argv
@@ -61,6 +63,7 @@ class vtkRenderWindow;
 class vtkImageData;
 class vtkDataArray;
 class vtkDataSet;
+class vtkMultiProcessController;
 class vtkRenderWindowInteractor;
 
 /**
@@ -157,40 +160,43 @@ public:
   ///@}
 
   /**
-   * Perform the test and return the result. Delegates to
-   * RegressionTestAndCaptureOutput, sending the output to cout.
+   * Perform the test and return the result.
+   *
+   * The output of the test will be written to cout (including timing information), @output, or @os.
    */
   virtual int RegressionTest(double thresh);
+  virtual int RegressionTest(double thresh, std::string& output);
+  virtual int RegressionTest(double thresh, ostream& os);
+  ///@}
 
   /**
    * Perform the test and return the result. At the same time, write
    * the output to the output stream os. Includes timing information
    * in the output.
    */
+  VTK_DEPRECATED_IN_9_4_0("Use RegressionTest(double, ostream&) instead.")
   virtual int RegressionTestAndCaptureOutput(double thresh, ostream& os);
-
-  /**
-   * Perform the test and return the result. At the same time, write
-   * the output to the output stream os. This method is nearly the
-   * same as RegressionTestAndCaptureOutput, but does not include
-   * timing information in the output.
-   */
-  virtual int RegressionTest(double thresh, ostream& os);
 
   ///@{
   /**
    * Perform the test and return result. The test image will be read from the
    * png file at pngFileName.
+   *
+   * The output of the test will be written to cout (including timing information), @output, or @os.
    */
   virtual int RegressionTest(const std::string& pngFileName, double thresh);
+  virtual int RegressionTest(const std::string& pngFileName, double thresh, std::string& output);
   virtual int RegressionTest(const std::string& pngFileName, double thresh, ostream& os);
   ///@}
 
   ///@{
   /**
    * Compare the image with the valid image.
+   *
+   * The output of the test will be written to cout (including timing information), @output, or @os.
    */
   virtual int RegressionTest(vtkAlgorithm* imageSource, double thresh);
+  virtual int RegressionTest(vtkAlgorithm* imageSource, double thresh, std::string& output);
   virtual int RegressionTest(vtkAlgorithm* imageSource, double thresh, ostream& os);
   ///@}
 
@@ -198,7 +204,7 @@ public:
    * Compute the average L2 norm between all point data data arrays
    * of types float and double present in the data sets "dsA" and "dsB"
    * (this includes instances of vtkPoints) Compare the result of
-   * each L2 comutation to "tol".
+   * each L2 computation to "tol".
    */
   int CompareAverageOfL2Norm(vtkDataSet* dsA, vtkDataSet* dsB, double tol);
 
@@ -219,7 +225,7 @@ public:
   /**
    * Get Mesa version if Mesa drivers are in use.
    * version is populated with major, minor and patch numbers
-   * Returns true if mesa is in use, false otheriwse.
+   * Returns true if mesa is in use, false otherwise.
    */
   static bool GetMesaVersion(vtkRenderWindow* renderWindow, int version[3]);
 
@@ -273,14 +279,15 @@ public:
 
   ///@{
   /**
-   * Get some parameters from the command line arguments, env, or defaults
+   * Get the temp directory from the command line arguments, env, or defaults
+   * This folder may not exists yet
    */
   VTK_FILEPATH const char* GetTempDirectory();
   vtkSetFilePathMacro(TempDirectory);
   ///@}
 
   /**
-   * Is a valid image specified on the command line areguments?
+   * Is a valid image specified on the command line arguments?
    */
   int IsValidImageSpecified();
 
@@ -311,6 +318,15 @@ public:
   vtkGetMacro(Verbose, int);
   ///@}
 
+  ///@{
+  /**
+   * Get/Set the controller in an MPI environment. If one sets the controller to `nullptr`,
+   * an instance of `vtkDummyController` is stored instead. `GetController` never returns `nullptr`.
+   */
+  vtkMultiProcessController* GetController() const;
+  void SetController(vtkMultiProcessController* controller);
+  ///@}
+
 protected:
   vtkTesting();
   ~vtkTesting() override;
@@ -331,6 +347,8 @@ protected:
   char* DataRoot;
   double StartWallTime;
   double StartCPUTime;
+
+  vtkSmartPointer<vtkMultiProcessController> Controller;
 
 private:
   vtkTesting(const vtkTesting&) = delete;

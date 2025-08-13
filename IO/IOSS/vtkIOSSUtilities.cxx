@@ -10,6 +10,7 @@
 #include "vtkArrayDispatch.h"
 #include "vtkCellArray.h"
 #include "vtkCellType.h"
+#include "vtkCellTypes.h"
 #include "vtkDataSet.h"
 #include "vtkGenericCell.h"
 #include "vtkHigherOrderCurve.h"
@@ -27,17 +28,24 @@
 #include <vtksys/RegularExpression.hxx>
 #include <vtksys/SystemTools.hxx>
 
-#include <Ioss_ElementTopology.h>
-#include <Ioss_Field.h>
-#include <Ioss_NodeBlock.h>
-#include <Ioss_SideBlock.h>
-#include <Ioss_SideSet.h>
+// Ioss includes
+#include <vtk_ioss.h>
+// clang-format off
+#include VTK_IOSS(Ioss_ElementTopology.h)
+#include VTK_IOSS(Ioss_Field.h)
+#include VTK_IOSS(Ioss_NodeBlock.h)
+#include VTK_IOSS(Ioss_SideBlock.h)
+#include VTK_IOSS(Ioss_SideSet.h)
+#include VTK_IOSS(Ioss_TransformFactory.h)
+// clang-format on
 
 #include <memory>
 
 namespace vtkIOSSUtilities
 {
 VTK_ABI_NAMESPACE_BEGIN
+
+static vtkSmartPointer<vtkDataArray> ChangeComponents(vtkDataArray* array, int num_components);
 
 //----------------------------------------------------------------------------
 class Cache::CacheInternals
@@ -164,21 +172,19 @@ std::string CaptureNonErrorMessages::GetMessages() const
   return this->Stream.str();
 }
 
-//============================================================================
 //----------------------------------------------------------------------------
 std::vector<std::pair<int, double>> GetTime(const Ioss::Region* region)
 {
-  const auto mxtime = region->get_max_time();
-  if (mxtime.first <= 0)
+  const int numTimeSteps = static_cast<int>(region->get_optional_property("state_count", 0));
+  if (numTimeSteps == 0)
   {
-    // timestep index is 1-based, 0 implies time is not present in the dataset.
     return {};
   }
 
-  const auto mntime = region->get_min_time();
-
   std::vector<std::pair<int, double>> result;
-  for (int cc = mntime.first; cc <= mxtime.first; ++cc)
+  result.reserve(static_cast<size_t>(numTimeSteps));
+  // timestep index is 1-based
+  for (int cc = 1; cc <= numTimeSteps; ++cc)
   {
     result.emplace_back(cc, region->get_state_time(cc));
   }
@@ -269,8 +275,20 @@ vtkSmartPointer<vtkDataArray> GetData(const Ioss::GroupingEntity* entity,
   // vtkLogF(TRACE, "%s: size: %d * %d", fieldname.c_str(), (int)field.raw_count(),
   //  (int)field.raw_storage()->component_count());
   auto array = vtkIOSSUtilities::CreateArray(field);
-  auto count = entity->get_field_data(
-    fieldname, array->GetVoidPointer(0), array->GetDataSize() * array->GetDataTypeSize());
+  auto count = -1;
+  if (field.zero_copy_enabled())
+  {
+    void* data;
+    size_t data_size;
+    count = entity->get_field_data(fieldname, &data, &data_size);
+    array->SetVoidArray(data, static_cast<vtkIdType>(data_size), 1);
+  }
+  else
+  {
+    count = entity->get_field_data(
+      fieldname, array->GetVoidPointer(0), array->GetDataSize() * array->GetDataTypeSize());
+  }
+
   if (static_cast<vtkIdType>(count) != array->GetNumberOfTuples())
   {
     throw std::runtime_error("Failed to read field " + fieldname);
@@ -279,6 +297,14 @@ vtkSmartPointer<vtkDataArray> GetData(const Ioss::GroupingEntity* entity,
   {
     field.add_transform(transform);
     field.transform(array->GetVoidPointer(0));
+  }
+
+  // Check for Transient 2D data that should be 3D for WarpByVector/Glyphs
+  bool isField2DTransientVector = field.get_role() == Ioss::Field::RoleType::TRANSIENT &&
+    field.raw_storage()->component_count() == 2;
+  if (isField2DTransientVector)
+  {
+    array = ChangeComponents(array, 3);
   }
 
   if (cache)
@@ -375,6 +401,7 @@ int GetCellType(const Ioss::ElementTopology* topology)
       {
         case 13:
         case 14:
+        case 18:
           return VTK_QUADRATIC_PYRAMID;
         case 19:
           return VTK_TRIQUADRATIC_PYRAMID;
@@ -511,18 +538,31 @@ const Ioss::ElementTopology* GetElementTopology(int vtk_cell_type)
     return element;
   }
 
-  vtkLogF(ERROR, "VTK cell type (%d) cannot be mapped to an Ioss element type!", vtk_cell_type);
-  throw std::runtime_error("Unsupported cell type " + std::to_string(vtk_cell_type));
+  const std::string cellName = vtkCellTypes::GetClassNameFromTypeId(vtk_cell_type);
+  vtkLogF(ERROR, "%s cannot be mapped to an Ioss element type!", cellName.c_str());
+  throw std::runtime_error("Unsupported cell type " + cellName);
 }
 
 //----------------------------------------------------------------------------
 // internal: get number of points in VTK cell type.
-static vtkIdType GetNumberOfPointsInCellType(int vtk_cell_type)
+static vtkIdType GetNumberOfPointsInCellType(int vtk_cell_type, int ioss_num_points)
 {
   switch (vtk_cell_type)
   {
     case VTK_POLY_VERTEX:
       return -1;
+    case VTK_LAGRANGE_TETRAHEDRON:
+      if (ioss_num_points == 15)
+      {
+        return ioss_num_points;
+      }
+      break;
+    case VTK_LAGRANGE_WEDGE:
+      if (ioss_num_points == 21)
+      {
+        return ioss_num_points;
+      }
+      break;
     default:
       break;
   }
@@ -663,7 +703,7 @@ vtkSmartPointer<vtkCellArray> GetConnectivity(
     // for nodesets, we create a cell array with single cells.
 
     // ioss ids_raw is 1-indexed, let's make it 0-indexed for VTK.
-    auto transform = std::unique_ptr<Ioss::Transform>(Iotr::Factory::create("offset"));
+    auto transform = std::unique_ptr<Ioss::Transform>(Ioss::TransformFactory::create("offset"));
     transform->set_property("offset", -1);
     auto ids_raw = vtkIOSSUtilities::GetData(group_entity, "ids_raw", transform.get());
     ids_raw->SetNumberOfComponents(1);
@@ -683,13 +723,14 @@ vtkSmartPointer<vtkCellArray> GetConnectivity(
   vtkSmartPointer<vtkCellArray> cellArray = vtkSmartPointer<vtkCellArray>::New();
 
   // ioss connectivity_raw is 1-indexed, let's make it 0-indexed for VTK.
-  auto transform = std::unique_ptr<Ioss::Transform>(Iotr::Factory::create("offset"));
+  auto transform = std::unique_ptr<Ioss::Transform>(Ioss::TransformFactory::create("offset"));
   transform->set_property("offset", -1);
 
   auto connectivity_raw =
     vtkIOSSUtilities::GetData(group_entity, "connectivity_raw", transform.get());
 
-  auto vtk_cell_points = vtkIOSSUtilities::GetNumberOfPointsInCellType(vtk_topology_type);
+  auto vtk_cell_points =
+    vtkIOSSUtilities::GetNumberOfPointsInCellType(vtk_topology_type, ioss_cell_points);
   if (vtk_cell_points == -1)
   {
     // means that the VTK cell can have as many points as needed e.g.
@@ -748,9 +789,52 @@ vtkSmartPointer<vtkCellArray> GetConnectivity(
       // clang-format on
       break;
 
-    case VTK_LAGRANGE_WEDGE: // wedge-21
-      // here, the ordering is consistent with IOSS!
-      // so don't do anything.
+    case VTK_LAGRANGE_WEDGE:
+      if (vtk_cell_points == 21)
+      { // wedge-21
+        // clang-format off
+        ordering_transform = std::vector<int>{
+          /* 2 triangles */
+          4, 5, 6, 1, 2, 3,
+
+          /* edge centers */
+          13, 14, 15,
+          7, 8, 9,
+          10, 11, 12,
+
+          /* triangle centers */
+          18, 17,
+
+          /* quad-centers */
+          21, 19, 20,
+
+          /* body center */
+          16
+        };
+        // clang-format on
+      }
+      break;
+
+    case VTK_LAGRANGE_TETRAHEDRON:
+      if (vtk_cell_points == 15)
+      { // tet-15
+        // clang-format off
+        ordering_transform = std::vector<int>{
+          /* corner points */
+          1, 2, 3, 4,
+
+          /* edge centers */
+          5, 6, 7,
+          8, 9, 10,
+
+          /* triangle centers */
+          12, 15, 13, 14,
+
+          /* body center */
+          11
+        };
+        // clang-format on
+      }
       break;
 
     case VTK_QUADRATIC_HEXAHEDRON: // hex-20
@@ -842,11 +926,11 @@ vtkSmartPointer<vtkPoints> GetMeshModelCoordinates(
 }
 
 //----------------------------------------------------------------------------
-bool IsFieldTransient(Ioss::GroupingEntity* entity, const std::string& fieldname)
+bool IsFieldTransient(const Ioss::GroupingEntity* entity, const std::string& fieldname)
 {
   if (entity->type() == Ioss::EntityType::SIDESET)
   {
-    auto sideSet = static_cast<Ioss::SideSet*>(entity);
+    const auto* sideSet = static_cast<const Ioss::SideSet*>(entity);
     bool is_transient = !sideSet->get_side_blocks().empty();
     for (auto& sideBlock : sideSet->get_side_blocks())
     {

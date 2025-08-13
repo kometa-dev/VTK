@@ -14,6 +14,8 @@
 #include "vtkIOEnSightModule.h" // For export macro
 #include "vtkMultiBlockDataSetAlgorithm.h"
 
+#include <string>
+
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCallbackCommand;
 class vtkDataArrayCollection;
@@ -128,16 +130,16 @@ public:
   /**
    * Set/Get the time value at which to get the value.
    */
-  virtual void SetTimeValue(float value);
-  vtkGetMacro(TimeValue, float);
+  virtual void SetTimeValue(double value);
+  vtkGetMacro(TimeValue, double);
   ///@}
 
   ///@{
   /**
    * Get the minimum or maximum time value for this data set.
    */
-  vtkGetMacro(MinimumTimeValue, float);
-  vtkGetMacro(MaximumTimeValue, float);
+  vtkGetMacro(MinimumTimeValue, double);
+  vtkGetMacro(MaximumTimeValue, double);
   ///@}
 
   ///@{
@@ -297,6 +299,11 @@ protected:
   virtual void ClearForNewCaseFileName();
 
   /**
+   * Sanitizes filename, removing quotations and removing trailing whitespace.
+   */
+  void SanitizeFileName(std::string& filename);
+
+  /**
    * Internal function to read in a line up to 256 characters.
    * Returns zero if there was an error.
    */
@@ -408,9 +415,9 @@ protected:
   int NumberOfComplexScalarsPerElement;
   int NumberOfComplexVectorsPerElement;
 
-  float TimeValue;
-  float MinimumTimeValue;
-  float MaximumTimeValue;
+  double TimeValue;
+  double MinimumTimeValue;
+  double MaximumTimeValue;
 
   // Flag for whether TimeValue has been set.
   int TimeValueInitialized;

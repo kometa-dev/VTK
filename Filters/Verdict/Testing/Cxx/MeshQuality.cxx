@@ -11,6 +11,7 @@
 #include "vtkLogger.h"
 #include "vtkNew.h"
 #include "vtkPoints.h"
+#include "vtkPolyData.h"
 #include "vtkSmartPointer.h"
 #include "vtkTestErrorObserver.h"
 #include "vtkTestUtilities.h"
@@ -99,6 +100,11 @@ int MeshQuality(int argc, char* argv[])
 
   mr->SetFileName(fname);
   mr->Update();
+
+  vtkNew<vtkPolyData> dummyPolyData;
+  iq->SetInputData(dummyPolyData);
+  iq->SetTriangleQualityMeasureToArea();
+  iq->Update();
 
   ug = mr->GetOutput();
   iq->SetInputConnection(mr->GetOutputPort());
@@ -703,7 +709,7 @@ int MeshQuality(int argc, char* argv[])
   constexpr int TriangleTypes[] = { VTK_QUADRATIC_TRIANGLE, VTK_BIQUADRATIC_TRIANGLE,
     VTK_HIGHER_ORDER_TRIANGLE, VTK_LAGRANGE_TRIANGLE, VTK_BEZIER_TRIANGLE };
 
-  constexpr int QuadTypes[] = { VTK_QUADRATIC_QUAD, VTK_QUADRATIC_LINEAR_QUAD,
+  constexpr int QuadTypes[] = { VTK_QUADRATIC_QUAD, VTK_QUADRATIC_LINEAR_QUAD, VTK_BIQUADRATIC_QUAD,
     VTK_HIGHER_ORDER_QUAD, VTK_LAGRANGE_QUADRILATERAL, VTK_BEZIER_QUADRILATERAL };
 
   constexpr int TetraTypes[] = { VTK_QUADRATIC_TETRA, VTK_HIGHER_ORDER_TETRAHEDRON,

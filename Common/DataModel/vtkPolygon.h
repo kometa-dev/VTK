@@ -54,10 +54,10 @@ public:
   void EvaluateLocation(int& subId, const double pcoords[3], double x[3], double* weights) override;
   int IntersectWithLine(const double p1[3], const double p2[3], double tol, double& t, double x[3],
     double pcoords[3], int& subId) override;
-  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override;
+  int TriangulateLocalIds(int index, vtkIdList* ptIds) override;
   void Derivatives(
     int subId, const double pcoords[3], const double* values, int dim, double* derivs) override;
-  int IsPrimaryCell() override { return 0; }
+  int IsPrimaryCell() VTK_FUTURE_CONST override { return 0; }
   ///@}
 
   /**
@@ -117,7 +117,29 @@ public:
   /**
    * Compute the centroid of a set of points. Returns false if the computation
    * is invalid (this occurs when numPts=0 or when ids is empty).
+   *
+   * The strategy used is to compute the average coordinate x_c (the center, but not
+   * the centroid of the polygon) and then apply the "geometric decomposition"
+   * method for centroids to an area-weighted sum centroids of triangles formed from
+   * the center x_c to each edge of the polygon.
+   *
+   * This method is robust to significant non-planarity of the polygon, but not
+   * so much that the normal computation is invalid. If the normal cannot be
+   * determined or the total area of the polygon is near zero, then false will be returned.
+   *
+   * If a \a tolerance is provided, the ratio of the out-of-plane extent of the
+   * polygon (dZ) relative to the longest in-plane extent of the polygon (dS) is
+   * compared to it.
+   * If dZ / dS > \a tolerance , then false will be returned and the \a centroid
+   * will be unmodified.
+   *
+   * The default is \a tolerance of 0.1.
+   * To ignore non-planar polygons, pass a tolerance <  – but note that the normal
+   * is estimated from the point coordinates and thus the centroid will become
+   * ill-conditioned for large deviations from the plane.
    */
+  static bool ComputeCentroid(
+    vtkPoints* p, int numPts, const vtkIdType* pts, double centroid[3], double tolerance);
   static bool ComputeCentroid(vtkPoints* p, int numPts, const vtkIdType* pts, double centroid[3]);
   static bool ComputeCentroid(vtkIdTypeArray* ids, vtkPoints* pts, double centroid[3]);
   ///@}
@@ -155,15 +177,12 @@ public:
    */
   static int PointInPolygon(double x[3], int numPts, double* pts, double bounds[6], double n[3]);
 
-  /**
-   * Triangulate this polygon. The user must provide the vtkIdList outTris.
-   * On output, the outTris list contains the ids of the points defining the
-   * triangulation (i.e., not the associated polygon->PointIds, rather the
-   * index into the polygon->Points array). The ids are ordered into groups
-   * of three: each three-group defines one triangle. The method returns
-   * non-zero if the triangulation is successful.
-   */
-  int Triangulate(vtkIdList* outTris);
+  // Needed to remove warning "member function does not override any
+  // base class virtual member function"
+  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override
+  {
+    return vtkCell::Triangulate(index, ptIds, pts);
+  }
 
   /**
    * Same as Triangulate(vtkIdList *outTris)

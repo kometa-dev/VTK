@@ -27,14 +27,12 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataSet.h"
+#include "vtkSmartPointer.h"   // For vtkSmartPointer
 #include "vtkStructuredData.h" // For inline methods
 
 VTK_ABI_NAMESPACE_BEGIN
-class vtkVertex;
-class vtkLine;
-class vtkPixel;
-class vtkVoxel;
 class vtkDataArray;
+class vtkStructuredCellArray;
 class vtkPoints;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkRectilinearGrid : public vtkDataSet
@@ -49,7 +47,7 @@ public:
   /**
    * Return what type of dataset this is.
    */
-  int GetDataObjectType() override { return VTK_RECTILINEAR_GRID; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_RECTILINEAR_GRID; }
 
   /**
    * Copy the geometric and topological structure of an input rectilinear grid
@@ -68,13 +66,13 @@ public:
    */
   vtkIdType GetNumberOfCells() override;
   vtkIdType GetNumberOfPoints() override;
+  vtkPoints* GetPoints() override;
   double* GetPoint(vtkIdType ptId) VTK_SIZEHINT(3) override;
   void GetPoint(vtkIdType id, double x[3]) override;
   vtkCell* GetCell(vtkIdType cellId) override;
   vtkCell* GetCell(int i, int j, int k) override;
   void GetCell(vtkIdType cellId, vtkGenericCell* cell) override;
   void GetCellBounds(vtkIdType cellId, double bounds[6]) override;
-  vtkIdType FindPoint(double x, double y, double z) { return this->vtkDataSet::FindPoint(x, y, z); }
   vtkIdType FindPoint(double x[3]) override;
   vtkIdType FindCell(double x[3], vtkCell* cell, vtkIdType cellId, double tol2, int& subId,
     double pcoords[3], double* weights) override;
@@ -84,19 +82,60 @@ public:
     double pcoords[3], double* weights) override;
   int GetCellType(vtkIdType cellId) override;
   vtkIdType GetCellSize(vtkIdType cellId) override;
-  using vtkDataSet::GetCellPoints;
-  void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override
-  {
-    vtkStructuredData::GetCellPoints(cellId, ptIds, this->DataDescription, this->Dimensions);
-  }
+  void GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts, vtkIdList* ptIds)
+    VTK_SIZEHINT(pts, npts) override;
+  void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override;
   void GetPointCells(vtkIdType ptId, vtkIdList* cellIds) override
   {
     vtkStructuredData::GetPointCells(ptId, cellIds, this->Dimensions);
   }
   void ComputeBounds() override;
   int GetMaxCellSize() override { return 8; } // voxel is the largest
+  int GetMaxSpatialDimension() override;
+  int GetMinSpatialDimension() override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds, int* seedLoc);
+  ///@}
+
+  /**
+   * Return the rectilinear grid connectivity array.
+   *
+   * NOTE: the returned object should not be modified.
+   */
+  vtkStructuredCellArray* GetCells();
+
+  /**
+   * Get the array of all cell types in the rectilinear grid. Each single-component
+   * integer value is the same. The array is of size GetNumberOfCells().
+   *
+   * NOTE: the returned object should not be modified.
+   */
+  vtkConstantArray<int>* GetCellTypesArray();
+
+  ///@{
+  /**
+   * Methods for supporting blanking of cells. Blanking turns on or off
+   * points in the structured grid, and hence the cells connected to them.
+   * These methods should be called only after the dimensions of the
+   * grid are set.
+   */
+  virtual void BlankPoint(vtkIdType ptId);
+  virtual void UnBlankPoint(vtkIdType ptId);
+  virtual void BlankPoint(int i, int j, int k);
+  virtual void UnBlankPoint(int i, int j, int k);
+  ///@}
+
+  ///@{
+  /**
+   * Methods for supporting blanking of cells. Blanking turns on or off
+   * cells in the structured grid.
+   * These methods should be called only after the dimensions of the
+   * grid are set.
+   */
+  virtual void BlankCell(vtkIdType ptId);
+  virtual void UnBlankCell(vtkIdType ptId);
+  virtual void BlankCell(int i, int j, int k);
+  virtual void UnBlankCell(int i, int j, int k);
   ///@}
 
   /**
@@ -125,18 +164,17 @@ public:
   bool HasAnyBlankCells() override;
 
   /**
+   * Get the data description of the rectilinear grid.
+   */
+  vtkGetMacro(DataDescription, int);
+
+  /**
    * Given the node dimensions of this grid instance, this method computes the
    * node dimensions. The value in each dimension can will have a lowest value
    * of "1" such that computing the total number of cells can be achieved by
    * simply by cellDims[0]*cellDims[1]*cellDims[2].
    */
   void GetCellDims(int cellDims[3]);
-
-  /**
-   * Given a user-supplied vtkPoints container object, this method fills in all
-   * the points of the RectilinearGrid.
-   */
-  void GetPoints(vtkPoints* pnts);
 
   ///@{
   /**
@@ -240,7 +278,7 @@ public:
   /**
    * Structured extent. The extent type is a 3D extent
    */
-  int GetExtentType() override { return VTK_3D_EXTENT; }
+  int GetExtentType() VTK_FUTURE_CONST override { return VTK_3D_EXTENT; }
 
   /**
    * Reallocates and copies to set the Extent to the UpdateExtent.
@@ -283,12 +321,6 @@ protected:
   vtkRectilinearGrid();
   ~vtkRectilinearGrid() override;
 
-  // for the GetCell method
-  vtkVertex* Vertex;
-  vtkLine* Line;
-  vtkPixel* Pixel;
-  vtkVoxel* Voxel;
-
   int Dimensions[3];
   int DataDescription;
 
@@ -299,7 +331,16 @@ protected:
   vtkDataArray* ZCoordinates;
 
   // Hang on to some space for returning points when GetPoint(id) is called.
-  double PointReturn[3];
+  double Point[3];
+
+  vtkSmartPointer<vtkPoints> StructuredPoints;
+  vtkSmartPointer<vtkStructuredCellArray> StructuredCells;
+  vtkSmartPointer<vtkConstantArray<int>> StructuredCellTypes;
+
+  void BuildImplicitStructures();
+  void BuildPoints();
+  void BuildCells();
+  void BuildCellTypes();
 
 private:
   void Cleanup();
@@ -309,34 +350,38 @@ private:
 };
 
 //----------------------------------------------------------------------------
-inline vtkIdType vtkRectilinearGrid::GetNumberOfCells()
+inline double* vtkRectilinearGrid::GetPoint(vtkIdType id)
 {
-  vtkIdType nCells = 1;
-  int i;
-
-  for (i = 0; i < 3; i++)
-  {
-    if (this->Dimensions[i] <= 0)
-    {
-      return 0;
-    }
-    if (this->Dimensions[i] > 1)
-    {
-      nCells *= (this->Dimensions[i] - 1);
-    }
-  }
-
-  return nCells;
+  this->GetPoint(id, this->Point);
+  return this->Point;
 }
 
 //----------------------------------------------------------------------------
 inline vtkIdType vtkRectilinearGrid::GetNumberOfPoints()
 {
-  return static_cast<vtkIdType>(this->Dimensions[0]) * this->Dimensions[1] * this->Dimensions[2];
+  return vtkStructuredData::GetNumberOfPoints(this->Extent);
+}
+
+//----------------------------------------------------------------------------
+inline vtkIdType vtkRectilinearGrid::GetNumberOfCells()
+{
+  return vtkStructuredData::GetNumberOfCells(this->Extent);
 }
 
 //----------------------------------------------------------------------------
 inline int vtkRectilinearGrid::GetDataDimension()
+{
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
+
+//----------------------------------------------------------------------------
+inline int vtkRectilinearGrid::GetMaxSpatialDimension()
+{
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
+
+//----------------------------------------------------------------------------
+inline int vtkRectilinearGrid::GetMinSpatialDimension()
 {
   return vtkStructuredData::GetDataDimension(this->DataDescription);
 }

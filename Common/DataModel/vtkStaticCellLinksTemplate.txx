@@ -12,10 +12,10 @@
 #include "vtkPolyData.h"
 #include "vtkSMPTools.h"
 #include "vtkUnstructuredGrid.h"
-#include <array>
-#include <atomic>
 
+#include <atomic>
 #include <type_traits>
+#include <vector>
 
 //----------------------------------------------------------------------------
 // Note: this class is a faster, threaded version of vtkCellLinks. It uses
@@ -29,7 +29,9 @@ vtkStaticCellLinksTemplate<TIds>::vtkStaticCellLinksTemplate()
   : LinksSize(0)
   , NumPts(0)
   , NumCells(0)
+  , LinkSharedPtr(nullptr)
   , Links(nullptr)
+  , OffsetsSharedPtr(nullptr)
   , Offsets(nullptr)
 {
   if (std::is_same<unsigned short, TIds>::value)
@@ -69,12 +71,12 @@ void vtkStaticCellLinksTemplate<TIds>::Initialize()
 {
   if (this->Links)
   {
-    delete[] this->Links;
+    // this->LinkSharedPtr will be reset by the destructor
     this->Links = nullptr;
   }
   if (this->Offsets)
   {
-    delete[] this->Offsets;
+    // this->OffsetsSharedPtr will be reset by the destructor
     this->Offsets = nullptr;
   }
 }
@@ -108,54 +110,55 @@ void vtkStaticCellLinksTemplate<TIds>::BuildLinks(vtkDataSet* ds)
   this->NumCells = ds->GetNumberOfCells();
   this->NumPts = ds->GetNumberOfPoints();
 
-  vtkIdType npts, ptId;
-  vtkIdType cellId, j;
-  vtkIdList* cellPts = vtkIdList::New();
-
   // Traverse data to determine number of uses of each point. Also count the
   // number of links to allocate.
-  this->Offsets = new TIds[this->NumPts + 1];
-  std::fill_n(this->Offsets, this->NumPts, 0);
+  std::vector<TIds> counts(static_cast<size_t>(this->NumPts));
 
-  for (this->LinksSize = 0, cellId = 0; cellId < this->NumCells; cellId++)
+  vtkNew<vtkIdList> cellPts;
+  this->LinksSize = 0;
+  for (vtkIdType cellId = 0; cellId < this->NumCells; cellId++)
   {
     ds->GetCellPoints(cellId, cellPts);
-    npts = cellPts->GetNumberOfIds();
-    for (j = 0; j < npts; j++)
+    vtkIdType npts = cellPts->GetNumberOfIds();
+    for (vtkIdType j = 0; j < npts; j++)
     {
-      this->Offsets[cellPts->GetId(j)]++;
+      counts[cellPts->GetId(j)]++;
       this->LinksSize++;
     }
   }
 
-  // Allocate space for links. Perform prefix sum.
-  this->Links = new TIds[this->LinksSize + 1];
-  this->Links[this->LinksSize] = this->NumPts;
-
-  for (ptId = 0; ptId < this->NumPts; ++ptId)
+  // Perform prefix sum to determine offsets
+  this->OffsetsSharedPtr.reset(new TIds[this->NumPts + 1], std::default_delete<TIds[]>());
+  this->Offsets = this->OffsetsSharedPtr.get();
+  this->Offsets[0] = 0;
+  for (vtkIdType ptId = 1; ptId < this->NumPts; ++ptId)
   {
-    npts = this->Offsets[ptId + 1];
-    this->Offsets[ptId + 1] = this->Offsets[ptId] + npts;
+    const TIds& nCells = counts[ptId - 1];
+    this->Offsets[ptId] = this->Offsets[ptId - 1] + nCells;
   }
+  this->Offsets[this->NumPts] = this->LinksSize;
+
+  // Allocate links array, Extra one allocated to simplify later pointer manipulation
+  this->LinkSharedPtr.reset(new TIds[this->LinksSize + 1], std::default_delete<TIds[]>());
+  this->Links = this->LinkSharedPtr.get();
+  this->Links[this->LinksSize] = this->NumPts;
 
   // Now build the links. The summation from the prefix sum indicates where
   // the cells are to be inserted. Each time a cell is inserted, the offset
   // is decremented. In the end, the offset array is also constructed as it
   // points to the beginning of each cell run.
-  for (cellId = 0; cellId < this->NumCells; ++cellId)
+  for (vtkIdType cellId = 0; cellId < this->NumCells; ++cellId)
   {
     ds->GetCellPoints(cellId, cellPts);
-    npts = cellPts->GetNumberOfIds();
-    for (j = 0; j < npts; ++j)
+    vtkIdType npts = cellPts->GetNumberOfIds();
+    for (vtkIdType j = 0; j < npts; ++j)
     {
-      ptId = cellPts->GetId(j);
-      this->Offsets[ptId]--;
-      this->Links[this->Offsets[ptId]] = cellId;
+      vtkIdType ptId = cellPts->GetId(j);
+      const TIds offset = this->Offsets[ptId + 1] - counts[ptId]--;
+      this->Links[offset] = cellId;
     }
   }
   this->Offsets[this->NumPts] = this->LinksSize;
-
-  cellPts->Delete();
 }
 VTK_ABI_NAMESPACE_END
 
@@ -166,9 +169,8 @@ VTK_ABI_NAMESPACE_BEGIN
 struct CountPoints
 {
   template <typename CellStateT, typename TIds>
-  void operator()(CellStateT& state,
-    TIds* linkOffsets, // May be std::atomic<...>
-    vtkIdType beginCellId, vtkIdType endCellId, vtkIdType idOffset = 0)
+  void operator()(
+    CellStateT& state, std::atomic<TIds>* counts, vtkIdType beginCellId, vtkIdType endCellId)
   {
     using ValueType = typename CellStateT::ValueType;
     const vtkIdType connBeginId = state.GetBeginOffset(beginCellId);
@@ -176,46 +178,15 @@ struct CountPoints
     auto connRange = vtk::DataArrayValueRange<1>(state.GetConnectivity(), connBeginId, connEndId);
 
     // Count number of point uses
-    TIds* linkOffsetsPtr = linkOffsets + idOffset;
     for (const ValueType ptId : connRange)
     {
-      ++linkOffsetsPtr[ptId];
+      // memory_order_relaxed is safe here, since we're not using the atomics for synchronization.
+      counts[ptId].fetch_add(1, std::memory_order_relaxed);
     }
   }
 };
 
-// Serial version:
 struct BuildLinks
-{
-  template <typename CellStateT, typename TIds>
-  void operator()(CellStateT& state, TIds* linkOffsets, TIds* links, vtkIdType idOffset = 0)
-  {
-    using ValueType = typename CellStateT::ValueType;
-
-    const vtkIdType numCells = state.GetNumberOfCells();
-
-    const auto cellConnectivity = vtk::DataArrayValueRange<1>(state.GetConnectivity());
-    const auto cellOffsets = vtk::DataArrayValueRange<1>(state.GetOffsets());
-    // Now build the links. The summation from the prefix sum indicates where
-    // the cells are to be inserted. Each time a cell is inserted, the offset
-    // is decremented. In the end, the offset array is also constructed as it
-    // points to the beginning of each cell run.
-    ValueType ptIdOffset;
-    size_t ptId;
-    for (vtkIdType cellId = 0; cellId < numCells; ++cellId)
-    {
-      for (ptIdOffset = cellOffsets[cellId]; ptIdOffset < cellOffsets[cellId + 1]; ++ptIdOffset)
-      {
-        ptId = static_cast<size_t>(cellConnectivity[ptIdOffset]);
-        --linkOffsets[ptId];
-        links[linkOffsets[ptId]] = static_cast<TIds>(idOffset + cellId);
-      }
-    }
-  }
-};
-
-// Parallel version:
-struct BuildLinksThreaded
 {
   template <typename CellStateT, typename TIds>
   void operator()(CellStateT& state, const TIds* offsets, std::atomic<TIds>* counts, TIds* links,
@@ -238,7 +209,7 @@ struct BuildLinksThreaded
       {
         ptId = static_cast<size_t>(cellConnectivity[ptIdOffset]);
         // memory_order_relaxed is safe here, since we're not using the atomics for synchronization.
-        offset = offsets[ptId] + counts[ptId].fetch_sub(1, std::memory_order_relaxed) - 1;
+        offset = offsets[ptId + 1] - counts[ptId].fetch_sub(1, std::memory_order_relaxed);
         links[offset] = idOffset + cellId;
       }
     }
@@ -247,45 +218,6 @@ struct BuildLinksThreaded
 
 VTK_ABI_NAMESPACE_END
 } // end namespace vtkSCLT_detail
-
-VTK_ABI_NAMESPACE_BEGIN
-//----------------------------------------------------------------------------
-// Build the link list array for unstructured grids. Note this is a serial
-// implementation: while there is another method (threaded) that is usually
-// much faster, in certain pathological situations the serial version can be
-// faster.
-template <typename TIds>
-void vtkStaticCellLinksTemplate<TIds>::SerialBuildLinks(
-  vtkIdType numPts, vtkIdType numCells, vtkCellArray* cellArray)
-{
-  // Basic information about the grid
-  this->NumPts = numPts;
-  this->NumCells = numCells;
-
-  this->LinksSize = cellArray->GetConnectivityArray()->GetNumberOfValues();
-
-  // Extra one allocated to simplify later pointer manipulation
-  this->Links = new TIds[this->LinksSize + 1];
-  this->Links[this->LinksSize] = this->NumPts;
-  this->Offsets = new TIds[numPts + 1];
-  std::fill_n(this->Offsets, this->NumPts + 1, 0);
-
-  // Count how many cells each point appears in:
-  cellArray->Visit(vtkSCLT_detail::CountPoints{}, this->Offsets, 0, numCells);
-
-  // Perform prefix sum (inclusive scan)
-  for (vtkIdType ptId = 0; ptId < this->NumPts; ++ptId)
-  {
-    const vtkIdType npts = this->Offsets[ptId + 1];
-    this->Offsets[ptId + 1] = this->Offsets[ptId] + npts;
-  }
-
-  // Construct the links table and finalize the offsets:
-  cellArray->Visit(vtkSCLT_detail::BuildLinks{}, this->Offsets, this->Links);
-
-  this->Offsets[numPts] = this->LinksSize;
-}
-VTK_ABI_NAMESPACE_END
 
 //----------------------------------------------------------------------------
 // Threaded implementation of BuildLinks() using vtkSMPTools and std::atomic.
@@ -318,19 +250,50 @@ struct InsertLinks
   std::atomic<TIds>* Counts;
   const TIds* Offsets;
   TIds* Links;
+  TIds IdOffset;
 
-  InsertLinks(vtkCellArray* cellArray, std::atomic<TIds>* counts, const TIds* offsets, TIds* links)
+  InsertLinks(vtkCellArray* cellArray, std::atomic<TIds>* counts, const TIds* offsets, TIds* links,
+    TIds idOffset)
     : CellArray(cellArray)
     , Counts(counts)
     , Offsets(offsets)
     , Links(links)
+    , IdOffset(idOffset)
   {
   }
 
   void operator()(vtkIdType cellId, vtkIdType endCellId)
   {
-    this->CellArray->Visit(vtkSCLT_detail::BuildLinksThreaded{}, this->Offsets, this->Counts,
-      this->Links, cellId, endCellId);
+    this->CellArray->Visit(vtkSCLT_detail::BuildLinks{}, this->Offsets, this->Counts, this->Links,
+      cellId, endCellId, this->IdOffset);
+  }
+};
+
+template <typename TIds>
+struct SortLinks
+{
+  const TIds* Offsets;
+  TIds* Links;
+
+  SortLinks(const TIds* offsets, TIds* links)
+    : Offsets(offsets)
+    , Links(links)
+  {
+  }
+
+  void operator()(vtkIdType beginPointId, vtkIdType endPointId)
+  {
+    for (vtkIdType pointId = beginPointId; pointId < endPointId; ++pointId)
+    {
+      // check if the links are sorted, because that's the most common case
+      const bool isSorted = std::is_sorted(
+        this->Links + this->Offsets[pointId], this->Links + this->Offsets[pointId + 1]);
+      // if the links are not sorted, we need to sort them
+      if (!isSorted)
+      {
+        std::sort(this->Links + this->Offsets[pointId], this->Links + this->Offsets[pointId + 1]);
+      }
+    }
   }
 };
 
@@ -341,83 +304,82 @@ VTK_ABI_NAMESPACE_BEGIN
 // Build the link list array for unstructured grids. Note this is a threaded
 // implementation: it uses SMPTools and atomics to prevent race situations.
 template <typename TIds>
-void vtkStaticCellLinksTemplate<TIds>::ThreadedBuildLinks(
-  vtkIdType numPts, vtkIdType numCells, vtkCellArray* cellArray)
+void vtkStaticCellLinksTemplate<TIds>::BuildLinksFromMultipleArrays(
+  vtkIdType numPts, vtkIdType numCells, const std::vector<vtkCellArray*> cellArrays)
 {
   // Basic information about the grid
   this->NumPts = numPts;
   this->NumCells = numCells;
 
-  // Trick follows: the size of the Links array is equal to
-  // the size of the cell array, minus the number of cells.
-  this->LinksSize = cellArray->GetNumberOfConnectivityIds();
-
-  // Extra one allocated to simplify later pointer manipulation
-  this->Links = new TIds[this->LinksSize + 1];
-  this->Links[this->LinksSize] = this->NumPts;
+  // compute links size
+  this->LinksSize = 0;
+  for (const vtkCellArray* cellArray : cellArrays)
+  {
+    this->LinksSize += cellArray->GetNumberOfConnectivityIds();
+  }
+  // compute offsets of number of cells
+  std::vector<vtkIdType> offsets(cellArrays.size(), 0);
+  for (size_t i = 1; i < cellArrays.size(); ++i)
+  {
+    offsets[i] = cellArrays[i - 1]->GetNumberOfCells() + offsets[i - 1];
+  }
 
   // Create an array of atomics with initial count=0. This will keep
   // track of point uses. Count them in parallel.
   std::atomic<TIds>* counts = new std::atomic<TIds>[numPts]();
-  CountUses<TIds> count(cellArray, counts);
-  vtkSMPTools::For(0, numCells, count);
+  for (size_t i = 0; i < cellArrays.size(); ++i)
+  {
+    CountUses<TIds> count(cellArrays[i], counts);
+    vtkSMPTools::For(0, cellArrays[i]->GetNumberOfCells(), count);
+  }
 
   // Perform prefix sum to determine offsets
-  vtkIdType ptId, npts;
-  this->Offsets = new TIds[numPts + 1];
+  this->OffsetsSharedPtr.reset(new TIds[numPts + 1], std::default_delete<TIds[]>());
+  this->Offsets = this->OffsetsSharedPtr.get();
   this->Offsets[0] = 0;
-  for (ptId = 1; ptId < numPts; ++ptId)
+  for (vtkIdType ptId = 1; ptId < numPts; ++ptId)
   {
-    npts = counts[ptId - 1];
-    this->Offsets[ptId] = this->Offsets[ptId - 1] + npts;
+    TIds nCells = counts[ptId - 1].load(std::memory_order_relaxed);
+    this->Offsets[ptId] = this->Offsets[ptId - 1] + nCells;
   }
   this->Offsets[numPts] = this->LinksSize;
 
+  // Allocate links array, Extra one allocated to simplify later pointer manipulation
+  this->LinkSharedPtr.reset(new TIds[this->LinksSize + 1], std::default_delete<TIds[]>());
+  this->Links = this->LinkSharedPtr.get();
+  this->Links[this->LinksSize] = this->NumPts;
+
   // Now insert cell ids into cell links.
-  InsertLinks<TIds> insertLinks(cellArray, counts, this->Offsets, this->Links);
-  vtkSMPTools::For(0, numCells, insertLinks);
+  for (size_t i = 0; i < cellArrays.size(); ++i)
+  {
+    InsertLinks<TIds> insertLinks(cellArrays[i], counts, this->Offsets, this->Links, offsets[i]);
+    vtkSMPTools::For(0, cellArrays[i]->GetNumberOfCells(), insertLinks);
+  }
 
   // Clean up
   delete[] counts;
+
+  // Sort the cell links of each point (if needed) to ensure deterministic order
+  SortLinks<TIds> sortLinks(this->Offsets, this->Links);
+  vtkSMPTools::For(0, numPts, sortLinks);
 }
 
 //----------------------------------------------------------------------------
-// Build the link list array for unstructured grids
+// Build the link list array for unstructured grids.
 template <typename TIds>
 void vtkStaticCellLinksTemplate<TIds>::BuildLinks(vtkUnstructuredGrid* ugrid)
 {
-  // Basic information about the grid
-  vtkIdType numPts = ugrid->GetNumberOfPoints();
-  vtkIdType numCells = ugrid->GetNumberOfCells();
-
-  // We're going to get into the guts of the class
-  vtkCellArray* cellArray = ugrid->GetCells();
-
-  // Use serial or threaded implementations
-  if (!this->SequentialProcessing)
-  {
-    this->ThreadedBuildLinks(numPts, numCells, cellArray);
-  }
-  else
-  {
-    this->SerialBuildLinks(numPts, numCells, cellArray);
-  }
+  // Build links
+  this->BuildLinks(ugrid->GetNumberOfPoints(), ugrid->GetNumberOfCells(), ugrid->GetCells());
 }
 
 //----------------------------------------------------------------------------
-// Build the link list array for unstructured grids
+// Build the link list array for explicit structured grids.
 template <typename TIds>
 void vtkStaticCellLinksTemplate<TIds>::BuildLinks(vtkExplicitStructuredGrid* esgrid)
 {
-  // Basic information about the grid
-  vtkIdType numPts = esgrid->GetNumberOfPoints();
-  vtkIdType numCells = esgrid->GetNumberOfCells();
-
-  // We're going to get into the guts of the class
-  vtkCellArray* cellArray = esgrid->GetCells();
-
-  // Use serial implementation. TODO: add threaded implementation
-  this->SerialBuildLinks(numPts, numCells, cellArray);
+  // Build links
+  this->BuildLinks(esgrid->GetNumberOfPoints(), esgrid->GetNumberOfCells(), esgrid->GetCells());
 }
 
 //----------------------------------------------------------------------------
@@ -426,70 +388,13 @@ void vtkStaticCellLinksTemplate<TIds>::BuildLinks(vtkExplicitStructuredGrid* esg
 template <typename TIds>
 void vtkStaticCellLinksTemplate<TIds>::BuildLinks(vtkPolyData* pd)
 {
-  // Basic information about the grid
-  this->NumCells = pd->GetNumberOfCells();
-  this->NumPts = pd->GetNumberOfPoints();
-
-  vtkCellArray* cellArrays[4];
-  vtkIdType numCells[4];
-  vtkIdType sizes[4];
-  int i, j;
-
-  cellArrays[0] = pd->GetVerts();
-  cellArrays[1] = pd->GetLines();
-  cellArrays[2] = pd->GetPolys();
-  cellArrays[3] = pd->GetStrips();
-
-  for (i = 0; i < 4; ++i)
-  {
-    if (cellArrays[i] != nullptr)
-    {
-      numCells[i] = cellArrays[i]->GetNumberOfCells();
-      sizes[i] = cellArrays[i]->GetConnectivityArray()->GetNumberOfValues();
-    }
-    else
-    {
-      numCells[i] = 0;
-      sizes[i] = 0;
-    }
-  } // for the four polydata arrays
-
-  // Allocate
-  this->LinksSize = sizes[0] + sizes[1] + sizes[2] + sizes[3];
-  this->Links = new TIds[this->LinksSize + 1];
-  this->Links[this->LinksSize] = this->NumPts;
-  this->Offsets = new TIds[this->NumPts + 1];
-  this->Offsets[this->NumPts] = this->LinksSize;
-  std::fill_n(this->Offsets, this->NumPts + 1, 0);
-
-  // Now create the links.
-  vtkIdType npts, CellId, ptId;
-
-  // Visit the four arrays
-  for (CellId = 0, j = 0; j < 4; ++j)
-  {
-    // Count number of point uses
-    cellArrays[j]->Visit(vtkSCLT_detail::CountPoints{}, this->Offsets, 0, numCells[j], CellId);
-    CellId += numCells[j];
-  } // for each of the four polydata cell arrays
-
-  // Perform prefix sum (inclusive scan)
-  for (ptId = 0; ptId < this->NumPts; ++ptId)
-  {
-    npts = this->Offsets[ptId + 1];
-    this->Offsets[ptId + 1] = this->Offsets[ptId] + npts;
-  }
-
-  // Now build the links. The summation from the prefix sum indicates where
-  // the cells are to be inserted. Each time a cell is inserted, the offset
-  // is decremented. In the end, the offset array is also constructed as it
-  // points to the beginning of each cell run.
-  for (CellId = 0, j = 0; j < 4; ++j)
-  {
-    cellArrays[j]->Visit(vtkSCLT_detail::BuildLinks{}, this->Offsets, this->Links, CellId);
-    CellId += numCells[j];
-  } // for each of the four polydata arrays
-  this->Offsets[this->NumPts] = this->LinksSize;
+  // Get cell arrays
+  std::vector<vtkCellArray*> cellArrays = { pd->GetVerts(), pd->GetLines(), pd->GetPolys(),
+    pd->GetStrips() };
+  // Remove any null cell arrays
+  cellArrays.erase(std::remove(cellArrays.begin(), cellArrays.end(), nullptr), cellArrays.end());
+  // Build links
+  this->BuildLinksFromMultipleArrays(pd->GetNumberOfPoints(), pd->GetNumberOfCells(), cellArrays);
 }
 
 //----------------------------------------------------------------------------
@@ -599,7 +504,7 @@ void vtkStaticCellLinksTemplate<TIds>::GetCells(
     {
       cells->InsertNextId(cellId);
     }
-  } // for all cells in shortest list
+  } // for all cells in the shortest list
 }
 
 //----------------------------------------------------------------------------
@@ -608,7 +513,7 @@ template <typename TIds>
 unsigned long vtkStaticCellLinksTemplate<TIds>::GetActualMemorySize()
 {
   unsigned long total = 0;
-  if (Links != nullptr)
+  if (this->Links != nullptr)
   {
     total = static_cast<unsigned long>((this->LinksSize + 1) * sizeof(TIds));
     total += static_cast<unsigned long>((this->NumPts + 1) * sizeof(TIds));
@@ -619,24 +524,46 @@ unsigned long vtkStaticCellLinksTemplate<TIds>::GetActualMemorySize()
 //----------------------------------------------------------------------------
 // Satisfy vtkAbstractCellLinks API
 template <typename TIds>
-void vtkStaticCellLinksTemplate<TIds>::DeepCopy(vtkAbstractCellLinks* src)
+void vtkStaticCellLinksTemplate<TIds>::DeepCopy(vtkStaticCellLinksTemplate* links)
 {
-  vtkStaticCellLinksTemplate<TIds>* links = dynamic_cast<vtkStaticCellLinksTemplate<TIds>*>(src);
-
-  if (links)
+  if (!links)
   {
-    this->LinksSize = links->LinksSize;
-    this->NumPts = links->NumPts;
-    this->NumCells = links->NumCells;
-
-    delete[] this->Links;
-    this->Links = new TIds[this->LinksSize + 1];
-    std::copy(links->Links, links->Links + (this->LinksSize + 1), this->Links);
-
-    delete[] this->Offsets;
-    this->Offsets = new TIds[this->NumPts + 1];
-    std::copy(links->Offsets, links->Offsets + (this->NumPts + 1), this->Offsets);
+    return;
   }
+  this->LinksSize = links->LinksSize;
+  this->NumPts = links->NumPts;
+  this->NumCells = links->NumCells;
+
+  this->LinkSharedPtr.reset(new TIds[this->LinksSize + 1], std::default_delete<TIds[]>());
+  this->Links = this->LinkSharedPtr.get();
+  vtkSMPTools::For(0, this->LinksSize + 1,
+    [&](vtkIdType beginLink, vtkIdType endLink)
+    { std::copy(links->Links + beginLink, links->Links + endLink, this->Links + beginLink); });
+  this->OffsetsSharedPtr.reset(new TIds[this->NumPts + 1], std::default_delete<TIds[]>());
+  this->Offsets = this->OffsetsSharedPtr.get();
+  vtkSMPTools::For(0, this->NumPts + 1,
+    [&](vtkIdType beginPoint, vtkIdType endPoint) {
+      std::copy(links->Offsets + beginPoint, links->Offsets + endPoint, this->Offsets + beginPoint);
+    });
+}
+
+//----------------------------------------------------------------------------
+// Satisfy vtkAbstractCellLinks API
+template <typename TIds>
+void vtkStaticCellLinksTemplate<TIds>::ShallowCopy(vtkStaticCellLinksTemplate* links)
+{
+  if (!links)
+  {
+    return;
+  }
+  this->LinksSize = links->LinksSize;
+  this->NumPts = links->NumPts;
+  this->NumCells = links->NumCells;
+
+  this->LinkSharedPtr = links->LinkSharedPtr;
+  this->Links = this->LinkSharedPtr.get();
+  this->OffsetsSharedPtr = links->OffsetsSharedPtr;
+  this->Offsets = this->OffsetsSharedPtr.get();
 }
 
 //----------------------------------------------------------------------------
@@ -646,8 +573,9 @@ void vtkStaticCellLinksTemplate<TIds>::SelectCells(
   vtkIdType minMaxDegree[2], unsigned char* cellSelection)
 {
   std::fill_n(cellSelection, this->NumCells, 0);
-  vtkSMPTools::For(
-    0, this->NumPts, [this, minMaxDegree, cellSelection](vtkIdType ptId, vtkIdType endPtId) {
+  vtkSMPTools::For(0, this->NumPts,
+    [this, minMaxDegree, cellSelection](vtkIdType ptId, vtkIdType endPtId)
+    {
       for (; ptId < endPtId; ++ptId)
       {
         vtkIdType degree = this->Offsets[ptId + 1] - this->Offsets[ptId];

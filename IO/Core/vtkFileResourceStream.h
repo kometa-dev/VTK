@@ -25,13 +25,13 @@ public:
   /**
    * @brief Open a file
    *
-   * Opening a file reset the stream to intial position: Tell() = 0.
+   * Opening a file reset the stream to initial position: Tell() = 0.
    * EndOfStream is set to true if file opening failed.
    * If path is nullptr, the file will only be closed.
    * This function will increase modified time.
    *
    * @param path the file path
-   * @return true if file was succefully opened, false otherwise.
+   * @return true if file was successfully opened, false otherwise.
    * Return false if path is nullptr.
    */
   bool Open(VTK_FILEPATH const char* path);

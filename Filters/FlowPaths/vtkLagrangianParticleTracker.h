@@ -24,7 +24,7 @@
  * * port 1 : ParticleInteractions : empty if no surface input, contains a
  *     a multiblock with as many children as the number of threads, each children containing a
  * multiblock with the same structure as the surfaces. The leafs of these structures contain a
- * polydata of vertexes corresponding to the interactions. with the same composite layout of surface
+ * polydata of vertices corresponding to the interactions. with the same composite layout of surface
  * input if any, showing all interactions between particles and the surface input.
  *
  * It has a parallel implementation which streams particle between domains.
@@ -229,6 +229,17 @@ public:
 
   ///@{
   /**
+   * Set/Get the flag to force the use of manual shift when using
+   * distributed computing
+   * Default is false.
+   */
+  vtkSetMacro(ForcePManualShift, bool);
+  vtkGetMacro(ForcePManualShift, bool);
+  vtkBooleanMacro(ForcePManualShift, bool);
+  ///@}
+
+  ///@{
+  /**
    * Specify the source object used to generate particle initial position (seeds).
    * Note that this method does not connect the pipeline. The algorithm will
    * work on the input data as it is without updating the producer of the data.
@@ -374,6 +385,7 @@ protected:
   bool AdaptiveStepReintegration;
   bool GenerateParticlePathsOutput = true;
   bool GeneratePolyVertexInteractionOutput;
+  bool ForcePManualShift = false;
   std::atomic<vtkIdType> ParticleCounter;
   std::atomic<vtkIdType> IntegratedParticleCounter;
   vtkIdType IntegratedParticleCounterIncrement;

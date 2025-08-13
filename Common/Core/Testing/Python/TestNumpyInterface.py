@@ -8,8 +8,11 @@ except ImportError:
     vtkmodules.test.Testing.skip()
 
 from vtkmodules.vtkCommonCore import (
+    vtkDoubleArray,
     vtkFloatArray,
+    vtkIntArray,
     vtkPoints,
+    vtkSOADataArrayTemplate,
 )
 from vtkmodules.vtkCommonDataModel import (
     vtkDataSetAttributes,
@@ -245,6 +248,12 @@ mb = vtkMultiBlockDataSet()
 mb.SetBlock(0, pd)
 pd2 = vtkPolyData()
 mb.SetBlock(1, pd2)
+globalArray = vtkIntArray()
+globalArray.SetName("global")
+globalArray.SetNumberOfTuples(2)
+globalArray.SetValue(0, 1)
+globalArray.SetValue(1, 2)
+mb.GetFieldData().AddArray(globalArray)
 mbw = dsa.WrapDataObject(mb)
 
 mbw.PointData.append(dsa.NoneArray, 'foo')
@@ -260,6 +269,10 @@ mbw.PointData.append(algs.max(na2), "maxfoo")
 assert mbw.GetBlock(0).GetPointData().GetNumberOfArrays() == 2
 assert mbw.GetBlock(1).GetPointData().GetNumberOfArrays() == 1
 assert mbw.GetBlock(0).GetPointData().GetArray(1).GetName() == 'maxfoo'
+
+assert len(mbw.GlobalData.keys()) == 1
+assert mbw.GlobalData['global'][0] == 1
+assert mbw.GlobalData['global'][1] == 2
 
 # --------------------------------------
 
@@ -298,3 +311,64 @@ table.RowData.append(numpy.ones(5), "ones")
 table.RowData.append(2*numpy.ones(5), "twos")
 assert table.GetNumberOfRows() == 5
 assert table.GetNumberOfColumns() == 2
+
+# --------------------------------------
+# test matmul
+
+a = numpy.ones((10, 3, 3))
+a[:,:,1] = 5
+x = numpy.ones((10, 3))
+x[:,0] = 2
+
+# matrix-vector product
+numpy_b = numpy.matmul(a[0], x[0])
+b = algs.matmul(a, x)
+assert numpy.array_equal(b[0], numpy_b)
+
+# vector-matrix product
+numpy_b = numpy.matmul(x[0], a[0])
+b = algs.matmul(x, a)
+assert numpy.array_equal(b[0], numpy_b)
+
+# vector-vector product
+numpy_b = numpy.matmul(a[0], a[0])
+b = algs.matmul(a, a)
+assert numpy.array_equal(b[0], numpy_b)
+
+numpy_b = numpy.matmul(x[0], x[0])
+b = algs.matmul(x, x)
+assert numpy.array_equal(b[0], numpy_b)
+
+# matrix-matrix product
+b = a + 5
+numpy_c = numpy.matmul(a[0], b[0])
+c = algs.matmul(a, b)
+assert numpy.array_equal(c[0], numpy_c)
+
+# test matmul for AOS and SOA arrays
+
+aSOA = vtkSOADataArrayTemplate['float64']()
+aAOS = vtkDoubleArray()
+aSOA.SetNumberOfComponents(9)
+aSOA.SetNumberOfTuples(2)
+aAOS.SetNumberOfComponents(9)
+aAOS.SetNumberOfTuples(2)
+
+for t in range(2):
+    for i in range(9):
+        aSOA.SetComponent(t, i, i)
+        aAOS.SetComponent(t, i, i)
+
+aSOAVTK = dsa.vtkDataArrayToVTKArray(aSOA)
+aAOSVTK = dsa.vtkDataArrayToVTKArray(aAOS)
+
+xAOS = vtkDoubleArray()
+xAOS.SetNumberOfComponents(3)
+xAOS.SetNumberOfTuples(2)
+xAOS.Fill(1)
+xAOSVTK = dsa.vtkDataArrayToVTKArray(xAOS)
+
+b1 = algs.matmul(aSOAVTK, xAOSVTK)
+b2 = algs.matmul(aAOSVTK, xAOSVTK)
+
+assert numpy.array_equal(b1, b2)

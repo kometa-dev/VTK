@@ -116,7 +116,7 @@ float vtkSegYIOUtils::readIBMFloat(std::istream& in)
   // More details at
   // https://en.m.wikipedia.org/wiki/IBM_Floating_Point_Architecture
 
-  uint32_t* longbuffer = reinterpret_cast<uint32_t*>(buffer);
+  const uint32_t* longbuffer = reinterpret_cast<uint32_t*>(buffer);
   int sign = longbuffer[0] >> 31 & 0x01;
   int exponent = longbuffer[0] >> 24 & 0x7F;
   float fraction = (longbuffer[0] & 0x00ffffff) / powf(2.0f, 24.0f);
@@ -146,7 +146,7 @@ unsigned char vtkSegYIOUtils::readUChar(std::istream& in)
 }
 
 //------------------------------------------------------------------------------
-void vtkSegYIOUtils::swap(char* a, char* b)
+void vtkSegYIOUtils::swap(char* a, char* b) noexcept
 {
   char temp = *a;
   *a = *b;

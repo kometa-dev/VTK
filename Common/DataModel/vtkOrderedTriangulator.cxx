@@ -1038,7 +1038,7 @@ void vtkOTMesh::DumpInsertionCavity(double x[3])
 }
 
 //------------------------------------------------------------------------------
-// Walk to the tetra tha contains this point. Walking is done by moving
+// Walk to the tetra that contains this point. Walking is done by moving
 // in the direction of the most negative barycentric coordinate (i.e.,
 // into the face neighbor).
 OTTetra* vtkOTMesh::WalkToTetra(OTTetra* tetra, double x[3], int depth, double bc[4])
@@ -1415,6 +1415,33 @@ vtkIdType vtkOrderedTriangulator::AddTetras(int classification, vtkIdList* ptIds
       {
         ptIds->InsertNextId(tetra->Points[i]->Id);
         pts->InsertNextPoint(tetra->Points[i]->X);
+      }
+    }
+  } // for all tetras
+
+  return numTetras;
+}
+
+//------------------------------------------------------------------------------
+// Add the tetras classified as specified to a list of point ids
+vtkIdType vtkOrderedTriangulator::AddTetras(int classification, vtkIdList* ptIds)
+{
+  TetraListIterator t;
+  OTTetra* tetra;
+  vtkIdType numTetras = 0;
+  int i;
+
+  // loop over all tetras getting the ones with the classification requested
+  for (t = this->Mesh->Tetras.begin(); t != this->Mesh->Tetras.end(); ++t)
+  {
+    tetra = *t;
+
+    if (tetra->Type == classification || classification == OTTetra::All)
+    {
+      numTetras++;
+      for (i = 0; i < 4; i++)
+      {
+        ptIds->InsertNextId(tetra->Points[i]->Id);
       }
     }
   } // for all tetras

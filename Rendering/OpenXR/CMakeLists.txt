@@ -1,4 +1,4 @@
-vtk_module_find_package(PACKAGE OpenXR)
+vtk_module_find_package(PACKAGE OpenXR VERSION 1.0.31)
 
 set(classes
   vtkOpenXRRenderWindow
@@ -7,7 +7,10 @@ set(classes
   vtkOpenXRControlsHelper
   vtkOpenXRModel
   vtkOpenXRRenderer
-  vtkOpenXRInteractorStyle)
+  vtkOpenXRInteractorStyle
+  vtkOpenXRSceneObserver
+  vtkOpenXRSceneComponent
+  )
 
 set(nowrap_classes
   vtkOpenXRManager
@@ -32,7 +35,8 @@ vtk_module_add_module(VTK::RenderingOpenXR
 
 vtk_module_link(VTK::RenderingOpenXR
   PUBLIC
-    OpenXR::OpenXR)
+    OpenXR::openxr_loader
+    OpenXR::headers)
 
 set(openxr_input_files
   vtk_openxr_actions.json
@@ -46,13 +50,13 @@ set(openxr_input_files
 foreach(inputfile ${openxr_input_files})
   configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/${inputfile}
-    ${CMAKE_CURRENT_BINARY_DIR}/${input_file}
+    ${CMAKE_CURRENT_BINARY_DIR}/${inputfile}
     COPYONLY)
 endforeach()
 
 install(
   FILES ${openxr_input_files}
-  DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/vr_actions/"
+  DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/xr_actions/"
   COMPONENT   runtime
 )
 vtk_add_test_mangling(VTK::RenderingOpenXR)

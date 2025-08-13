@@ -9,6 +9,8 @@ GROUPS
   Rendering
 IMPLEMENTS
   VTK::RenderingCore
+DESCRIPTION
+  Rendering and hardware selection of vtkCellGrid data
 SPDX_LICENSE_IDENTIFIER
   BSD-3-Clause
 SPDX_COPYRIGHT_TEXT
@@ -19,10 +21,12 @@ DEPENDS
   VTK::FiltersCellGrid
   VTK::RenderingCore
   VTK::RenderingOpenGL2
-  VTK::glew
+  VTK::glad
 PRIVATE_DEPENDS
   VTK::CommonExecutionModel
-  VTK::opengl
+  VTK::CommonColor
+  VTK::fmt
+  VTK::nlohmannjson
 TEST_DEPENDS
   VTK::CommonSystem
   VTK::IOCellGrid

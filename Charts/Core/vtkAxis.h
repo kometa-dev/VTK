@@ -41,11 +41,12 @@
 
 #include "vtkChartsCoreModule.h" // For export macro
 #include "vtkContextItem.h"
-#include "vtkPen.h"          // For vtkPen
-#include "vtkRect.h"         // For bounding rect
-#include "vtkSmartPointer.h" // For vtkSmartPointer
-#include "vtkStdString.h"    // For vtkStdString ivars
-#include "vtkVector.h"       // For position variables
+#include "vtkPen.h"           // For vtkPen
+#include "vtkRect.h"          // For bounding rect
+#include "vtkSmartPointer.h"  // For vtkSmartPointer
+#include "vtkStdString.h"     // For vtkStdString ivars
+#include "vtkVector.h"        // For position variables
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkContext2D;
@@ -54,7 +55,7 @@ class vtkDoubleArray;
 class vtkStringArray;
 class vtkTextProperty;
 
-class VTKCHARTSCORE_EXPORT vtkAxis : public vtkContextItem
+class VTKCHARTSCORE_EXPORT VTK_MARSHALAUTO vtkAxis : public vtkContextItem
 {
 public:
   vtkTypeMacro(vtkAxis, vtkContextItem);
@@ -596,7 +597,7 @@ protected:
   /**
    * Update whether log scaling will be used for layout and rendering.
 
-   * Log scaling is only active when LogScaling is true <b>and</b> the closed,
+   * Log scaling is only active when LogScale is true <b>and</b> the closed,
    * unscaled range does not contain the origin.
    * The boolean parameter determines whether the minimum and maximum values
    * are set from their unscaled counterparts.

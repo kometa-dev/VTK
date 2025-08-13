@@ -71,17 +71,22 @@ vtkMatplotlibMathTextUtilities::Availability vtkMatplotlibMathTextUtilities::Che
   bool debug = (vtksys::SystemTools::GetEnv("VTK_MATPLOTLIB_DEBUG") != nullptr);
 
 #if VTK_MODULE_ENABLE_VTK_PythonInterpreter
-  // Initialize the python interpreter if needed
-  vtkMplStartUpDebugMacro("Initializing Python, if not already.");
-  vtkPythonInterpreter::Initialize();
-  vtkMplStartUpDebugMacro("Attempting to import matplotlib.");
+  if (!Py_IsInitialized())
+  {
+    // Initialize the python interpreter if needed
+    vtkMplStartUpDebugMacro("Initializing Python, if not already.");
+    vtkPythonInterpreter::Initialize();
+  }
 #endif
   if (!Py_IsInitialized())
   {
     // Don't store the result; it might be available if Python is initialized
     // elsewhere later.
+    vtkMplStartUpDebugMacro("Python is not available.");
     return UNAVAILABLE;
   }
+
+  vtkMplStartUpDebugMacro("Attempting to import matplotlib.");
 
   vtkPythonScopeGilEnsurer gilEnsurer;
   if (PyErr_Occurred() || !PyImport_ImportModule("matplotlib") || PyErr_Occurred())
@@ -202,8 +207,11 @@ void vtkMatplotlibMathTextUtilities::CleanupPythonObjects()
 bool vtkMatplotlibMathTextUtilities::InitializeMaskParser()
 {
 #if VTK_MODULE_ENABLE_VTK_PythonInterpreter
-  // ensure that Python is initialized.
-  vtkPythonInterpreter::Initialize();
+  if (!Py_IsInitialized())
+  {
+    // ensure that Python is initialized.
+    vtkPythonInterpreter::Initialize();
+  }
 #endif
   if (!Py_IsInitialized())
   {
@@ -237,8 +245,11 @@ bool vtkMatplotlibMathTextUtilities::InitializeMaskParser()
 bool vtkMatplotlibMathTextUtilities::InitializePathParser()
 {
 #if VTK_MODULE_ENABLE_VTK_PythonInterpreter
-  // ensure that Python is initialized.
-  vtkPythonInterpreter::Initialize();
+  if (!Py_IsInitialized())
+  {
+    // ensure that Python is initialized.
+    vtkPythonInterpreter::Initialize();
+  }
 #endif
   if (!Py_IsInitialized())
   {
@@ -272,8 +283,11 @@ bool vtkMatplotlibMathTextUtilities::InitializePathParser()
 bool vtkMatplotlibMathTextUtilities::InitializeFontPropertiesClass()
 {
 #if VTK_MODULE_ENABLE_VTK_PythonInterpreter
-  // ensure that Python is initialized.
-  vtkPythonInterpreter::Initialize();
+  if (!Py_IsInitialized())
+  {
+    // ensure that Python is initialized.
+    vtkPythonInterpreter::Initialize();
+  }
 #endif
   if (!Py_IsInitialized())
   {
@@ -396,9 +410,7 @@ PyObject* vtkMatplotlibMathTextUtilities::GetFontProperties(vtkTextProperty* tpr
 
   char tpropFamily[16];
   char tpropStyle[16];
-  char tpropVariant[16] = "normal";
   char tpropWeight[16];
-  char tpropStretch[16] = "normal";
   long tpropFontSize;
 
   switch (tprop->GetFontFamily())
@@ -436,13 +448,57 @@ PyObject* vtkMatplotlibMathTextUtilities::GetFontProperties(vtkTextProperty* tpr
   tpropFontSize = tprop->GetFontSize();
 
   vtkPythonScopeGilEnsurer gilEnsurer;
-  return PyObject_CallFunction(this->FontPropertiesClass, const_cast<char*>("sssssi"), tpropFamily,
-    tpropStyle, tpropVariant, tpropWeight, tpropStretch, tpropFontSize);
+
+  vtkSmartPyObject kwargs = PyDict_New();
+#define kwargs_insert(dict, key, value)                                                            \
+  do                                                                                               \
+  {                                                                                                \
+    if (PyDict_SetItemString(dict, key, value))                                                    \
+    {                                                                                              \
+      vtkErrorMacro(<< "Failed to set the \"" key "\" argument to `FontProperties`");              \
+      return nullptr;                                                                              \
+    }                                                                                              \
+  } while (false)
+#define kwarg_ctor_check(obj)                                                                      \
+  do                                                                                               \
+  {                                                                                                \
+    if (!obj)                                                                                      \
+    {                                                                                              \
+      vtkErrorMacro(<< "Failed to construct the \"" #obj "\" argument");                           \
+      return nullptr;                                                                              \
+    }                                                                                              \
+  } while (false)
+
+  vtkSmartPyObject kwFamily = PyUnicode_FromString(tpropFamily);
+  kwarg_ctor_check(kwFamily);
+  kwargs_insert(kwargs, "family", kwFamily);
+  vtkSmartPyObject kwStyle = PyUnicode_FromString(tpropStyle);
+  kwarg_ctor_check(kwStyle);
+  kwargs_insert(kwargs, "style", kwStyle);
+  vtkSmartPyObject kwVariant = PyUnicode_FromString("normal");
+  kwarg_ctor_check(kwVariant);
+  kwargs_insert(kwargs, "variant", kwVariant);
+  vtkSmartPyObject kwWeight = PyUnicode_FromString(tpropWeight);
+  kwarg_ctor_check(kwWeight);
+  kwargs_insert(kwargs, "weight", kwWeight);
+  vtkSmartPyObject kwStretch = PyUnicode_FromString("normal");
+  kwarg_ctor_check(kwStretch);
+  kwargs_insert(kwargs, "stretch", kwStretch);
+  vtkSmartPyObject kwFontSize = PyLong_FromLong(tpropFontSize);
+  kwarg_ctor_check(kwFontSize);
+  kwargs_insert(kwargs, "size", kwFontSize);
+
+  vtkSmartPyObject args = PyTuple_New(0);
+  kwarg_ctor_check(args);
+#undef kwarg_ctor_check
+#undef kwargs_insert
+
+  return PyObject_Call(this->FontPropertiesClass, args, kwargs);
 }
 
 //------------------------------------------------------------------------------
 void vtkMatplotlibMathTextUtilities::GetJustifiedBBox(
-  int rows, int cols, vtkTextProperty* tprop, int bbox[])
+  int rows, int cols, vtkTextProperty* tprop, int bbox[4])
 {
   bbox[0] = 0;
   bbox[1] = cols - 1;
@@ -1004,6 +1060,7 @@ bool vtkMatplotlibMathTextUtilities::RenderOneCell(vtkImageData* image, int bbox
       else
       {
         // item is borrowed, no need for a smart wrapper
+        vtkPythonScopeGilEnsurer gilEnsurer;
         PyObject* item = PyList_GetItem(pythonData, ind++);
         if (this->CheckForError(item))
         {
@@ -1087,9 +1144,9 @@ bool vtkMatplotlibMathTextUtilities::DrawInteriorLines(
       {
         unsigned char* ptr = static_cast<unsigned char*>(image->GetScalarPointer(
           colIdx, bbox[2] + this->HorizontalLinesPosition[lineIdx] + extraLineIdx, 0));
-        ptr[0] = static_cast<unsigned char>(color[0]);
-        ptr[1] = static_cast<unsigned char>(color[1]);
-        ptr[2] = static_cast<unsigned char>(color[2]);
+        ptr[0] = color[0];
+        ptr[1] = color[1];
+        ptr[2] = color[2];
         ptr[3] = 255;
       }
     }
@@ -1112,9 +1169,9 @@ bool vtkMatplotlibMathTextUtilities::DrawInteriorLines(
       {
         unsigned char* ptr = static_cast<unsigned char*>(image->GetScalarPointer(
           bbox[0] + this->VerticalLinesPosition[lineIdx] + extraLineIdx, rowIdx, 0));
-        ptr[0] = static_cast<unsigned char>(color[0]);
-        ptr[1] = static_cast<unsigned char>(color[1]);
-        ptr[2] = static_cast<unsigned char>(color[2]);
+        ptr[0] = color[0];
+        ptr[1] = color[1];
+        ptr[2] = color[2];
         ptr[3] = 255;
       }
     }

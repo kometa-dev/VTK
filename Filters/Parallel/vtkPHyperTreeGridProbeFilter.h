@@ -11,8 +11,14 @@
  * (that specify the point locations used to probe input) is present on all
  * nodes.
  *
+ * @note The implicit array strategy is not available in distributed yet.
+ *
+ * @sa vtkHyperTreeGridProbeFilter
+ *
  * Possible optimizations:
- * - Enrich the parallelism logic allowing for both distributed sources and input/outputs
+ * - Enrich the parallelism logic allowing distributed input/outputs support
+ *   with distributed HTG sources
+ * - Support implicit arrays (once vtkHyperTreeGrids are able to generate global IDs)
  */
 
 #ifndef vtkPHyperTreeGridProbeFilter_h
@@ -64,9 +70,17 @@ protected:
 
   ///@{
   /**
+   * Overridden to force `UseImplicitArrays` option to false.
+   * This override can be removed once vtkPHyperTreeGridProbeFilter supports implicit arrays.
+   */
+  int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+  ///@}
+
+  ///@{
+  /**
    * Helper method for reducing the distributed data to the master process
    */
-  bool Reduce(vtkHyperTreeGrid* source, vtkDataSet* output, vtkIdList* localPointIds);
+  bool Reduce(vtkHyperTreeGrid* source, vtkDataSet* output, vtkIdList* localPointIds) override;
   ///@}
 
   enum

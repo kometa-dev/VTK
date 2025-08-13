@@ -47,6 +47,7 @@
 
 #include "vtkPointSet.h"
 #include "vtkRenderingLabelModule.h" // For export macro
+#include "vtkWrappingHints.h"        // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
@@ -61,7 +62,7 @@ class vtkPolyData;
 class vtkRenderer;
 class vtkTextProperty;
 
-class VTKRENDERINGLABEL_EXPORT vtkLabelHierarchy : public vtkPointSet
+class VTKRENDERINGLABEL_EXPORT VTK_MARSHALAUTO vtkLabelHierarchy : public vtkPointSet
 {
 public:
   static vtkLabelHierarchy* New();
@@ -211,6 +212,7 @@ public:
   vtkCell* GetCell(vtkIdType) override;
   void GetCell(vtkIdType, vtkGenericCell*) override;
   int GetCellType(vtkIdType) override;
+  using vtkDataSet::GetCellPoints;
   void GetCellPoints(vtkIdType, vtkIdList*) override;
   void GetPointCells(vtkIdType, vtkIdList*) override;
   vtkIdType FindCell(double*, vtkCell*, vtkIdType, double, int&, double*, double*) override;

@@ -1,15 +1,15 @@
 vtk_module_third_party(
   INTERNAL
-    LICENSE_FILES 
+    LICENSE_FILES
       "public-domain"
     SPDX_LICENSE_IDENTIFIER
       "blessing"
     SPDX_COPYRIGHT_TEXT
       "NONE"
     SPDX_DOWNLOAD_LOCATION
-      "git+https://gitlab.kitware.com/third-party/sqlite.git@for/vtk-20210924-3.36.0"
-    VERSION       
-      "3.36.0"
+      "git+https://gitlab.kitware.com/third-party/sqlite.git@for/vtk-20250102-3.47.2"
+    VERSION
+      "3.47.2"
     STANDARD_INCLUDE_DIRS
   EXTERNAL
     PACKAGE SQLite3

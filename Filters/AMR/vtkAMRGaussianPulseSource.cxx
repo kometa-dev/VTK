@@ -238,7 +238,7 @@ void vtkAMRGaussianPulseSource::Generate2DDataSet(vtkOverlappingAMR* amr)
 
   amr->Initialize(2, blocksPerLevel.data());
   amr->SetOrigin(grid->GetOrigin());
-  amr->SetGridDescription(grid->GetGridDescription());
+  amr->SetGridDescription(grid->GetDataDescription());
   amr->SetSpacing(level, grid->GetSpacing());
   amr->SetAMRBox(level, blockId, box);
   amr->SetDataSet(level, blockId, grid);
@@ -294,7 +294,7 @@ void vtkAMRGaussianPulseSource::Generate3DDataSet(vtkOverlappingAMR* amr)
 
   amr->Initialize(2, blocksPerLevel.data());
   amr->SetOrigin(grid->GetOrigin());
-  amr->SetGridDescription(grid->GetGridDescription());
+  amr->SetGridDescription(grid->GetDataDescription());
   amr->SetSpacing(level, grid->GetSpacing());
   amr->SetAMRBox(level, blockId, box);
   amr->SetDataSet(level, blockId, grid);
@@ -338,7 +338,7 @@ int vtkAMRGaussianPulseSource::RequestData(vtkInformation* vtkNotUsed(request),
       vtkErrorMacro("Dimensions must be either 2 or 3!");
   }
 
-  // Skipping BlankCells incase output is empty
+  // Skipping BlankCells in case output is empty
   if (!this->CheckAbort())
   {
     vtkAMRUtilities::BlankCells(output);

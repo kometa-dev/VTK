@@ -23,7 +23,7 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkCompositeDataSet.h"
-#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_3_0
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCompositeDataIterator;
@@ -33,7 +33,7 @@ class vtkInformation;
 class vtkInformationStringKey;
 class vtkDataObject;
 
-class VTKCOMMONDATAMODEL_EXPORT vtkDataObjectTree : public vtkCompositeDataSet
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkDataObjectTree : public vtkCompositeDataSet
 {
 public:
   vtkTypeMacro(vtkDataObjectTree, vtkCompositeDataSet);
@@ -122,12 +122,6 @@ public:
   ///@}
 
   /**
-   * @deprecated RecursiveShallowCopy method, @see ShallowCopy
-   */
-  VTK_DEPRECATED_IN_9_3_0("Please use ShallowCopy instead.")
-  void RecursiveShallowCopy(vtkDataObject* src) override;
-
-  /**
    * Returns the total number of points of all blocks. This will
    * iterate over all blocks and call GetNumberOfPoints() so it
    * might be expansive.
@@ -141,43 +135,10 @@ public:
    */
   vtkIdType GetNumberOfCells() override;
 
-  ///@{
-  /**
-   * Retrieve an instance of this class from an information object.
-   */
-  static vtkDataObjectTree* GetData(vtkInformation* info);
-  static vtkDataObjectTree* GetData(vtkInformationVector* v, int i = 0);
-  ///@}
-
-  /**
-   * Overridden to return `VTK_DATA_OBJECT_TREE`.
-   */
-  int GetDataObjectType() override { return VTK_DATA_OBJECT_TREE; }
-
-protected:
-  vtkDataObjectTree();
-  ~vtkDataObjectTree() override;
-
-  /**
-   * Set the number of children.
-   */
-  void SetNumberOfChildren(unsigned int num);
-
   /**
    * Get the number of children.
    */
   unsigned int GetNumberOfChildren();
-
-  /**
-   * Set child dataset at a given index. The number of children is adjusted to
-   * to be greater than the index specified.
-   */
-  void SetChild(unsigned int index, vtkDataObject*);
-
-  /**
-   * Remove the child at a given index.
-   */
-  void RemoveChild(unsigned int index);
 
   /**
    * Returns a child dataset at a given index.
@@ -192,15 +153,48 @@ protected:
   vtkInformation* GetChildMetaData(unsigned int index);
 
   /**
-   * Sets the meta-data at a given index.
-   */
-  void SetChildMetaData(unsigned int index, vtkInformation* info);
-
-  /**
    * Returns if meta-data information is available for the given child index.
    * Returns 1 is present, 0 otherwise.
    */
   vtkTypeBool HasChildMetaData(unsigned int index);
+
+  ///@{
+  /**
+   * Retrieve an instance of this class from an information object.
+   */
+  static vtkDataObjectTree* GetData(vtkInformation* info);
+  static vtkDataObjectTree* GetData(vtkInformationVector* v, int i = 0);
+  ///@}
+
+  /**
+   * Overridden to return `VTK_DATA_OBJECT_TREE`.
+   */
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_DATA_OBJECT_TREE; }
+
+protected:
+  vtkDataObjectTree();
+  ~vtkDataObjectTree() override;
+
+  /**
+   * Set the number of children.
+   */
+  void SetNumberOfChildren(unsigned int num);
+
+  /**
+   * Set child dataset at a given index. The number of children is adjusted to
+   * to be greater than the index specified.
+   */
+  void SetChild(unsigned int index, vtkDataObject*);
+
+  /**
+   * Remove the child at a given index.
+   */
+  void RemoveChild(unsigned int index);
+
+  /**
+   * Sets the meta-data at a given index.
+   */
+  void SetChildMetaData(unsigned int index, vtkInformation* info);
 
   /**
    * When copying structure from another vtkDataObjectTree, this method gets

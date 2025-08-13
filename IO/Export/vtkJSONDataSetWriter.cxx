@@ -11,6 +11,7 @@
 #include "vtkIdTypeArray.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
+#include "vtkMatrix3x3.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
@@ -38,6 +39,8 @@ vtkJSONDataSetWriter::vtkJSONDataSetWriter()
 {
   this->Archiver = vtkArchiver::New();
   this->ValidStringCount = 1;
+  this->GetPointArraySelection()->SetUnknownArraySetting(1);
+  this->GetCellArraySelection()->SetUnknownArraySetting(1);
 }
 
 //------------------------------------------------------------------------------
@@ -91,6 +94,23 @@ std::string vtkJSONDataSetWriter::WriteDataSetAttributes(
     if (field == nullptr)
     {
       continue;
+    }
+
+    if (std::string(className) == "pointData")
+    {
+      if (!this->GetPointArraySelection()->ArrayIsEnabled(field->GetName()))
+      {
+        vtkDebugMacro("Skipping writing point array " << field->GetName());
+        continue;
+      }
+    }
+    else if (std::string(className) == "cellData")
+    {
+      if (!this->GetCellArraySelection()->ArrayIsEnabled(field->GetName()))
+      {
+        vtkDebugMacro("Skipping cell array " << field->GetName());
+        continue;
+      }
     }
 
     if (nbArrayWritten)
@@ -198,6 +218,14 @@ void vtkJSONDataSetWriter::Write(vtkDataSet* dataset)
                  << imageData->GetExtent()[1] << ", " << imageData->GetExtent()[2] << ", "
                  << imageData->GetExtent()[3] << ", " << imageData->GetExtent()[4] << ", "
                  << imageData->GetExtent()[5] << "]";
+
+    // Direction
+    // Write the matrix using vtk.js convention for direction matrices (transpose the matrix)
+    auto direction = imageData->GetDirectionMatrix()->GetData();
+    metaJsonFile << ",\n  \"direction\": [" << direction[0] << ", " << direction[3] << ", "
+                 << direction[6] << ", " << direction[1] << ", " << direction[4] << ", "
+                 << direction[7] << ", " << direction[2] << ", " << direction[5] << ", "
+                 << direction[8] << "]";
   }
 
   // PolyData
@@ -375,6 +403,15 @@ bool vtkJSONDataSetWriter::WriteArrayAsRAW(vtkDataArray* array, const char* file
 void vtkJSONDataSetWriter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
+
+  os << indent << "Archiver:" << endl;
+  this->Archiver->PrintSelf(os, indent.GetNextIndent());
+
+  os << indent << "PointArraySelection:" << endl;
+  this->PointArraySelection->PrintSelf(os, indent.GetNextIndent());
+
+  os << indent << "CelltArraySelection:" << endl;
+  this->CellArraySelection->PrintSelf(os, indent.GetNextIndent());
 }
 
 //------------------------------------------------------------------------------

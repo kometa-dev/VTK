@@ -320,7 +320,7 @@ void vtkPickingManager::AddPicker(vtkAbstractPicker* picker, vtkObject* object)
     return;
   }
 
-  // Linke the object if the picker is already registered
+  // Link the object if the picker is already registered
   vtkPickingManager::vtkInternal::PickerObjectsType::iterator it =
     std::find_if(this->Internal->Pickers.begin(), this->Internal->Pickers.end(),
       vtkPickingManager::vtkInternal::equal_smartPtrPicker(picker));
@@ -334,7 +334,7 @@ void vtkPickingManager::AddPicker(vtkAbstractPicker* picker, vtkObject* object)
     return;
   }
 
-  // The picker does not exists in the manager yet.
+  // The picker does not exist in the manager yet.
   // Create the list of associated objects
   this->Internal->CreateDefaultCollection(picker, object);
 }

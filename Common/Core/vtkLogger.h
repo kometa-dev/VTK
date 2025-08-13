@@ -37,7 +37,24 @@
  * that, use `vtkLogger::SetThreadName`. Calling `vtkLogger::Init` will set the name
  * for the main thread.
  *
- * To prevent the logging framework from intercepting signals from your application,
+ * You can choose to turn on signal handlers for intercepting signals. By default,
+ * all signal handlers are disabled. The following is a list of signal handlers
+ * and the corresponding static variable that can be used to enable/disable each
+ * signal handler.
+ *
+ * - SIGABRT - `vtkLogger::EnableSigabrtHandler`
+ * - SIGBUS - `vtkLogger::EnableSigbusHandler`
+ * - SIGFPE - `vtkLogger::EnableSigfpeHandler`
+ * - SIGILL - `vtkLogger::EnableSigillHandler`
+ * - SIGINT - `vtkLogger::EnableSigintHandler`
+ * - SIGSEGV - `vtkLogger::EnableSigsegvHandler`
+ * - SIGTERM - `vtkLogger::EnableSigtermHandler`
+ *
+ * To enable any of these signal handlers, set their value to `true` prior to calling
+ * `vtkLogger::Init(argc, argv)` or `vtkLogger::Init()`.
+ *
+ * When signal handlers are enabled,
+ * to prevent the logging framework from intercepting signals from your application,
  * you can set the static variable `vtkLogger::EnableUnsafeSignalHandler` to `false`
  * prior to calling `vtkLogger::Init(argc, argv)` or `vtkLogger::Init()`.
  *
@@ -420,6 +437,13 @@ public:
    * certain circumstances.
    */
   static bool EnableUnsafeSignalHandler;
+  static bool EnableSigabrtHandler;
+  static bool EnableSigbusHandler;
+  static bool EnableSigfpeHandler;
+  static bool EnableSigillHandler;
+  static bool EnableSigintHandler;
+  static bool EnableSigsegvHandler;
+  static bool EnableSigtermHandler;
 
 protected:
   vtkLogger();
@@ -452,15 +476,18 @@ private:
     : vtkLogger::LogF(level, __FILE__, __LINE__, __VA_ARGS__)
 #define vtkLogF(verbosity_name, ...) vtkVLogF(vtkLogger::VERBOSITY_##verbosity_name, __VA_ARGS__)
 #define vtkVLog(level, x)                                                                          \
-  if ((level) <= vtkLogger::GetCurrentVerbosityCutoff())                                           \
+  do                                                                                               \
   {                                                                                                \
-    vtkOStrStreamWrapper::EndlType const endl;                                                     \
-    vtkOStrStreamWrapper::UseEndl(endl);                                                           \
-    vtkOStrStreamWrapper vtkmsg;                                                                   \
-    vtkmsg << "" x;                                                                                \
-    vtkLogger::Log(level, __FILE__, __LINE__, vtkmsg.str());                                       \
-    vtkmsg.rdbuf()->freeze(0);                                                                     \
-  }
+    if ((level) <= vtkLogger::GetCurrentVerbosityCutoff())                                         \
+    {                                                                                              \
+      vtkOStrStreamWrapper::EndlType const endl;                                                   \
+      vtkOStrStreamWrapper::UseEndl(endl);                                                         \
+      vtkOStrStreamWrapper vtkmsg;                                                                 \
+      vtkmsg << "" x;                                                                              \
+      vtkLogger::Log(level, __FILE__, __LINE__, vtkmsg.str());                                     \
+      vtkmsg.rdbuf()->freeze(0);                                                                   \
+    }                                                                                              \
+  } while (false)
 #define vtkLog(verbosity_name, x) vtkVLog(vtkLogger::VERBOSITY_##verbosity_name, x)
 ///@}
 
@@ -486,15 +513,18 @@ private:
   vtkVLogIfF(vtkLogger::VERBOSITY_##verbosity_name, cond, __VA_ARGS__)
 
 #define vtkVLogIf(level, cond, x)                                                                  \
-  if ((level) <= vtkLogger::GetCurrentVerbosityCutoff() && (cond))                                 \
+  do                                                                                               \
   {                                                                                                \
-    vtkOStrStreamWrapper::EndlType endl;                                                           \
-    vtkOStrStreamWrapper::UseEndl(endl);                                                           \
-    vtkOStrStreamWrapper vtkmsg;                                                                   \
-    vtkmsg << "" x;                                                                                \
-    vtkLogger::Log(level, __FILE__, __LINE__, vtkmsg.str());                                       \
-    vtkmsg.rdbuf()->freeze(0);                                                                     \
-  }
+    if ((level) <= vtkLogger::GetCurrentVerbosityCutoff() && (cond))                               \
+    {                                                                                              \
+      vtkOStrStreamWrapper::EndlType endl;                                                         \
+      vtkOStrStreamWrapper::UseEndl(endl);                                                         \
+      vtkOStrStreamWrapper vtkmsg;                                                                 \
+      vtkmsg << "" x;                                                                              \
+      vtkLogger::Log(level, __FILE__, __LINE__, vtkmsg.str());                                     \
+      vtkmsg.rdbuf()->freeze(0);                                                                   \
+    }                                                                                              \
+  } while (false)
 #define vtkLogIf(verbosity_name, cond, x) vtkVLogIf(vtkLogger::VERBOSITY_##verbosity_name, cond, x)
 ///@}
 

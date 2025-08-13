@@ -17,7 +17,6 @@
 #include "vtkRenderer.h"
 #include "vtkUnsignedShortArray.h"
 #include "vtkVector.h"
-#include "vtkVectorOperators.h"
 
 #include <algorithm>
 #include <string.h>
@@ -292,8 +291,8 @@ void vtkOSPRayMoleculeMapperNode::Render(bool prepass)
         ospRelease(oMaterial);
       }
 
-      ospSetInt(bonds, "type", OSP_ROUND);
-      ospSetInt(bonds, "basis", OSP_BEZIER);
+      ospSetUInt(bonds, "type", OSP_ROUND);
+      ospSetUInt(bonds, "basis", OSP_BEZIER);
 
       this->GeometricModels.emplace_back(bondsModel);
       ospCommit(bonds);
@@ -394,8 +393,8 @@ void vtkOSPRayMoleculeMapperNode::Render(bool prepass)
       ocolor[3] = opacity;
       ospSetVec3f(latticeModel, "color", ocolor[0], ocolor[1], ocolor[2]);
 
-      ospSetInt(lattice, "type", OSP_ROUND);
-      ospSetInt(lattice, "basis", OSP_LINEAR);
+      ospSetUInt(lattice, "type", OSP_ROUND);
+      ospSetUInt(lattice, "basis", OSP_LINEAR);
 
       this->GeometricModels.emplace_back(latticeModel);
       ospCommit(lattice);

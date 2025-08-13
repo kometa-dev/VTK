@@ -14,15 +14,18 @@ The following variables are provided by this module:
   * `VTK_PREFIX_PATH`: Install prefix for VTK.
   * `VTK_LEGACY_REMOVE`: Whether VTK's deprecated APIs are
     compiled out or not.
-  * `VTK_HAS_VTKm`: If VTK provides VTK-m.
-  * `VTK_OPENGL_HAS_EGL`: If VTK::opengl uses EGL. Only provided if the
-    `VTK::opengl` target exists.
+  * `VTK_HAS_VTKm: [Deprecated, use VTK_HAS_VISKORES] If VTK provides VTK-m.
+  * `VTK_HAS_VISKORES`: If VTK provides Viskores.
+  * `VTK_OPENGL_HAS_EGL`: If VTK can use EGL for OpenGL context.
+  * `VTK_USE_X`: If VTK uses X windows.
   * `VTK_PYTHON_VERSION`: The major version of Python used by VTK. Empty if
     Python support is not available.
   * `VTK_WRAP_PYTHON`: If VTK itself provides Python wrapping. If so, the
     Python parts of the module API are available.
   * `VTK_WRAP_JAVA`: If VTK itself provides Java wrapping. If so, the
     Java parts of the module API are available.
+  * `VTK_WRAP_SERIALIZATION`: If VTK itself provides serialization wrappings
+    for marshallable classes in modules with `INCLUDE_MARSHAL`.
   * `VTK_PYTHONPATH`: Where VTK's Python modules live inside the install
     prefix. Unset if Python is not available.
   * `VTK_LIBRARIES`: The list of modules specified by `COMPONENTS` and
@@ -126,19 +129,18 @@ set("${CMAKE_FIND_PACKAGE_NAME}_AUTOINIT_INCLUDE" "\"vtkAutoInit.h\"")
 set("${CMAKE_FIND_PACKAGE_NAME}_SMP_BACKENDS" "@vtk_smp_backends@")
 
 unset("${CMAKE_FIND_PACKAGE_NAME}_FOUND")
+set("${CMAKE_FIND_PACKAGE_NAME}_HAS_VISKORES" "@vtk_has_viskores@")
 set("${CMAKE_FIND_PACKAGE_NAME}_HAS_VTKm" "@vtk_has_vtkm@")
-if (${CMAKE_FIND_PACKAGE_NAME}_HAS_VTKm)
-  find_package(VTKm
-    PATHS "${CMAKE_CURRENT_LIST_DIR}/vtkm"
-    NO_DEFAULT_PATH)
-  if (NOT VTKm_FOUND)
-    set("${CMAKE_FIND_PACKAGE_NAME}_FOUND" 0)
+if (${CMAKE_FIND_PACKAGE_NAME}_HAS_VISKORES)
+  if (NOT "@VTK_MODULE_USE_EXTERNAL_VTK_vtkviskores@") # VTK_MODULE_USE_EXTERNAL_VTK_vtkviskores
+    find_package(Viskores
+      PATHS "${CMAKE_CURRENT_LIST_DIR}/viskores"
+      NO_DEFAULT_PATH)
+    if (NOT Viskores_FOUND)
+      set("${CMAKE_FIND_PACKAGE_NAME}_FOUND" 0)
+      set("${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE" "VTK internal enabled Viskores cannot be founded")
+    endif ()
   endif ()
-
-  # Prior to VTK-m 2.0, the main VTK module was called VTK::vtkm
-  if (TARGET VTK::vtkvtkm)
-    add_library(VTK::vtkm ALIAS VTK::vtkvtkm)
-  endif()
 endif ()
 
 include("${CMAKE_CURRENT_LIST_DIR}/vtkCMakeBackports.cmake")
@@ -156,6 +158,15 @@ if (@vtk_opengl_preference_set@) # vtk_opengl_preference_set
   set(OpenGL_GL_PREFERENCE "@vtk_opengl_preference@")
 endif ()
 
+# Ensure that python is found based on location, not on version
+# See https://cmake.org/cmake/help/latest/module/FindPython.html
+if (DEFINED Python3_FIND_STRATEGY)
+  set("${CMAKE_FIND_PACKAGE_NAME}_Python3_FIND_STRATEGY_save" "${Python3_FIND_STRATEGY}")
+endif ()
+set(Python3_FIND_STRATEGY LOCATION)
+
+# Ensures that the OpenGL::GLES3 is found.
+include("${CMAKE_CURRENT_LIST_DIR}/vtkMobileDevices.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/${CMAKE_FIND_PACKAGE_NAME}-vtk-module-find-packages.cmake")
 
 if (@vtk_opengl_preference_set@) # vtk_opengl_preference_set
@@ -167,9 +178,15 @@ if (@vtk_opengl_preference_set@) # vtk_opengl_preference_set
   endif ()
 endif ()
 
-if (TARGET VTK::opengl)
-  set(VTK_OPENGL_HAS_EGL "@VTK_OPENGL_HAS_EGL@")
+if (DEFINED "${CMAKE_FIND_PACKAGE_NAME}_Python3_FIND_STRATEGY_save")
+  set(Python3_FIND_STRATEGY "${${CMAKE_FIND_PACKAGE_NAME}_Python3_FIND_STRATEGY_save}")
+  unset("${CMAKE_FIND_PACKAGE_NAME}_Python3_FIND_STRATEGY_save")
+else ()
+  unset(Python3_FIND_STRATEGY)
 endif ()
+
+set(VTK_OPENGL_HAS_EGL "@VTK_OPENGL_HAS_EGL@")
+set(VTK_USE_X "@VTK_USE_X@")
 
 if (TARGET VTK::RenderingVR)
   set("${CMAKE_FIND_PACKAGE_NAME}_ENABLE_VR_COLLABORATION" "@VTK_ENABLE_VR_COLLABORATION@")
@@ -222,8 +239,21 @@ if (${CMAKE_FIND_PACKAGE_NAME}_WRAP_JAVA)
   endif ()
 endif ()
 
+set("${CMAKE_FIND_PACKAGE_NAME}_WRAP_SERIALIZATION" "@VTK_WRAP_SERIALIZATION@")
+include("${CMAKE_CURRENT_LIST_DIR}/vtkModuleSerialization.cmake")
+
+set(_vtk_search_components
+  ${${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS})
+if (NOT _vtk_search_components)
+  set(_vtk_search_components
+    ${${CMAKE_FIND_PACKAGE_NAME}_AVAILABLE_COMPONENTS})
+endif ()
+list(REMOVE_ITEM _vtk_search_components
+  # These components need to always be requested explicitly since they are
+  # not modules.
+  @_vtk_non_module_components@)
 set(_vtk_components_to_check)
-foreach (_vtk_component IN LISTS "${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS")
+foreach (_vtk_component IN LISTS _vtk_search_components)
   if (DEFINED "${CMAKE_FIND_PACKAGE_NAME}_${_vtk_component}_FOUND")
     # It was already not-found (likely due to `find-package` failures).
   elseif (TARGET "${CMAKE_FIND_PACKAGE_NAME}::${_vtk_component}")
@@ -236,6 +266,7 @@ foreach (_vtk_component IN LISTS "${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS")
   endif ()
 endforeach ()
 unset(_vtk_component)
+unset(_vtk_search_components)
 
 while (_vtk_components_to_check)
   list(GET _vtk_components_to_check 0 _vtk_component)

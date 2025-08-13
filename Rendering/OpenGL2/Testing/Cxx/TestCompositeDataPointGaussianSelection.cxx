@@ -129,7 +129,7 @@ int TestCompositeDataPointGaussianSelection(int argc, char* argv[])
       result->GetNode(0)->GetProperties()->Get(vtkSelectionNode::PROP()) == actor.Get() &&
       result->GetNode(0)->GetProperties()->Get(vtkSelectionNode::COMPOSITE_INDEX()) == 305 &&
       result->GetNode(2)->GetProperties()->Get(vtkSelectionNode::COMPOSITE_INDEX()) == 340 &&
-      selIds && selIds->GetNumberOfTuples() == 5 && selIds->GetValue(2) == 56)
+      selIds && selIds->GetNumberOfTuples() == 4 && selIds->GetValue(2) == 70)
     {
       goodPick = true;
     }
@@ -142,7 +142,7 @@ int TestCompositeDataPointGaussianSelection(int argc, char* argv[])
     return EXIT_FAILURE;
   }
 
-  int retVal = vtkRegressionTestImageThreshold(win.GetPointer(), 15);
+  int retVal = vtkRegressionTestImageThreshold(win.GetPointer(), 0.05);
   if (retVal == vtkRegressionTester::DO_INTERACTOR)
   {
     iren->Start();

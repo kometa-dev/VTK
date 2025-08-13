@@ -11,10 +11,11 @@
 #ifndef vtkXMLUnstructuredDataWriter_h
 #define vtkXMLUnstructuredDataWriter_h
 
+#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_5_0
 #include "vtkIOXMLModule.h" // For export macro
 #include "vtkXMLWriter.h"
 
-#include <vtkSmartPointer.h> // for vtkSmartPointer
+#include "vtkSmartPointer.h" // for vtkSmartPointer
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkPointSet;
@@ -64,7 +65,9 @@ protected:
   vtkXMLUnstructuredDataWriter();
   ~vtkXMLUnstructuredDataWriter() override;
 
-  vtkPointSet* GetInputAsPointSet();
+  vtkPointSet* GetPointSetInput();
+  VTK_DEPRECATED_IN_9_5_0("Use GetPointSetInput() instead.")
+  vtkPointSet* GetInputAsPointSet() { return this->GetPointSetInput(); }
   const char* GetDataSetName() override = 0;
   virtual void SetInputUpdateExtent(int piece, int numPieces, int ghostLevel);
 
@@ -90,19 +93,27 @@ protected:
     const char* name, vtkCellArray* cells, vtkDataArray* types, vtkIndent indent);
 
   // New API with face information for polyhedron cell support.
+  VTK_DEPRECATED_IN_9_4_0("Use WritePolyCellsInline instead.")
   void WriteCellsInline(const char* name, vtkCellArray* cells, vtkDataArray* types,
     vtkIdTypeArray* faces, vtkIdTypeArray* faceOffsets, vtkIndent indent);
+
+  void WritePolyCellsInline(const char* name, vtkCellArray* cells, vtkDataArray* types,
+    vtkCellArray* faces, vtkCellArray* faceOffsets, vtkIndent indent);
 
   void WriteCellsInlineWorker(const char* name, vtkDataArray* types, vtkIndent indent);
 
   void WriteCellsAppended(
     const char* name, vtkDataArray* types, vtkIndent indent, OffsetsManagerGroup* cellsManager);
 
+  VTK_DEPRECATED_IN_9_4_0("Use WritePolyCellsAppended instead.")
   void WriteCellsAppended(const char* name, vtkDataArray* types, vtkIdTypeArray* faces,
     vtkIdTypeArray* faceOffsets, vtkIndent indent, OffsetsManagerGroup* cellsManager);
 
   void WriteCellsAppended(const char* name, vtkCellIterator* cellIter, vtkIdType numCells,
     vtkIndent indent, OffsetsManagerGroup* cellsManager);
+
+  void WritePolyCellsAppended(const char* name, vtkDataArray* types, vtkCellArray* faces,
+    vtkCellArray* faceOffsets, vtkIndent indent, OffsetsManagerGroup* cellsManager);
 
   void WriteCellsAppendedData(
     vtkCellArray* cells, vtkDataArray* types, int timestep, OffsetsManagerGroup* cellsManager);
@@ -111,8 +122,12 @@ protected:
     vtkIdType cellSizeEstimate, int timestep, OffsetsManagerGroup* cellsManager);
 
   // New API with face information for polyhedron cell support.
+  VTK_DEPRECATED_IN_9_4_0("Use WritePolyCellsAppendedData instead.")
   void WriteCellsAppendedData(vtkCellArray* cells, vtkDataArray* types, vtkIdTypeArray* faces,
     vtkIdTypeArray* faceOffsets, int timestep, OffsetsManagerGroup* cellsManager);
+
+  void WritePolyCellsAppendedData(vtkCellArray* cells, vtkDataArray* types, vtkCellArray* faces,
+    vtkCellArray* faceOffsets, int timestep, OffsetsManagerGroup* cellsManager);
 
   void WriteCellsAppendedDataWorker(
     vtkDataArray* types, int timestep, OffsetsManagerGroup* cellsManager);
@@ -122,7 +137,10 @@ protected:
   void ConvertCells(vtkCellArray* cells);
 
   // For polyhedron support, conversion results are stored in Faces and FaceOffsets
+  VTK_DEPRECATED_IN_9_4_0("Use ConvertPolyFaces instead.")
   void ConvertFaces(vtkIdTypeArray* faces, vtkIdTypeArray* faceOffsets);
+
+  void ConvertPolyFaces(vtkCellArray* faces, vtkCellArray* faceOffsets);
 
   // Get the number of points/cells.  Valid after Update has been
   // invoked on the input.
@@ -154,9 +172,20 @@ protected:
 
   int CurrentPiece;
 
+  /**
+   *  Legacy support -- hold the face arrays for legacy polyhedron cells
+   *     and deprecated writing methods.
+   */
+  VTK_DEPRECATED_IN_9_4_0("This member is deprecated.")
+  vtkIdTypeArray* LegacyFaces;
+  VTK_DEPRECATED_IN_9_4_0("This member is deprecated.")
+  vtkIdTypeArray* LegacyFaceOffsets;
+
   // Hold the face arrays for polyhedron cells.
-  vtkIdTypeArray* Faces;
-  vtkIdTypeArray* FaceOffsets;
+  vtkSmartPointer<vtkDataArray> FaceConnectivity;
+  vtkSmartPointer<vtkDataArray> FaceOffsets;
+  vtkSmartPointer<vtkDataArray> PolyhedronToFaces;
+  vtkSmartPointer<vtkDataArray> PolyhedronOffsets;
 
 private:
   vtkXMLUnstructuredDataWriter(const vtkXMLUnstructuredDataWriter&) = delete;

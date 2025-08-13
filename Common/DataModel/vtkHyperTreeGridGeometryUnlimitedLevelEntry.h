@@ -59,6 +59,11 @@ public:
     }
   }
 
+  vtkHyperTreeGridGeometryUnlimitedLevelEntry(
+    vtkHyperTreeGridGeometryUnlimitedLevelEntry const&) = default;
+  vtkHyperTreeGridGeometryUnlimitedLevelEntry& operator=(
+    vtkHyperTreeGridGeometryUnlimitedLevelEntry const&) = default;
+
   /**
    * Destructor
    */
@@ -176,13 +181,13 @@ public:
   bool IsRealLeaf(const vtkHyperTreeGrid* grid) const;
 
   /**
-   * Is the cursor pointing to a virually subdivided leaf?
+   * Is the cursor pointing to a virtually subdivided leaf?
    * \pre not_tree: tree
    */
   bool IsVirtualLeaf(const vtkHyperTreeGrid* grid) const;
 
   /**
-   * Is the cursor pointing to a coarse with all childrens being leaves ?
+   * Is the cursor pointing to a coarse with all children being leaves ?
    * \pre not_tree: tree
    */
   bool IsTerminalNode(const vtkHyperTreeGrid* grid) const;

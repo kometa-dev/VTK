@@ -2,6 +2,8 @@ NAME
   VTK::GeovisCore
 LIBRARY_NAME
   vtkGeovisCore
+DESCRIPTION
+  Core functionality for geospatial visualizations, such as spherical projections.
 GROUPS
   Rendering
 SPDX_LICENSE_IDENTIFIER
@@ -17,24 +19,8 @@ LICENSE_FILES
   LICENSE
 DEPENDS
   VTK::CommonCore
-  VTK::CommonDataModel
-  VTK::CommonExecutionModel
   VTK::CommonTransforms
-  VTK::InfovisCore
-  VTK::InteractionStyle
-  VTK::InteractionWidgets
-  VTK::RenderingCore
-  VTK::ViewsCore
   VTK::libproj
-PRIVATE_DEPENDS
-  VTK::CommonSystem
-  VTK::FiltersCore
-  VTK::FiltersGeneral
-  VTK::IOImage
-  VTK::IOXML
-  VTK::ImagingCore
-  VTK::ImagingSources
-  VTK::InfovisLayout
 TEST_DEPENDS
   VTK::IOImage
   VTK::IOXML

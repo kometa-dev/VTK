@@ -42,8 +42,6 @@ PRIVATE_DEPENDS
   VTK::RenderingAnnotation
   VTK::RenderingFreeType
   VTK::RenderingVolume
-  VTK::RenderingOpenGL2
-
 TEST_DEPENDS
   VTK::CommonComputationalGeometry
   VTK::CommonSystem
@@ -71,3 +69,4 @@ TEST_DEPENDS
   VTK::TestingRendering
   VTK::ViewsContext2D
   VTK::RenderingContextOpenGL2
+INCLUDE_MARSHAL

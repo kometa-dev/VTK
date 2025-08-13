@@ -10,7 +10,7 @@
 #include "vtkCamera.h"
 #include "vtkCellArray.h"
 #include "vtkCellCenters.h"
-#include "vtkIdFilter.h"
+#include "vtkGenerateIds.h"
 #include "vtkLabeledDataMapper.h"
 #include "vtkNew.h"
 #include "vtkPoints.h"
@@ -66,7 +66,7 @@ int TestGL2PSLabeledDataMapper(int, char*[])
   sphereActor->SetMapper(sphereMapper);
 
   // Generate ids for labeling
-  vtkNew<vtkIdFilter> ids;
+  vtkNew<vtkGenerateIds> ids;
   ids->SetInputConnection(sphere->GetOutputPort());
   ids->PointIdsOn();
   ids->CellIdsOn();
@@ -109,9 +109,9 @@ int TestGL2PSLabeledDataMapper(int, char*[])
   visPts->SetRenderer(ren);
   visCells->SetRenderer(ren);
   ren->AddActor(sphereActor);
-  ren->AddActor2D(rectActor);
-  ren->AddActor2D(pointLabels);
-  ren->AddActor2D(cellLabels);
+  ren->AddViewProp(rectActor);
+  ren->AddViewProp(pointLabels);
+  ren->AddViewProp(cellLabels);
   ren->SetBackground(1., 1., 1.);
   ren->GetActiveCamera()->Zoom(.55);
 

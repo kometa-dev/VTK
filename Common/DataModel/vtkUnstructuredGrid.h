@@ -19,68 +19,21 @@
 #include "vtkAbstractCellLinks.h"     // For vtkAbstractCellLinks
 #include "vtkCellArray.h"             // inline GetCellPoints()
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkIdTypeArray.h"           // inline GetCellPoints()
 #include "vtkUnstructuredGridBase.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALMANUAL
 
 #include "vtkSmartPointer.h" // for smart pointer
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
-class vtkBezierCurve;
-class vtkBezierQuadrilateral;
-class vtkBezierHexahedron;
-class vtkBezierTriangle;
-class vtkBezierTetra;
-class vtkBezierWedge;
-class vtkConvexPointSet;
-class vtkEmptyCell;
-class vtkHexahedron;
 class vtkIdList;
 class vtkIdTypeArray;
-class vtkLagrangeCurve;
-class vtkLagrangeQuadrilateral;
-class vtkLagrangeHexahedron;
-class vtkLagrangeTriangle;
-class vtkLagrangeTetra;
-class vtkLagrangeWedge;
-class vtkLine;
-class vtkPixel;
-class vtkPolyLine;
-class vtkPolyVertex;
-class vtkPolygon;
-class vtkPyramid;
-class vtkPentagonalPrism;
-class vtkHexagonalPrism;
-class vtkQuad;
-class vtkQuadraticEdge;
-class vtkQuadraticHexahedron;
-class vtkQuadraticWedge;
-class vtkQuadraticPolygon;
-class vtkQuadraticPyramid;
-class vtkQuadraticQuad;
-class vtkQuadraticTetra;
-class vtkQuadraticTriangle;
-class vtkTetra;
-class vtkTriangle;
-class vtkTriangleStrip;
 class vtkUnsignedCharArray;
-class vtkVertex;
-class vtkVoxel;
-class vtkWedge;
-class vtkTriQuadraticHexahedron;
-class vtkTriQuadraticPyramid;
-class vtkQuadraticLinearWedge;
-class vtkQuadraticLinearQuad;
-class vtkBiQuadraticQuad;
-class vtkBiQuadraticQuadraticWedge;
-class vtkBiQuadraticQuadraticHexahedron;
-class vtkBiQuadraticTriangle;
-class vtkCubicLine;
-class vtkPolyhedron;
 class vtkIdTypeArray;
 
-class VTKCOMMONDATAMODEL_EXPORT vtkUnstructuredGrid : public vtkUnstructuredGridBase
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALMANUAL vtkUnstructuredGrid
+  : public vtkUnstructuredGridBase
 {
 public:
   /**
@@ -100,7 +53,7 @@ public:
   /**
    * Standard vtkDataSet API methods. See vtkDataSet for more information.
    */
-  int GetDataObjectType() override { return VTK_UNSTRUCTURED_GRID; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_UNSTRUCTURED_GRID; }
 
   /**
    * @brief Pre-allocate memory in internal data structures. Does not change
@@ -265,6 +218,15 @@ public:
    */
   int GetMaxCellSize() override;
 
+  ///@{
+  /**
+   * Get the maximum/minimum spatial dimensionality of the data
+   * which is the maximum/minimum dimension of all cells.
+   */
+  int GetMaxSpatialDimension() override;
+  int GetMinSpatialDimension() override;
+  ///@}
+
   /**
    * Build topological links from points to lists of cells that use each point.
    * See vtkAbstractCellLinks for more information.
@@ -280,20 +242,11 @@ public:
   ///@}
 
   /**
-   * Get the cell links. The cell links will be one of nullptr=0;
-   * vtkCellLinks=1; vtkStaticCellLinksTemplate<VTK_UNSIGNED_SHORT>=2;
-   * vtkStaticCellLinksTemplate<VTK_UNSIGNED_INT>=3;
-   * vtkStaticCellLinksTemplate<VTK_ID_TYPE>=4.  (See enum types defined in
-   * vtkAbstractCellLinks.)
-   */
-  VTK_DEPRECATED_IN_9_3_0("Use GetLinks() instead.")
-  vtkAbstractCellLinks* GetCellLinks();
-
-  /**
    * Get the face stream of a polyhedron cell in the following format:
    * (numCellFaces, numFace0Pts, id1, id2, id3, numFace1Pts,id1, id2, id3, ...).
    * If the requested cell is not a polyhedron, then the standard GetCellPoints
    * is called to return a list of unique point ids (id1, id2, id3, ...).
+   * This function is threadsafe.
    */
   void GetFaceStream(vtkIdType cellId, vtkIdList* ptIds);
 
@@ -304,7 +257,9 @@ public:
    * If the requested cell is not a polyhedron, then the standard GetCellPoints
    * is called to return the number of points and a list of unique point ids
    * (id1, id2, id3, ...).
+   * This function is NOT THREADSAFE.
    */
+  VTK_DEPRECATED_IN_9_4_0("Use the threadsafe GetFaceStream or GetPolyhedronFaces.")
   void GetFaceStream(vtkIdType cellId, vtkIdType& nfaces, vtkIdType const*& ptIds);
 
   ///@{
@@ -312,14 +267,18 @@ public:
    * Provide cell information to define the dataset.
    *
    * Cells like vtkPolyhedron require points plus a list of faces. To handle
-   * vtkPolyhedron, SetCells() support a special input cellConnectivities format
-   * (numCellFaces, numFace0Pts, id1, id2, id3, numFace1Pts,id1, id2, id3, ...)
-   * The functions use vtkPolyhedron::DecomposeAPolyhedronCell() to convert
-   * polyhedron cells into standard format.
+   * vtkPolyhedron, use SetPolyhedralCells()
+   * SetPolyhedralCells requires a faces vtkCellArray that will describe
+   * the faces use by the polyhedral cells.
+   * SetPolyhedralCells also requires a faceLocations vtkCellArray to fully describe a polyhedron
+   * cell The faceLocations is a collection of face ids pointing to the faces vtkCellArray.
    */
   void SetCells(int type, vtkCellArray* cells);
   void SetCells(int* types, vtkCellArray* cells);
   void SetCells(vtkUnsignedCharArray* cellTypes, vtkCellArray* cells);
+  void SetPolyhedralCells(vtkUnsignedCharArray* cellTypes, vtkCellArray* cells,
+    vtkCellArray* faceLocations, vtkCellArray* faces);
+  VTK_DEPRECATED_IN_9_4_0("This function is deprecated, use SetPolyhedralCells")
   void SetCells(vtkUnsignedCharArray* cellTypes, vtkCellArray* cells, vtkIdTypeArray* faceLocations,
     vtkIdTypeArray* faces);
   ///@}
@@ -344,6 +303,17 @@ public:
     vtkIdType cellId, vtkIdType npts, const vtkIdType* ptIds, vtkIdList* cellIds);
   ///@}
 
+  /**
+   * Get the number of faces of a cell.
+   *
+   * Most of the times extracting the number of faces requires only extracting
+   * the cell type. However, for some cell types, the number of faces is not
+   * constant. For example, a convex point set cell can have a different number of
+   * faces for each cell. That's why this method requires the cell id and the dataset.
+   */
+  int GetCellNumberOfFaces(
+    vtkIdType cellId, unsigned char& cellType, vtkGenericCell* cell) override;
+
   ///@{
   /**
    * A topological inquiry to determine whether a topological entity (e.g.,
@@ -361,12 +331,6 @@ public:
   {
     vtkIdType neighborCellId;
     return this->IsCellBoundary(cellId, npts, ptIds, neighborCellId);
-  }
-  VTK_DEPRECATED_IN_9_3_0("Use the overload that doesn't take a vtkIdList instead.")
-  bool IsCellBoundary(
-    vtkIdType cellId, vtkIdType npts, const vtkIdType* ptIds, vtkIdList* vtkNotUsed(cellIds))
-  {
-    return this->IsCellBoundary(cellId, npts, ptIds);
   }
   ///@}
 
@@ -442,14 +406,29 @@ public:
   /**
    * Special support for polyhedron. Return nullptr for all other cell types.
    */
+  VTK_DEPRECATED_IN_9_4_0("Use GetPolyhedronFaces instead.")
   vtkIdType* GetFaces(vtkIdType cellId);
+
+  /**
+   * Special support for polyhedron. Do not handle all other cell types.
+   */
+  void GetPolyhedronFaces(vtkIdType cellId, vtkCellArray* faces);
 
   ///@{
   /**
    * Get pointer to faces and facelocations. Support for polyhedron cells.
+   * Use an internal cache to handle legacy layout
    */
+  VTK_DEPRECATED_IN_9_4_0("Use GetPolyhedronFaces instead.")
   vtkIdTypeArray* GetFaces();
+  VTK_DEPRECATED_IN_9_4_0("Use GetPolyhedronFaceLocations instead.")
   vtkIdTypeArray* GetFaceLocations();
+  /**
+   * Get pointer to faces and facelocations for polyhedron cells.
+   * This is a direct access to internal vtkCellArray structures without any copy.
+   */
+  vtkCellArray* GetPolyhedronFaces();
+  vtkCellArray* GetPolyhedronFaceLocations();
   ///@}
 
   /**
@@ -468,7 +447,7 @@ public:
    * track the changes on the mesh separately from the data arrays
    * (eg. static mesh over time with transient data).
    */
-  virtual vtkMTimeType GetMeshMTime();
+  vtkMTimeType GetMeshMTime() override;
 
   /**
    * A static method for converting a polyhedron vtkCellArray of format
@@ -518,6 +497,13 @@ public:
    */
   static void ConvertFaceStreamPointIds(vtkIdType nfaces, vtkIdType* faceStream, vtkIdType* idMap);
 
+  /**
+   * Convert pid in a face stream into idMap[pid]. The face stream is of format
+   * vtkCellArray. The user is responsible to make sure all the Ids
+   * in faceStream do not exceed the range of idMap.
+   */
+  static void ConvertFaceStreamPointIds(vtkCellArray* faces, vtkIdType* idMap);
+
   //====================== Begin Legacy Methods ================================
 
   /**
@@ -560,57 +546,6 @@ protected:
 
   void ReportReferences(vtkGarbageCollector*) override;
 
-  // These are all the cells that vtkUnstructuredGrid can represent. Used by
-  // GetCell() (and similar) methods.
-  vtkVertex* Vertex;
-  vtkPolyVertex* PolyVertex;
-  vtkBezierCurve* BezierCurve;
-  vtkBezierQuadrilateral* BezierQuadrilateral;
-  vtkBezierHexahedron* BezierHexahedron;
-  vtkBezierTriangle* BezierTriangle;
-  vtkBezierTetra* BezierTetra;
-  vtkBezierWedge* BezierWedge;
-  vtkLagrangeCurve* LagrangeCurve;
-  vtkLagrangeQuadrilateral* LagrangeQuadrilateral;
-  vtkLagrangeHexahedron* LagrangeHexahedron;
-  vtkLagrangeTriangle* LagrangeTriangle;
-  vtkLagrangeTetra* LagrangeTetra;
-  vtkLagrangeWedge* LagrangeWedge;
-  vtkLine* Line;
-  vtkPolyLine* PolyLine;
-  vtkTriangle* Triangle;
-  vtkTriangleStrip* TriangleStrip;
-  vtkPixel* Pixel;
-  vtkQuad* Quad;
-  vtkPolygon* Polygon;
-  vtkTetra* Tetra;
-  vtkVoxel* Voxel;
-  vtkHexahedron* Hexahedron;
-  vtkWedge* Wedge;
-  vtkPyramid* Pyramid;
-  vtkPentagonalPrism* PentagonalPrism;
-  vtkHexagonalPrism* HexagonalPrism;
-  vtkQuadraticEdge* QuadraticEdge;
-  vtkQuadraticTriangle* QuadraticTriangle;
-  vtkQuadraticQuad* QuadraticQuad;
-  vtkQuadraticPolygon* QuadraticPolygon;
-  vtkQuadraticTetra* QuadraticTetra;
-  vtkQuadraticHexahedron* QuadraticHexahedron;
-  vtkQuadraticWedge* QuadraticWedge;
-  vtkQuadraticPyramid* QuadraticPyramid;
-  vtkQuadraticLinearQuad* QuadraticLinearQuad;
-  vtkBiQuadraticQuad* BiQuadraticQuad;
-  vtkTriQuadraticHexahedron* TriQuadraticHexahedron;
-  vtkTriQuadraticPyramid* TriQuadraticPyramid;
-  vtkQuadraticLinearWedge* QuadraticLinearWedge;
-  vtkBiQuadraticQuadraticWedge* BiQuadraticQuadraticWedge;
-  vtkBiQuadraticQuadraticHexahedron* BiQuadraticQuadraticHexahedron;
-  vtkBiQuadraticTriangle* BiQuadraticTriangle;
-  vtkCubicLine* CubicLine;
-  vtkConvexPointSet* ConvexPointSet;
-  vtkPolyhedron* Polyhedron;
-  vtkEmptyCell* EmptyCell;
-
   // Points derived from vtkPointSet.
   // Attribute data (i.e., point and cell data (i.e., scalars, vectors, normals, tcoords)
   // derived from vtkDataSet.
@@ -632,22 +567,82 @@ protected:
   // updated so we can compare it to the modified time of the Types array.
   vtkMTimeType DistinctCellTypesUpdateMTime;
 
-  // Special support for polyhedra/cells with explicit face representations.
-  // The Faces class represents polygonal faces using a modified vtkCellArray
-  // structure. Each cell face list begins with the total number of faces in
-  // the cell, followed by a vtkCellArray data organization
-  // (n,i,j,k,n,i,j,k,...).
-  vtkSmartPointer<vtkIdTypeArray> Faces;
-  vtkSmartPointer<vtkIdTypeArray> FaceLocations;
+  /**
+   *  Special support for polyhedra/cells with explicit face representations.
+   * The Faces class represents polygonal faces using a vtkCellArray structure.
+   * The FaceLocations store a polyhedron as a list of faces defined in Faces using a vtkCellArray
+   * structure.
+   */
+  vtkSmartPointer<vtkCellArray> Faces;
+  vtkSmartPointer<vtkCellArray> FaceLocations;
 
   // Legacy support -- stores the old-style cell array locations.
   vtkSmartPointer<vtkIdTypeArray> CellLocations;
 
   vtkIdType InternalInsertNextCell(int type, vtkIdType npts, const vtkIdType ptIds[]) override;
   vtkIdType InternalInsertNextCell(int type, vtkIdList* ptIds) override;
-  vtkIdType InternalInsertNextCell(int type, vtkIdType npts, const vtkIdType ptIds[],
-    vtkIdType nfaces, const vtkIdType faces[]) override;
+  vtkIdType InternalInsertNextCell(
+    int type, vtkIdType npts, const vtkIdType ptIds[], vtkIdType nfaces, const vtkIdType faces[]);
+  vtkIdType InternalInsertNextCell(
+    int type, vtkIdType npts, const vtkIdType pts[], vtkCellArray* faces) override;
   void InternalReplaceCell(vtkIdType cellId, int npts, const vtkIdType pts[]) override;
+
+  /**
+   *  Legacy support -- stores the old-style Faces && FaceLocations
+   * Special support for polyhedra/cells with explicit face representations.
+   *
+   * The Faces class represents polygonal faces using a modified vtkCellArray
+   * structure. Each cell face list begins with the total number of faces in
+   * the cell, followed by a vtkCellArray data organization
+   * (n,i,j,k,n,i,j,k,...).
+   *
+   * @warning The Faces and FaceLocations arrays are no longer used; this information
+   * is stored in vtkCellArrays ElementFaces and ElementFaceLocations. Use SetPolyhedralCells.
+   */
+  vtkSmartPointer<vtkIdTypeArray> LegacyFaces;
+  vtkSmartPointer<vtkIdTypeArray> LegacyFaceLocations;
+
+  /**
+   * Legacy backward compatibility for GetFaceStream
+   * This member should be removed simultaneously with the deprecated GetFaceStream
+   */
+  VTK_DEPRECATED_IN_9_4_0("This member is deprecated.")
+  vtkSmartPointer<vtkIdList> LegacyPointIdsBuffer;
+
+  /**
+   * A static method for converting an input polyhedron cell stream of format
+   * [nFace0Pts, i, j, k, nFace1Pts, i, j, k, ...]
+   * into three components: (1) an integer indicating the number of faces
+   * (2) a standard vtkCellArray storing point ids [nCell0Pts, i, j, k]
+   * and (3) an vtkIdTypeArray storing face connectivity in format
+   * [nFace0Pts, i, j, k, nFace1Pts, i, j, k, ...]
+   * Note: input is assumed to contain only one polyhedron cell.
+   * Outputs (2) and (3) will be stacked at the end of the input
+   * cellArray and faces. The original data in the input will not
+   * be touched.
+   */
+  static void DecomposeAPolyhedronCell(const vtkIdType* cellStream, vtkIdType& numCellPts,
+    vtkIdType& nCellFaces, vtkCellArray* cellArray, vtkCellArray* faces);
+
+  static void DecomposeAPolyhedronCell(vtkIdType nCellFaces, const vtkIdType* cellStream,
+    vtkIdType& numCellPts, vtkCellArray* cellArray, vtkCellArray* facesArray);
+
+  static void DecomposeAPolyhedronCell(vtkCellArray* polyhedronCell, vtkIdType& numCellPts,
+    vtkIdType& nCellfaces, vtkCellArray* cellArray, vtkCellArray* faces);
+
+  static void DecomposeAPolyhedronCell(const vtkIdType* cellStream, vtkIdType& numCellPts,
+    vtkIdType& nCellFaces, vtkCellArray* cellArray, vtkCellArray* faces,
+    vtkCellArray* faceLocations);
+
+  static void DecomposeAPolyhedronCell(vtkIdType nCellFaces, const vtkIdType* cellStream,
+    vtkIdType& numCellPts, vtkCellArray* cellArray, vtkCellArray* faces,
+    vtkCellArray* faceLocations);
+
+  /**
+   * Backward compatibility function to convert new polyhedron storage to legacy
+   */
+  static int CopyPolyhedronToFaceStream(vtkCellArray* faceArray, vtkCellArray* faceLocationArray,
+    vtkIdTypeArray* faceStream, vtkIdTypeArray* faceLocation);
 
 private:
   // Hide these from the user and the compiler.

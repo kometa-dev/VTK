@@ -1,6 +1,8 @@
 set(classes
   vtkCesium3DTilesWriter
-  vtkCesiumPointCloudWriter)
+  vtkCesium3DTilesReader
+  vtkCesiumPointCloudWriter
+  vtkCesiumB3DMReader)
 
 set(private_classes
   TreeInformation)

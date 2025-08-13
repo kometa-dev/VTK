@@ -24,7 +24,6 @@ vtkHyperTreeGridAxisReflection::vtkHyperTreeGridAxisReflection()
   // Default plane position is at origin
   this->Center = 0.;
 
-  // JB Pour sortir un maillage de meme type que celui en entree
   this->AppropriateOutput = true;
 }
 
@@ -224,9 +223,14 @@ int vtkHyperTreeGridAxisReflection::ProcessTrees(vtkHyperTreeGrid* input, vtkDat
     outNormals = vtkDoubleArray::New();
     outNormals->SetNumberOfComponents(3);
     outNormals->SetNumberOfTuples(nTuples);
+    outNormals->SetName("outNormals");
+    output->SetInterfaceNormalsName(outNormals->GetName());
+
     outIntercepts = vtkDoubleArray::New();
     outIntercepts->SetNumberOfComponents(3);
     outIntercepts->SetNumberOfTuples(nTuples);
+    outIntercepts->SetName("outIntercepts");
+    output->SetInterfaceInterceptsName(outIntercepts->GetName());
 
     // Reflect interface normals if present
     // Iterate over all cells
@@ -240,7 +244,7 @@ int vtkHyperTreeGridAxisReflection::ProcessTrees(vtkHyperTreeGrid* input, vtkDat
 
       // Compute and store reflected intercept
       double* inter = inIntercepts->GetTuple3(i);
-      inter[0] -= 2. * offset * norm[direction];
+      inter[0] -= offset * norm[direction];
       outIntercepts->SetTuple3(i, inter[0], inter[1], inter[2]);
     } // i
 
@@ -271,7 +275,6 @@ int vtkHyperTreeGridAxisReflection::ProcessTrees(vtkHyperTreeGrid* input, vtkDat
     double origin[3];
     double scale[3];
     output->GetLevelZeroOriginAndSizeFromIndex(index, origin, scale);
-    // JB Quid du Uniform ?
     tree->SetScales(std::make_shared<vtkHyperTreeGridScales>(output->GetBranchFactor(), scale));
   }
   //

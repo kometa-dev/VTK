@@ -46,13 +46,15 @@
 #include "vtkAbstractWidget.h"
 #include "vtkInteractionWidgetsModule.h" // needed for export macro
 #include "vtkWeakPointer.h"              // for weak pointer ivar
+#include "vtkWrappingHints.h"            // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCameraInterpolator;
 class vtkCameraOrientationRepresentation;
 class vtkRenderer;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkCameraOrientationWidget : public vtkAbstractWidget
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkCameraOrientationWidget
+  : public vtkAbstractWidget
 {
 public:
   static vtkCameraOrientationWidget* New();
@@ -78,6 +80,13 @@ public:
   ///@}
 
   /**
+   * Specify an instance of vtkWidgetRepresentation used to represent this
+   * widget in the scene. Note that the representation is a subclass of vtkProp
+   * so it can be added to the renderer independently of the widget.
+   */
+  void SetRepresentation(vtkCameraOrientationRepresentation* r);
+
+  /**
    * Create a vtkCameraOrientationRepresentation.
    */
   void CreateDefaultRepresentation() override;
@@ -86,6 +95,13 @@ public:
    * Fits the widget's renderer to a square viewport.
    */
   void SquareResize();
+
+  /**
+   * Override super class method for default renderer.
+   * This widget adds the representation props into the default
+   * renderer.
+   */
+  void SetDefaultRenderer(vtkRenderer* renderer) override;
 
   ///@{
   /**
@@ -101,7 +117,7 @@ public:
 
 protected:
   vtkCameraOrientationWidget();
-  ~vtkCameraOrientationWidget() override = default;
+  ~vtkCameraOrientationWidget() override;
 
   // These methods handle events
   void ComputeWidgetState(int X, int Y, int modify = 0);
@@ -113,6 +129,10 @@ protected:
   void OrientParentCamera(double back[3], double up[3]);
   void OrientWidgetRepresentation();
   void InterpolateCamera(int t);
+
+  void StartAnimation();
+  void PlayAnimationSingleFrame(vtkObject* caller, unsigned long event, void* callData);
+  void StopAnimation();
 
   // Manage the state of the widget
   enum class WidgetStateType : int
@@ -130,8 +150,12 @@ protected:
 
   bool Animate = true;
   int AnimatorTotalFrames = 20;
+  int AnimatorCurrentFrame = 0;
+  int AnimationTimerId = -1;
 
   int ResizeObserverTag = -1;
+  int ReorientObserverTag = -1;
+  int AnimationTimerObserverTag = -1;
 
 private:
   vtkCameraOrientationWidget(const vtkCameraOrientationWidget&) = delete;

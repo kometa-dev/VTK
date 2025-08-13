@@ -52,9 +52,10 @@ set(classes
   vtkXMLWriterBase
   vtkXMLWriterC)
 
+set(private_templates
+  vtkXMLUnstructuredPolyReader.txx)
+
 vtk_module_add_module(VTK::IOXML
-  CLASSES ${classes})
-vtk_add_test_mangling(VTK::IOXML
-  # Ignore mangling for the C API
-  EXEMPTIONS
-    vtkXMLWriterC_)
+  CLASSES ${classes}
+  PRIVATE_TEMPLATES ${private_templates})
+vtk_add_test_mangling(VTK::IOXML)

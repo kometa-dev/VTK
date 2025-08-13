@@ -88,13 +88,11 @@ struct WarpWorker
     auto opts = vtk::DataArrayTupleRange<3>(outPts);
     const auto vecs = vtk::DataArrayTupleRange<3>(vectors);
 
-    // For smaller data sizes, serial processing is faster than spinning up
-    // threads. The cutoff point between serial and threaded is empirical and
-    // is likely to change.
-    static constexpr int VTK_SMP_THRESHOLD = 1000000;
-    if (numPts >= VTK_SMP_THRESHOLD)
-    {
-      vtkSMPTools::For(0, numPts, [&](vtkIdType ptId, vtkIdType endPtId) {
+    // We use THRESHOLD to test if the data size is small enough
+    // to execute the functor serially.
+    vtkSMPTools::For(0, numPts, vtkSMPTools::THRESHOLD,
+      [&](vtkIdType ptId, vtkIdType endPtId)
+      {
         bool isFirst = vtkSMPTools::GetSingleThread();
         for (; ptId < endPtId; ++ptId)
         {
@@ -115,31 +113,6 @@ struct WarpWorker
           xo[2] = xi[2] + sf * v[2];
         }
       }); // lambda
-    }     // threaded
-
-    else // serial
-    {
-      for (vtkIdType ptId = 0; ptId < numPts; ptId++)
-      {
-        if (!(ptId % 10000))
-        {
-          self->UpdateProgress((double)ptId / numPts);
-          if (self->CheckAbort())
-          {
-            break;
-          }
-        }
-
-        const auto xi = ipts[ptId];
-        auto xo = opts[ptId];
-        const auto v = vecs[ptId];
-
-        xo[0] = xi[0] + sf * v[0];
-        xo[1] = xi[1] + sf * v[1];
-        xo[2] = xi[2] + sf * v[2];
-
-      } // over all points
-    }   // serial processing
   }
 };
 

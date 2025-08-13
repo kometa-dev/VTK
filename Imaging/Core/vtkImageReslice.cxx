@@ -1925,7 +1925,7 @@ void vtkImageResliceClearExecute(
 }
 
 //------------------------------------------------------------------------------
-// this function is only called when the ResliceTransform is not homogenous,
+// this function is only called when the ResliceTransform is not homogeneous,
 // i.e. when it can't be represented as a 4x4 matrix multiplication
 template <class F>
 void vtkResliceApplyTransform(
@@ -1953,7 +1953,7 @@ void vtkImageResliceExecute(vtkImageReslice* self, vtkDataArray* scalars,
 {
   void (*convertpixels)(void*& out, const F* in, int numscalars, int n) = nullptr;
   void (*setpixels)(void*& out, const void* in, int numscalars, int n) = nullptr;
-  void (*composite)(F * in, int numscalars, int n) = nullptr;
+  void (*composite)(F* in, int numscalars, int n) = nullptr;
 
   // get the input stencil
   vtkImageStencilData* stencil = self->GetStencil();
@@ -2821,7 +2821,7 @@ void vtkReslicePermuteExecute(vtkImageReslice* self, vtkDataArray* scalars,
   vtkGetSetPixelsFunc(&setpixels, scalarType, outComponents);
 
   // get the slab compositing function
-  void (*composite)(F * op, const F* ip, int nc, int count, int i, int n) = nullptr;
+  void (*composite)(F* op, const F* ip, int nc, int count, int i, int n) = nullptr;
   vtkGetRowCompositeFunc(&composite, self->GetSlabMode(), self->GetSlabTrapezoidIntegration());
 
   // get temp float space for type conversion
@@ -3039,7 +3039,7 @@ void vtkReslicePermuteExecute(vtkImageReslice* self, vtkDataArray* scalars,
 // single 4x4 matrix for efficiency and simplicity.  There are two cases
 // that we handle:
 //
-// Case A: If all transformations are homogenous, they can be combined into
+// Case A: If all transformations are homogeneous, they can be combined into
 // one matrix that concatenates these transforms together:
 // 1) the output index-to-physical transformation
 // 2) the ResliceAxes transformation
@@ -3055,7 +3055,7 @@ void vtkReslicePermuteExecute(vtkImageReslice* self, vtkDataArray* scalars,
 //
 // For Case A, this->OptimizedTransform is set to nullptr so that the
 // vtkImageResliceExecute() method knows that the IndexMatrix performs
-// the full transformation from output index to input continous index.
+// the full transformation from output index to input continuous index.
 // For Case B, this->OptimizedTransform is set to this->ResliceTransform
 // so that vtkImageResliceExecute() knows it must apply the IndexMatrix
 // and then call vtkResliceApplyTransform() to get the input index.
@@ -3256,6 +3256,11 @@ void vtkImageReslice::ThreadedRequestData(vtkInformation* vtkNotUsed(request),
 
   // Get the input scalars
   vtkDataArray* scalars = inData[0][0]->GetPointData()->GetScalars();
+  if (!scalars)
+  {
+    // no data to reslice
+    return;
+  }
 
   // Get the output pointer
   void* outPtr = outData[0]->GetScalarPointerForExtent(outExt);

@@ -1,18 +1,33 @@
 set(headers
+  vtkEmscriptenTestUtilities.h
   vtkPermuteOptions.h
   vtkTestDriver.h
   vtkTestErrorObserver.h
   vtkTestingColors.h
-  vtkTestUtilities.h
   vtkWindowsTestUtilities.h)
+
+set(sources
+  vtkEmscriptenTestUtilities.cxx)
 
 set(templates
   vtkTestConditionals.txx)
+set(classes
+  vtkTestUtilities)
 
 vtk_module_add_module(VTK::TestingCore
+  CLASSES   ${classes}
   HEADERS   ${headers}
-  TEMPLATES ${templates}
-  HEADER_ONLY)
+  SOURCES   ${sources}
+  TEMPLATES ${templates})
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  vtk_module_link_options(VTK::TestingCore
+    INTERFACE
+      "$<BUILD_INTERFACE:--js-library=${CMAKE_CURRENT_SOURCE_DIR}/vtkEmscriptenTestUtilities.js>"
+      "$<INSTALL_INTERFACE:--js-library=$<INSTALL_PREFIX>/${_vtk_build_LIBRARY_DESTINATION}/vtkEmscriptenTestUtilities.js>")
+  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/vtkEmscriptenTestUtilities.js"
+    DESTINATION ${_vtk_build_LIBRARY_DESTINATION})
+endif ()
 
 # Write out a summary of the configuration for use in the
 # `TestSystemInformation` test.

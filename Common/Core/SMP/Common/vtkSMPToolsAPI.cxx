@@ -21,22 +21,17 @@ VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkSMPToolsAPI::vtkSMPToolsAPI()
 {
-  // XXX(c++14): use std::make_unique
 #if VTK_SMP_ENABLE_SEQUENTIAL
-  this->SequentialBackend = std::unique_ptr<vtkSMPToolsImpl<BackendType::Sequential>>(
-    new vtkSMPToolsImpl<BackendType::Sequential>());
+  this->SequentialBackend = std::make_unique<vtkSMPToolsImpl<BackendType::Sequential>>();
 #endif
 #if VTK_SMP_ENABLE_STDTHREAD
-  this->STDThreadBackend = std::unique_ptr<vtkSMPToolsImpl<BackendType::STDThread>>(
-    new vtkSMPToolsImpl<BackendType::STDThread>());
+  this->STDThreadBackend = std::make_unique<vtkSMPToolsImpl<BackendType::STDThread>>();
 #endif
 #if VTK_SMP_ENABLE_TBB
-  this->TBBBackend =
-    std::unique_ptr<vtkSMPToolsImpl<BackendType::TBB>>(new vtkSMPToolsImpl<BackendType::TBB>());
+  this->TBBBackend = std::make_unique<vtkSMPToolsImpl<BackendType::TBB>>();
 #endif
 #if VTK_SMP_ENABLE_OPENMP
-  this->OpenMPBackend = std::unique_ptr<vtkSMPToolsImpl<BackendType::OpenMP>>(
-    new vtkSMPToolsImpl<BackendType::OpenMP>());
+  this->OpenMPBackend = std::make_unique<vtkSMPToolsImpl<BackendType::OpenMP>>();
 #endif
 
   // Set backend from env if set
@@ -51,10 +46,29 @@ vtkSMPToolsAPI::vtkSMPToolsAPI()
 }
 
 //------------------------------------------------------------------------------
+// Must NOT be initialized. Default initialization to zero is necessary.
+vtkSMPToolsAPI* vtkSMPToolsAPIInstanceAsPointer;
+
+//------------------------------------------------------------------------------
 vtkSMPToolsAPI& vtkSMPToolsAPI::GetInstance()
 {
-  static vtkSMPToolsAPI instance;
-  return instance;
+  return *vtkSMPToolsAPIInstanceAsPointer;
+}
+
+//------------------------------------------------------------------------------
+void vtkSMPToolsAPI::ClassInitialize()
+{
+  if (!vtkSMPToolsAPIInstanceAsPointer)
+  {
+    vtkSMPToolsAPIInstanceAsPointer = new vtkSMPToolsAPI;
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkSMPToolsAPI::ClassFinalize()
+{
+  delete vtkSMPToolsAPIInstanceAsPointer;
+  vtkSMPToolsAPIInstanceAsPointer = nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -141,6 +155,23 @@ void vtkSMPToolsAPI::RefreshNumberOfThread()
       this->OpenMPBackend->Initialize(numThreads);
       break;
   }
+}
+
+//------------------------------------------------------------------------------
+int vtkSMPToolsAPI::GetEstimatedDefaultNumberOfThreads()
+{
+  switch (this->ActivatedBackend)
+  {
+    case BackendType::Sequential:
+      return this->SequentialBackend->GetEstimatedDefaultNumberOfThreads();
+    case BackendType::STDThread:
+      return this->STDThreadBackend->GetEstimatedDefaultNumberOfThreads();
+    case BackendType::TBB:
+      return this->TBBBackend->GetEstimatedDefaultNumberOfThreads();
+    case BackendType::OpenMP:
+      return this->OpenMPBackend->GetEstimatedDefaultNumberOfThreads();
+  }
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -232,6 +263,28 @@ bool vtkSMPToolsAPI::GetSingleThread()
       return this->OpenMPBackend->GetSingleThread();
     default:
       return false;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Must NOT be initialized. Default initialization to zero is necessary.
+unsigned int vtkSMPToolsAPIInitializeCount;
+
+//------------------------------------------------------------------------------
+vtkSMPToolsAPIInitialize::vtkSMPToolsAPIInitialize()
+{
+  if (++vtkSMPToolsAPIInitializeCount == 1)
+  {
+    vtkSMPToolsAPI::ClassInitialize();
+  }
+}
+
+//------------------------------------------------------------------------------
+vtkSMPToolsAPIInitialize::~vtkSMPToolsAPIInitialize()
+{
+  if (--vtkSMPToolsAPIInitializeCount == 0)
+  {
+    vtkSMPToolsAPI::ClassFinalize();
   }
 }
 

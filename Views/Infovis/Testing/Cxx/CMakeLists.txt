@@ -5,20 +5,20 @@ vtk_add_test_cxx(vtkViewsInfovisCxxTests tests
   TestDendrogramItem.cxx
   TestGraphLayoutView.cxx
   TestHeatmapCategoryLegend.cxx
-  TestHeatmapItem.cxx
+  TestHeatmapItem.cxx,LOOSE_VALID
   TestHeatmapScalarLegend.cxx
   TestHierarchicalGraphView.cxx
   TestIcicleView.cxx
   TestIconGlyphFilter.cxx
   TestInteractorStyleTreeMapHover.cxx
   TestNetworkViews.cxx
-  TestParallelCoordinatesView.cxx
+  TestParallelCoordinatesView.cxx,LOOSE_VALID
   TestRenderView.cxx
   TestSpanTreeLayoutStrategy.cxx
   TestTanglegramItem.cxx
-  TestTreeHeatmapAutoCollapse.cxx
-  TestTreeHeatmapItem.cxx
-  TestTreeMapView.cxx
+  TestTreeHeatmapAutoCollapse.cxx,LOOSE_VALID
+  TestTreeHeatmapItem.cxx,LOOSE_VALID
+  TestTreeMapView.cxx,LOOSE_VALID
   TestTreeRingView.cxx
   )
 

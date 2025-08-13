@@ -7,10 +7,10 @@ vtk_module_third_party(
     SPDX_COPYRIGHT_TEXT
       "Copyright (C) 1999-2006 Takeshi Kanno"
       "Copyright (C) 2007-2009 Antony Dovgal"
-    SPDX_DOWNLOAD_LOCATION  
-      "git+https://gitlab.kitware.com/third-party/libharu.git@for/vtk-20220830-2.4.0"
+    SPDX_DOWNLOAD_LOCATION
+      "git+https://gitlab.kitware.com/third-party/libharu.git@for/vtk-20241208-2.4.4"
     VERSION
-      "2.4.0"
+      "2.4.4"
     STANDARD_INCLUDE_DIRS
   EXTERNAL
     PACKAGE LibHaru

@@ -20,8 +20,10 @@
 #ifndef vtkViewport_h
 #define vtkViewport_h
 
+#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_5_0
 #include "vtkObject.h"
 #include "vtkRenderingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 #include "vtkSelection.h"    // Needed for selection
 #include "vtkSmartPointer.h" // Needed for assigning default nullptr value
@@ -35,7 +37,7 @@ class vtkProp;
 class vtkPropCollection;
 class vtkWindow;
 
-class VTKRENDERINGCORE_EXPORT vtkViewport : public vtkObject
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkViewport : public vtkObject
 {
 public:
   vtkTypeMacro(vtkViewport, vtkObject);
@@ -43,9 +45,10 @@ public:
 
   /**
    * Add a prop to the list of props. Does nothing if the prop is
-   * already present. Prop is the superclass of all actors, volumes,
+   * nullptr or already present. Prop is the superclass of all actors, volumes,
    * 2D actors, composite props etc.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddViewProp(vtkProp*);
 
   /**
@@ -54,29 +57,43 @@ public:
   vtkPropCollection* GetViewProps() { return this->Props; }
 
   /**
-   * Query if a prop is in the list of props.
+   * Query if a prop is in the list of props. Returns false for nullptr.
    */
   vtkTypeBool HasViewProp(vtkProp*);
 
   /**
    * Remove a prop from the list of props. Does nothing if the prop
-   * is not already present or if the parameter is NULL.
+   * is nullptr or not already present.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveViewProp(vtkProp*);
 
   /**
    * Remove all props from the list of props.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveAllViewProps();
 
   ///@{
   /**
-   * Add/Remove different types of props to the renderer.
-   * These methods are all synonyms to AddViewProp and RemoveViewProp.
-   * They are here for convenience and backwards compatibility.
+   * Add the given prop to the renderer. This is a synonym for AddViewProp.
    */
+  VTK_DEPRECATED_IN_9_5_0("Use AddViewProp() instead.")
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddActor2D(vtkProp* p);
+
+  /**
+   * Remove the given prop from the renderer. This is a synonym for RemoveViewProp.
+   */
+  VTK_DEPRECATED_IN_9_5_0("Use RemoveViewProp() instead.")
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveActor2D(vtkProp* p);
+
+  /**
+   * Loops through the props and returns a collection of those
+   * that are vtkActor2D (or one of its subclasses).
+   */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkActor2DCollection* GetActors2D();
   ///@}
 
@@ -117,6 +134,17 @@ public:
   vtkSetMacro(GradientBackground, bool);
   vtkGetMacro(GradientBackground, bool);
   vtkBooleanMacro(GradientBackground, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get whether this viewport should use dithering to reduce
+   * color banding when using gradient backgrounds.
+   * By default, this feature is enabled.
+   */
+  vtkSetMacro(DitherGradient, bool);
+  vtkGetMacro(DitherGradient, bool);
+  vtkBooleanMacro(DitherGradient, bool);
   ///@}
 
   enum class GradientModes : int
@@ -260,7 +288,7 @@ public:
   /**
    * Convert world point coordinates to display (or screen) coordinates.
    */
-  inline void WorldToDisplay(double& x, double& y, double& z)
+  void WorldToDisplay(double& x, double& y, double& z)
   {
     this->WorldToView(x, y, z);
     this->ViewToDisplay(x, y, z);
@@ -398,6 +426,7 @@ public:
   double GetPickY1() const { return this->PickY1; }
   double GetPickX2() const { return this->PickX2; }
   double GetPickY2() const { return this->PickY2; }
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkGetObjectMacro(PickResultProps, vtkPropCollection);
   ///@}
 
@@ -465,6 +494,7 @@ protected:
   double PixelAspect[2];
   double Center[2];
   bool GradientBackground;
+  bool DitherGradient;
   GradientModes GradientMode = GradientModes::VTK_GRADIENT_VERTICAL;
 
   double EnvironmentalBG[3];

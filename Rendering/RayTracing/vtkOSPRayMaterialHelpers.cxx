@@ -13,9 +13,11 @@
 #include <limits>
 
 //------------------------------------------------------------------------------
+namespace vtkOSPRayMaterialHelpers
+{
 VTK_ABI_NAMESPACE_BEGIN
-OSPTexture vtkOSPRayMaterialHelpers::NewTexture2D(RTW::Backend* backend, const osp::vec2i& size,
-  const OSPTextureFormat type, void* data, const uint32_t _flags)
+OSPTexture NewTexture2D(RTW::Backend* backend, const osp::vec2i& size, const OSPTextureFormat type,
+  void* data, const uint32_t _flags)
 {
   auto texture = ospNewTexture("texture2d");
   if (texture == nullptr)
@@ -68,10 +70,10 @@ OSPTexture vtkOSPRayMaterialHelpers::NewTexture2D(RTW::Backend* backend, const o
   ospSetObject(texture, "data", data_handle);
   ospRelease(data_handle);
 
-  ospSetInt(texture, "format", static_cast<int>(type));
+  ospSetUInt(texture, "format", type);
   if (flags & OSP_TEXTURE_FILTER_NEAREST)
   {
-    ospSetInt(texture, "filter", OSP_TEXTURE_FILTER_NEAREST);
+    ospSetUInt(texture, "filter", OSP_TEXTURE_FILTER_NEAREST);
   }
   ospCommit(texture);
 
@@ -79,8 +81,7 @@ OSPTexture vtkOSPRayMaterialHelpers::NewTexture2D(RTW::Backend* backend, const o
 }
 
 //------------------------------------------------------------------------------
-OSPTexture vtkOSPRayMaterialHelpers::VTKToOSPTexture(
-  RTW::Backend* backend, vtkImageData* vColorTextureMap, bool isSRGB)
+OSPTexture VTKToOSPTexture(RTW::Backend* backend, vtkImageData* vColorTextureMap, bool isSRGB)
 {
   if (backend == nullptr)
   {
@@ -129,7 +130,7 @@ OSPTexture vtkOSPRayMaterialHelpers::VTKToOSPTexture(
       comps = 3;
     }
 
-    t2d = vtkOSPRayMaterialHelpers::NewTexture2D(backend, osp::vec2i{ xsize + 1, ysize + 1 },
+    t2d = NewTexture2D(backend, osp::vec2i{ xsize + 1, ysize + 1 },
       isSRGB ? formatSRGB[comps - 1] : formatLinear[comps - 1],
       chars.empty() ? vColorTextureMap->GetScalarPointer() : chars.data(),
       OSP_TEXTURE_FILTER_NEAREST);
@@ -157,8 +158,8 @@ OSPTexture vtkOSPRayMaterialHelpers::VTKToOSPTexture(
       }
       comps = 3;
     }
-    t2d = vtkOSPRayMaterialHelpers::NewTexture2D(backend, osp::vec2i{ xsize + 1, ysize + 1 },
-      format[comps - 1], floats.empty() ? vColorTextureMap->GetScalarPointer() : floats.data(),
+    t2d = NewTexture2D(backend, osp::vec2i{ xsize + 1, ysize + 1 }, format[comps - 1],
+      floats.empty() ? vColorTextureMap->GetScalarPointer() : floats.data(),
       OSP_TEXTURE_FILTER_NEAREST);
   }
   else
@@ -204,8 +205,8 @@ OSPTexture vtkOSPRayMaterialHelpers::VTKToOSPTexture(
         of += newComps;
       }
     }
-    t2d = vtkOSPRayMaterialHelpers::NewTexture2D(backend, osp::vec2i{ xsize + 1, ysize + 1 },
-      format[newComps - 1], floats.data(), OSP_TEXTURE_FILTER_NEAREST);
+    t2d = NewTexture2D(backend, osp::vec2i{ xsize + 1, ysize + 1 }, format[newComps - 1],
+      floats.data(), OSP_TEXTURE_FILTER_NEAREST);
   }
 
   if (t2d != nullptr)
@@ -217,7 +218,7 @@ OSPTexture vtkOSPRayMaterialHelpers::VTKToOSPTexture(
 }
 
 //------------------------------------------------------------------------------
-void vtkOSPRayMaterialHelpers::MakeMaterials(
+void MakeMaterials(
   vtkOSPRayRendererNode* orn, OSPRenderer oRenderer, std::map<std::string, OSPMaterial>& mats)
 {
   vtkOSPRayMaterialLibrary* ml = vtkOSPRayRendererNode::GetMaterialLibrary(orn->GetRenderer());
@@ -230,15 +231,14 @@ void vtkOSPRayMaterialHelpers::MakeMaterials(
   std::set<std::string>::iterator it = nicknames.begin();
   while (it != nicknames.end())
   {
-    OSPMaterial newmat = vtkOSPRayMaterialHelpers::MakeMaterial(orn, oRenderer, *it);
+    OSPMaterial newmat = MakeMaterial(orn, oRenderer, *it);
     mats[*it] = newmat;
     ++it;
   }
 }
 
 //------------------------------------------------------------------------------
-OSPMaterial vtkOSPRayMaterialHelpers::MakeMaterial(
-  vtkOSPRayRendererNode* orn, OSPRenderer oRenderer, std::string nickname)
+OSPMaterial MakeMaterial(vtkOSPRayRendererNode* orn, OSPRenderer oRenderer, std::string nickname)
 {
   RTW::Backend* backend = orn->GetBackend();
   OSPMaterial oMaterial;
@@ -330,7 +330,7 @@ OSPMaterial vtkOSPRayMaterialHelpers::MakeMaterial(
           if (texname)
           {
             vtkImageData* vColorTextureMap = vtkImageData::SafeDownCast(texname->GetInput());
-            OSPTexture t2d = vtkOSPRayMaterialHelpers::VTKToOSPTexture(backend, vColorTextureMap);
+            OSPTexture t2d = VTKToOSPTexture(backend, vColorTextureMap);
             ospSetObject(oMaterial, param.first.c_str(), static_cast<OSPTexture>(t2d));
             ospRelease(t2d);
           }
@@ -353,8 +353,7 @@ OSPMaterial vtkOSPRayMaterialHelpers::MakeMaterial(
 }
 
 //------------------------------------------------------------------------------
-OSPMaterial vtkOSPRayMaterialHelpers::NewMaterial(
-  vtkOSPRayRendererNode* orn, OSPRenderer oRenderer, std::string ospMatName)
+OSPMaterial NewMaterial(vtkOSPRayRendererNode* orn, OSPRenderer oRenderer, std::string ospMatName)
 {
   RTW::Backend* backend = orn->GetBackend();
   OSPMaterial result = nullptr;
@@ -363,17 +362,17 @@ OSPMaterial vtkOSPRayMaterialHelpers::NewMaterial(
     return result;
 
   (void)oRenderer;
-  const std::string rendererType = vtkOSPRayRendererNode::GetRendererType(orn->GetRenderer());
-  result = ospNewMaterial(rendererType.c_str(), ospMatName.c_str());
+  result = ospNewMaterial(ospMatName.c_str());
 
   if (!result)
   {
     vtkGenericWarningMacro(
       "OSPRay failed to create material: " << ospMatName << ". Trying obj instead.");
-    result = ospNewMaterial(rendererType.c_str(), "obj");
+    result = ospNewMaterial("obj");
   }
 
   ospCommit(result);
   return result;
 }
 VTK_ABI_NAMESPACE_END
+} // namespace vtkOSPRayMaterialHelpers

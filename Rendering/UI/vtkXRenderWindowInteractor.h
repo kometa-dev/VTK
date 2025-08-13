@@ -22,13 +22,15 @@
 
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderingUIModule.h" // For export macro
+#include "vtkWrappingHints.h"     // For VTK_MARSHALAUTO
 #include <X11/Xlib.h>             // Needed for X types in the public interface
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCallbackCommand;
 class vtkXRenderWindowInteractorInternals;
 
-class VTKRENDERINGUI_EXPORT vtkXRenderWindowInteractor : public vtkRenderWindowInteractor
+class VTKRENDERINGUI_EXPORT VTK_MARSHALAUTO vtkXRenderWindowInteractor
+  : public vtkRenderWindowInteractor
 {
 public:
   static vtkXRenderWindowInteractor* New();
@@ -78,6 +80,12 @@ public:
    */
   void GetMousePosition(int* x, int* y) override;
 
+  /**
+   * A X11 specific method to recover mouse position and modifier keys
+   * keys is a Xorg specified mask of modifier states
+   */
+  void GetMousePositionAndModifierKeysState(int* x, int* y, unsigned int* keys);
+
   void DispatchEvent(XEvent*);
 
 protected:
@@ -94,7 +102,6 @@ protected:
   static int NumAppInitialized;
 
   Display* DisplayId;
-  bool OwnDisplay = false;
   Window WindowId;
   Atom KillAtom;
   int PositionBeforeStereo[2];
@@ -135,6 +142,11 @@ protected:
    * Wait for new events
    */
   void WaitForEvents();
+
+  /**
+   * Check if a display connection is in use by any windows.
+   */
+  bool CheckDisplayId(Display* dpy);
 
   /**
    * Deallocate X resource that may have been allocated

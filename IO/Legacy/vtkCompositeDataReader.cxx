@@ -1,9 +1,14 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+
+// VTK_DEPRECATED_IN_9_5_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkCompositeDataReader.h"
 
 #include "vtkAMRBox.h"
 #include "vtkAMRInformation.h"
+#include "vtkDataAssembly.h"
 #include "vtkDataObjectTypes.h"
 #include "vtkDoubleArray.h"
 #include "vtkFieldData.h"
@@ -20,6 +25,7 @@
 #include "vtkPartitionedDataSet.h"
 #include "vtkPartitionedDataSetCollection.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringArray.h"
 #include "vtkUniformGrid.h"
 
 #include <sstream>
@@ -160,7 +166,6 @@ int vtkCompositeDataReader::ReadMeshSimple(const std::string& fname, vtkDataObje
 
   vtkMultiBlockDataSet* mb = vtkMultiBlockDataSet::SafeDownCast(output);
   vtkMultiPieceDataSet* mp = vtkMultiPieceDataSet::SafeDownCast(output);
-  vtkHierarchicalBoxDataSet* hb = vtkHierarchicalBoxDataSet::SafeDownCast(output);
   vtkOverlappingAMR* oamr = vtkOverlappingAMR::SafeDownCast(output);
   vtkNonOverlappingAMR* noamr = vtkNonOverlappingAMR::SafeDownCast(output);
   vtkPartitionedDataSet* pd = vtkPartitionedDataSet::SafeDownCast(output);
@@ -184,10 +189,6 @@ int vtkCompositeDataReader::ReadMeshSimple(const std::string& fname, vtkDataObje
   else if (mp)
   {
     this->ReadCompositeData(mp);
-  }
-  else if (hb)
-  {
-    this->ReadCompositeData(hb);
   }
   else if (oamr)
   {
@@ -287,9 +288,9 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkMultiBlockDataSet* mb)
 }
 
 //------------------------------------------------------------------------------
-bool vtkCompositeDataReader::ReadCompositeData(vtkHierarchicalBoxDataSet* hb)
+bool vtkCompositeDataReader::ReadCompositeData(vtkHierarchicalBoxDataSet* amr)
 {
-  (void)hb;
+  (void)amr;
   vtkErrorMacro("This isn't supported yet.");
   return false;
 }
@@ -459,9 +460,9 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkOverlappingAMR* oamr)
 }
 
 //------------------------------------------------------------------------------
-bool vtkCompositeDataReader::ReadCompositeData(vtkNonOverlappingAMR* hb)
+bool vtkCompositeDataReader::ReadCompositeData(vtkNonOverlappingAMR* amr)
 {
-  (void)hb;
+  (void)amr;
   vtkErrorMacro("This isn't supported yet.");
   return false;
 }
@@ -670,6 +671,37 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkPartitionedDataSetCollection* 
       // eat up the ENDCHILD marker.
       this->ReadString(line);
     }
+  }
+  if (!this->ReadString(line))
+  {
+    vtkErrorMacro("Failed to read DATAASSEMBLY");
+    return false;
+  }
+
+  if (strncmp(this->LowerCase(line), "dataassembly", strlen("dataassembly")) != 0)
+  {
+    vtkErrorMacro("Failed to read DATAASSEMBLY. Instead got " << line);
+    return false;
+  }
+
+  unsigned int hasDataAssembly = 0;
+  if (!this->Read(&hasDataAssembly))
+  {
+    vtkErrorMacro("Failed to read if it has DATAASSEMBLY.");
+    return false;
+  }
+  if (hasDataAssembly > 0)
+  {
+    auto dataAssemblyArray =
+      vtk::TakeSmartPointer(vtkStringArray::SafeDownCast(this->ReadArray("string", 1, 1)));
+    if (!dataAssemblyArray)
+    {
+      vtkErrorMacro("Failed to read the DATAASSEMBLY.");
+      return false;
+    }
+    vtkNew<vtkDataAssembly> dataAssembly;
+    dataAssembly->InitializeFromXML(dataAssemblyArray->GetValue(0).c_str());
+    mp->SetDataAssembly(dataAssembly);
   }
 
   return true;

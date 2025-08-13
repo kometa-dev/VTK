@@ -34,6 +34,7 @@
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkSmartPointer.h"        // For vtkSmartPointer
 #include "vtkWindow.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkFloatArray;
@@ -59,6 +60,7 @@ class vtkUnsignedCharArray;
 #define VTK_STEREO_SPLITVIEWPORT_HORIZONTAL 9
 #define VTK_STEREO_FAKE 10
 #define VTK_STEREO_EMULATE 11
+#define VTK_STEREO_ZSPACE_INSPIRE 12
 
 #define VTK_CURSOR_DEFAULT 0
 #define VTK_CURSOR_ARROW 1
@@ -73,7 +75,7 @@ class vtkUnsignedCharArray;
 #define VTK_CURSOR_CROSSHAIR 10
 #define VTK_CURSOR_CUSTOM 11
 
-class VTKRENDERINGCORE_EXPORT vtkRenderWindow : public vtkWindow
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkRenderWindow : public vtkWindow
 {
 public:
   vtkTypeMacro(vtkRenderWindow, vtkWindow);
@@ -151,7 +153,21 @@ public:
   /**
    * Update the system, if needed, at end of render process
    */
-  virtual void End(){};
+  virtual void End() {}
+
+  /**
+   * Initializes the rendering process.
+   * The responsibility to set the Initialized boolean to true is
+   * left to the subclass.
+   */
+  virtual void Initialize() {}
+
+  ///@{
+  /**
+   * Get/set whether or not the window has been initialized yet.
+   */
+  vtkGetMacro(Initialized, bool);
+  ///@}
 
   /**
    * Finalize the rendering process.
@@ -234,60 +250,22 @@ public:
 
   ///@{
   /**
+   * Set/Get whether windows should be coverable (as opposed to always on
+   * top).
+   */
+  vtkGetMacro(Coverable, vtkTypeBool);
+  vtkBooleanMacro(Coverable, vtkTypeBool);
+  virtual void SetCoverable(vtkTypeBool coverable);
+  ///@}
+
+  ///@{
+  /**
    * Prescribe that the window be created in a stereo-capable mode. This
    * method must be called before the window is realized. Default is off.
    */
   vtkGetMacro(StereoCapableWindow, vtkTypeBool);
   vtkBooleanMacro(StereoCapableWindow, vtkTypeBool);
   virtual void SetStereoCapableWindow(vtkTypeBool capable);
-  ///@}
-
-  ///@{
-  /**
-   * Turn on/off stereo rendering.
-   */
-  vtkGetMacro(StereoRender, vtkTypeBool);
-  void SetStereoRender(vtkTypeBool stereo);
-  vtkBooleanMacro(StereoRender, vtkTypeBool);
-  ///@}
-
-  ///@{
-  /**
-   * Turn on/off the use of alpha bitplanes.
-   */
-  vtkSetMacro(AlphaBitPlanes, vtkTypeBool);
-  vtkGetMacro(AlphaBitPlanes, vtkTypeBool);
-  vtkBooleanMacro(AlphaBitPlanes, vtkTypeBool);
-  ///@}
-
-  ///@{
-  /**
-   * Turn on/off point smoothing. Default is off.
-   * This must be applied before the first Render.
-   */
-  vtkSetMacro(PointSmoothing, vtkTypeBool);
-  vtkGetMacro(PointSmoothing, vtkTypeBool);
-  vtkBooleanMacro(PointSmoothing, vtkTypeBool);
-  ///@}
-
-  ///@{
-  /**
-   * Turn on/off line smoothing. Default is off.
-   * This must be applied before the first Render.
-   */
-  vtkSetMacro(LineSmoothing, vtkTypeBool);
-  vtkGetMacro(LineSmoothing, vtkTypeBool);
-  vtkBooleanMacro(LineSmoothing, vtkTypeBool);
-  ///@}
-
-  ///@{
-  /**
-   * Turn on/off polygon smoothing. Default is off.
-   * This must be applied before the first Render.
-   */
-  vtkSetMacro(PolygonSmoothing, vtkTypeBool);
-  vtkGetMacro(PolygonSmoothing, vtkTypeBool);
-  vtkBooleanMacro(PolygonSmoothing, vtkTypeBool);
   ///@}
 
   ///@{
@@ -336,6 +314,54 @@ public:
    */
   const char* GetStereoTypeAsString();
   static const char* GetStereoTypeAsString(int type);
+  ///@}
+
+  ///@{
+  /**
+   * Turn on/off stereo rendering.
+   */
+  vtkGetMacro(StereoRender, vtkTypeBool);
+  void SetStereoRender(vtkTypeBool stereo);
+  vtkBooleanMacro(StereoRender, vtkTypeBool);
+  ///@}
+
+  ///@{
+  /**
+   * Turn on/off the use of alpha bitplanes.
+   */
+  vtkSetMacro(AlphaBitPlanes, vtkTypeBool);
+  vtkGetMacro(AlphaBitPlanes, vtkTypeBool);
+  vtkBooleanMacro(AlphaBitPlanes, vtkTypeBool);
+  ///@}
+
+  ///@{
+  /**
+   * Turn on/off point smoothing. Default is off.
+   * This must be applied before the first Render.
+   */
+  vtkSetMacro(PointSmoothing, vtkTypeBool);
+  vtkGetMacro(PointSmoothing, vtkTypeBool);
+  vtkBooleanMacro(PointSmoothing, vtkTypeBool);
+  ///@}
+
+  ///@{
+  /**
+   * Turn on/off line smoothing. Default is off.
+   * This must be applied before the first Render.
+   */
+  vtkSetMacro(LineSmoothing, vtkTypeBool);
+  vtkGetMacro(LineSmoothing, vtkTypeBool);
+  vtkBooleanMacro(LineSmoothing, vtkTypeBool);
+  ///@}
+
+  ///@{
+  /**
+   * Turn on/off polygon smoothing. Default is off.
+   * This must be applied before the first Render.
+   */
+  vtkSetMacro(PolygonSmoothing, vtkTypeBool);
+  vtkGetMacro(PolygonSmoothing, vtkTypeBool);
+  vtkBooleanMacro(PolygonSmoothing, vtkTypeBool);
   ///@}
 
   /**
@@ -504,7 +530,7 @@ public:
   }
   float GetZbufferDataAtPoint(int x, int y)
   {
-    float value;
+    float value = 1.0f;
     this->GetZbufferData(x, y, x, y, &value);
     return value;
   }
@@ -670,6 +696,7 @@ public:
   /**
    * Set / Get the number of multisamples to use for hardware antialiasing.
    * A value of 1 will be set to 0.
+   * Related to OpenGL parameter GL_MAX_SAMPLES.
    */
   virtual void SetMultiSamples(int);
   vtkGetMacro(MultiSamples, int);
@@ -710,11 +737,80 @@ public:
   vtkBooleanMacro(UseSRGBColorSpace, bool);
   ///@}
 
+  enum
+  {
+    PhysicalToWorldMatrixModified = vtkCommand::UserEvent + 200
+  };
+
+  ///@{
   /**
-   * Get physical to world transform matrix. Some subclasses may define a
-   * Physical coordinate system such as in VR. This method provides access
-   * to the matrix mapping that space to world coordinates.
+   * Set/get physical coordinate system in world coordinate system.
+   *
+   * View direction is the -Z axis of the physical coordinate system
+   * in world coordinate system.
+   * \sa SetPhysicalViewUp, \sa SetPhysicalTranslation,
+   * \sa SetPhysicalScale, \sa SetPhysicalToWorldMatrix
    */
+  virtual void SetPhysicalViewDirection(double, double, double);
+  virtual void SetPhysicalViewDirection(double[3]);
+  vtkGetVector3Macro(PhysicalViewDirection, double);
+  ///@}
+
+  ///@{
+  /**
+   * Set/get physical coordinate system in world coordinate system.
+   *
+   * View up is the +Y axis of the physical coordinate system
+   * in world coordinate system.
+   * \sa SetPhysicalViewDirection, \sa SetPhysicalTranslation,
+   * \sa SetPhysicalScale, \sa SetPhysicalToWorldMatrix
+   */
+  virtual void SetPhysicalViewUp(double, double, double);
+  virtual void SetPhysicalViewUp(double[3]);
+  vtkGetVector3Macro(PhysicalViewUp, double);
+  ///@}
+
+  ///@{
+  /**
+   * Set/get physical coordinate system in world coordinate system.
+   *
+   * Position of the physical coordinate system origin
+   * in world coordinates.
+   * \sa SetPhysicalViewDirection, \sa SetPhysicalViewUp,
+   * \sa SetPhysicalScale, \sa SetPhysicalToWorldMatrix
+   */
+  virtual void SetPhysicalTranslation(double, double, double);
+  virtual void SetPhysicalTranslation(double[3]);
+  vtkGetVector3Macro(PhysicalTranslation, double);
+  ///@}
+
+  ///@{
+  /**
+   * Set/get physical coordinate system in world coordinate system.
+   *
+   * Ratio of distance in world coordinate and physical and system
+   * (PhysicalScale = distance_World / distance_Physical).
+   * Example: if world coordinate system is in mm then
+   * PhysicalScale = 1000.0 makes objects appear in real size.
+   * PhysicalScale = 100.0 makes objects appear 10x larger than real size.
+   */
+  virtual void SetPhysicalScale(double);
+  vtkGetMacro(PhysicalScale, double);
+  ///@}
+
+  /**
+   * Set physical to world transform matrix. Members calculated and set from the matrix:
+   * \sa PhysicalViewDirection, \sa PhysicalViewUp, \sa PhysicalTranslation, \sa PhysicalScale
+   * The x axis scale is used for \sa PhysicalScale
+   */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
+  virtual void SetPhysicalToWorldMatrix(vtkMatrix4x4* matrix);
+
+  /**
+   * Get physical to world transform matrix. Members used to calculate the matrix:
+   * \sa PhysicalViewDirection, \sa PhysicalViewUp, \sa PhysicalTranslation, \sa PhysicalScale
+   */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   virtual void GetPhysicalToWorldMatrix(vtkMatrix4x4* matrix);
 
   /**
@@ -726,6 +822,18 @@ public:
   virtual bool GetDeviceToWorldMatrixForDevice(
     vtkEventDataDevice device, vtkMatrix4x4* deviceToWorldMatrix);
 
+  ///@{
+  /**
+   * Set/Get if we want this window to use a translucent surface with alpha channel support.
+   * Note that some implementations do not support this.
+   * Must be set before window initialization.
+   * Default is false.
+   */
+  vtkGetMacro(EnableTranslucentSurface, bool);
+  vtkSetMacro(EnableTranslucentSurface, bool);
+  vtkBooleanMacro(EnableTranslucentSurface, bool);
+  ///@}
+
 protected:
   vtkRenderWindow();
   ~vtkRenderWindow() override;
@@ -735,6 +843,7 @@ protected:
   vtkRendererCollection* Renderers;
   vtkNew<vtkRenderTimerLog> RenderTimer;
   vtkTypeBool Borders;
+  vtkTypeBool Coverable;
   vtkTypeBool FullScreen;
   int OldScreen[5];
   vtkTypeBool PointSmoothing;
@@ -771,6 +880,19 @@ protected:
   double AbortCheckTime;
 
   vtkRenderWindow* SharedRenderWindow;
+
+  // -Z axis of the Physical to World matrix
+  double PhysicalViewDirection[3] = { 0.0, 0.0, -1.0 };
+  // Y axis of the Physical to World matrix
+  double PhysicalViewUp[3] = { 0.0, 1.0, 0.0 };
+  // Inverse of the translation component of the Physical to World matrix, in mm
+  double PhysicalTranslation[3] = { 0.0, 0.0, 0.0 };
+  // Scale of the Physical to World matrix
+  double PhysicalScale = 1.0;
+
+  bool EnableTranslucentSurface = false;
+
+  bool Initialized = false;
 
 private:
   vtkRenderWindow(const vtkRenderWindow&) = delete;

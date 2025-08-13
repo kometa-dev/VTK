@@ -44,7 +44,6 @@
 #include "vtkTooltipItem.h"
 #include "vtkTransform2D.h"
 #include "vtkVector.h"
-#include "vtkVectorOperators.h"
 
 // My STL containers
 #include <algorithm>
@@ -2854,7 +2853,7 @@ void vtkChartXY::BuildSelection(
       {
         selection.insert(pair);
       }
-      // Remove selection not affecting old selected blocks because we're substracting
+      // Remove selection not affecting old selected blocks because we're subtracting
       std::set_difference(selection.begin(), selection.end(), oldSelection.begin(),
         oldSelection.end(), std::inserter(uniqueSelection, uniqueSelection.begin()), compKey);
       for (const auto& pair : uniqueSelection)

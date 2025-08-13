@@ -21,19 +21,23 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataSet.h"
+#include "vtkSmartPointer.h"  // For vtkSmartPointer ivars
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include "vtkStructuredData.h" // Needed for inline methods
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
+class vtkStructuredCellArray;
 class vtkLine;
 class vtkMatrix3x3;
 class vtkMatrix4x4;
 class vtkPixel;
+class vtkPoints;
 class vtkVertex;
 class vtkVoxel;
 
-class VTKCOMMONDATAMODEL_EXPORT vtkImageData : public vtkDataSet
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkImageData : public vtkDataSet
 {
 public:
   static vtkImageData* New();
@@ -49,9 +53,14 @@ public:
   void CopyStructure(vtkDataSet* ds) override;
 
   /**
+   * Restore object to initial state. Release memory back to system.
+   */
+  void Initialize() override;
+
+  /**
    * Return what type of dataset this is.
    */
-  int GetDataObjectType() override { return VTK_IMAGE_DATA; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_IMAGE_DATA; }
 
   ///@{
   /**
@@ -63,16 +72,14 @@ public:
    */
   vtkIdType GetNumberOfCells() override;
   vtkIdType GetNumberOfPoints() override;
+  vtkPoints* GetPoints() override;
   double* GetPoint(vtkIdType ptId) VTK_SIZEHINT(3) override;
   void GetPoint(vtkIdType id, double x[3]) override;
   vtkCell* GetCell(vtkIdType cellId) override;
   vtkCell* GetCell(int i, int j, int k) override;
   void GetCell(vtkIdType cellId, vtkGenericCell* cell) override;
   void GetCellBounds(vtkIdType cellId, double bounds[6]) override;
-  virtual vtkIdType FindPoint(double x, double y, double z)
-  {
-    return this->vtkDataSet::FindPoint(x, y, z);
-  }
+  using vtkDataSet::FindPoint;
   vtkIdType FindPoint(double x[3]) override;
   vtkIdType FindCell(double x[3], vtkCell* cell, vtkIdType cellId, double tol2, int& subId,
     double pcoords[3], double* weights) override;
@@ -82,13 +89,9 @@ public:
     double pcoords[3], double* weights) override;
   int GetCellType(vtkIdType cellId) override;
   vtkIdType GetCellSize(vtkIdType cellId) override;
-  using vtkDataSet::GetCellPoints;
-  void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override
-  {
-    int dimensions[3];
-    this->GetDimensions(dimensions);
-    vtkStructuredData::GetCellPoints(cellId, ptIds, this->DataDescription, dimensions);
-  }
+  void GetCellPoints(vtkIdType cellId, vtkIdType& npts, vtkIdType const*& pts, vtkIdList* ptIds)
+    VTK_SIZEHINT(pts, npts) override;
+  void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override;
   void GetPointCells(vtkIdType ptId, vtkIdList* cellIds) override
   {
     int dimensions[3];
@@ -97,8 +100,25 @@ public:
   }
   void ComputeBounds() override;
   int GetMaxCellSize() override { return 8; } // voxel is the largest
+  int GetMaxSpatialDimension() override;
+  int GetMinSpatialDimension() override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   ///@}
+
+  /**
+   * Return the image data connectivity array.
+   *
+   * NOTE: the returned object should not be modified.
+   */
+  vtkStructuredCellArray* GetCells();
+
+  /**
+   * Get the array of all cell types in the image data. Each single-component
+   * integer value is the same. The array is of size GetNumberOfCells().
+   *
+   * NOTE: the returned object should not be modified.
+   */
+  vtkConstantArray<int>* GetCellTypesArray();
 
   /**
    * Get cell neighbors around cell located at `seedloc`, except cell of id `cellId`.
@@ -109,10 +129,31 @@ public:
    */
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds, int* seedLoc);
 
+  ///@{
   /**
-   * Restore data object to initial state.
+   * Methods for supporting blanking of cells. Blanking turns on or off
+   * points in the structured grid, and hence the cells connected to them.
+   * These methods should be called only after the dimensions of the
+   * grid are set.
    */
-  void Initialize() override;
+  virtual void BlankPoint(vtkIdType ptId);
+  virtual void UnBlankPoint(vtkIdType ptId);
+  virtual void BlankPoint(int i, int j, int k);
+  virtual void UnBlankPoint(int i, int j, int k);
+  ///@}
+
+  ///@{
+  /**
+   * Methods for supporting blanking of cells. Blanking turns on or off
+   * cells in the structured grid.
+   * These methods should be called only after the dimensions of the
+   * grid are set.
+   */
+  virtual void BlankCell(vtkIdType ptId);
+  virtual void UnBlankCell(vtkIdType ptId);
+  virtual void BlankCell(int i, int j, int k);
+  virtual void UnBlankCell(int i, int j, int k);
+  ///@}
 
   /**
    * Return non-zero value if specified point is visible.
@@ -133,11 +174,17 @@ public:
    * 0 otherwise.
    */
   bool HasAnyBlankPoints() override;
+
   /**
    * Returns 1 if there is any visibility constraint on the cells,
    * 0 otherwise.
    */
   bool HasAnyBlankCells() override;
+
+  /**
+   * Get the data description of the image data.
+   */
+  vtkGetMacro(DataDescription, int);
 
   /**
    * Given the node dimensions of this grid instance, this method computes the
@@ -176,13 +223,18 @@ public:
   virtual void GetDimensions(vtkIdType dims[3]);
 #endif
 
+  ///@{
   /**
    * Convenience function computes the structured coordinates for a point x[3].
    * The voxel is specified by the array ijk[3], and the parametric coordinates
    * in the cell are specified with pcoords[3]. The function returns a 0 if the
-   * point x is outside of the volume, and a 1 if inside the volume.
+   * point x is outside of the volume, and a 1 if inside the volume, using squared tolerance tol2
+   * (1e-12 if not provided).
    */
   virtual int ComputeStructuredCoordinates(const double x[3], int ijk[3], double pcoords[3]);
+  virtual int ComputeStructuredCoordinates(
+    const double x[3], int ijk[3], double pcoords[3], double tol2);
+  ///@}
 
   /**
    * Given structured coordinates (i,j,k) for a voxel cell, compute the eight
@@ -438,6 +490,19 @@ public:
 
   ///@{
   /**
+   * Set the transformation matrix from the index space to the physical space
+   * coordinate system of the dataset. The transform is a 4 by 4 matrix.
+   * The supplied matrix pointer is not stored in the the image object but the matrix
+   * values are used for updating the Origin, Spacing, and DirectionMatrix.
+   * \sa SetOrigin
+   * \sa SetSpacing
+   * \sa SetDirectionMatrix
+   */
+  void ApplyIndexToPhysicalMatrix(vtkMatrix4x4* source);
+  ///@}
+
+  ///@{
+  /**
    * Convert coordinates from index space (ijk) to physical space (xyz).
    */
   virtual void TransformContinuousIndexToPhysicalPoint(double i, double j, double k, double xyz[3]);
@@ -458,14 +523,24 @@ public:
 
   ///@{
   /**
+   * Get the transformation matrix from the physical space to the index space
+   * coordinate system of the dataset. The transform is a 4 by 4 matrix.
+   * The supplied matrix pointer is not stored in the the image object but the matrix
+   * values are used for updating the Origin, Spacing, and DirectionMatrix.
+   * \sa SetOrigin
+   * \sa SetSpacing
+   * \sa SetDirectionMatrix
+   */
+  void ApplyPhysicalToIndexMatrix(vtkMatrix4x4* source);
+  ///@}
+
+  ///@{
+  /**
    * Convert coordinates from physical space (xyz) to index space (ijk).
    */
   virtual void TransformPhysicalPointToContinuousIndex(double x, double y, double z, double ijk[3]);
   virtual void TransformPhysicalPointToContinuousIndex(const double xyz[3], double ijk[3]);
   ///@}
-
-  static void ComputeIndexToPhysicalMatrix(
-    double const origin[3], double const spacing[3], double const direction[9], double result[16]);
 
   ///@{
   /**
@@ -479,6 +554,21 @@ public:
    * n(x-xo)=0; or using a four component normal: pplane=( nx,ny,nz,-(n(x0)) ).
    */
   virtual void TransformPhysicalPlaneToContinuousIndex(double const pplane[4], double iplane[4]);
+
+  ///@{
+  /**
+   * Static method to compute the IndexToPhysicalMatrix.
+   */
+  static void ComputeIndexToPhysicalMatrix(
+    double const origin[3], double const spacing[3], double const direction[9], double result[16]);
+
+  ///@{
+  /**
+   * Static method to compute the PhysicalToIndexMatrix.
+   */
+  static void ComputePhysicalToIndexMatrix(
+    double const origin[3], double const spacing[3], double const direction[9], double result[16]);
+  ///@}
 
   static void SetScalarType(int, vtkInformation* meta_data);
   static int GetScalarType(vtkInformation* meta_data);
@@ -568,7 +658,7 @@ public:
   /**
    * The extent type is a 3D extent
    */
-  int GetExtentType() override { return VTK_3D_EXTENT; }
+  int GetExtentType() VTK_FUTURE_CONST override { return VTK_3D_EXTENT; }
 
   ///@{
   /**
@@ -597,6 +687,10 @@ protected:
 
   int Extent[6];
 
+  vtkSmartPointer<vtkPoints> StructuredPoints;
+  vtkSmartPointer<vtkStructuredCellArray> StructuredCells;
+  vtkSmartPointer<vtkConstantArray<int>> StructuredCellTypes;
+
   // The first method assumes Active Scalars
   void ComputeIncrements();
   // This one is given the number of components of the
@@ -604,7 +698,7 @@ protected:
   void ComputeIncrements(int numberOfComponents);
   void ComputeIncrements(vtkDataArray* scalars);
 
-  // The first method assumes Acitive Scalars
+  // The first method assumes Active Scalars
   void ComputeIncrements(vtkIdType inc[3]);
   // This one is given the number of components of the
   // scalar field explicitly
@@ -614,33 +708,21 @@ protected:
   // for the index to physical methods
   void ComputeTransforms();
 
-  // Cell utilities
-  vtkCell* GetCellTemplateForDataDescription();
-  bool GetCellTemplateForDataDescription(vtkGenericCell* cell);
-  bool GetIJKMinForCellId(vtkIdType cellId, int ijkMin[3]);
-  bool GetIJKMaxForIJKMin(int ijkMin[3], int ijkMax[3]);
-  void AddPointsToCellTemplate(vtkCell* cell, int ijkMin[3], int ijkMax[3]);
-
-  vtkTimeStamp ExtentComputeTime;
-
-  void SetDataDescription(int desc);
-  int GetDataDescription() { return this->DataDescription; }
+  void BuildImplicitStructures();
+  void BuildPoints();
+  void BuildCells();
+  void BuildCellTypes();
 
 private:
   void InternalImageDataCopy(vtkImageData* src);
 
   friend class vtkUniformGrid;
 
-  // for the GetCell method
-  vtkVertex* Vertex;
-  vtkLine* Line;
-  vtkPixel* Pixel;
-  vtkVoxel* Voxel;
-
   // for the GetPoint method
   double Point[3];
 
   int DataDescription;
+  bool DirectionMatrixIsIdentity;
 
   vtkImageData(const vtkImageData&) = delete;
   void operator=(const vtkImageData&) = delete;
@@ -674,13 +756,13 @@ inline double* vtkImageData::GetPoint(vtkIdType id)
 //----------------------------------------------------------------------------
 inline vtkIdType vtkImageData::GetNumberOfPoints()
 {
-  const int* extent = this->Extent;
-  vtkIdType dims[3];
-  dims[0] = extent[1] - extent[0] + 1;
-  dims[1] = extent[3] - extent[2] + 1;
-  dims[2] = extent[5] - extent[4] + 1;
+  return vtkStructuredData::GetNumberOfPoints(this->Extent);
+}
 
-  return dims[0] * dims[1] * dims[2];
+//----------------------------------------------------------------------------
+inline vtkIdType vtkImageData::GetNumberOfCells()
+{
+  return vtkStructuredData::GetNumberOfCells(this->Extent);
 }
 
 //----------------------------------------------------------------------------
@@ -689,5 +771,16 @@ inline int vtkImageData::GetDataDimension()
   return vtkStructuredData::GetDataDimension(this->DataDescription);
 }
 
+//----------------------------------------------------------------------------
+inline int vtkImageData::GetMaxSpatialDimension()
+{
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
+
+//----------------------------------------------------------------------------
+inline int vtkImageData::GetMinSpatialDimension()
+{
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
 VTK_ABI_NAMESPACE_END
 #endif
