@@ -105,7 +105,7 @@ void vtkGLSLModCoincidentTopology::GetCoincidentParameters(
   if (vtkMapper::GetResolveCoincidentTopology() == VTK_RESOLVE_SHIFT_ZBUFFER)
   {
     // do something rough is better than nothing
-    double zRes = vtkMapper::GetResolveCoincidentTopologyZShift(); // 0 is no shift 1 is big shift
+    double zRes = vtkMapper::GetGlobalResolveCoincidentTopologyZShift(); // 0 is no shift 1 is big shift
     double f = zRes * 4.0;
     offset = f;
   }
