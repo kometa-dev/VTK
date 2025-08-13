@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIVExporter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkIVExporter.h"
 
 #include "vtkAssemblyNode.h"
@@ -35,6 +23,7 @@
 #include "vtkUnsignedCharArray.h"
 #include <vtksys/SystemTools.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkIVExporter);
 
 vtkIVExporter::vtkIVExporter()
@@ -50,17 +39,19 @@ vtkIVExporter::~vtkIVExporter()
 static char indent[256];
 static int indent_now = 0;
 #define VTK_INDENT_MORE                                                                            \
+  do                                                                                               \
   {                                                                                                \
     indent[indent_now] = ' ';                                                                      \
     indent_now += 4;                                                                               \
     indent[indent_now] = 0;                                                                        \
-  }
+  } while (false)
 #define VTK_INDENT_LESS                                                                            \
+  do                                                                                               \
   {                                                                                                \
     indent[indent_now] = ' ';                                                                      \
     indent_now -= 4;                                                                               \
     indent[indent_now] = 0;                                                                        \
-  }
+  } while (false)
 
 void vtkIVExporter::WriteData()
 {
@@ -337,7 +328,7 @@ void vtkIVExporter::WriteAnActor(vtkActor* anActor, FILE* fp)
     tempd[2] * tempf2);
   fprintf(fp, "%sshininess %g\n", indent, prop->GetSpecularPower() / 128.0);
   fprintf(fp, "%stransparency %g\n", indent, 1.0 - prop->GetOpacity());
-  fprintf(fp, "%s}\n", indent); // close matrial
+  fprintf(fp, "%s}\n", indent); // close material
   VTK_INDENT_LESS;
 
   // is there a texture map
@@ -708,3 +699,4 @@ void vtkIVExporter::PrintSelf(ostream& os, vtkIndent ind)
     os << ind << "FileName: (null)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

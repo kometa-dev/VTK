@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVRCamera
  * @brief   VR camera
@@ -22,11 +11,12 @@
 #ifndef vtkVRCamera_h
 #define vtkVRCamera_h
 
-#include "vtkDeprecation.h" // for old method sig
+#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_2_0
 #include "vtkNew.h"         // for iavr
 #include "vtkOpenGLCamera.h"
 #include "vtkRenderingVRModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMatrix4x4;
 class vtkVRRenderWindow;
 
@@ -98,4 +88,6 @@ private:
   void operator=(const vtkVRCamera&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
+/* VTK-HeaderTest-Exclude: vtkVRCamera.h */

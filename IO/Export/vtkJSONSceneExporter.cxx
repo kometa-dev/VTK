@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   VisualizationJSONlkit
-  Module:    vtkJSONSceneExporter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkJSONSceneExporter.h"
 
 #include "vtkAbstractVolumeMapper.h"
@@ -55,6 +43,7 @@
 #include <sstream>
 #include <string>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkJSONSceneExporter);
 
 //------------------------------------------------------------------------------
@@ -667,8 +656,7 @@ void vtkJSONSceneExporter::WriteData()
   size_t nbLuts = this->LookupTables.size();
   for (auto const& lut : this->LookupTables)
   {
-    sceneJsonFile << "    \"" << lut.first.c_str() << "\": " << lut.second.c_str()
-                  << (--nbLuts ? "," : "") << "\n";
+    sceneJsonFile << "    \"" << lut.first << "\": " << lut.second << (--nbLuts ? "," : "") << "\n";
   }
 
   sceneJsonFile << "  }\n"
@@ -680,7 +668,7 @@ void vtkJSONSceneExporter::WriteData()
 
   vtksys::ofstream file;
   file.open(scenePath.str().c_str(), ios::out);
-  file << sceneJsonFile.str().c_str();
+  file << sceneJsonFile.str();
   file.close();
 
   if (vtksys::SystemTools::FileExists(this->FileName))
@@ -712,7 +700,7 @@ size_t getFileSize(const std::string& path)
   int res = vtksys::SystemTools::Stat(path, &stat_buf);
   if (res < 0)
   {
-    std::cerr << "Failed to get size of file " << path.c_str() << std::endl;
+    std::cerr << "Failed to get size of file " << path << std::endl;
     return 0;
   }
 
@@ -1051,3 +1039,4 @@ void vtkJSONSceneExporter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

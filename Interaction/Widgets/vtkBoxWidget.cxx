@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBoxWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkBoxWidget.h"
 
 #include "vtkActor.h"
@@ -35,6 +23,7 @@
 #include "vtkSphereSource.h"
 #include "vtkTransform.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBoxWidget);
 
 vtkBoxWidget::vtkBoxWidget()
@@ -420,9 +409,12 @@ void vtkBoxWidget::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 #define VTK_AVERAGE(a, b, c)                                                                       \
-  c[0] = (a[0] + b[0]) / 2.0;                                                                      \
-  c[1] = (a[1] + b[1]) / 2.0;                                                                      \
-  c[2] = (a[2] + b[2]) / 2.0;
+  do                                                                                               \
+  {                                                                                                \
+    c[0] = (a[0] + b[0]) / 2.0;                                                                    \
+    c[1] = (a[1] + b[1]) / 2.0;                                                                    \
+    c[2] = (a[2] + b[2]) / 2.0;                                                                    \
+  } while (false)
 
 void vtkBoxWidget::PositionHandles()
 {
@@ -1470,3 +1462,4 @@ void vtkBoxWidget::RegisterPickers()
   pm->AddPicker(this->HandlePicker, this);
   pm->AddPicker(this->HexPicker, this);
 }
+VTK_ABI_NAMESPACE_END

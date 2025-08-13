@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPKdTree.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPKdTree.h"
 #include "vtkCellCenters.h"
@@ -39,6 +24,7 @@
 #include <cassert>
 #include <queue>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 class TimeLog // Similar to vtkTimerLogScope, but can be disabled at runtime.
@@ -102,26 +88,31 @@ const int vtkPKdTree::UserDefinedAssignment = 2;
 const int vtkPKdTree::RoundRobinAssignment = 3;
 
 #define FreeList(list)                                                                             \
-  if (list)                                                                                        \
+  do                                                                                               \
   {                                                                                                \
     delete[] list;                                                                                 \
     list = nullptr;                                                                                \
-  }
+  } while (false)
 #define FreeObject(item)                                                                           \
-  if (item)                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    item->Delete();                                                                                \
-    item = nullptr;                                                                                \
-  }
+    if (item)                                                                                      \
+    {                                                                                              \
+      item->Delete();                                                                              \
+      item = nullptr;                                                                              \
+    }                                                                                              \
+  } while (false)
 
 #define VTKERROR(s)                                                                                \
+  do                                                                                               \
   {                                                                                                \
     vtkErrorMacro(<< "(process " << this->MyId << ") " << s);                                      \
-  }
+  } while (false)
 #define VTKWARNING(s)                                                                              \
+  do                                                                                               \
   {                                                                                                \
     vtkWarningMacro(<< "(process " << this->MyId << ") " << s);                                    \
-  }
+  } while (false)
 
 vtkPKdTree::vtkPKdTree()
 {
@@ -287,6 +278,7 @@ void vtkPKdTree::AllCheckParameters()
 }
 
 #define BoundsToMinMax(bounds, min, max)                                                           \
+  do                                                                                               \
   {                                                                                                \
     min[0] = bounds[0];                                                                            \
     min[1] = bounds[2];                                                                            \
@@ -294,8 +286,9 @@ void vtkPKdTree::AllCheckParameters()
     max[0] = bounds[1];                                                                            \
     max[1] = bounds[3];                                                                            \
     max[2] = bounds[5];                                                                            \
-  }
+  } while (false)
 #define MinMaxToBounds(bounds, min, max)                                                           \
+  do                                                                                               \
   {                                                                                                \
     bounds[0] = min[0];                                                                            \
     bounds[2] = min[1];                                                                            \
@@ -303,8 +296,9 @@ void vtkPKdTree::AllCheckParameters()
     bounds[1] = max[0];                                                                            \
     bounds[3] = max[1];                                                                            \
     bounds[5] = max[2];                                                                            \
-  }
+  } while (false)
 #define BoundsToMinMaxUpdate(bounds, min, max)                                                     \
+  do                                                                                               \
   {                                                                                                \
     min[0] = (bounds[0] < min[0] ? bounds[0] : min[0]);                                            \
     min[1] = (bounds[2] < min[1] ? bounds[2] : min[1]);                                            \
@@ -312,7 +306,7 @@ void vtkPKdTree::AllCheckParameters()
     max[0] = (bounds[1] > max[0] ? bounds[1] : max[0]);                                            \
     max[1] = (bounds[3] > max[1] ? bounds[3] : max[1]);                                            \
     max[2] = (bounds[5] > max[2] ? bounds[5] : max[2]);                                            \
-  }
+  } while (false)
 
 bool vtkPKdTree::VolumeBounds(double* volBounds)
 {
@@ -617,6 +611,7 @@ typedef struct vtkNodeInfo_
 } * vtkNodeInfo;
 
 #define ENQUEUE(a, b, c, d)                                                                        \
+  do                                                                                               \
   {                                                                                                \
     vtkNodeInfo rec = new struct vtkNodeInfo_;                                                     \
     rec->kd = a;                                                                                   \
@@ -624,7 +619,7 @@ typedef struct vtkNodeInfo_
     rec->level = c;                                                                                \
     rec->tag = d;                                                                                  \
     Queue.push(rec);                                                                               \
-  }
+  } while (false)
 
 int vtkPKdTree::BreadthFirstDivide(double* volBounds)
 {
@@ -1184,8 +1179,8 @@ int* vtkPKdTree::PartitionSubArray(int L, int R, int K, int dim, int p1, int p2)
 
   if ((me < p1) || (me > p2))
   {
-    this->SubGroup->Broadcast(&this->SelectBuffer[0], 2, rootrank);
-    return &this->SelectBuffer[0];
+    this->SubGroup->Broadcast(this->SelectBuffer.data(), 2, rootrank);
+    return this->SelectBuffer.data();
   }
 
   if (p1 == p2)
@@ -1256,7 +1251,7 @@ int* vtkPKdTree::PartitionSubArray(int L, int R, int K, int dim, int p1, int p2)
 
   int nprocs = p2 - p1 + 1;
 
-  int* buf = &this->SelectBuffer[0];
+  int* buf = this->SelectBuffer.data();
 
   int* left = buf;
   buf += nprocs; // global index of my leftmost
@@ -1450,9 +1445,9 @@ int* vtkPKdTree::PartitionSubArray(int L, int R, int K, int dim, int p1, int p2)
 
   rootrank = this->SubGroup->getLocalRank(p1);
 
-  this->SubGroup->Broadcast(&this->SelectBuffer[0], 2, rootrank);
+  this->SubGroup->Broadcast(this->SelectBuffer.data(), 2, rootrank);
 
-  return &this->SelectBuffer[0];
+  return this->SelectBuffer.data();
 }
 
 // This routine partitions the array from element L through element
@@ -1472,7 +1467,7 @@ int* vtkPKdTree::PartitionSubArray(int L, int R, int K, int dim, int p1, int p2)
 int* vtkPKdTree::PartitionAboutOtherValue(int L, int R, float T, int dim)
 {
   float *Ipt, *Jpt, Lval, Rval;
-  int* vals = &this->SelectBuffer[0];
+  int* vals = this->SelectBuffer.data();
   int numTValues = 0;
   int numGreater = 0;
   int numLess = 0;
@@ -1688,7 +1683,7 @@ int* vtkPKdTree::PartitionAboutMyValue(int L, int R, int K, int dim)
   float T;
   int I, J;
   int manyTValues = 0;
-  int* vals = &this->SelectBuffer[0];
+  int* vals = this->SelectBuffer.data();
 
   // Set up so after first exchange in the loop, we have either
   //   X[L] = T and X[R] >= T
@@ -1959,11 +1954,11 @@ int vtkPKdTree::CompleteTree()
 
 #ifdef YIELDS_INCONSISTENT_REGION_BOUNDARIES
 
-  this->RetrieveData(this->Top, &buf[0]);
+  this->RetrieveData(this->Top, buf.data());
 
 #else
 
-  this->ReduceData(this->Top, &buf[0]);
+  this->ReduceData(this->Top, buf.data());
 
   if (this->MyId == 0)
   {
@@ -2327,33 +2322,6 @@ void vtkPKdTree::FreeSelectBuffer()
   this->SelectBuffer.clear();
 }
 
-#define FreeListOfLists(list, len)                                                                 \
-  {                                                                                                \
-    int i;                                                                                         \
-    if (list)                                                                                      \
-    {                                                                                              \
-      for (i = 0; i < (len); i++)                                                                  \
-      {                                                                                            \
-        if (list[i])                                                                               \
-          delete[] list[i];                                                                        \
-      }                                                                                            \
-      delete[] list;                                                                               \
-      list = nullptr;                                                                              \
-    }                                                                                              \
-  }
-
-#define MakeList(field, type, len)                                                                 \
-  {                                                                                                \
-    if ((len) > 0)                                                                                 \
-    {                                                                                              \
-      field = new type[len];                                                                       \
-      if (field)                                                                                   \
-      {                                                                                            \
-        memset(field, 0, (len) * sizeof(type));                                                    \
-      }                                                                                            \
-    }                                                                                              \
-  }
-
 // global index lists -----------------------------------------------
 
 void vtkPKdTree::InitializeGlobalIndexLists()
@@ -2385,9 +2353,9 @@ int vtkPKdTree::BuildGlobalIndexLists(vtkIdType numMyCells)
 
   this->AllocateAndZeroGlobalIndexLists();
 
-  this->SubGroup->Gather(&numMyCells, &this->NumCells[0], 1, 0);
+  this->SubGroup->Gather(&numMyCells, this->NumCells.data(), 1, 0);
 
-  this->SubGroup->Broadcast(&this->NumCells[0], this->NumProcesses, 0);
+  this->SubGroup->Broadcast(this->NumCells.data(), this->NumProcesses, 0);
 
   this->StartVal[0] = 0;
   this->EndVal[0] = this->NumCells[0] - 1;
@@ -2627,15 +2595,15 @@ int vtkPKdTree::CreateProcessCellCountData()
 
   if (this->NumProcesses > 1)
   {
-    this->SubGroup->Gather(myData, &this->DataLocationMap[0], this->GetNumberOfRegions(), 0);
+    this->SubGroup->Gather(myData, this->DataLocationMap.data(), this->GetNumberOfRegions(), 0);
     this->SubGroup->Broadcast(
-      &this->DataLocationMap[0], this->GetNumberOfRegions() * this->NumProcesses, 0);
+      this->DataLocationMap.data(), this->GetNumberOfRegions() * this->NumProcesses, 0);
   }
 
   // Other helpful tables - not the fastest way to create this
   //   information, but it uses the least memory
 
-  procData = &this->DataLocationMap[0];
+  procData = this->DataLocationMap.data();
 
   for (proc = 0; proc < this->NumProcesses; proc++)
   {
@@ -2672,7 +2640,7 @@ int vtkPKdTree::CreateProcessCellCountData()
     }
   }
 
-  procData = &this->DataLocationMap[0];
+  procData = this->DataLocationMap.data();
 
   for (proc = 0; proc < this->NumProcesses; proc++)
   {
@@ -2681,9 +2649,9 @@ int vtkPKdTree::CreateProcessCellCountData()
     {
       if (*procData)
       {
-        this->AddEntry(&this->ProcessList[reg][0], this->NumProcessesInRegion[reg], proc);
+        this->AddEntry(this->ProcessList[reg].data(), this->NumProcessesInRegion[reg], proc);
 
-        this->AddEntry(&this->ParallelRegionList[proc][0], this->NumRegionsInProcess[proc], reg);
+        this->AddEntry(this->ParallelRegionList[proc].data(), this->NumRegionsInProcess[proc], reg);
       }
       procData++;
     }
@@ -2691,14 +2659,14 @@ int vtkPKdTree::CreateProcessCellCountData()
 
   // Cell counts per process per region
   std::vector<int> tempbuf;
-  int* tempbufptr = &cellCounts[0];
+  int* tempbufptr = cellCounts.data();
   if (this->NumProcesses > 1)
   {
     tempbuf.resize(this->GetNumberOfRegions() * this->NumProcesses);
 
-    this->SubGroup->Gather(&cellCounts[0], &tempbuf[0], this->GetNumberOfRegions(), 0);
-    this->SubGroup->Broadcast(&tempbuf[0], this->NumProcesses * this->GetNumberOfRegions(), 0);
-    tempbufptr = &tempbuf[0];
+    this->SubGroup->Gather(cellCounts.data(), tempbuf.data(), this->GetNumberOfRegions(), 0);
+    this->SubGroup->Broadcast(tempbuf.data(), this->NumProcesses * this->GetNumberOfRegions(), 0);
+    tempbufptr = tempbuf.data();
   }
 
   for (proc = 0; proc < this->NumProcesses; proc++)
@@ -2710,7 +2678,7 @@ int vtkPKdTree::CreateProcessCellCountData()
       if (procCount[reg] > 0)
       {
         this->AddEntry(
-          &this->CellCountList[reg][0], this->NumProcessesInRegion[reg], procCount[reg]);
+          this->CellCountList[reg].data(), this->NumProcessesInRegion[reg], procCount[reg]);
       }
     }
   }
@@ -2772,12 +2740,12 @@ int vtkPKdTree::CreateGlobalDataArrayBounds()
     if (this->NumProcesses > 1)
     {
       this->SubGroup->ReduceMin(
-        &this->CellDataMin[0], &this->CellDataMin[0], this->NumCellArrays, 0);
-      this->SubGroup->Broadcast(&this->CellDataMin[0], this->NumCellArrays, 0);
+        this->CellDataMin.data(), this->CellDataMin.data(), this->NumCellArrays, 0);
+      this->SubGroup->Broadcast(this->CellDataMin.data(), this->NumCellArrays, 0);
 
       this->SubGroup->ReduceMax(
-        &this->CellDataMax[0], &this->CellDataMax[0], this->NumCellArrays, 0);
-      this->SubGroup->Broadcast(&this->CellDataMax[0], this->NumCellArrays, 0);
+        this->CellDataMax.data(), this->CellDataMax.data(), this->NumCellArrays, 0);
+      this->SubGroup->Broadcast(this->CellDataMax.data(), this->NumCellArrays, 0);
     }
   }
 
@@ -2804,12 +2772,12 @@ int vtkPKdTree::CreateGlobalDataArrayBounds()
     if (this->NumProcesses > 1)
     {
       this->SubGroup->ReduceMin(
-        &this->PointDataMin[0], &this->PointDataMin[0], this->NumPointArrays, 0);
-      this->SubGroup->Broadcast(&this->PointDataMin[0], this->NumPointArrays, 0);
+        this->PointDataMin.data(), this->PointDataMin.data(), this->NumPointArrays, 0);
+      this->SubGroup->Broadcast(this->PointDataMin.data(), this->NumPointArrays, 0);
 
       this->SubGroup->ReduceMax(
-        &this->PointDataMax[0], &this->PointDataMax[0], this->NumPointArrays, 0);
-      this->SubGroup->Broadcast(&this->PointDataMax[0], this->NumPointArrays, 0);
+        this->PointDataMax.data(), this->PointDataMax.data(), this->NumPointArrays, 0);
+      this->SubGroup->Broadcast(this->PointDataMax.data(), this->NumPointArrays, 0);
     }
   }
 
@@ -3394,7 +3362,7 @@ int vtkPKdTree::GetRegionAssignmentList(int procId, vtkIntArray* list)
   }
 
   int nregions = this->NumRegionsAssigned[procId];
-  int* regionIds = &this->ProcessAssignmentMap[procId][0];
+  int* regionIds = this->ProcessAssignmentMap[procId].data();
 
   list->Initialize();
   list->SetNumberOfValues(nregions);
@@ -3671,8 +3639,8 @@ void vtkPKdTree::PrintTables(ostream& os, vtkIndent indent)
 
   if (!this->RegionAssignmentMap.empty())
   {
-    int* map = &this->RegionAssignmentMap[0];
-    int* num = &this->NumRegionsAssigned[0];
+    int* map = this->RegionAssignmentMap.data();
+    int* num = this->NumRegionsAssigned.data();
     int halfr = this->GetRegionAssignmentMapLength() / 2;
     int halfp = nprocs / 2;
 
@@ -3803,3 +3771,4 @@ void vtkPKdTree::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "NextPtArray: " << this->NextPtArray << endl;
   os << indent << "SelectBuffer (size): " << this->SelectBuffer.size() << endl;
 }
+VTK_ABI_NAMESPACE_END

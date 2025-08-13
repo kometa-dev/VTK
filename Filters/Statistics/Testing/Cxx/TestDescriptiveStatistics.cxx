@@ -1,11 +1,6 @@
-/*
- * Copyright 2008 Sandia Corporation.
- * Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
- * license for use of this work by or on behalf of the
- * U.S. Government. Redistribution and use in source and binary forms, with
- * or without modification, are permitted provided that this Notice and any
- * statement of authorship are reproduced on all copies.
- */
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 // .SECTION Thanks
 // Thanks to Philippe Pebay and David Thompson from Sandia National Laboratories
 // for implementing this test.
@@ -131,7 +126,7 @@ int TestDescriptiveStatistics(int, char*[])
 
   // Pairs of interest
   int nMetrics = 3;
-  vtkStdString columns[] = { "Metric 1", "Metric 2", "Metric 0" };
+  std::string columns[] = { "Metric 1", "Metric 2", "Metric 0" };
 
   // Reference values
   // Means for metrics 0, 1, and 2, respectively
@@ -155,7 +150,7 @@ int TestDescriptiveStatistics(int, char*[])
   // Select Columns of Interest
   for (int i = 0; i < nMetrics; ++i)
   {
-    ds1->AddColumn(columns[i]);
+    ds1->AddColumn(columns[i].c_str());
   }
 
   // Test Learn, Derive, Test, and Assess options
@@ -393,7 +388,7 @@ int TestDescriptiveStatistics(int, char*[])
   // Select Columns of Interest (all of them)
   for (int i = 0; i < nMetrics; ++i)
   {
-    ds2->AddColumn(columns[i]);
+    ds2->AddColumn(columns[i].c_str());
   }
 
   // Update with Learn option only

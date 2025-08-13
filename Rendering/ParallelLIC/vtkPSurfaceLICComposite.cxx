@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPSurfaceLICComposite.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPSurfaceLICComposite.h"
 
 #include "vtkMPI.h"
@@ -133,6 +121,7 @@ static void MPIAPI vtkPixelExtentUnion(void* in, void* out, int* len, MPI_Dataty
   }
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 // Description:
 // Container for our custom MPI_Op's
 class vtkPPixelExtentOps
@@ -194,6 +183,7 @@ void MPITypeFree(deque<MPI_Datatype>& types)
     MPI_Type_free(&types[i]);
   }
 }
+VTK_ABI_NAMESPACE_END
 
 // ****************************************************************************
 static size_t Size(deque<deque<vtkPixelExtent>> exts)
@@ -275,6 +265,7 @@ static int ScanMPIStatusForError(vector<MPI_Status>& stat)
 }
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkPSurfaceLICComposite);
 
@@ -741,18 +732,18 @@ int vtkPSurfaceLICComposite::MakeDecompDisjoint(
   // accumulate contrib from remote data
   size_t remSize = 4 * ne;
   vector<int> rem(remSize);
-  int* pRem = ne ? &rem[0] : nullptr;
+  int* pRem = ne ? rem.data() : nullptr;
   for (size_t e = 0; e < ne; ++e, pRem += 4)
   {
     tmpOut1[e].second.GetData(pRem);
   }
   MPI_Comm comm = *(static_cast<MPI_Comm*>(this->PainterComm->GetCommunicator()));
   MPI_Op parUnion = this->PixelOps->GetUnion();
-  MPI_Allreduce(MPI_IN_PLACE, ne ? &rem[0] : nullptr, (int)remSize, MPI_INT, parUnion, comm);
+  MPI_Allreduce(MPI_IN_PLACE, ne ? rem.data() : nullptr, (int)remSize, MPI_INT, parUnion, comm);
 
   // move from flat order back to rank indexed order and remove
   // empty extents
-  pRem = ne ? &rem[0] : nullptr;
+  pRem = ne ? rem.data() : nullptr;
   out.resize(this->CommSize);
   for (size_t e = 0; e < ne; ++e, pRem += 4)
   {
@@ -1345,7 +1336,7 @@ int vtkPSurfaceLICComposite::Gather(
     // wait for the completion of one of the recvs
     MPI_Status stat;
     int reqId;
-    int iErr = MPI_Waitany(nRecvReqs, &mpiRecvReqs[0], &reqId, &stat);
+    int iErr = MPI_Waitany(nRecvReqs, mpiRecvReqs.data(), &reqId, &stat);
     if (iErr)
     {
       vtkErrorMacro("comm error in recv");
@@ -1418,7 +1409,7 @@ int vtkPSurfaceLICComposite::Gather(
   int nSendReqs = static_cast<int>(mpiSendReqs.size());
   if (nSendReqs)
   {
-    int iErr = MPI_Waitall(nSendReqs, &mpiSendReqs[0], MPI_STATUSES_IGNORE);
+    int iErr = MPI_Waitall(nSendReqs, mpiSendReqs.data(), MPI_STATUSES_IGNORE);
     if (iErr)
     {
       vtkErrorMacro("comm error in send");
@@ -1595,7 +1586,7 @@ int vtkPSurfaceLICComposite::Scatter(
   int nRecvReqs = static_cast<int>(mpiRecvReqs.size());
   if (nRecvReqs)
   {
-    iErr = MPI_Waitall(nRecvReqs, &mpiRecvReqs[0], MPI_STATUSES_IGNORE);
+    iErr = MPI_Waitall(nRecvReqs, mpiRecvReqs.data(), MPI_STATUSES_IGNORE);
     if (iErr)
     {
       vtkErrorMacro("comm error in recv");
@@ -1635,7 +1626,7 @@ int vtkPSurfaceLICComposite::Scatter(
   int nSendReqs = static_cast<int>(mpiSendReqs.size());
   if (nSendReqs)
   {
-    iErr = MPI_Waitall(nSendReqs, &mpiSendReqs[0], MPI_STATUSES_IGNORE);
+    iErr = MPI_Waitall(nSendReqs, mpiSendReqs.data(), MPI_STATUSES_IGNORE);
     if (iErr)
     {
       vtkErrorMacro("comm error in send");
@@ -1706,3 +1697,4 @@ ostream& operator<<(ostream& os, vtkPSurfaceLICComposite& ss)
   }
   return os;
 }
+VTK_ABI_NAMESPACE_END

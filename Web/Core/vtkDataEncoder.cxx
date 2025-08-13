@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataEncoder.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataEncoder.h"
 
 #include "vtkBase64Utilities.h"
@@ -40,6 +28,7 @@
 
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 struct vtkWork
 {
@@ -88,9 +77,18 @@ class vtkWorkQueue
       vtkWork work;
       {
         std::unique_lock<std::mutex> lock(self->QueueMutex);
-        self->QueueCondition.wait(
-          lock, [self]() { return !self->Queue.empty() || self->Terminate; });
-        if (self->Terminate)
+        bool break_loop = false;
+        do
+        {
+          self->QueueCondition.wait_for(lock, std::chrono::seconds(1),
+            [self]() { return !self->Queue.empty() || self->Terminate; });
+          if (self->Terminate)
+          {
+            break_loop = true;
+            break;
+          }
+        } while (self->Queue.empty());
+        if (break_loop)
         {
           break;
         }
@@ -143,7 +141,7 @@ public:
     assert(numThreads >= 0);
     for (int cc = 0; cc < numThreads; ++cc)
     {
-      this->ThreadPool.emplace_back(std::thread(&vtkWorkQueue::DoWork, cc, this));
+      this->ThreadPool.emplace_back(&vtkWorkQueue::DoWork, cc, this);
     }
   }
   ~vtkWorkQueue()
@@ -212,8 +210,10 @@ public:
     });
   }
 };
+VTK_ABI_NAMESPACE_END
 } // namespace detail
 
+VTK_ABI_NAMESPACE_BEGIN
 //****************************************************************************
 class vtkDataEncoder::vtkInternals
 {
@@ -267,17 +267,6 @@ void vtkDataEncoder::SetMaxThreads(vtkTypeUInt32 maxThreads)
 void vtkDataEncoder::Initialize()
 {
   this->Internals.reset(new vtkDataEncoder::vtkInternals(this->MaxThreads));
-}
-
-//------------------------------------------------------------------------------
-void vtkDataEncoder::PushAndTakeReference(
-  vtkTypeUInt32 key, vtkImageData*& data, int quality, int encoding)
-{
-  if (data)
-  {
-    this->Push(key, data, quality, encoding);
-    data->UnRegister(this);
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -340,3 +329,4 @@ void vtkDataEncoder::Finalize()
 {
   this->Internals.reset(new vtkDataEncoder::vtkInternals(0));
 }
+VTK_ABI_NAMESPACE_END

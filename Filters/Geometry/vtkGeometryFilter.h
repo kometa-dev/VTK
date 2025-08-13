@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGeometryFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGeometryFilter
  * @brief   extract boundary geometry from dataset (or convert data to polygonal type)
@@ -90,6 +78,9 @@
 #include "vtkFiltersGeometryModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+#include <array> // For std::array
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIncrementalPointLocator;
 class vtkStructuredGrid;
 class vtkUnstructuredGridBase;
@@ -100,10 +91,46 @@ struct vtkGeometryFilterHelper;
 // Used to coordinate delegation to vtkDataSetSurfaceFilter
 struct VTKFILTERSGEOMETRY_EXPORT vtkGeometryFilterHelper
 {
+  enum CellType
+  {
+    VERTS = 0,
+    LINES = 1,
+    POLYS = 2,
+    STRIPS = 3,
+    OTHER_LINEAR_CELLS = 4,
+    NON_LINEAR_CELLS = 5,
+    NUM_CELL_TYPES
+  };
+  using CellTypesInformation = std::array<bool, NUM_CELL_TYPES>;
+  CellTypesInformation CellTypesInfo;
   unsigned char IsLinear;
   static vtkGeometryFilterHelper* CharacterizeUnstructuredGrid(vtkUnstructuredGridBase*);
   static void CopyFilterParams(vtkGeometryFilter* gf, vtkDataSetSurfaceFilter* dssf);
   static void CopyFilterParams(vtkDataSetSurfaceFilter* dssf, vtkGeometryFilter* gf);
+  bool HasOnlyVerts()
+  {
+    return this->CellTypesInfo[VERTS] && !this->CellTypesInfo[LINES] &&
+      !this->CellTypesInfo[POLYS] && !this->CellTypesInfo[STRIPS] &&
+      !this->CellTypesInfo[OTHER_LINEAR_CELLS] && !this->CellTypesInfo[NON_LINEAR_CELLS];
+  }
+  bool HasOnlyLines()
+  {
+    return !this->CellTypesInfo[VERTS] && this->CellTypesInfo[LINES] &&
+      !this->CellTypesInfo[POLYS] && !this->CellTypesInfo[STRIPS] &&
+      !this->CellTypesInfo[OTHER_LINEAR_CELLS] && !this->CellTypesInfo[NON_LINEAR_CELLS];
+  }
+  bool HasOnlyPolys()
+  {
+    return !this->CellTypesInfo[VERTS] && !this->CellTypesInfo[LINES] &&
+      this->CellTypesInfo[POLYS] && !this->CellTypesInfo[STRIPS] &&
+      !this->CellTypesInfo[OTHER_LINEAR_CELLS] && !this->CellTypesInfo[NON_LINEAR_CELLS];
+  }
+  bool HasOnlyStrips()
+  {
+    return !this->CellTypesInfo[VERTS] && !this->CellTypesInfo[LINES] &&
+      !this->CellTypesInfo[POLYS] && this->CellTypesInfo[STRIPS] &&
+      !this->CellTypesInfo[OTHER_LINEAR_CELLS] && !this->CellTypesInfo[NON_LINEAR_CELLS];
+  }
 };
 
 class VTKFILTERSGEOMETRY_EXPORT vtkGeometryFilter : public vtkPolyDataAlgorithm
@@ -270,7 +297,7 @@ public:
 
   ///@{
   /**
-   * If PieceInvariant is true, vtkDataSetSurfaceFilter requests
+   * If PieceInvariant is true, vtkGeometryFilter requests
    * 1 ghost level from input in order to remove internal surface
    * that are between processes. False by default.
    */
@@ -280,16 +307,25 @@ public:
 
   ///@{
   /**
-   * If on, the output polygonal dataset will have a celldata array that
-   * holds the cell index of the original 3D cell that produced each output
-   * cell. This is useful for cell picking. The default is off to conserve
-   * memory. Note that PassThroughCellIds will be ignored if UseStrips is on,
-   * since in that case each tringle strip can represent more than on of the
-   * input cells.
+   * This parameter drives the generation or not of a CellData array for the output
+   * polygonal dataset that holds the cell index of the original 3D cell that produced
+   * each output cell. This is useful for cell picking. The default is off to conserve memory.
+   *
+   * Note: Use SetOriginalCellIdsName() to set the name of the CellData array.
    */
   vtkSetMacro(PassThroughCellIds, vtkTypeBool);
   vtkGetMacro(PassThroughCellIds, vtkTypeBool);
   vtkBooleanMacro(PassThroughCellIds, vtkTypeBool);
+  ///@}
+
+  ///@{
+  /**
+   * This parameter drives the generation or not of a PointData array for the output
+   * polygonal dataset that holds the cell/point index of the original point that produced
+   * each output point. This is useful for point picking. The default is off to conserve memory.
+   *
+   * Note: Use SetOriginalPointIdsName() to set the name of the PointData array.
+   */
   vtkSetMacro(PassThroughPointIds, vtkTypeBool);
   vtkGetMacro(PassThroughPointIds, vtkTypeBool);
   vtkBooleanMacro(PassThroughPointIds, vtkTypeBool);
@@ -359,13 +395,14 @@ public:
   ///@{
   /**
    * Set/Get if Ghost interfaces will be removed.
-   * When you are rendering you want to remove ghost interfaces.
-   * There are certain algorithms though that need the ghost interfaces.
+   * When you are rendering you want to remove ghost interfaces that originate from duplicate cells.
+   *
+   * There are certain algorithms though that need the ghost interfaces, such as GhostCellGenerator
+   * and FeatureEdges.
    *
    * Since Rendering is the most common case, the Default is on.
    *
-   * Note: This flag is meaningful only for vtkUnstructuredGrid/vtkUnstructuredGridBase.
-   * DON'T change it if there are no ghost cells.
+   * Note: DON'T change it if there are no ghost cells.
    */
   vtkSetMacro(RemoveGhostInterfaces, bool);
   vtkBooleanMacro(RemoveGhostInterfaces, bool);
@@ -385,10 +422,16 @@ public:
     vtkDataSet* input, vtkPolyData* output, vtkGeometryFilterHelper* info, vtkPolyData* exc);
   virtual int UnstructuredGridExecute(vtkDataSet* input, vtkPolyData* output);
 
+  VTK_DEPRECATED_IN_9_3_0("Use the new version that has int* instead of vtkInformation*")
   int StructuredExecute(vtkDataSet* input, vtkPolyData* output, vtkInformation* inInfo,
     vtkPolyData* exc, bool* extractFace = nullptr);
+  int StructuredExecute(vtkDataSet* input, vtkPolyData* output, int* wholeExtent, vtkPolyData* exc,
+    bool* extractFace = nullptr);
+  VTK_DEPRECATED_IN_9_3_0("Use the new version that has int* instead of vtkInformation*")
   virtual int StructuredExecute(
     vtkDataSet* input, vtkPolyData* output, vtkInformation* inInfo, bool* extractFace = nullptr);
+  virtual int StructuredExecute(
+    vtkDataSet* input, vtkPolyData* output, int* wholeExt, bool* extractFace = nullptr);
 
   int DataSetExecute(vtkDataSet* input, vtkPolyData* output, vtkPolyData* exc);
   virtual int DataSetExecute(vtkDataSet* input, vtkPolyData* output);
@@ -437,4 +480,5 @@ private:
   void operator=(const vtkGeometryFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

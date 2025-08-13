@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestMergeTimeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMergeTimeFilter.h"
 
 #include "vtkExodusIIReader.h"
@@ -26,7 +14,7 @@
 
 int TestMergeTimeFilter(int argc, char* argv[])
 {
-  // use full precision for outputing timesteps values.
+  // use full precision for outputting timesteps values.
   std::cerr << std::setprecision(std::numeric_limits<double>::digits10 + 1);
 
   char* fname = vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/can.ex2");

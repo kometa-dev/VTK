@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVector.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkVector
@@ -33,6 +21,7 @@
 
 #include <cmath> // For math functions
 
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T, int Size>
 class vtkVector : public vtkTuple<T, Size>
 {
@@ -519,5 +508,6 @@ public:
   vtkVectorDerivedMacro(vtkVector4d, double, 4);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkVector_h
 // VTK-HeaderTest-Exclude: vtkVector.h

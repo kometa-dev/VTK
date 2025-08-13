@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAbstractArray.h"
 #include "vtkDataObject.h"
 #include "vtkDataSet.h"
@@ -11,7 +13,7 @@
 #include <vtkTestUtilities.h>
 #include <vtkTesting.h>
 
-#define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New();
+#define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
 
 int TestExodusImplicitArrays(int argc, char* argv[])
 {

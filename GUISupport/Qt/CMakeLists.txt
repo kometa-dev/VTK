@@ -78,6 +78,7 @@ endforeach()
 
 vtk_module_definitions(VTK::GUISupportQt PRIVATE QT_NO_KEYWORDS)
 vtk_module_link(VTK::GUISupportQt PUBLIC ${qt_modules})
+
 if (VTK_USE_X AND add_qvtkwidget)
   # X11Extras is only needed for QVTKWidget, which is a deprecated class.
   vtk_module_link(VTK::GUISupportQt PRIVATE Qt5::X11Extras)
@@ -134,3 +135,5 @@ if (VTK_BUILD_QT_DESIGNER_PLUGIN)
       LIBRARY DESTINATION "${module_destination}/${VTK_INSTALL_QT_PLUGIN_DIR}")
   endif ()
 endif ()
+
+vtk_add_test_mangling(VTK::GUISupportQt)

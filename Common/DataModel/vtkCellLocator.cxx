@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellLocator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // VTK_DEPRECATED_IN_9_2_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
@@ -27,6 +15,7 @@
 #include <array>
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkCellLocator);
 
@@ -411,7 +400,7 @@ vtkIdType vtkCellLocator::FindClosestPointWithinRadius(double x[3], double radiu
 
         // evaluate the position to find the closest point
         tmpInside = cell->EvaluatePosition(x, point, subId, pcoords, dist2, weights.data());
-        if (dist2 < minDist2)
+        if (tmpInside != -1 && dist2 < minDist2)
         {
           inside = tmpInside;
           closestCell = cellId;
@@ -529,7 +518,7 @@ vtkIdType vtkCellLocator::FindClosestPointWithinRadius(double x[3], double radiu
               // evaluate the position to find the closest point
               tmpInside = cell->EvaluatePosition(x, point, subId, pcoords, dist2, weights.data());
 
-              if (dist2 < minDist2)
+              if (tmpInside != -1 && dist2 < minDist2)
               {
                 inside = tmpInside;
                 closestCell = cellId;
@@ -1174,15 +1163,13 @@ void vtkCellLocator::FindCellsWithinBounds(double* bbox, vtkIdList* cells)
   cells->Reset();
 
   // Get the locator locations for the two extreme corners of the bounding box
-  double p1[3], p2[3], *p[2];
+  double p1[3], p2[3];
   p1[0] = bbox[0];
   p1[1] = bbox[2];
   p1[2] = bbox[4];
   p2[0] = bbox[1];
   p2[1] = bbox[3];
   p2[2] = bbox[5];
-  p[0] = p1;
-  p[1] = p2;
   int ijk[2][3];
 
   //  Find bucket the points are in
@@ -1230,7 +1217,7 @@ struct IntersectionInfo
 };
 
 //------------------------------------------------------------------------------
-int vtkCellLocator::IntersectWithLine(const double p1[3], const double p2[3], const double tol,
+int vtkCellLocator::IntersectWithLine(const double p1[3], const double p2[3], double tol,
   vtkPoints* points, vtkIdList* cellIds, vtkGenericCell* cell)
 {
   this->BuildLocator();
@@ -1467,3 +1454,4 @@ void vtkCellLocator::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "H: " << this->H[0] << " " << this->H[1] << " " << this->H[2] << "\n";
   os << indent << "NumberOfDivisions: " << this->NumberOfDivisions << "\n";
 }
+VTK_ABI_NAMESPACE_END

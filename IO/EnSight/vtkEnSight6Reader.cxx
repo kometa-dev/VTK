@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEnSight6Reader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkEnSight6Reader.h"
 
 #include "vtkCellData.h"
@@ -33,26 +21,21 @@
 #include <cctype>
 #include <string>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkEnSight6Reader);
 
 //------------------------------------------------------------------------------
 vtkEnSight6Reader::vtkEnSight6Reader()
 {
   this->NumberOfUnstructuredPoints = 0;
-  this->UnstructuredPoints = vtkPoints::New();
+  this->UnstructuredPoints = nullptr;
   this->UnstructuredNodeIds = nullptr;
 }
 
 //------------------------------------------------------------------------------
 vtkEnSight6Reader::~vtkEnSight6Reader()
 {
-  if (this->UnstructuredNodeIds)
-  {
-    this->UnstructuredNodeIds->Delete();
-    this->UnstructuredNodeIds = nullptr;
-  }
-  this->UnstructuredPoints->Delete();
-  this->UnstructuredPoints = nullptr;
+  this->CleanUpCache();
 }
 
 //------------------------------------------------------------------------------
@@ -189,7 +172,7 @@ int vtkEnSight6Reader::ReadGeometryFile(
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to geometry file: " << sfilename.c_str());
+    vtkDebugMacro("full path to geometry file: " << sfilename);
   }
   else
   {
@@ -199,7 +182,7 @@ int vtkEnSight6Reader::ReadGeometryFile(
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
   if (this->IS->fail())
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     delete this->IS;
     this->IS = nullptr;
     return 0;
@@ -243,6 +226,8 @@ int vtkEnSight6Reader::ReadGeometryFile(
   // ReadNextDataLine because the description line could be blank.
   this->ReadLine(line);
 
+  this->CleanUpCache();
+
   // Read the node id and element id lines.
   this->ReadLine(line);
   sscanf(line, " %*s %*s %s", subLine);
@@ -264,8 +249,11 @@ int vtkEnSight6Reader::ReadGeometryFile(
 
   this->ReadNextDataLine(line); // "coordinates"
   this->ReadNextDataLine(line);
+
   this->NumberOfUnstructuredPoints = atoi(line);
+  this->UnstructuredPoints = vtkPoints::New();
   this->UnstructuredPoints->Allocate(this->NumberOfUnstructuredPoints);
+
   int* tmpIds = new int[this->NumberOfUnstructuredPoints];
 
   int maxId = 0;
@@ -371,7 +359,7 @@ int vtkEnSight6Reader::ReadMeasuredGeometryFile(
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to measured geometry file: " << sfilename.c_str());
+    vtkDebugMacro("full path to measured geometry file: " << sfilename);
   }
   else
   {
@@ -381,7 +369,7 @@ int vtkEnSight6Reader::ReadMeasuredGeometryFile(
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
   if (this->IS->fail())
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     delete this->IS;
     this->IS = nullptr;
     return 0;
@@ -489,7 +477,7 @@ int vtkEnSight6Reader::ReadScalarsPerNode(const char* fileName, const char* desc
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to scalar per node file: " << sfilename.c_str());
+    vtkDebugMacro("full path to scalar per node file: " << sfilename);
   }
   else
   {
@@ -499,7 +487,7 @@ int vtkEnSight6Reader::ReadScalarsPerNode(const char* fileName, const char* desc
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
   if (this->IS->fail())
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     delete this->IS;
     this->IS = nullptr;
     return 0;
@@ -732,7 +720,7 @@ int vtkEnSight6Reader::ReadVectorsPerNode(const char* fileName, const char* desc
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to vector per node file: " << sfilename.c_str());
+    vtkDebugMacro("full path to vector per node file: " << sfilename);
   }
   else
   {
@@ -742,7 +730,7 @@ int vtkEnSight6Reader::ReadVectorsPerNode(const char* fileName, const char* desc
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
   if (this->IS->fail())
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     delete this->IS;
     this->IS = nullptr;
     return 0;
@@ -940,7 +928,7 @@ int vtkEnSight6Reader::ReadTensorsPerNode(const char* fileName, const char* desc
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to tensor symm per node file: " << sfilename.c_str());
+    vtkDebugMacro("full path to tensor symm per node file: " << sfilename);
   }
   else
   {
@@ -950,7 +938,7 @@ int vtkEnSight6Reader::ReadTensorsPerNode(const char* fileName, const char* desc
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
   if (this->IS->fail())
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     delete this->IS;
     this->IS = nullptr;
     return 0;
@@ -1095,7 +1083,7 @@ int vtkEnSight6Reader::ReadScalarsPerElement(const char* fileName, const char* d
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to scalars per element file: " << sfilename.c_str());
+    vtkDebugMacro("full path to scalars per element file: " << sfilename);
   }
   else
   {
@@ -1105,7 +1093,7 @@ int vtkEnSight6Reader::ReadScalarsPerElement(const char* fileName, const char* d
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
   if (this->IS->fail())
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     delete this->IS;
     this->IS = nullptr;
     return 0;
@@ -1268,7 +1256,7 @@ int vtkEnSight6Reader::ReadVectorsPerElement(const char* fileName, const char* d
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to vector per element file: " << sfilename.c_str());
+    vtkDebugMacro("full path to vector per element file: " << sfilename);
   }
   else
   {
@@ -1278,7 +1266,7 @@ int vtkEnSight6Reader::ReadVectorsPerElement(const char* fileName, const char* d
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
   if (this->IS->fail())
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     delete this->IS;
     this->IS = nullptr;
     return 0;
@@ -1440,7 +1428,7 @@ int vtkEnSight6Reader::ReadTensorsPerElement(const char* fileName, const char* d
       sfilename += "/";
     }
     sfilename += fileName;
-    vtkDebugMacro("full path to tensor per element file: " << sfilename.c_str());
+    vtkDebugMacro("full path to tensor per element file: " << sfilename);
   }
   else
   {
@@ -1450,7 +1438,7 @@ int vtkEnSight6Reader::ReadTensorsPerElement(const char* fileName, const char* d
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
   if (this->IS->fail())
   {
-    vtkErrorMacro("Unable to open file: " << sfilename.c_str());
+    vtkErrorMacro("Unable to open file: " << sfilename);
     delete this->IS;
     this->IS = nullptr;
     return 0;
@@ -2194,3 +2182,21 @@ void vtkEnSight6Reader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+
+//------------------------------------------------------------------------------
+void vtkEnSight6Reader::CleanUpCache()
+{
+  if (this->UnstructuredPoints)
+  {
+    this->NumberOfUnstructuredPoints = 0;
+    this->UnstructuredPoints->Delete();
+    this->UnstructuredPoints = nullptr;
+  }
+  if (this->UnstructuredNodeIds)
+  {
+    this->UnstructuredNodeIds->Delete();
+    this->UnstructuredNodeIds = nullptr;
+  }
+}
+
+VTK_ABI_NAMESPACE_END

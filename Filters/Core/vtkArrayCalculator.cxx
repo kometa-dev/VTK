@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrayCalculator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkArrayCalculator.h"
 
 #include "vtkArrayDispatch.h"
@@ -35,6 +23,7 @@
 #include "vtkTable.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkArrayCalculator);
 
@@ -196,13 +185,17 @@ public:
     this->MaxTupleSize = 3;
     for (int i = 0; i < this->ScalarArrayNamesSize; i++)
     {
-      this->MaxTupleSize = std::max(this->MaxTupleSize,
-        this->InFD->GetAbstractArray(this->ScalarArrayNames[i].c_str())->GetNumberOfComponents());
+      if (auto scalarArray = this->InFD->GetAbstractArray(this->ScalarArrayNames[i].c_str()))
+      {
+        this->MaxTupleSize = std::max(this->MaxTupleSize, scalarArray->GetNumberOfComponents());
+      }
     }
     for (int i = 0; i < this->VectorArrayNamesSize; i++)
     {
-      this->MaxTupleSize = std::max(this->MaxTupleSize,
-        this->InFD->GetAbstractArray(this->VectorArrayNames[i].c_str())->GetNumberOfComponents());
+      if (auto vectorArray = this->InFD->GetAbstractArray(this->VectorArrayNames[i].c_str()))
+      {
+        this->MaxTupleSize = std::max(this->MaxTupleSize, vectorArray->GetNumberOfComponents());
+      }
     }
   }
 
@@ -287,7 +280,7 @@ public:
     }
 
     // Tell the parser about the coordinate arrays
-    if (this->AttributeType == vtkDataObject::POINT || AttributeType == vtkDataObject::VERTEX)
+    if (this->AttributeType == vtkDataObject::POINT || this->AttributeType == vtkDataObject::VERTEX)
     {
       double pt[3];
       for (i = 0; i < this->CoordinateScalarVariableNamesSize; i++)
@@ -325,7 +318,7 @@ public:
   void operator()(vtkIdType begin, vtkIdType end)
   {
     auto resultArrayItr = vtk::DataArrayTupleRange(this->ResultArray, begin, end).begin();
-    auto& functionParser = FunctionParser.Local();
+    auto& functionParser = this->FunctionParser.Local();
     auto tuple = this->Tuple.Local().data();
     vtkDataArray* currentArray;
     int j = 0;
@@ -1218,3 +1211,4 @@ void vtkArrayCalculator::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Replace Invalid Values: " << (this->ReplaceInvalidValues ? "On" : "Off") << endl;
   os << indent << "Replacement Value: " << this->ReplacementValue << endl;
 }
+VTK_ABI_NAMESPACE_END

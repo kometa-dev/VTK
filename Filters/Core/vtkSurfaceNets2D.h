@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSurfaceNets2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSurfaceNets2D
  * @brief   generate smoothed constours from segmented 2D image data (i.e., "label maps")
@@ -26,7 +14,7 @@
  * objects next to each other will share the boundary that separates them.)
  *
  * While this filter is similar to a contouring operation, classic contouring
- * methods assume a continuous scalar field. In comparision, label maps are
+ * methods assume a continuous scalar field. In comparison, label maps are
  * not continuous in scalar function value, meaning that usual data
  * interpolation (e.g., along edges) is not possible. Instead, when the edge
  * endpoint pixels are labeled in differing regions, the edge is split and
@@ -102,7 +90,7 @@
  * that may not share common boundary cells, and may produce "gaps"
  * between segmented regions. For example, vtkDiscreteMarchingCubes will
  * share points between adjacent regions, but not triangle cells (which
- * will be conincident). Also, no center point is inserted into voxels,
+ * will be coincident). Also, no center point is inserted into voxels,
  * meaning that intermittent gaps may form between regions.
  *
  * @warning
@@ -110,10 +98,14 @@
  * non-sequential type (set in the CMake variable
  * VTK_SMP_IMPLEMENTATION_TYPE) may improve performance significantly.
  *
+ * @warning
+ * See also vtkPackLabels which is a utility class for renumbering the labels
+ * found in the input segmentation mask to contiguous forms of smaller type.
+ *
  * @sa
  * vtkSurfaceNets3D vtkDiscreteFlyingEdges2D vtkDiscreteFlyingEdgesClipper2D
  * vtkConstrainedSmoothingFilter vtkFlyingEdges2D vtkFlyingEdges3D
- * vtkWindowedSincPolyDataFilter
+ * vtkWindowedSincPolyDataFilter vtkPackLabels
  */
 
 #ifndef vtkSurfaceNets2D_h
@@ -124,6 +116,8 @@
 #include "vtkFiltersCoreModule.h"          // For export macro
 #include "vtkPolyData.h"                   // To support data caching
 #include "vtkPolyDataAlgorithm.h"
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class vtkImageData;
 
@@ -336,4 +330,5 @@ private:
   void operator=(const vtkSurfaceNets2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

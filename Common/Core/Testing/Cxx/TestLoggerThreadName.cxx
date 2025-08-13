@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestLoggerThreadName.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Test that vtkLogger::GetThreadName is unaffected by concurrent accesses
 // and usage of vtkLogger::Init()
 
@@ -30,7 +18,7 @@ void Thread1()
   const std::string threaName = "T1";
   while (!wait1.load())
   {
-  };
+  }
 
   vtkLogger::SetThreadName(threaName);
 
@@ -50,7 +38,7 @@ void Thread2()
   wait1.store(true);
   while (!wait2.load())
   {
-  };
+  }
 
   vtkLogger::Init();
 

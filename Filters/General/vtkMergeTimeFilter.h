@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMergeTimeFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMergeTimeFilter
  * @brief   Create a multiblock containing one block per input, with unified timestep list.
@@ -24,7 +12,7 @@
  *
  * When source time is exactly 0., absolute tolerance is used even in relative mode.
  *
- * Note that the actual merge of timesteps is done duing the RequestInformation pass.
+ * Note that the actual merge of timesteps is done during the RequestInformation pass.
  * In the 'Relative' mode, inputs are processed in order and compararison is done with
  * previously processed inputs.
  */
@@ -37,6 +25,7 @@
 
 #include <vector> // Use of dynamically allocated array
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSGENERAL_EXPORT vtkMergeTimeFilter : public vtkMultiBlockDataSetAlgorithm
 {
 public:
@@ -44,7 +33,7 @@ public:
   vtkTypeMacro(vtkMergeTimeFilter, vtkMultiBlockDataSetAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/Get the tolerance for comparing time step
    * values to see if they are close enough to be considered
@@ -52,9 +41,9 @@ public:
    */
   vtkSetClampMacro(Tolerance, double, 0, VTK_DOUBLE_MAX);
   vtkGetMacro(Tolerance, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get if the tolerance is relative to previous input or absolute.
    *
@@ -63,9 +52,9 @@ public:
   vtkSetMacro(UseRelativeTolerance, bool);
   vtkGetMacro(UseRelativeTolerance, bool);
   vtkBooleanMacro(UseRelativeTolerance, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get if the merge use intersection instead of union.
    * Default is false (union is used).
@@ -73,7 +62,7 @@ public:
   vtkSetMacro(UseIntersection, bool);
   vtkGetMacro(UseIntersection, bool);
   vtkBooleanMacro(UseIntersection, bool);
-  //@}
+  ///@}
 
 protected:
   vtkMergeTimeFilter() = default;
@@ -136,4 +125,5 @@ private:
   void operator=(const vtkMergeTimeFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

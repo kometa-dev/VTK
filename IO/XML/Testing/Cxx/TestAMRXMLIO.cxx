@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRGaussianPulseSource.h"
 #include "vtkCellData.h"
 #include "vtkDataSet.h"
@@ -17,11 +19,14 @@
 namespace
 {
 #define vtk_assert(x)                                                                              \
-  if (!(x))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "ERROR: Condition FAILED!! : " << #x << endl;                                          \
-    return false;                                                                                  \
-  }
+    if (!(x))                                                                                      \
+    {                                                                                              \
+      cerr << "ERROR: Condition FAILED!! : " << #x << endl;                                        \
+      return false;                                                                                \
+    }                                                                                              \
+  } while (false)
 
 bool Validate(vtkOverlappingAMR* input, vtkOverlappingAMR* result)
 {

@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRCutPlane.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMRCutPlane
  *
@@ -30,6 +18,7 @@
 #include <map>    // For STL map
 #include <vector> // For STL vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiBlockDataSet;
 class vtkOverlappingAMR;
 class vtkMultiProcessController;
@@ -75,7 +64,9 @@ public:
 
   ///@{
   /**
-
+   * Sets if plane cutter is used instead of the specialized AMR cutter.
+   *
+   * Default is true.
    */
   vtkSetMacro(UseNativeCutter, bool);
   vtkGetMacro(UseNativeCutter, bool);
@@ -108,6 +99,11 @@ public:
    * Performs upstream requests to the reader
    */
   int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+
+  /**
+   * Set if it's the initial request.
+   */
+  vtkSetMacro(InitialRequest, bool);
 
 protected:
   vtkAMRCutPlane();
@@ -178,7 +174,7 @@ protected:
   int LevelOfResolution;
   double Center[3];
   double Normal[3];
-  bool initialRequest;
+  bool InitialRequest;
   bool UseNativeCutter;
   vtkMultiProcessController* Controller;
 
@@ -189,4 +185,5 @@ private:
   void operator=(const vtkAMRCutPlane&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkAMRCutPlane_h */

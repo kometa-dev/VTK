@@ -1,9 +1,12 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #pragma once
 
 #include "Types.h"
 
 namespace RTW
 {
+VTK_ABI_NAMESPACE_BEGIN
     class Backend
     {
     public:
@@ -21,7 +24,7 @@ namespace RTW
         virtual RTWData NewCopyData3D(const void *source, RTWDataType, size_t numItems1, size_t numItems2, size_t numItems3) = 0;
         virtual RTWData NewSharedData1D(const void *source, RTWDataType, uint32_t numItems) = 0;
         virtual RTWData NewSharedData2D(const void *source, RTWDataType, uint32_t numItems1, uint32_t numItems2) = 0;
-        virtual RTWData NewSharedData3D(const void *source, RTWDataType, uint32_t numItems1, uint32_t numItems2, 
+        virtual RTWData NewSharedData3D(const void *source, RTWDataType, uint32_t numItems1, uint32_t numItems2,
           uint32_t numItems3) = 0;
         virtual RTWGeometry NewGeometry(const char *type) = 0;
         virtual RTWGroup NewGroup() = 0;
@@ -68,4 +71,5 @@ namespace RTW
         virtual int GetColorTextureGL(RTWFrameBuffer frameBuffer) = 0;
         virtual int GetDepthTextureGL(RTWFrameBuffer frameBuffer) = 0;
     };
+VTK_ABI_NAMESPACE_END
 }

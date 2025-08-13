@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHDRReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHDRReader
  * @brief   read Radiance HDR files
@@ -28,6 +16,7 @@
 #include <string> // for std::string
 #include <vector> // for std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOIMAGE_EXPORT vtkHDRReader : public vtkImageReader
 {
 public:
@@ -137,13 +126,13 @@ protected:
 
   /**
    * Read the file from is into outPtr with no RLE encoding.
-   * Return false if a reading error occured, else true.
+   * Return false if a reading error occurred, else true.
    */
   bool ReadAllFileNoRLE(istream* is, float* outPtr, int decrPtr, int* outExt);
 
   /**
    * Read a line of the file from is into lineBuffer with RLE encoding.
-   * Return false if a reading error occured, else true.
+   * Return false if a reading error occurred, else true.
    */
   bool ReadLineRLE(istream* is, unsigned char* lineBufferPtr);
 
@@ -163,4 +152,5 @@ private:
   vtkHDRReader(const vtkHDRReader&) = delete;
   void operator=(const vtkHDRReader&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

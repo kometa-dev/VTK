@@ -1,26 +1,19 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeDataProbeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCompositeDataProbeFilter.h"
 
 #include "vtkCellData.h"
+#include "vtkCharArray.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataPipeline.h"
 #include "vtkCompositeDataSet.h"
 #include "vtkDataArray.h"
+#include "vtkDataArrayRange.h"
 #include "vtkDataSet.h"
 #include "vtkFindCellStrategy.h"
+#include "vtkHyperTreeGrid.h"
+#include "vtkHyperTreeGridGeometricLocator.h"
+#include "vtkHyperTreeGridProbeFilter.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMath.h"
@@ -28,6 +21,7 @@
 #include "vtkPointData.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCompositeDataProbeFilter);
 //------------------------------------------------------------------------------
 vtkCompositeDataProbeFilter::vtkCompositeDataProbeFilter()
@@ -48,6 +42,7 @@ int vtkCompositeDataProbeFilter::FillInputPortInformation(int port, vtkInformati
     // and vtkCompositeDataSet consisting of vtkDataSet leaf nodes.
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkCompositeDataSet");
     info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
+    info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkHyperTreeGrid");
   }
   return 1;
 }
@@ -73,6 +68,8 @@ int vtkCompositeDataProbeFilter::RequestData(
   vtkDataSet* sourceDS = vtkDataSet::SafeDownCast(sourceInfo->Get(vtkDataObject::DATA_OBJECT()));
   vtkCompositeDataSet* sourceComposite =
     vtkCompositeDataSet::SafeDownCast(sourceInfo->Get(vtkDataObject::DATA_OBJECT()));
+  vtkHyperTreeGrid* sourceHTG =
+    vtkHyperTreeGrid::SafeDownCast(sourceInfo->Get(vtkDataObject::DATA_OBJECT()));
   vtkDataSet* output = vtkDataSet::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
   if (!input)
@@ -80,9 +77,9 @@ int vtkCompositeDataProbeFilter::RequestData(
     return 0;
   }
 
-  if (!sourceDS && !sourceComposite)
+  if (!sourceDS && !sourceComposite && !sourceHTG)
   {
-    vtkErrorMacro("vtkDataSet or vtkCompositeDataSet is expected as the input "
+    vtkErrorMacro("vtkDataSet, vtkCompositeDataSet or vtkHyperTreeGrid is expected as the input "
                   "on port 1");
     return 0;
   }
@@ -91,6 +88,23 @@ int vtkCompositeDataProbeFilter::RequestData(
   {
     // Superclass knowns exactly what to do.
     return this->Superclass::RequestData(request, inputVector, outputVector);
+  }
+
+  if (sourceHTG)
+  {
+    vtkNew<vtkHyperTreeGridProbeFilter> htgProbe;
+    htgProbe->SetContainerAlgorithm(this);
+    htgProbe->SetPassCellArrays(this->GetPassCellArrays());
+    htgProbe->SetPassPointArrays(this->GetPassPointArrays());
+    htgProbe->SetPassFieldArrays(this->GetPassFieldArrays());
+    htgProbe->SetValidPointMaskArrayName(this->GetValidPointMaskArrayName());
+    htgProbe->SetInputData(input);
+    htgProbe->SetSourceData(sourceHTG);
+    htgProbe->SetTolerance(this->Tolerance);
+    htgProbe->SetComputeTolerance(this->ComputeTolerance);
+    htgProbe->Update();
+    output->ShallowCopy(htgProbe->GetOutput());
+    return 1;
   }
 
   // First, copy the input to the output as a starting point
@@ -107,11 +121,71 @@ int vtkCompositeDataProbeFilter::RequestData(
     int idx = 0;
     for (iter->InitReverseTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
     {
-      sourceDS = vtkDataSet::SafeDownCast(iter->GetCurrentDataObject());
-      if (!sourceDS)
+      if (this->CheckAbort())
       {
-        vtkErrorMacro("All leaves in the multiblock dataset must be vtkDataSet.");
+        break;
+      }
+      sourceDS = vtkDataSet::SafeDownCast(iter->GetCurrentDataObject());
+      sourceHTG = vtkHyperTreeGrid::SafeDownCast(iter->GetCurrentDataObject());
+      if (!sourceDS && !sourceHTG)
+      {
+        vtkErrorMacro(
+          "All leaves in the multiblock dataset must either be vtkDataSet or vtkHyperTreeGrid.");
         return 0;
+      }
+
+      if (sourceHTG)
+      {
+        vtkNew<vtkHyperTreeGridProbeFilter> htgProbe;
+        htgProbe->SetContainerAlgorithm(this);
+        htgProbe->SetPassCellArrays(this->GetPassCellArrays());
+        htgProbe->SetPassPointArrays(this->GetPassPointArrays());
+        htgProbe->SetPassFieldArrays(this->GetPassFieldArrays());
+        htgProbe->SetValidPointMaskArrayName(this->GetValidPointMaskArrayName());
+        htgProbe->SetInputData(input);
+        htgProbe->SetTolerance(this->Tolerance);
+        htgProbe->SetComputeTolerance(this->ComputeTolerance);
+        htgProbe->SetSourceData(sourceHTG);
+        htgProbe->Update();
+        // merge the output for this block with the total output
+        vtkNew<vtkIdList> addPoints;
+        addPoints->Initialize();
+        vtkDataSet* locOutput = htgProbe->GetOutput();
+        vtkCharArray* locMask = vtkCharArray::SafeDownCast(
+          locOutput->GetPointData()->GetArray(this->GetValidPointMaskArrayName()));
+        auto locPointMaskRange = vtk::DataArrayValueRange<1>(locMask);
+        auto globPointMaskRange = vtk::DataArrayValueRange<1>(this->MaskPoints);
+        auto locIt = locPointMaskRange.begin();
+        auto globIt = globPointMaskRange.begin();
+        vtkIdType index = 0;
+        for (; (locIt != locPointMaskRange.end()) && (globIt != globPointMaskRange.end());
+             locIt++, globIt++, index++)
+        {
+          // if the global mask does not have the point but the local one does then add the index
+          if (!(*globIt) && (*locIt))
+          {
+            addPoints->InsertNextId(index);
+          }
+        }
+        vtkIdType nArrays = sourceHTG->GetCellData()->GetNumberOfArrays();
+        for (vtkIdType iA = 0; iA < nArrays; iA++)
+        {
+          const char* arrName = sourceHTG->GetCellData()->GetAbstractArray(iA)->GetName();
+          vtkAbstractArray* locA = locOutput->GetPointData()->GetAbstractArray(arrName);
+          if (!locA)
+          {
+            vtkGenericWarningMacro("Could not find array " << arrName << " in local scope output.");
+            continue;
+          }
+          vtkAbstractArray* globA = output->GetPointData()->GetAbstractArray(arrName);
+          if (!globA)
+          {
+            output->GetPointData()->AddArray(locA);
+            continue;
+          }
+          globA->InsertTuples(addPoints, addPoints, locA);
+        }
+        continue;
       }
 
       if (sourceDS->GetNumberOfPoints() == 0)
@@ -129,6 +203,7 @@ int vtkCompositeDataProbeFilter::RequestData(
         this->SetFindCellStrategy(nullptr);
       }
 
+      this->InitializeSourceArrays(sourceDS);
       this->DoProbing(input, idx, sourceDS, output);
       idx++;
     }
@@ -179,6 +254,10 @@ int vtkCompositeDataProbeFilter::BuildFieldList(vtkCompositeDataSet* source)
   for (iter->InitReverseTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
   {
     vtkDataSet* sourceDS = vtkDataSet::SafeDownCast(iter->GetCurrentDataObject());
+    if (vtkHyperTreeGrid::SafeDownCast(iter->GetCurrentDataObject()))
+    {
+      continue;
+    }
     if (!sourceDS)
     {
       vtkErrorMacro("All leaves in the multiblock dataset must be vtkDataSet.");
@@ -199,6 +278,10 @@ int vtkCompositeDataProbeFilter::BuildFieldList(vtkCompositeDataSet* source)
   for (iter->InitReverseTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
   {
     vtkDataSet* sourceDS = vtkDataSet::SafeDownCast(iter->GetCurrentDataObject());
+    if (vtkHyperTreeGrid::SafeDownCast(iter->GetCurrentDataObject()))
+    {
+      continue;
+    }
     if (sourceDS->GetNumberOfPoints() == 0)
     {
       continue;
@@ -265,3 +348,4 @@ void vtkCompositeDataProbeFilter::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << "PassPartialArrays: " << this->PassPartialArrays << endl;
 }
+VTK_ABI_NAMESPACE_END

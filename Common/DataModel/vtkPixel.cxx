@@ -1,25 +1,13 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPixel.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPixel.h"
 
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkDataArrayRange.h"
+#include "vtkDoubleArray.h"
 #include "vtkIncrementalPointLocator.h"
 #include "vtkLine.h"
-#include "vtkMarchingSquaresLineCases.h"
 #include "vtkMath.h"
 #include "vtkMathUtilities.h"
 #include "vtkObjectFactory.h"
@@ -32,6 +20,7 @@
 #include <algorithm>
 #include <array>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPixel);
 
 //------------------------------------------------------------------------------
@@ -63,7 +52,7 @@ vtkPixel::~vtkPixel()
 int vtkPixel::EvaluatePosition(const double x[3], double closestPoint[3], int& subId,
   double pcoords[3], double& dist2, double weights[])
 {
-  double pt1[3], pt2[3], pt3[3];
+  const double *pt1, *pt2, *pt3;
   int i;
   double p[3], p21[3], p31[3], cp[3];
   double l21, l31, n[3];
@@ -71,11 +60,19 @@ int vtkPixel::EvaluatePosition(const double x[3], double closestPoint[3], int& s
   subId = 0;
   pcoords[2] = 0.0;
 
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
   // Get normal for pixel
-  //
-  this->Points->GetPoint(0, pt1);
-  this->Points->GetPoint(1, pt2);
-  this->Points->GetPoint(2, pt3);
+  pt1 = pts;
+  pt2 = pts + 3;
+  pt3 = pts + 6;
 
   vtkTriangle::ComputeNormal(pt1, pt2, pt3, n);
 
@@ -145,14 +142,23 @@ int vtkPixel::EvaluatePosition(const double x[3], double closestPoint[3], int& s
 //------------------------------------------------------------------------------
 void vtkPixel::EvaluateLocation(int& subId, const double pcoords[3], double x[3], double* weights)
 {
-  double pt1[3], pt2[3], pt3[3];
+  const double *pt1, *pt2, *pt3;
   int i;
 
   subId = 0;
 
-  this->Points->GetPoint(0, pt1);
-  this->Points->GetPoint(1, pt2);
-  this->Points->GetPoint(2, pt3);
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
+  pt1 = pts;
+  pt2 = pts + 3;
+  pt3 = pts + 6;
 
   for (i = 0; i < 3; i++)
   {
@@ -296,8 +302,10 @@ int vtkPixel::CellBoundary(int vtkNotUsed(subId), const double pcoords[3], vtkId
 //
 // Marching squares
 //
+VTK_ABI_NAMESPACE_END
 #include "vtkMarchingSquaresLineCases.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 static int edges[4][2] = { { 0, 1 }, { 1, 3 }, { 2, 3 }, { 0, 2 } };
 
 void vtkPixel::Contour(double value, vtkDataArray* cellScalars, vtkIncrementalPointLocator* locator,
@@ -306,7 +314,7 @@ void vtkPixel::Contour(double value, vtkDataArray* cellScalars, vtkIncrementalPo
 {
   static const int CASE_MASK[4] = { 1, 2, 8, 4 }; // note differenceom quad!
   vtkMarchingSquaresLineCases* lineCase;
-  EDGE_LIST* edge;
+  int* edge;
   int i, j, index, *vert;
   int newCellId;
   vtkIdType pts[2];
@@ -801,3 +809,4 @@ void vtkPixel::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Line:\n";
   this->Line->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestCityGMLReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // .NAME Test of an RGBA texture on a vtkActor.
 // .SECTION Description
@@ -36,6 +24,42 @@
 #include "vtkTexture.h"
 #include "vtksys/SystemTools.hxx"
 
+void AddActors(vtkRenderer* renderer, vtkMultiBlockDataSet* mb, const char* fname)
+{
+  vtkSmartPointer<vtkCompositeDataIterator> it;
+  for (it.TakeReference(mb->NewIterator()); !it->IsDoneWithTraversal(); it->GoToNextItem())
+  {
+    vtkPolyData* poly = vtkPolyData::SafeDownCast(it->GetCurrentDataObject());
+    if (poly)
+    {
+
+      vtkNew<vtkPolyDataMapper> mapper;
+      mapper->SetInputDataObject(poly);
+
+      vtkNew<vtkActor> actor;
+      actor->SetMapper(mapper);
+      renderer->AddActor(actor);
+      vtkStringArray* textureField =
+        vtkStringArray::SafeDownCast(poly->GetFieldData()->GetAbstractArray("texture_uri"));
+      if (textureField)
+      {
+        std::string fnamePath = vtksys::SystemTools::GetFilenamePath(std::string(fname));
+
+        vtkStdString textureURI = textureField->GetValue(0);
+        vtkNew<vtkJPEGReader> JpegReader;
+        JpegReader->SetFileName((fnamePath + "/" + textureURI).c_str());
+        JpegReader->Update();
+
+        vtkNew<vtkTexture> texture;
+        texture->SetInputConnection(JpegReader->GetOutputPort());
+        texture->InterpolateOn();
+
+        actor->SetTexture(texture);
+      }
+    }
+  }
+}
+
 int TestCityGMLReader(int argc, char* argv[])
 {
   char* fname =
@@ -56,38 +80,7 @@ int TestCityGMLReader(int argc, char* argv[])
   reader->Update();
   vtkMultiBlockDataSet* mb = reader->GetOutput();
 
-  vtkSmartPointer<vtkCompositeDataIterator> it;
-  for (it.TakeReference(mb->NewIterator()); !it->IsDoneWithTraversal(); it->GoToNextItem())
-  {
-    vtkPolyData* poly = vtkPolyData::SafeDownCast(it->GetCurrentDataObject());
-    if (poly)
-    {
-
-      vtkNew<vtkPolyDataMapper> mapper;
-      mapper->SetInputDataObject(poly);
-
-      vtkNew<vtkActor> actor;
-      actor->SetMapper(mapper);
-      renderer->AddActor(actor);
-      vtkStringArray* textureField =
-        vtkStringArray::SafeDownCast(poly->GetFieldData()->GetAbstractArray("texture_uri"));
-      if (textureField)
-      {
-        std::string fnamePath = vtksys::SystemTools::GetFilenamePath(std::string(fname));
-
-        const char* textureURI = textureField->GetValue(0);
-        vtkNew<vtkJPEGReader> JpegReader;
-        JpegReader->SetFileName((fnamePath + "/" + textureURI).c_str());
-        JpegReader->Update();
-
-        vtkNew<vtkTexture> texture;
-        texture->SetInputConnection(JpegReader->GetOutputPort());
-        texture->InterpolateOn();
-
-        actor->SetTexture(texture);
-      }
-    }
-  }
+  AddActors(renderer, mb, fname);
 
   renderer->ResetCamera();
   renderer->GetActiveCamera()->Azimuth(90);

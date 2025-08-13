@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHigherOrderTriangle.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHigherOrderTriangle
  * @brief   A 2D cell that represents an arbitrary order HigherOrder triangle
@@ -34,13 +22,13 @@
 #include <functional> //For std::function
 
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For deprecation macros
 #include "vtkNew.h"                   // For member variable.
 #include "vtkNonLinearCell.h"
 #include "vtkSmartPointer.h" // For member variable.
 
 #include <vector> // For caching
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDoubleArray;
 class vtkHigherOrderCurve;
 class vtkTriangle;
@@ -91,6 +79,9 @@ public:
 
   vtkIdType GetOrder() const { return this->Order; }
   vtkIdType ComputeOrder();
+  /// Return true if the number of points supports a cell of uniform
+  /// degree along each axis.
+  static bool PointCountSupportsUniformOrder(vtkIdType pointsPerTri);
 
   void ToBarycentricIndex(vtkIdType index, vtkIdType* bindex);
   vtkIdType ToIndex(const vtkIdType* bindex);
@@ -98,14 +89,8 @@ public:
   static void BarycentricIndex(vtkIdType index, vtkIdType* bindex, vtkIdType order);
   static vtkIdType Index(const vtkIdType* bindex, vtkIdType order);
 
-  VTK_DEPRECATED_IN_9_1_0("renamed to Eta")
-  static double eta(vtkIdType n, vtkIdType chi, double sigma);
   static double Eta(vtkIdType n, vtkIdType chi, double sigma);
-  VTK_DEPRECATED_IN_9_1_0("renamed to Deta")
-  static double d_eta(vtkIdType n, vtkIdType chi, double sigma);
   static double Deta(vtkIdType n, vtkIdType chi, double sigma);
-  VTK_DEPRECATED_IN_9_1_0("renamed to GetEdgeCell")
-  virtual vtkHigherOrderCurve* getEdgeCell();
   virtual vtkHigherOrderCurve* GetEdgeCell() = 0;
 
 protected:
@@ -135,4 +120,5 @@ private:
   void operator=(const vtkHigherOrderTriangle&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

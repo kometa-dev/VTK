@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmfReaderInternal.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXdmfReaderInternal.h"
 
 #include "vtkDataArray.h"
@@ -26,13 +14,14 @@
 // hence only the top-level grids are made accessible.
 #define MAX_COLLECTABLE_NUMBER_OF_GRIDS 1000
 
+using namespace xdmf2;
+
+VTK_ABI_NAMESPACE_BEGIN
 template <class T>
 T vtkMAX(T a, T b)
 {
   return (a > b ? a : b);
 }
-
-using namespace xdmf2;
 
 //------------------------------------------------------------------------------
 vtkXdmfDocument::vtkXdmfDocument()
@@ -746,7 +735,7 @@ void vtkXdmfDomain::CollectLeafMetaData(XdmfGrid* xmfGrid, vtkIdType silParent)
 //------------------------------------------------------------------------------
 bool vtkXdmfDomain::UpdateGridAttributeInSIL(XdmfAttribute* xmfAttribute, vtkIdType silVertex)
 {
-  // Check if the grid centered attribute is an single component integeral
+  // Check if the grid centered attribute is an single component integral
   // value, (or a string, in future). If that's the case, then these become
   // part of the SIL.
   XdmfDataItem xmfDataItem;
@@ -780,7 +769,7 @@ bool vtkXdmfDomain::UpdateGridAttributeInSIL(XdmfAttribute* xmfAttribute, vtkIdT
       break;
 
     default:
-      return false; // skip non-integeral types.
+      return false; // skip non-integral types.
   }
 
   const char* name = xmfAttribute->GetName();
@@ -816,3 +805,4 @@ bool vtkXdmfDomain::UpdateGridAttributeInSIL(XdmfAttribute* xmfAttribute, vtkIdT
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_END

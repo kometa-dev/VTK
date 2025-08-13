@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkShadowMapBakerPass.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkShadowMapBakerPass
  * @brief   Implement a builder of shadow map pass.
@@ -46,6 +34,7 @@
 #include "vtkSmartPointer.h"           // for ivars
 #include <vector>                      // STL Header
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLRenderWindow;
 class vtkInformationIntegerKey;
 class vtkCamera;
@@ -231,4 +220,5 @@ private:
   void operator=(const vtkShadowMapBakerPass&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

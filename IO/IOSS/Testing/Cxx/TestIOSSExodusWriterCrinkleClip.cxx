@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestIOSSExodusWriterCrinkleClip.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * This test tests that vtkIOSSWriter can detect and create restarts when input
  * mesh changes.
@@ -19,7 +7,6 @@
 #include <vtkCamera.h>
 #include <vtkCompositePolyDataMapper.h>
 #include <vtkDataArraySelection.h>
-#include <vtkDataObject.h>
 #include <vtkDataSetSurfaceFilter.h>
 #include <vtkExtractGeometry.h>
 #include <vtkIOSSReader.h>
@@ -34,7 +21,9 @@
 #include <vtkTestUtilities.h>
 #include <vtkTesting.h>
 
-static std::string GetFileName(int argc, char* argv[], const std::string& fnameC)
+namespace
+{
+std::string GetFileName(int argc, char* argv[], const std::string& fnameC)
 {
   char* fileNameC = vtkTestUtilities::ExpandDataFileName(argc, argv, fnameC.c_str());
   std::string fname(fileNameC);
@@ -42,7 +31,7 @@ static std::string GetFileName(int argc, char* argv[], const std::string& fnameC
   return fname;
 }
 
-static std::string GetOutputFileName(int argc, char* argv[], const std::string& suffix)
+std::string GetOutputFileName(int argc, char* argv[], const std::string& suffix)
 {
   vtkNew<vtkTesting> testing;
   testing->AddArguments(argc, argv);
@@ -54,6 +43,7 @@ static std::string GetOutputFileName(int argc, char* argv[], const std::string& 
   }
 
   return std::string(tempDir) + "/" + suffix;
+}
 }
 
 int TestIOSSExodusWriterCrinkleClip(int argc, char* argv[])
@@ -68,6 +58,7 @@ int TestIOSSExodusWriterCrinkleClip(int argc, char* argv[])
   vtkNew<vtkIOSSReader> reader0;
   auto fname = GetFileName(argc, argv, std::string("Data/Exodus/can.e.4/can.e.4.0"));
   reader0->SetFileName(fname.c_str());
+  reader0->SetGroupNumericVectorFieldComponents(true);
   reader0->UpdateInformation();
   reader0->GetElementBlockSelection()->EnableAllArrays();
   reader0->GetNodeSetSelection()->EnableAllArrays();
@@ -88,6 +79,7 @@ int TestIOSSExodusWriterCrinkleClip(int argc, char* argv[])
   // Open the saved file and render it.
   vtkNew<vtkIOSSReader> reader;
   reader->SetFileName(ofname.c_str());
+  reader->SetGroupNumericVectorFieldComponents(true);
   reader->GetElementBlockSelection()->EnableAllArrays();
   reader->GetNodeSetSelection()->EnableAllArrays();
   reader->GetSideSetSelection()->EnableAllArrays();

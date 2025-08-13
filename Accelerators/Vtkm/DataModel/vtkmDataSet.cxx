@@ -1,26 +1,12 @@
-//============================================================================
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2015 Sandia Corporation.
-//  Copyright 2015 UT-Battelle, LLC.
-//  Copyright 2015 Los Alamos National Security.
-//
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//  Under the terms of Contract DE-AC52-06NA25396 with Los Alamos National
-//  Laboratory (LANL), the U.S. Government retains certain rights in
-//  this software.
-//============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2015 Sandia Corporation.
+// SPDX-FileCopyrightText: Copyright 2015 UT-Battelle, LLC.
+// SPDX-FileCopyrightText: Copyright 2015 Los Alamos National Security.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-LANL-USGov
 #include "vtkmDataSet.h"
 
 #include "vtkmDataArray.h"
-#include "vtkmFilterPolicy.h"
 #include "vtkmlib/ArrayConverters.h"
 
 #include "vtkCell.h"
@@ -32,18 +18,26 @@
 #include "vtkPoints.h"
 
 #include <vtkm/List.h>
+#include <vtkm/cont/ArrayHandleCast.h>
+#include <vtkm/cont/ArrayHandlePermutation.h>
 #include <vtkm/cont/CellLocatorGeneral.h>
+#include <vtkm/cont/CellSetExplicit.h>
+#include <vtkm/cont/CellSetPermutation.h>
+#include <vtkm/cont/CellSetSingleType.h>
+#include <vtkm/cont/CellSetStructured.h>
 #include <vtkm/cont/DataSet.h>
+#include <vtkm/cont/DefaultTypes.h>
 #include <vtkm/cont/Invoker.h>
 #include <vtkm/cont/PointLocatorSparseGrid.h>
 #include <vtkm/worklet/ScatterPermutation.h>
 
 #include <mutex>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
-using SupportedCellSets = vtkmOutputFilterPolicy::AllCellSetList;
+using SupportedCellSets = tovtkm::CellListAllOutVTK;
 
 template <typename LocatorControl>
 struct VtkmLocator
@@ -437,3 +431,4 @@ void vtkmDataSet::DeepCopy(vtkDataObject* src)
     }
   }
 }
+VTK_ABI_NAMESPACE_END

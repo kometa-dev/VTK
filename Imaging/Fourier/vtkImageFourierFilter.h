@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageFourierFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageFourierFilter
  * @brief   Superclass that implements complex numbers.
@@ -32,6 +20,7 @@
                         COMPLEX number stuff
 *******************************************************************/
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkImageComplex_t
 {
   double Real;
@@ -40,30 +29,52 @@ struct vtkImageComplex_t
 using vtkImageComplex = struct vtkImageComplex_t;
 
 #define vtkImageComplexEuclidSet(C, R, I)                                                          \
-  (C).Real = (R);                                                                                  \
-  (C).Imag = (I)
+  do                                                                                               \
+  {                                                                                                \
+    (C).Real = (R);                                                                                \
+    (C).Imag = (I);                                                                                \
+  } while (false)
 
 #define vtkImageComplexPolarSet(C, M, P)                                                           \
-  (C).Real = (M)*cos(P);                                                                           \
-  (C).Imag = (M)*sin(P)
+  do                                                                                               \
+  {                                                                                                \
+    (C).Real = (M)*cos(P);                                                                         \
+    (C).Imag = (M)*sin(P);                                                                         \
+  } while (false)
 
-#define vtkImageComplexPrint(C) printf("(%.3f, %.3f)", (C).Real, (C).Imag)
+#define vtkImageComplexPrint(C)                                                                    \
+  do                                                                                               \
+  {                                                                                                \
+    printf("(%.3f, %.3f)", (C).Real, (C).Imag);                                                    \
+  } while (false)
 
 #define vtkImageComplexScale(cOut, S, cIn)                                                         \
-  (cOut).Real = (cIn).Real * (S);                                                                  \
-  (cOut).Imag = (cIn).Imag * (S)
+  do                                                                                               \
+  {                                                                                                \
+    (cOut).Real = (cIn).Real * (S);                                                                \
+    (cOut).Imag = (cIn).Imag * (S);                                                                \
+  } while (false)
 
 #define vtkImageComplexConjugate(cIn, cOut)                                                        \
-  (cOut).Imag = (cIn).Imag * -1.0;                                                                 \
-  (cOut).Real = (cIn).Real
+  do                                                                                               \
+  {                                                                                                \
+    (cOut).Imag = (cIn).Imag * -1.0;                                                               \
+    (cOut).Real = (cIn).Real;                                                                      \
+  } while (false)
 
 #define vtkImageComplexAdd(C1, C2, cOut)                                                           \
-  (cOut).Real = (C1).Real + (C2).Real;                                                             \
-  (cOut).Imag = (C1).Imag + (C2).Imag
+  do                                                                                               \
+  {                                                                                                \
+    (cOut).Real = (C1).Real + (C2).Real;                                                           \
+    (cOut).Imag = (C1).Imag + (C2).Imag;                                                           \
+  } while (false)
 
 #define vtkImageComplexSubtract(C1, C2, cOut)                                                      \
-  (cOut).Real = (C1).Real - (C2).Real;                                                             \
-  (cOut).Imag = (C1).Imag - (C2).Imag
+  do                                                                                               \
+  {                                                                                                \
+    (cOut).Real = (C1).Real - (C2).Real;                                                           \
+    (cOut).Imag = (C1).Imag - (C2).Imag;                                                           \
+  } while (false)
 
 #define vtkImageComplexMultiply(C1, C2, cOut)                                                      \
   {                                                                                                \
@@ -125,4 +136,5 @@ private:
   void operator=(const vtkImageFourierFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

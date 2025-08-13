@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTemporalDataSetCache.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTemporalDataSetCache.h"
 
 #include "vtkCompositeDataIterator.h"
@@ -29,6 +17,7 @@
 #include <vector>
 
 // A helper class to to turn on memkind, if enabled, while ensuring it always is restored
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTDSCMemkindRAII
 {
 #ifdef VTK_USE_MEMKIND
@@ -237,7 +226,7 @@ int vtkTemporalDataSetCache::RequestInformation(
   info->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), tRange, 2);
 
   // tell the caller what the specific values are
-  info->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &this->TimeStepValues[0],
+  info->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), this->TimeStepValues.data(),
     static_cast<int>(this->TimeStepValues.size()));
 
   // if we are caching structured data, we need to provide topological extents
@@ -344,7 +333,7 @@ int vtkTemporalDataSetCache ::RequestUpdateExtent(vtkInformation* vtkNotUsed(req
       // Get list of input time step values
       std::vector<double> InputTimeValues;
       InputTimeValues.resize(NumberOfInputTimeSteps);
-      inInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &InputTimeValues[0]);
+      inInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), InputTimeValues.data());
 
       // this should be the same, just checking for debug purposes
       reqTimeSteps.push_back(InputTimeValues[0]);
@@ -428,13 +417,15 @@ int vtkTemporalDataSetCache::RequestData(vtkInformation* vtkNotUsed(request),
     }
     else
     {
+      vtkTDSCMemkindRAII* mkhold = nullptr;
       if (hasDataTimeStep && inTime == upTime)
       {
-        auto mkhold = vtkTDSCMemkindRAII(this);
+        mkhold = new vtkTDSCMemkindRAII(this);
       }
       // just shallow copy input to output
       output.TakeReference(input->NewInstance());
       output->ShallowCopy(input);
+      delete mkhold;
     }
   }
   // set the data times
@@ -483,6 +474,8 @@ int vtkTemporalDataSetCache::RequestData(vtkInformation* vtkNotUsed(request),
       }
     }
   }
+
+  this->CheckAbort();
   return 1;
 }
 
@@ -498,14 +491,7 @@ void vtkTemporalDataSetCache::ReplaceCacheItem(
   }
   else
   {
-    if (this->GetCacheInMemkind())
-    {
-      cachedData->DeepCopy(input);
-    }
-    else
-    {
-      cachedData->ShallowCopy(input);
-    }
+    cachedData->DeepCopy(input);
   }
   this->Cache[inTime] = std::pair<unsigned long, vtkDataObject*>(outputUpdateTime, cachedData);
 }
@@ -528,3 +514,4 @@ void vtkTemporalDataSetCache::SetEjected(vtkDataObject* victim)
     // this->Modified(); //this is only thing we are changing from the macro
   }
 }
+VTK_ABI_NAMESPACE_END

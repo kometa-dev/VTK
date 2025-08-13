@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTexturedButtonRepresentation2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTexturedButtonRepresentation2D
  * @brief   defines a representation for a vtkButtonWidget
@@ -26,7 +14,7 @@
  *
  * To use this representation, always begin by specifying the number of
  * button states.  Then provide a polydata (the polydata should have associated
- * texture coordinates), and a list of textures cooresponding to the button
+ * texture coordinates), and a list of textures corresponding to the button
  * states. Optionally, the HoveringProperty and SelectionProperty can be
  * adjusted to obtain the appropriate appearance.
  *
@@ -47,6 +35,7 @@
 #include "vtkButtonRepresentation.h"
 #include "vtkInteractionWidgetsModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkProperty2D;
 class vtkImageData;
 class vtkTextureArray; // PIMPLd
@@ -179,4 +168,5 @@ private:
   void operator=(const vtkTexturedButtonRepresentation2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

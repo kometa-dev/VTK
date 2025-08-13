@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkResliceCursorActor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkResliceCursorActor.h"
 
@@ -27,6 +15,7 @@
 #include "vtkResliceCursorPolyDataAlgorithm.h"
 #include "vtkViewport.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkResliceCursorActor);
 
 //------------------------------------------------------------------------------
@@ -313,15 +302,18 @@ vtkActor* vtkResliceCursorActor::GetCenterlineActor(int axis)
 //------------------------------------------------------------------------------
 // Prints an object if it exists.
 #define vtkPrintMemberObjectMacro(obj, os, indent)                                                 \
-  os << (indent) << #obj << ": ";                                                                  \
-  if (this->obj)                                                                                   \
+  do                                                                                               \
   {                                                                                                \
-    os << this->obj << "\n";                                                                       \
-  }                                                                                                \
-  else                                                                                             \
-  {                                                                                                \
-    os << "(null)\n";                                                                              \
-  }
+    os << (indent) << #obj << ": ";                                                                \
+    if (this->obj)                                                                                 \
+    {                                                                                              \
+      os << this->obj << "\n";                                                                     \
+    }                                                                                              \
+    else                                                                                           \
+    {                                                                                              \
+      os << "(null)\n";                                                                            \
+    }                                                                                              \
+  } while (false)
 
 //------------------------------------------------------------------------------
 void vtkResliceCursorActor::PrintSelf(ostream& os, vtkIndent indent)
@@ -341,3 +333,4 @@ void vtkResliceCursorActor::PrintSelf(ostream& os, vtkIndent indent)
   // this->ThickSlabProperty[3];
   // this->CursorAlgorithm;
 }
+VTK_ABI_NAMESPACE_END

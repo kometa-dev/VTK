@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIncrementalOctreePointLocator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkIncrementalOctreePointLocator
  * @brief   Incremental octree in support
@@ -51,6 +39,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkIncrementalPointLocator.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
 class vtkIdList;
 class vtkIntArray;
@@ -140,7 +129,7 @@ public:
    */
   vtkIdType FindClosestInsertedPoint(const double x[3]) override;
 
-  //@{
+  ///@{
   /**
    * Create a polygonal representation of the octree 'level': for each node
    * on the specified level we generate six faces for the bounding box of the node.
@@ -156,7 +145,7 @@ public:
   void GenerateRepresentation(int level, vtkPolyData* polysData) override;
   void GenerateRepresentation(int level, vtkPolyData* polysData,
     bool (*UserGetBounds)(void* data, vtkIncrementalOctreeNode* node, double* bounds), void* data);
-  //@}
+  ///@}
 
   // -------------------------------------------------------------------------
   // ---------------------------- Point  Location ----------------------------
@@ -508,4 +497,5 @@ private:
   vtkIncrementalOctreePointLocator(const vtkIncrementalOctreePointLocator&) = delete;
   void operator=(const vtkIncrementalOctreePointLocator&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

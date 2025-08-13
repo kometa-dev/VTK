@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInteractorStyleTrackballCamera.h"
 #include "vtkObjectFactory.h"
 #include "vtkPolyDataMapper.h"
@@ -28,10 +30,10 @@ public:
   {
     vtkRenderWindowInteractor* rwi = this->GetInteractor();
 
-    const char* path = filePaths->GetValue(0);
+    vtkStdString path = filePaths->GetValue(0);
 
     vtkNew<vtkXMLPolyDataReader> reader;
-    reader->SetFileName(path);
+    reader->SetFileName(path.c_str());
 
     vtkNew<vtkPolyDataMapper> mapper;
     mapper->SetInputConnection(reader->GetOutputPort());

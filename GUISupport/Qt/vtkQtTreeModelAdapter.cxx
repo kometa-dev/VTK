@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtTreeModelAdapter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkQtTreeModelAdapter.h"
 
@@ -31,7 +15,6 @@
 #include "vtkSelection.h"
 #include "vtkSelectionNode.h"
 #include "vtkSmartPointer.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkTree.h"
 #include "vtkUnsignedCharArray.h"
@@ -48,6 +31,7 @@
 #include <set>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkQtTreeModelAdapter::vtkQtTreeModelAdapter(QObject* p, vtkTree* t)
   : vtkQtAbstractModelAdapter(p)
 {
@@ -178,8 +162,7 @@ void vtkQtTreeModelAdapter::treeModified()
 
 // Description:
 // Selection conversion from VTK land to Qt land
-vtkSelection* vtkQtTreeModelAdapter::QModelIndexListToVTKIndexSelection(
-  const QModelIndexList qmil) const
+vtkSelection* vtkQtTreeModelAdapter::QModelIndexListToVTKIndexSelection(QModelIndexList qmil) const
 {
   // Create vtk index selection
   vtkSelection* IndexSelection = vtkSelection::New(); // Caller needs to delete
@@ -261,7 +244,7 @@ QVariant vtkQtTreeModelAdapterArrayValue(vtkAbstractArray* arr, vtkIdType i, vtk
 
   if (vtkStringArray* const data = vtkArrayDownCast<vtkStringArray>(arr))
   {
-    return QVariant(data->GetValue(i * comps + j));
+    return QVariant(data->GetValue(i * comps + j).c_str());
   }
 
   if (vtkVariantArray* const data = vtkArrayDownCast<vtkVariantArray>(arr))
@@ -295,7 +278,7 @@ QVariant vtkQtTreeModelAdapter::data(const QModelIndex& idx, int role) const
   vtkAbstractArray* arr = this->Tree->GetVertexData()->GetAbstractArray(column);
   if (role == Qt::DisplayRole)
   {
-    return QString::fromUtf8(arr->GetVariantValue(vertex).ToString()).trimmed();
+    return QString::fromUtf8(arr->GetVariantValue(vertex).ToString().c_str()).trimmed();
   }
   else if (role == Qt::UserRole)
   {
@@ -573,3 +556,4 @@ Qt::DropActions vtkQtTreeModelAdapter::supportedDragActions() const
 {
   return Qt::CopyAction;
 }
+VTK_ABI_NAMESPACE_END

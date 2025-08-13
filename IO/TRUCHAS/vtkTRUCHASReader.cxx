@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTRUCHASReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTRUCHASReader.h"
 
 #include "vtkCellArray.h"
@@ -34,6 +22,7 @@
 #include <sstream>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTRUCHASReader::Internal
 {
 public:
@@ -1053,7 +1042,7 @@ int vtkTRUCHASReader::RequestData(
           if (strncmp(array_name, "VOF", 3) == 0)
           {
             // For the VOF field, name the components by the given FIELDNAMEX attribute.
-            for (int i = 0; i < dims[1]; i++)
+            for (size_t i = 0; i < dims[1]; i++)
             {
               std::string attr_name = "FIELDNAME" + std::to_string(i + 1);
               if (!H5Aexists_by_name(now_gid, array_name, attr_name.c_str(), H5P_DEFAULT))
@@ -1360,3 +1349,4 @@ const char* vtkTRUCHASReader::GetCellArrayName(int index)
 {
   return this->CellArrayChoices->GetArrayName(index);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPythonClass.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapPythonClass.h"
 #include "vtkWrapPythonConstant.h"
@@ -232,34 +220,24 @@ void vtkWrapPython_ClassDoc(
     comment = (char*)malloc(n);
     cp = comment;
     *cp = '\0';
+    size_t written = 0;
 
     if (file_info->Description)
     {
-      strcpy(cp, file_info->Description);
-      cp += strlen(cp);
-      *cp++ = '\n';
-      *cp++ = '\n';
-      *cp = '\0';
+      written += snprintf(cp + written, n - written, "%s\n\n", file_info->Description);
     }
 
     if (file_info->Caveats)
     {
-      sprintf(cp, ".SECTION Caveats\n\n");
-      cp += strlen(cp);
-      strcpy(cp, file_info->Caveats);
-      cp += strlen(cp);
-      *cp++ = '\n';
-      *cp++ = '\n';
-      *cp = '\0';
+      written +=
+        snprintf(cp + written, n - written, ".SECTION Caveats\n\n%s\n\n", file_info->Caveats);
     }
 
     if (file_info->SeeAlso)
     {
-      sprintf(cp, ".SECTION See Also\n\n");
-      cp += strlen(cp);
-      strcpy(cp, file_info->SeeAlso);
-      cp += strlen(cp);
-      *cp = '\0';
+      written +=
+        snprintf(cp + written, n - written, ".SECTION See Also\n\n%s\n\n", file_info->SeeAlso);
+      (void)written;
     }
 
     ccp = vtkWrapText_FormatComment(comment, 70);
@@ -368,7 +346,7 @@ static void vtkWrapPython_GenerateObjectNew(
   }
   else
   {
-    /* use of typeid() matches vtkTypeTemplate */
+    /* use of typeid() matches vtkSetGet ClassName for templated types */
     fprintf(fp, "    typeid(%s).name(),\n", data->Name);
   }
 
@@ -383,16 +361,10 @@ static void vtkWrapPython_GenerateObjectNew(
 
   /* if type is already ready, then return */
   fprintf(fp,
-    "  if ((pytype->tp_flags & Py_TPFLAGS_READY) != 0)\n"
+    "  if ((PyType_GetFlags(pytype) & Py_TPFLAGS_READY) != 0)\n"
     "  {\n"
     "    return (PyObject *)pytype;\n"
     "  }\n\n");
-
-  /* add any flags specific to this type */
-  fprintf(fp,
-    "#ifndef VTK_PY3K\n"
-    "  pytype->tp_flags |= Py_TPFLAGS_HAVE_NEWBUFFER;\n"
-    "#endif\n\n");
 
   /* find the first superclass that is a VTK class, create it first */
   name = vtkWrapPython_GetSuperClass(data, hinfo, &supermodule);
@@ -405,8 +377,17 @@ static void vtkWrapPython_GenerateObjectNew(
     }
     else /* superclass is in a different module */
     {
-      fprintf(
-        fp, "  pytype->tp_base = vtkPythonUtil::FindBaseTypeObject(\"%s\");\n\n", superclassname);
+      if (strcmp(name, superclassname) == 0)
+      {
+        fprintf(
+          fp, "  pytype->tp_base = vtkPythonUtil::FindBaseTypeObject(\"%s\");\n\n", superclassname);
+      }
+      else /* this occurs if superclass is templated */
+      {
+        /* use of typeid() matches vtkSetGet ClassName for templated types */
+        fprintf(fp, "  pytype->tp_base = vtkPythonUtil::FindBaseTypeObject(typeid(%s).name());\n\n",
+          name);
+      }
     }
   }
 

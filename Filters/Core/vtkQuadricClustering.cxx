@@ -1,18 +1,8 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuadricClustering.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkQuadricClustering.h"
+
+#include <cstdint>
 
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
@@ -29,16 +19,16 @@
 
 #include <unordered_set> // keep track of inserted triangles
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkQuadricClustering);
 
 //------------------------------------------------------------------------------
 // PIMPLd STL set for keeping track of inserted cells
-struct vtkQuadricClusteringIdTypeHash
+struct vtkQuadricClusteringIdxHash
 {
-  size_t operator()(vtkIdType val) const { return static_cast<size_t>(val); }
+  size_t operator()(int64_t val) const { return static_cast<size_t>(val); }
 };
-class vtkQuadricClusteringCellSet
-  : public std::unordered_set<vtkIdType, vtkQuadricClusteringIdTypeHash>
+class vtkQuadricClusteringCellSet : public std::unordered_set<int64_t, vtkQuadricClusteringIdxHash>
 {
 };
 typedef vtkQuadricClusteringCellSet::iterator vtkQuadricClusteringCellSetIterator;
@@ -88,6 +78,7 @@ vtkQuadricClustering::vtkQuadricClustering()
   this->FeatureEdges = vtkFeatureEdges::New();
   this->FeatureEdges->FeatureEdgesOff();
   this->FeatureEdges->BoundaryEdgesOn();
+  this->FeatureEdges->SetContainerAlgorithm(this);
   this->FeaturePoints = vtkPoints::New();
 
   this->InCellCount = this->OutCellCount = 0;
@@ -158,7 +149,7 @@ int vtkQuadricClustering::RequestData(vtkInformation* vtkNotUsed(request),
   // (To minimize chance of overflow, force math in vtkIdType type,
   // which is sometimes bigger than int, and never smaller.)
   vtkIdType target = input->GetNumberOfPoints();
-  vtkIdType numDiv = static_cast<vtkIdType>(this->NumberOfXDivisions) * this->NumberOfYDivisions *
+  int64_t numDiv = static_cast<int64_t>(this->NumberOfXDivisions) * this->NumberOfYDivisions *
     this->NumberOfZDivisions / 2;
   if (this->AutoAdjustNumberOfDivisions && numDiv > target)
   {
@@ -389,6 +380,10 @@ void vtkQuadricClustering::AddPolygons(
     ++this->InCellCount;
     if (curr > cstep)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       this->UpdateProgress(.6 + .2 * curr / total);
       cstep += step;
     }
@@ -405,9 +400,14 @@ void vtkQuadricClustering::AddStrips(vtkCellArray* strips, vtkPoints* points, in
   double pts[3][3];
   vtkIdType binIds[3];
   int odd; // Used to flip order of every other triangle in a strip.
+  vtkIdType checkAbortInterval = std::min(strips->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
 
   for (strips->InitTraversal(); strips->GetNextCell(numPts, ptIds);)
   {
+    if (this->InCellCount % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     points->GetPoint(ptIds[0], pts[0]);
     binIds[0] = this->HashPoint(pts[0]);
     points->GetPoint(ptIds[1], pts[1]);
@@ -431,7 +431,7 @@ void vtkQuadricClustering::AddStrips(vtkCellArray* strips, vtkPoints* points, in
 }
 
 //------------------------------------------------------------------------------
-inline void vtkQuadricClustering::InitializeQuadric(double quadric[9])
+void vtkQuadricClustering::InitializeQuadric(double quadric[9])
 {
   quadric[0] = 0.0;
   quadric[1] = 0.0;
@@ -554,9 +554,11 @@ void vtkQuadricClustering::AddTriangle(vtkIdType* binIds, double* pt0, double* p
             }
             break;
         }
-        // TODO: this arithmetic overflows with the TestQuadricLODActor test.
-        vtkIdType idx = binIds[minIdx] + this->NumberOfBins * binIds[midIdx] +
-          this->NumberOfBins * this->NumberOfBins * binIds[maxIdx];
+        int64_t upsizedBinMin = static_cast<int64_t>(binIds[minIdx]);
+        int64_t upsizedBinMid = static_cast<int64_t>(binIds[midIdx]);
+        int64_t upsizedBinMax = static_cast<int64_t>(binIds[maxIdx]);
+        int64_t idx = upsizedBinMin + this->NumberOfBins * upsizedBinMid +
+          this->NumberOfBins * this->NumberOfBins * upsizedBinMax;
         if (this->CellSet->find(idx) == this->CellSet->end())
         {
           this->CellSet->insert(idx);
@@ -594,8 +596,13 @@ void vtkQuadricClustering::AddEdges(
   // Add the edges to the error function.
   numCells = edges->GetNumberOfCells();
   edges->InitTraversal();
+  vtkIdType checkAbortInterval = std::min(numCells / 10 + 1, (vtkIdType)1000);
   for (vtkIdType i = 0; i < numCells; ++i)
   {
+    if (i % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     edges->GetNextCell(numPts, ptIds);
     if (numPts != 0)
     {
@@ -660,7 +667,7 @@ void vtkQuadricClustering::AddEdge(vtkIdType* binIds, double* pt0, double* pt1, 
   // Compute dot(m, d);
   md = m[0] * d[0] + m[1] * d[1] + m[2] * d[2];
 
-  // We save nine coefficients of the error function cooresponding to:
+  // We save nine coefficients of the error function corresponding to:
   // 0: Px^2
   // 1: PxPy
   // 2: PxPz
@@ -742,8 +749,13 @@ void vtkQuadricClustering::AddVertices(
   double curr = 0;
 
   verts->InitTraversal();
+  vtkIdType checkAbortInterval = std::min(numCells / 10 + 1, (vtkIdType)1000);
   for (vtkIdType i = 0; i < numCells; ++i)
   {
+    if (i % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     verts->GetNextCell(numPts, ptIds);
     // Can there be poly vertices?
     for (vtkIdType j = 0; j < numPts; ++j)
@@ -775,7 +787,7 @@ void vtkQuadricClustering::AddVertex(
 
   // Compute quadric for the vertex.
 
-  // We save nine coefficients of the error function cooresponding to:
+  // We save nine coefficients of the error function corresponding to:
   // 0: Px^2
   // 1: PxPy
   // 2: PxPz
@@ -891,7 +903,7 @@ void vtkQuadricClustering::EndAppend()
   vtkPolyData* output = vtkPolyData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
   vtkIdType numBuckets;
-  int abortExecute = 0;
+  bool abortExecute = false;
   vtkPoints* outputPoints;
   double newPt[3];
   numBuckets = this->NumberOfDivisions[0] * this->NumberOfDivisions[1] * this->NumberOfDivisions[2];
@@ -925,7 +937,7 @@ void vtkQuadricClustering::EndAppend()
       cstep = 0;
       vtkDebugMacro(<< "Finding point in bin #" << i);
       this->UpdateProgress(0.8 + 0.2 * i / numBuckets);
-      abortExecute = this->GetAbortExecute();
+      abortExecute = this->CheckAbort();
     }
     ++cstep;
 
@@ -1328,7 +1340,7 @@ void vtkQuadricClustering::EndAppendVertexGeometry(vtkPolyData* input, vtkPolyDa
       outPtId = this->QuadricArray[binId].VertexId;
       if (outPtId >= 0)
       {
-        // Do not use this point.  Destroy infomration in Quadric array.
+        // Do not use this point.  Destroy information in Quadric array.
         this->QuadricArray[binId].VertexId = -1;
         tmp[tmpIdx] = outPtId;
         ++tmpIdx;
@@ -1529,3 +1541,4 @@ void vtkQuadricClustering::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Prevent Duplicate Cells : " << (this->PreventDuplicateCells ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

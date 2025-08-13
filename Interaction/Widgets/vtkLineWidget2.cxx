@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLineWidget2.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLineWidget2.h"
 #include "vtkCallbackCommand.h"
 #include "vtkCommand.h"
 #include "vtkEvent.h"
 #include "vtkHandleWidget.h"
 #include "vtkLineRepresentation.h"
+#include "vtkMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointHandleRepresentation3D.h"
 #include "vtkRenderWindow.h"
@@ -26,6 +15,7 @@
 #include "vtkWidgetEvent.h"
 #include "vtkWidgetEventTranslator.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLineWidget2);
 
 //------------------------------------------------------------------------------
@@ -348,52 +338,78 @@ void vtkLineWidget2::ProcessKeyEvents(vtkObject*, unsigned long event, void* cli
   vtkLineWidget2* self = static_cast<vtkLineWidget2*>(clientdata);
   vtkRenderWindowInteractor* iren = self->GetInteractor();
   vtkLineRepresentation* rep = vtkLineRepresentation::SafeDownCast(self->WidgetRep);
-  switch (event)
+  if (event == vtkCommand::KeyPressEvent)
   {
-    case vtkCommand::KeyPressEvent:
-      switch (iren->GetKeyCode())
-      {
-        case 'x':
-        case 'X':
-          rep->GetPoint1Representation()->SetXTranslationAxisOn();
-          rep->GetPoint2Representation()->SetXTranslationAxisOn();
-          rep->GetLineHandleRepresentation()->SetXTranslationAxisOn();
-          break;
-        case 'y':
-        case 'Y':
-          rep->GetPoint1Representation()->SetYTranslationAxisOn();
-          rep->GetPoint2Representation()->SetYTranslationAxisOn();
-          rep->GetLineHandleRepresentation()->SetYTranslationAxisOn();
-          break;
-        case 'z':
-        case 'Z':
-          rep->GetPoint1Representation()->SetZTranslationAxisOn();
-          rep->GetPoint2Representation()->SetZTranslationAxisOn();
-          rep->GetLineHandleRepresentation()->SetZTranslationAxisOn();
-          break;
-        default:
-          break;
-      }
-      break;
-    case vtkCommand::KeyReleaseEvent:
-      switch (iren->GetKeyCode())
-      {
-        case 'x':
-        case 'X':
-        case 'y':
-        case 'Y':
-        case 'z':
-        case 'Z':
-          rep->GetPoint1Representation()->SetTranslationAxisOff();
-          rep->GetPoint2Representation()->SetTranslationAxisOff();
-          rep->GetLineHandleRepresentation()->SetTranslationAxisOff();
-          break;
-        default:
-          break;
-      }
-      break;
-    default:
-      break;
+    switch (iren->GetKeyCode())
+    {
+      case 'x':
+      case 'X':
+        rep->GetPoint1Representation()->SetXTranslationAxisOn();
+        rep->GetPoint2Representation()->SetXTranslationAxisOn();
+        rep->GetLineHandleRepresentation()->SetXTranslationAxisOn();
+        rep->GetPoint1Representation()->SetConstrained(true);
+        rep->GetPoint2Representation()->SetConstrained(true);
+        rep->GetLineHandleRepresentation()->SetConstrained(true);
+        break;
+      case 'y':
+      case 'Y':
+        rep->GetPoint1Representation()->SetYTranslationAxisOn();
+        rep->GetPoint2Representation()->SetYTranslationAxisOn();
+        rep->GetLineHandleRepresentation()->SetYTranslationAxisOn();
+        rep->GetPoint1Representation()->SetConstrained(true);
+        rep->GetPoint2Representation()->SetConstrained(true);
+        rep->GetLineHandleRepresentation()->SetConstrained(true);
+        break;
+      case 'z':
+      case 'Z':
+        rep->GetPoint1Representation()->SetZTranslationAxisOn();
+        rep->GetPoint2Representation()->SetZTranslationAxisOn();
+        rep->GetLineHandleRepresentation()->SetZTranslationAxisOn();
+        rep->GetPoint1Representation()->SetConstrained(true);
+        rep->GetPoint2Representation()->SetConstrained(true);
+        rep->GetLineHandleRepresentation()->SetConstrained(true);
+        break;
+      case 'l':
+      case 'L':
+        double p1[3], p2[3], v[3];
+        rep->GetPoint1WorldPosition(p1);
+        rep->GetPoint2WorldPosition(p2);
+        vtkMath::Subtract(p2, p1, v);
+        vtkMath::Normalize(v);
+        rep->GetPoint1Representation()->SetCustomTranslationAxisOn();
+        rep->GetPoint1Representation()->SetCustomTranslationAxis(v);
+        rep->GetPoint2Representation()->SetCustomTranslationAxisOn();
+        rep->GetPoint2Representation()->SetCustomTranslationAxis(v);
+        rep->GetLineHandleRepresentation()->SetCustomTranslationAxisOn();
+        rep->GetLineHandleRepresentation()->SetCustomTranslationAxis(v);
+        rep->GetPoint1Representation()->SetConstrained(true);
+        rep->GetPoint2Representation()->SetConstrained(true);
+        rep->GetLineHandleRepresentation()->SetConstrained(true);
+        break;
+    }
+  }
+  else if (event == vtkCommand::KeyReleaseEvent)
+  {
+    switch (iren->GetKeyCode())
+    {
+      case 'l':
+      case 'L':
+      case 'x':
+      case 'X':
+      case 'y':
+      case 'Y':
+      case 'z':
+      case 'Z':
+        rep->GetPoint1Representation()->SetTranslationAxisOff();
+        rep->GetPoint2Representation()->SetTranslationAxisOff();
+        rep->GetLineHandleRepresentation()->SetTranslationAxisOff();
+        rep->GetPoint1Representation()->SetConstrained(false);
+        rep->GetPoint2Representation()->SetConstrained(false);
+        rep->GetLineHandleRepresentation()->SetConstrained(false);
+        break;
+      default:
+        break;
+    }
   }
 }
 
@@ -402,3 +418,4 @@ void vtkLineWidget2::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

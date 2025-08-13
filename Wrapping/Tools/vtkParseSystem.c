@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseSystem.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkParseSystem.h"
 
@@ -55,7 +43,7 @@
 #endif
 
 /* Use hash table size that is a power of two */
-#define FILE_HASH_TABLE_SIZE 1024u
+const unsigned int FILE_HASH_TABLE_SIZE = 1 << 10;
 
 /* Whether to use wide filenames on WIN32 */
 #if defined(_WIN32) && !defined(__MINGW32__)
@@ -481,7 +469,7 @@ void vtkParse_FreeFileCache(SystemInfo* info)
 }
 
 /**
- * On Win32, this interpretes fname as UTF8 and then calls wfopen().
+ * On Win32, this interprets fname as UTF8 and then calls wfopen().
  * The returned handle must be freed with fclose().
  */
 FILE* vtkParse_FileOpen(const char* fname, const char* mode)

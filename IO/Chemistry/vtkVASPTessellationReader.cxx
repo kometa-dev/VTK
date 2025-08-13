@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVASPTessellationReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkVASPTessellationReader.h"
 
@@ -45,7 +33,9 @@
 #include <sstream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVASPTessellationReader);
+VTK_ABI_NAMESPACE_END
 
 typedef vtksys::RegularExpression RegEx;
 typedef vtkStreamingDemandDrivenPipeline vtkSDDP;
@@ -116,6 +106,8 @@ bool parseVariableLists(
 }
 
 } // end anon namespace
+
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 void vtkVASPTessellationReader::PrintSelf(std::ostream& os, vtkIndent indent)
@@ -238,7 +230,7 @@ int vtkVASPTessellationReader::RequestInformation(
     {
       vtkInformation* outInfo = outInfos->GetInformationObject(port);
       outInfo->Set(vtkSDDP::TIME_RANGE(), timeRange, 2);
-      outInfo->Set(vtkSDDP::TIME_STEPS(), &times[0], static_cast<int>(times.size()));
+      outInfo->Set(vtkSDDP::TIME_STEPS(), times.data(), static_cast<int>(times.size()));
     }
   }
 
@@ -585,7 +577,7 @@ bool vtkVASPTessellationReader::ReadTimeStep(
                                                       "Expected a 3D coordinate.");
         return false;
       }
-      locator->InsertUniquePoint(&p[0], pointIds[i]);
+      locator->InsertUniquePoint(p.data(), pointIds[i]);
       uniquePointIds.insert(pointIds[i]);
     }
 
@@ -610,8 +602,8 @@ bool vtkVASPTessellationReader::ReadTimeStep(
 
     // Add cell to tessellation dataset:
     voronoi->InsertNextCell(VTK_POLYHEDRON, static_cast<vtkIdType>(pointIds.size()),
-      pointIds.empty() ? nullptr : &pointIds[0], static_cast<vtkIdType>(faceData.size()),
-      faceStream.empty() ? nullptr : &faceStream[0]);
+      pointIds.empty() ? nullptr : pointIds.data(), static_cast<vtkIdType>(faceData.size()),
+      faceStream.empty() ? nullptr : faceStream.data());
     tessAtomicNumbers->InsertNextValue(atom.GetAtomicNumber());
     tessAtomIds->InsertNextValue(atom.GetId());
   }
@@ -622,3 +614,4 @@ bool vtkVASPTessellationReader::ReadTimeStep(
 
   return true;
 }
+VTK_ABI_NAMESPACE_END

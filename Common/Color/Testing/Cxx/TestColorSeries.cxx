@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestColorSeries.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkColor.h"
 #include "vtkColorSeries.h"
@@ -143,13 +131,13 @@ int TestColorSeries(int argc, char* argv[])
   // Adding a color now should create a copy of the palette. Verify the name changed.
   color = vtkColor3ub(255, 255, 255);
   palettes->AddColor(color);
-  vtkStdString palName = palettes->GetColorSchemeName();
-  vtkStdString expected("Brewer Sequential Blue-Green (9) copy");
+  std::string palName = palettes->GetColorSchemeName();
+  std::string expected("Brewer Sequential Blue-Green (9) copy");
   if (palName != expected)
   {
     vtkGenericWarningMacro(<< "Failure: Palette copy-on-write: name should have been "
-                           << "\"" << expected.c_str() << "\" but was "
-                           << "\"" << palName.c_str() << "\" instead.");
+                           << "\"" << expected << "\" but was "
+                           << "\"" << palName << "\" instead.");
     valResult = vtkTesting::FAILED;
   }
   if (palettes->GetNumberOfColors() != 10)

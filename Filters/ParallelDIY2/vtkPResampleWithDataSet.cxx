@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPResampleWithDataSet.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPResampleWithDataSet.h"
 
@@ -24,10 +9,12 @@
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataProbeFilter.h"
 #include "vtkCompositeDataSet.h"
+#include "vtkCompositeDataSetRange.h"
 #include "vtkDIYUtilities.h"
 #include "vtkDataArrayRange.h"
 #include "vtkDataObject.h"
 #include "vtkDataSet.h"
+#include "vtkHyperTreeGrid.h"
 #include "vtkIdTypeArray.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
@@ -72,6 +59,7 @@
 //    Remove arrays from a block that are not valid for all its points.
 //------------------------------------------------------------------------------
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPResampleWithDataSet);
 
 vtkCxxSetObjectMacro(vtkPResampleWithDataSet, Controller, vtkMultiProcessController);
@@ -122,6 +110,7 @@ int vtkPResampleWithDataSet::RequestUpdateExtent(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -387,7 +376,7 @@ public:
     // approximate number of nodes in the tree
     vtkIdType splitsSize = totalNumberOfPoints / (NUM_POINTS_PER_BIN / 2);
     this->Splits.resize(splitsSize);
-    this->RecursiveSplit(&this->Nodes[0], &this->Nodes[totalNumberOfPoints], &this->Splits[0],
+    this->RecursiveSplit(this->Nodes.data(), &this->Nodes[totalNumberOfPoints], this->Splits.data(),
       &this->Splits[splitsSize], 0);
   }
 
@@ -406,7 +395,7 @@ public:
 
     vtkIdType numPoints = static_cast<vtkIdType>(this->Nodes.size());
     vtkIdType splitSize = static_cast<vtkIdType>(this->Splits.size());
-    this->RecursiveSearch(bounds, &this->Nodes[0], &this->Nodes[numPoints], &this->Splits[0],
+    this->RecursiveSearch(bounds, this->Nodes.data(), &this->Nodes[numPoints], this->Splits.data(),
       &this->Splits[splitSize], 0, tag, points);
   }
 
@@ -513,6 +502,26 @@ void ForEachDataSetBlock(vtkDataObject* data, const Functor& func)
   }
 }
 
+//------------------------------------------------------------------------------
+// Iterate over each dataobject in a composite dataset and execute func
+template <typename Functor>
+void ForEachDataObjectBlock(vtkDataObject* data, const Functor& func)
+{
+  if (data->IsA("vtkDataSet") || data->IsA("vtkHyperTreeGrid"))
+  {
+    func(data);
+  }
+  else if (data->IsA("vtkCompositeDataSet"))
+  {
+    vtkCompositeDataSet* composite = static_cast<vtkCompositeDataSet*>(data);
+
+    for (auto block : vtk::Range(composite))
+    {
+      func(block);
+    }
+  }
+}
+
 // For each valid block add its bounds to boundsArray
 struct GetBlockBounds
 {
@@ -521,12 +530,18 @@ struct GetBlockBounds
   {
   }
 
-  void operator()(vtkDataSet* block) const
+  void operator()(vtkDataObject* block) const
   {
-    if (block)
+    if (vtkDataSet* dsBlock = vtkDataSet::SafeDownCast(block))
     {
       double bounds[6];
-      block->GetBounds(bounds);
+      dsBlock->GetBounds(bounds);
+      this->BoundsArray->insert(this->BoundsArray->end(), bounds, bounds + 6);
+    }
+    if (vtkHyperTreeGrid* htgBlock = vtkHyperTreeGrid::SafeDownCast(block))
+    {
+      double bounds[6];
+      htgBlock->GetBounds(bounds);
       this->BoundsArray->insert(this->BoundsArray->end(), bounds, bounds + 6);
     }
   }
@@ -868,7 +883,7 @@ void PerformResampling(
         cp.enqueue(bid, blockId);
         cp.enqueue(bid, static_cast<vtkIdType>(pointIds.size())); // send valid points only
         cp.enqueue(bid, resPD->GetNumberOfArrays());
-        cp.enqueue(bid, &pointIds[0], pointIds.size());
+        cp.enqueue(bid, pointIds.data(), pointIds.size());
 
         enqueuer.SetMaskArray(masks);
         enqueuer.SetRange(blockBegin, blockEnd);
@@ -1016,7 +1031,7 @@ void ReceiveResampledPoints(
       vtkDataSet* ds = block->OutputBlocks[blockId];
 
       pointIds.resize(numberOfPoints);
-      cp.dequeue(i->first, &pointIds[0], numberOfPoints);
+      cp.dequeue(i->first, pointIds.data(), numberOfPoints);
 
       dequeuer.SetPointIds(pointIds);
       for (int j = 0; j < numberOfArrays; ++j)
@@ -1071,6 +1086,7 @@ void ReceiveResampledPoints(
 
 } // anonymous namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 int vtkPResampleWithDataSet::RequestData(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
@@ -1092,7 +1108,7 @@ int vtkPResampleWithDataSet::RequestData(
   // compute and communicate the bounds of all the source blocks in all the ranks
   vtkDataObject* source = sourceInfo->Get(vtkDataObject::DATA_OBJECT());
   std::vector<double> srcBounds;
-  ForEachDataSetBlock(source, GetBlockBounds(srcBounds));
+  ForEachDataObjectBlock(source, GetBlockBounds(srcBounds));
   diy::mpi::all_gather(comm, srcBounds, block.SourceBlocksBounds);
 
   // copy the input structure to output
@@ -1173,6 +1189,8 @@ int vtkPResampleWithDataSet::RequestData(
 
   return 1;
 }
+
+VTK_ABI_NAMESPACE_END
 
 //------------------------------------------------------------------------------
 namespace diy

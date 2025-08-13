@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkKdTree.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkKdTree.h"
 
 #include "vtkBSPCuts.h"
@@ -50,6 +33,7 @@
 #include <queue>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 class TimeLog // Similar to vtkTimerLogScope, but can be disabled at runtime.
@@ -440,7 +424,7 @@ void vtkKdTree::AddDataSet(vtkDataSet* set)
     return;
   }
 
-  if (this->DataSets->IsItemPresent(set))
+  if (this->DataSets->IndexOfFirstOccurence(set) >= 0)
   {
     return;
   }
@@ -475,9 +459,7 @@ int vtkKdTree::GetNumberOfDataSets()
 //------------------------------------------------------------------------------
 int vtkKdTree::GetDataSetIndex(vtkDataSet* set)
 {
-  // This is weird, but IsItemPresent returns the index + 1 (so that 0
-  // corresponds to item not present).
-  return this->DataSets->IsItemPresent(set) - 1;
+  return this->DataSets->IndexOfFirstOccurence(set);
 }
 
 //------------------------------------------------------------------------------
@@ -765,7 +747,7 @@ void vtkKdTree::ComputeCellCenter(vtkCell* cell, double* center, double* weights
 void vtkKdTree::BuildLocator()
 {
   // don't rebuild if build time is newer than modified and dataset modified time
-  if (this->Top && this->BuildTime > this->MTime && this->BuildTime > this->DataSet->GetMTime())
+  if (this->Top && this->BuildTime > this->MTime && this->NewGeometry() == 0)
   {
     return;
   }
@@ -795,7 +777,7 @@ void vtkKdTree::BuildLocatorInternal()
   int nCells = 0;
   int i;
 
-  if (this->NewGeometry())
+  if (this->NewGeometry() == 0)
   {
     return;
   }
@@ -1420,6 +1402,7 @@ void vtkKdTree::AddNewRegions(vtkKdNode* kd, float* c1, int midpt, int dim, doub
 // elements X[j], j > k satisfy X[j] >= X[K].
 
 #define Exchange(array, ids, x, y)                                                                 \
+  do                                                                                               \
   {                                                                                                \
     float temp[3];                                                                                 \
     temp[0] = array[3 * x];                                                                        \
@@ -1437,7 +1420,7 @@ void vtkKdTree::AddNewRegions(vtkKdNode* kd, float* c1, int midpt, int dim, doub
       ids[x] = ids[y];                                                                             \
       ids[y] = tempid;                                                                             \
     }                                                                                              \
-  }
+  } while (false)
 
 #define sign(x) (((x) < 0) ? (-1) : (1))
 
@@ -1565,7 +1548,6 @@ void vtkKdTree::Select_(int dim, float* X, int* ids, int L, int R, int K)
 
       while (Xcomponent[(++I) * 3] < T)
       {
-        ;
       }
 
       while ((J > L) && (Xcomponent[(--J) * 3] >= T))
@@ -1602,14 +1584,12 @@ void vtkKdTree::Select_(int dim, float* X, int* ids, int L, int R, int K)
       {
         while ((++I < J) && (Xcomponent[I * 3] == T))
         {
-          ;
         }
         if (I == J)
           break;
 
         while ((--J > I) && (Xcomponent[J * 3] > T))
         {
-          ;
         }
         if (J == I)
           break;
@@ -3592,6 +3572,7 @@ void vtkKdTree::GenerateRepresentation(int* regions, int len, vtkPolyData* pd)
 #define SORTLIST(l, lsize) std::sort(l, (l) + (lsize))
 
 #define REMOVEDUPLICATES(l, lsize, newsize)                                                        \
+  do                                                                                               \
   {                                                                                                \
     int ii, jj;                                                                                    \
     for (ii = 0, jj = 0; ii < (lsize); ii++)                                                       \
@@ -3607,7 +3588,7 @@ void vtkKdTree::GenerateRepresentation(int* regions, int len, vtkPolyData* pd)
       jj++;                                                                                        \
     }                                                                                              \
     newsize = jj;                                                                                  \
-  }
+  } while (false)
 
 //------------------------------------------------------------------------------
 int vtkKdTree::FoundId(vtkIntArray* idArray, int id)
@@ -4821,3 +4802,4 @@ void vtkKdTree::PrintSelf(ostream& os, vtkIndent indent)
   }
   os << indent << "Progress: " << this->Progress << endl;
 }
+VTK_ABI_NAMESPACE_END

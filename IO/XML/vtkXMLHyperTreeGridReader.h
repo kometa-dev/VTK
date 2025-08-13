@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLHyperTreeGridReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXMLHyperTreeGridReader
  * @brief   Read VTK XML HyperTreeGrid files.
@@ -23,7 +11,7 @@
  *       But each htg file is considered one piece for the parallel reader
  *       Later may want to treat individual HyperTrees as separate pieces.
  *
- * For developpers:
+ * For developers:
  * To ensure the durability of this storage format over time, at least,
  * the drive must continue to support playback of previous format.
  *
@@ -47,6 +35,7 @@
 #include <limits.h> // Use internal
 #include <map>      // Use internal
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBitArray;
 class vtkHyperTree;
 class vtkHyperTreeGrid;
@@ -71,7 +60,7 @@ public:
   ///@{
   /**
    * Set/Get the fixed level to read.
-   * Option avaiblable in 1.0
+   * Option available in 1.0
    */
   vtkSetMacro(FixedLevel, unsigned int);
   vtkGetMacro(FixedLevel, unsigned int);
@@ -85,7 +74,7 @@ public:
    * by set indices coordinates bounding box, exclusive or
    * by set indices HTs (ClearAndAdd and more Add).
    * Only available for files whose major version > 1
-   * Option avaiblable in 1.0
+   * Option available in 1.0
    */
   void SetCoordinatesBoundingBox(
     double xmin, double xmax, double ymin, double ymax, double zmin, double zmax);
@@ -219,4 +208,5 @@ private:
   void operator=(const vtkXMLHyperTreeGridReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

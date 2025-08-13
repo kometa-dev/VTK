@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkResliceCursorPolyDataAlgorithm.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkResliceCursorPolyDataAlgorithm
  * @brief   generates a 2D reslice cursor polydata
@@ -20,7 +8,7 @@
  * reslice cursor vtkPolyData, suitable for rendering within a
  * vtkResliceCursorActor. The class takes as input the reslice plane
  * normal index (an index into the normal plane maintained by the reslice
- * cursor object) and generates the polydata represeting the other two
+ * cursor object) and generates the polydata representing the other two
  * reslice axes suitable for rendering on a slice through this plane.
  * The cursor consists of two intersection axes lines that meet at the
  * cursor focus. These lines may have a user defined thickness. They
@@ -35,6 +23,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCutter;
 class vtkResliceCursor;
 class vtkPlane;
@@ -153,4 +142,5 @@ private:
   void operator=(const vtkResliceCursorPolyDataAlgorithm&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

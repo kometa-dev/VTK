@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotPoints.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPlotStacked
@@ -28,6 +16,7 @@
 #include "vtkChartsCoreModule.h" // For export macro
 #include "vtkPlot.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkChartXY;
 class vtkContext2D;
 class vtkTable;
@@ -49,13 +38,30 @@ public:
    */
   static vtkPlotStacked* New();
 
-  ///@{
   /**
-   * Set the plot color
+   * Set the plot color with integer values (comprised between 0 and 255)
    */
   void SetColor(unsigned char r, unsigned char g, unsigned char b, unsigned char a) override;
-  void SetColor(double r, double g, double b) override;
-  void GetColor(double rgb[3]) override;
+
+  ///@{
+  /**
+   * Set the plot color with floating values (comprised between 0.0 and 1.0)
+   */
+  void SetColorF(double r, double g, double b, double a) override;
+  void SetColorF(double r, double g, double b) override;
+
+  VTK_DEPRECATED_IN_9_3_0("Please use unambiguous SetColorF method instead.")
+  void SetColor(double r, double g, double b) override { this->SetColorF(r, g, b); };
+  ///@}
+
+  ///@{
+  /**
+   * Get the plot color as floating rgb values (comprised between 0.0 and 1.0)
+   */
+  void GetColorF(double rgb[3]) override;
+
+  VTK_DEPRECATED_IN_9_3_0("Please use unambiguous GetColorF method instead.")
+  void GetColor(double rgb[3]) override { this->GetColorF(rgb); };
   ///@}
 
   /**
@@ -131,7 +137,7 @@ protected:
   /**
    * Test if the internal cache requires an update.
    */
-  virtual bool CacheRequiresUpdate() override;
+  bool CacheRequiresUpdate() override;
 
   // Descript:
   // For stacked plots the Extent data must be greater than (or equal to) the
@@ -170,4 +176,5 @@ private:
   vtkPlotStackedPrivate* Private;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPlotStacked_h

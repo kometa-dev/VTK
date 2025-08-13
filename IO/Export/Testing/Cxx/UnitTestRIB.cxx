@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    UnitTestRIB.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkProperty.h"
 #include "vtkRIBExporter.h"
@@ -33,14 +21,17 @@
 #include <sstream>
 
 #define TEST_SET_GET_VALUE(variable, command)                                                      \
-  if ((variable) != (command))                                                                     \
+  do                                                                                               \
   {                                                                                                \
-    std::cout << "Error in " << #command << std::endl;                                             \
-    std::cout << "  In " __FILE__ ", line " << __LINE__ << std::endl;                              \
-    std::cout << "Expected |" << (variable) << "|" << std::endl;                                   \
-    std::cout << "but got  |" << (command) << "|" << std::endl;                                    \
-    status += 1;                                                                                   \
-  }
+    if ((variable) != (command))                                                                   \
+    {                                                                                              \
+      std::cout << "Error in " << #command << std::endl;                                           \
+      std::cout << "  In " __FILE__ ", line " << __LINE__ << std::endl;                            \
+      std::cout << "Expected |" << (variable) << "|" << std::endl;                                 \
+      std::cout << "but got  |" << (command) << "|" << std::endl;                                  \
+      status += 1;                                                                                 \
+    }                                                                                              \
+  } while (false)
 
 static int TestRIBProperty();
 static int TestRIBLight();

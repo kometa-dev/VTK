@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBSPIntersections.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkBSPIntersections.h"
 #include "vtkBSPCuts.h"
 #include "vtkCell.h"
@@ -28,24 +11,31 @@
 
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBSPIntersections);
 
 #define REGIONCHECK(err)                                                                           \
-  if (this->BuildRegionList())                                                                     \
+  do                                                                                               \
   {                                                                                                \
-    return err;                                                                                    \
-  }
+    if (this->BuildRegionList())                                                                   \
+    {                                                                                              \
+      return err;                                                                                  \
+    }                                                                                              \
+  } while (false)
 
 #define REGIONIDCHECK_RETURNERR(id, err)                                                           \
-  if (this->BuildRegionList())                                                                     \
+  do                                                                                               \
   {                                                                                                \
-    return err;                                                                                    \
-  }                                                                                                \
-  if (((id) < 0) || ((id) >= this->NumberOfRegions))                                               \
-  {                                                                                                \
-    vtkErrorMacro(<< "Invalid region ID");                                                         \
-    return (err);                                                                                  \
-  }
+    if (this->BuildRegionList())                                                                   \
+    {                                                                                              \
+      return err;                                                                                  \
+    }                                                                                              \
+    if (((id) < 0) || ((id) >= this->NumberOfRegions))                                             \
+    {                                                                                              \
+      vtkErrorMacro(<< "Invalid region ID");                                                       \
+      return (err);                                                                                \
+    }                                                                                              \
+  } while (false)
 
 //------------------------------------------------------------------------------
 
@@ -218,7 +208,7 @@ int vtkBSPIntersections::GetBounds(double* bounds)
 //------------------------------------------------------------------------------
 int vtkBSPIntersections::GetNumberOfRegions()
 {
-  REGIONCHECK(0)
+  REGIONCHECK(0);
 
   return this->NumberOfRegions;
 }
@@ -226,7 +216,7 @@ int vtkBSPIntersections::GetNumberOfRegions()
 //------------------------------------------------------------------------------
 int vtkBSPIntersections::GetRegionBounds(int regionID, double bounds[6])
 {
-  REGIONIDCHECK_RETURNERR(regionID, 1)
+  REGIONIDCHECK_RETURNERR(regionID, 1);
 
   vtkKdNode* node = this->RegionList[regionID];
 
@@ -238,7 +228,7 @@ int vtkBSPIntersections::GetRegionBounds(int regionID, double bounds[6])
 //------------------------------------------------------------------------------
 int vtkBSPIntersections::GetRegionDataBounds(int regionID, double bounds[6])
 {
-  REGIONIDCHECK_RETURNERR(regionID, 1)
+  REGIONIDCHECK_RETURNERR(regionID, 1);
 
   vtkKdNode* node = this->RegionList[regionID];
 
@@ -347,7 +337,7 @@ int vtkBSPIntersections::IntersectsSphere2(
 int vtkBSPIntersections::IntersectsSphere2(
   int* ids, int len, double x, double y, double z, double rSquared)
 {
-  REGIONCHECK(0)
+  REGIONCHECK(0);
 
   int nnodes = 0;
 
@@ -418,7 +408,7 @@ void vtkBSPIntersections::SetCellBounds(vtkCell* cell, double* bounds)
 //------------------------------------------------------------------------------
 int vtkBSPIntersections::IntersectsCell(int* ids, int len, vtkCell* cell, int cellRegion)
 {
-  REGIONCHECK(0)
+  REGIONCHECK(0);
 
   vtkBSPIntersections::SetCellBounds(cell, this->CellBoundsCache);
 
@@ -493,3 +483,4 @@ void vtkBSPIntersections::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "CellBoundsCache " << d[0] << " " << d[1] << " " << d[2] << " " << d[3] << " "
      << d[4] << " " << d[5] << " " << endl;
 }
+VTK_ABI_NAMESPACE_END

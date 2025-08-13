@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWebGLExporter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWebGLExporter.h"
 
@@ -575,13 +563,14 @@ vtkTriangleFilter* vtkWebGLExporter::GetPolyData(vtkMapper* mapper, vtkMTimeType
     { "id": ,"LookAt": ,"Background1": ,"Background2":
     "Objects": [{"id": ,"md5": ,"parts": },  {"id": ,"md5": ,"parts": }] }
 */
+VTK_ABI_NAMESPACE_BEGIN
 const char* vtkWebGLExporter::GenerateMetadata()
 {
   double max = std::max(this->SceneSize[0], this->SceneSize[1]);
   max = std::max(max, this->SceneSize[2]);
   std::stringstream ss;
 
-  ss << "{\"id\":" << this->SceneId.c_str() << ",";
+  ss << "{\"id\":" << this->SceneId << ",";
   ss << "\"MaxSize\":" << max << ",";
   ss << "\"Center\":[";
   for (int i = 0; i < 2; i++)
@@ -798,3 +787,4 @@ void vtkWebGLExporter::ComputeMD5(const unsigned char* content, int size, std::s
 
   hash = md5Hash;
 }
+VTK_ABI_NAMESPACE_END

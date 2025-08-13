@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTetra.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkTetra.h"
 
@@ -29,6 +17,7 @@
 #include <cassert>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTetra);
 
 //------------------------------------------------------------------------------
@@ -64,8 +53,14 @@ int vtkTetra::EvaluatePosition(const double x[3], double closestPoint[3], int& s
   subId = 0;
   pcoords[0] = pcoords[1] = pcoords[2] = 0.0;
 
-  vtkDoubleArray* pointArray = static_cast<vtkDoubleArray*>(this->Points->GetData());
-  const double* pts = pointArray->GetPointer(0);
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
   const double* pt1 = pts + 3;
   const double* pt2 = pts + 6;
   const double* pt3 = pts + 9;
@@ -198,8 +193,13 @@ void vtkTetra::EvaluateLocation(
   int i;
 
   // Efficient point access
-  vtkDoubleArray* pointArray = static_cast<vtkDoubleArray*>(this->Points->GetData());
-  const double* pts = pointArray->GetPointer(0);
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
   const double* pt1 = pts + 3;
   const double* pt2 = pts + 6;
   const double* pt3 = pts + 9;
@@ -336,10 +336,9 @@ constexpr vtkIdType pointToOneRingPoints[vtkTetra::NumberOfPoints][vtkTetra::Max
   { 0, 1, 2 }, // 3
 };
 
-typedef int EDGE_LIST;
 struct TRIANGLE_CASES_t
 {
-  EDGE_LIST edges[7];
+  int edges[7];
 };
 using TRIANGLE_CASES = struct TRIANGLE_CASES_t;
 
@@ -370,7 +369,7 @@ void vtkTetra::Contour(double value, vtkDataArray* cellScalars, vtkIncrementalPo
 {
   static const int CASE_MASK[4] = { 1, 2, 4, 8 };
   TRIANGLE_CASES* triCase;
-  EDGE_LIST* edge;
+  int* edge;
   int i, j, index, v1, v2, newCellId;
   const vtkIdType* vert;
   vtkIdType pts[3];
@@ -521,19 +520,12 @@ const vtkIdType* vtkTetra::GetFaceArray(vtkIdType faceId)
 //------------------------------------------------------------------------------
 vtkCell* vtkTetra::GetFace(int faceId)
 {
-  const vtkIdType* verts;
-
-  verts = faces[faceId];
-
-  // load point id's
-  this->Triangle->PointIds->SetId(0, this->PointIds->GetId(verts[0]));
-  this->Triangle->PointIds->SetId(1, this->PointIds->GetId(verts[1]));
-  this->Triangle->PointIds->SetId(2, this->PointIds->GetId(verts[2]));
-
-  // load coordinates
-  this->Triangle->Points->SetPoint(0, this->Points->GetPoint(verts[0]));
-  this->Triangle->Points->SetPoint(1, this->Points->GetPoint(verts[1]));
-  this->Triangle->Points->SetPoint(2, this->Points->GetPoint(verts[2]));
+  const vtkIdType* verts = ::faces[faceId];
+  for (int i = 0; i < 3; ++i)
+  {
+    this->Triangle->PointIds->SetId(i, this->PointIds->GetId(verts[i]));
+    this->Triangle->Points->SetPoint(i, this->Points->GetPoint(verts[i]));
+  }
 
   return this->Triangle;
 }
@@ -546,23 +538,15 @@ int vtkTetra::IntersectWithLine(const double p1[3], const double p2[3], double t
   double x[3], double pcoords[3], int& subId)
 {
   int intersection = 0;
-  double pt1[3], pt2[3], pt3[3];
-  double tTemp;
-  double pc[3], xTemp[3];
-  int faceNum;
 
   t = VTK_DOUBLE_MAX;
-  for (faceNum = 0; faceNum < 4; faceNum++)
+  for (int faceNum = 0; faceNum < 4; faceNum++)
   {
-    this->Points->GetPoint(faces[faceNum][0], pt1);
-    this->Points->GetPoint(faces[faceNum][1], pt2);
-    this->Points->GetPoint(faces[faceNum][2], pt3);
+    vtkCell* face = this->GetFace(faceNum);
 
-    this->Triangle->Points->SetPoint(0, pt1);
-    this->Triangle->Points->SetPoint(1, pt2);
-    this->Triangle->Points->SetPoint(2, pt3);
-
-    if (this->Triangle->IntersectWithLine(p1, p2, tol, tTemp, xTemp, pc, subId))
+    double pcTemp[3], xTemp[3];
+    double tTemp = VTK_DOUBLE_MAX;
+    if (face->IntersectWithLine(p1, p2, tol, tTemp, xTemp, pcTemp, subId))
     {
       intersection = 1;
       if (tTemp < t)
@@ -574,27 +558,27 @@ int vtkTetra::IntersectWithLine(const double p1[3], const double p2[3], double t
         switch (faceNum)
         {
           case 0:
-            pcoords[0] = pc[0];
-            pcoords[1] = pc[1];
-            pcoords[2] = 0.0;
+            pcoords[0] = pcTemp[0];
+            pcoords[1] = 0.0;
+            pcoords[2] = pcTemp[1];
             break;
 
           case 1:
-            pcoords[0] = 0.0;
-            pcoords[1] = pc[1];
-            pcoords[2] = 0.0;
+            pcoords[0] = 1.0 - pcTemp[0] - pcTemp[1];
+            pcoords[1] = pcTemp[0];
+            pcoords[2] = pcTemp[1];
             break;
 
           case 2:
-            pcoords[0] = pc[0];
-            pcoords[1] = 0.0;
-            pcoords[2] = 0.0;
+            pcoords[0] = 0.0;
+            pcoords[1] = 1 - pcTemp[0] - pcTemp[1];
+            pcoords[2] = pcTemp[1];
             break;
 
           case 3:
-            pcoords[0] = pc[0];
-            pcoords[1] = pc[1];
-            pcoords[2] = pc[2];
+            pcoords[0] = pcTemp[0];
+            pcoords[1] = pcTemp[1];
+            pcoords[2] = pcTemp[2];
             break;
         }
       }
@@ -1225,3 +1209,4 @@ void vtkTetra::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Triangle:\n";
   this->Triangle->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

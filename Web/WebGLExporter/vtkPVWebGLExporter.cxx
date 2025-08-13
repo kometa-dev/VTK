@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPVWebGLExporter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVWebGLExporter.h"
 
 #include "vtkBase64Utilities.h"
@@ -31,6 +19,7 @@
 #include <vtksys/FStream.hxx>
 #include <vtksys/SystemTools.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPVWebGLExporter);
 //------------------------------------------------------------------------------
 vtkPVWebGLExporter::vtkPVWebGLExporter()
@@ -74,7 +63,7 @@ void vtkPVWebGLExporter::WriteData()
   FILE* fp = vtksys::SystemTools::Fopen(metadatFile, "w");
   if (!fp)
   {
-    vtkErrorMacro(<< "unable to open JSON MetaData file " << metadatFile.c_str());
+    vtkErrorMacro(<< "unable to open JSON MetaData file " << metadatFile);
     return;
   }
   fputs(exporter->GenerateMetadata(), fp);
@@ -93,7 +82,7 @@ void vtkPVWebGLExporter::WriteData()
       {
         // Manage binary content
         std::stringstream filePath;
-        filePath << baseFileName.c_str() << "_" << obj->GetMD5().c_str() << "_" << part;
+        filePath << baseFileName << "_" << obj->GetMD5() << "_" << part;
         vtksys::ofstream binaryFile;
         binaryFile.open(filePath.str().c_str(), std::ios_base::out | std::ios_base::binary);
         binaryFile.write((const char*)obj->GetBinaryData(part), obj->GetBinarySize(part));
@@ -101,8 +90,7 @@ void vtkPVWebGLExporter::WriteData()
 
         // Manage Base64
         std::stringstream filePathBase64;
-        filePathBase64 << baseFileName.c_str() << "_" << obj->GetMD5().c_str() << "_" << part
-                       << ".base64";
+        filePathBase64 << baseFileName << "_" << obj->GetMD5() << "_" << part << ".base64";
         vtksys::ofstream base64File;
         unsigned char* output = new unsigned char[obj->GetBinarySize(part) * 2];
         int size =
@@ -134,3 +122,4 @@ void vtkPVWebGLExporter::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "FileName: (null)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

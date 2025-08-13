@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGroupLeafVertices.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkGroupLeafVertices.h"
 
@@ -39,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGroupLeafVertices);
 
 // Forward function reference (definition at bottom :)
@@ -305,7 +290,7 @@ int vtkGroupLeafVertices::RequestData(
               vtkStringArray* data = vtkArrayDownCast<vtkStringArray>(arr2);
               for (int j = 0; j < comps; j++)
               {
-                data->InsertValue(group_vertex + j - 1, vtkStdString(""));
+                data->InsertValue(group_vertex + j - 1, vtkStdString());
               }
             }
             else if (vtkArrayDownCast<vtkVariantArray>(arr2))
@@ -446,7 +431,7 @@ static int splitString(const vtkStdString& input, std::vector<vtkStdString>& res
         {
           results.emplace_back(currentField);
         }
-        currentField = vtkStdString();
+        currentField = {};
       }
       else
       {
@@ -461,3 +446,4 @@ static int splitString(const vtkStdString& input, std::vector<vtkStdString>& res
   results.emplace_back(currentField);
   return static_cast<int>(results.size());
 }
+VTK_ABI_NAMESPACE_END

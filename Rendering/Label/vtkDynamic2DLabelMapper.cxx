@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDynamic2DLabelMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkDynamic2DLabelMapper.h"
 
@@ -48,6 +32,7 @@
 
 #include <fstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDynamic2DLabelMapper);
 
 //------------------------------------------------------------------------------
@@ -208,14 +193,13 @@ void vtkDynamic2DLabelMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkAct
         }
         numericData = vtkArrayDownCast<vtkDataArray>(abstractData);
         stringData = vtkArrayDownCast<vtkStringArray>(abstractData);
-      };
+      }
       break;
     }
 
     // determine number of components and check input
     if (pointIdLabels)
     {
-      ;
     }
     else if (numericData)
     {
@@ -244,7 +228,7 @@ void vtkDynamic2DLabelMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkAct
       return;
     }
 
-    vtkStdString FormatString;
+    std::string FormatString;
     if (this->LabelFormat)
     {
       // The user has specified a format string.
@@ -322,7 +306,7 @@ void vtkDynamic2DLabelMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkAct
         FormatString = "BUG - COULDN'T DETECT DATA TYPE";
       }
 
-      vtkDebugMacro(<< "Using default format string " << FormatString.c_str());
+      vtkDebugMacro(<< "Using default format string " << FormatString);
     } // Done building default format string
 
     this->NumberOfLabels = dsInput ? dsInput->GetNumberOfPoints() : gInput->GetNumberOfVertices();
@@ -352,7 +336,7 @@ void vtkDynamic2DLabelMapper::RenderOpaqueGeometry(vtkViewport* viewport, vtkAct
 
     for (i = 0; i < this->NumberOfLabels; i++)
     {
-      vtkStdString ResultString;
+      std::string ResultString;
 
       if (pointIdLabels)
       {
@@ -699,3 +683,4 @@ void vtkDynamic2DLabelMapper::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "LabelHeightPadding: " << (this->LabelHeightPadding ? "on" : "off") << endl;
   os << indent << "LabelWidthPadding: " << (this->LabelWidthPadding ? "on" : "off") << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestBMPReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME Test of vtkBMPReader
 // .SECTION Description
 //
@@ -42,7 +30,7 @@ int TestBMPReader(int argc, char* argv[])
   // Check the image can be read
   if (!BMPReader->CanReadFile(filename.c_str()))
   {
-    cerr << "CanReadFile failed for " << filename.c_str() << "\n";
+    cerr << "CanReadFile failed for " << filename << "\n";
     return EXIT_FAILURE;
   }
 

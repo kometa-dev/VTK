@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageBlend.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageBlend
  * @brief   blend images together using alpha or opacity
@@ -79,6 +67,7 @@
 #include "vtkImagingCoreModule.h" // For export macro
 #include "vtkThreadedImageAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageStencilData;
 
 #define VTK_IMAGE_BLEND_MODE_NORMAL 0
@@ -157,7 +146,7 @@ public:
   vtkGetMacro(BlendMode, int);
   void SetBlendModeToNormal() { this->SetBlendMode(VTK_IMAGE_BLEND_MODE_NORMAL); }
   void SetBlendModeToCompound() { this->SetBlendMode(VTK_IMAGE_BLEND_MODE_COMPOUND); }
-  const char* GetBlendModeAsString(void);
+  const char* GetBlendModeAsString();
   ///@}
 
   ///@{
@@ -227,4 +216,5 @@ inline const char* vtkImageBlend::GetBlendModeAsString()
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

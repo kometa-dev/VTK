@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #pragma once
 
 #include "vtkLogger.h"
@@ -16,6 +18,7 @@
 
 namespace RTW
 {
+VTK_ABI_NAMESPACE_BEGIN
     class Renderer : public Object
     {
     public:
@@ -41,7 +44,6 @@ namespace RTW
         {
             if (!frameBuffer)
                 return 0.0f;
-            
 
             // Camera
             if (camera)
@@ -74,8 +76,8 @@ namespace RTW
 
                 Data *lightData = world->GetObject<Data>({"light"});
 
-                if (lightData && 
-                    lightData->GetDataType() == RTW_DATA && 
+                if (lightData &&
+                    lightData->GetDataType() == RTW_DATA &&
                     lightData->GetElementDataType() == RTW_LIGHT)
                 {
                     Light** lights = reinterpret_cast<Light**>(lightData->GetData());
@@ -90,7 +92,7 @@ namespace RTW
                         }
                     }
                 }
-                
+
                 if(map_backplate)
                 {
                     removeTemp = true;
@@ -144,4 +146,5 @@ namespace RTW
 
         std::vector<VisRTX::Light*> lastLights;
     };
+VTK_ABI_NAMESPACE_END
 }

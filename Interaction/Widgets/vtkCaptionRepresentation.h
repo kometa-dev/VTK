@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCaptionRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCaptionRepresentation
  * @brief   represents vtkCaptionWidget in the scene
@@ -39,6 +27,7 @@
 #include "vtkBorderRepresentation.h"
 #include "vtkInteractionWidgetsModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderer;
 class vtkCaptionActor2D;
 class vtkConeSource;
@@ -80,7 +69,7 @@ public:
 
   ///@{
   /**
-   * Set and get the instances of vtkPointHandleRepresention3D used to implement this
+   * Set and get the instances of vtkPointHandleRepresentation3D used to implement this
    * representation. Normally default representations are created, but you can
    * specify the ones you want to use.
    */
@@ -143,4 +132,5 @@ private:
   void operator=(const vtkCaptionRepresentation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

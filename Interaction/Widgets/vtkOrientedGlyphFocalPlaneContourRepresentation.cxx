@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOrientedGlyphFocalPlaneContourRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOrientedGlyphFocalPlaneContourRepresentation.h"
 #include "vtkActor2D.h"
 #include "vtkAssemblyPath.h"
@@ -39,6 +27,7 @@
 #include "vtkTransform.h"
 #include "vtkTransformPolyDataFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOrientedGlyphFocalPlaneContourRepresentation);
 
 //------------------------------------------------------------------------------
@@ -815,9 +804,13 @@ void vtkOrientedGlyphFocalPlaneContourRepresentation::BuildRepresentation()
 //------------------------------------------------------------------------------
 void vtkOrientedGlyphFocalPlaneContourRepresentation::GetActors2D(vtkPropCollection* pc)
 {
-  this->Actor->GetActors2D(pc);
-  this->ActiveActor->GetActors2D(pc);
-  this->LinesActor->GetActors2D(pc);
+  if (pc != nullptr && this->GetVisibility())
+  {
+    this->Actor->GetActors2D(pc);
+    this->ActiveActor->GetActors2D(pc);
+    this->LinesActor->GetActors2D(pc);
+  }
+  this->Superclass::GetActors2D(pc);
 }
 
 //------------------------------------------------------------------------------
@@ -929,3 +922,4 @@ void vtkOrientedGlyphFocalPlaneContourRepresentation::PrintSelf(ostream& os, vtk
     os << indent << "Lines Property: (none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,20 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkCocoaRenderWindow.mm
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtk_glew.h"
 
@@ -34,7 +19,9 @@ PURPOSE.  See the above copyright notice for more information.
 
 #import <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCocoaRenderWindow);
+VTK_ABI_NAMESPACE_END
 
 //----------------------------------------------------------------------------
 // This is a private class and an implementation detail, do not use it.
@@ -202,6 +189,7 @@ vtkStandardNewMacro(vtkCocoaRenderWindow);
 
 @end
 
+VTK_ABI_NAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 vtkCocoaRenderWindow::vtkCocoaRenderWindow()
 {
@@ -387,29 +375,6 @@ bool vtkCocoaRenderWindow::IsCurrent()
       static_cast<NSOpenGLContext*>(this->GetContextId()) == [NSOpenGLContext currentContext];
   }
   return result;
-}
-
-//----------------------------------------------------------------------------
-bool vtkCocoaRenderWindow::IsDrawable()
-{
-  VTK_LEGACY_BODY(vtkCocoaRenderWindow::IsDrawable, "VTK 9.1");
-
-  // you must initialize it first
-  // else it always evaluates false
-  this->Initialize();
-
-  // first check that window is valid
-  NSView* theView = (NSView*)this->GetWindowId();
-  bool win = [[theView window] windowNumber] > 0;
-
-  // then check that the drawable is valid
-  NSOpenGLContext* context = (NSOpenGLContext*)this->GetContextId();
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  bool ok = [context view] != nil;
-#pragma clang diagnostic pop
-
-  return win && ok;
 }
 
 //----------------------------------------------------------------------------
@@ -716,7 +681,8 @@ void vtkCocoaRenderWindow::CreateAWindow()
   // been specified already.  This is the case for a 'pure vtk application'.
   // If you are using vtk in a 'regular Mac application' you should call
   // SetRootWindow() and SetWindowId() so that a window is not created here.
-  if (!this->GetRootWindow() && !this->GetWindowId() && !this->GetParentId())
+  if (!this->GetRootWindow() && !this->GetWindowId() && !this->GetParentId() &&
+    this->GetConnectContextToNSView())
   {
     // Ordinarily, only .app bundles get proper mouse and keyboard interaction,
     // but here we change the 'activation policy' to behave as if we were a
@@ -762,12 +728,12 @@ void vtkCocoaRenderWindow::CreateAWindow()
     }
     else
     {
-      if ((this->Size[0] + this->Size[1]) == 0)
+      if ((this->Size[0] == 0) && (this->Size[1] == 0))
       {
         this->Size[0] = 300;
         this->Size[1] = 300;
       }
-      if ((this->Position[0] + this->Position[1]) == 0)
+      if ((this->Position[0] == 0) && (this->Position[1] == 0))
       {
         this->Position[0] = 50;
         this->Position[1] = 50;
@@ -817,7 +783,7 @@ void vtkCocoaRenderWindow::CreateAWindow()
   }
 
   // create an NSView if one has not been specified
-  if (!this->GetWindowId())
+  if (!this->GetWindowId() && this->GetConnectContextToNSView())
   {
     // For NSViews that display OpenGL, the OS defaults to drawing magnified,
     // not in high resolution. There is a tradeoff here between better visual
@@ -1072,7 +1038,10 @@ void vtkCocoaRenderWindow::CreateGLContext()
 // Initialize the rendering process.
 void vtkCocoaRenderWindow::Start()
 {
-  this->Superclass::Start();
+  if (!this->Initialized)
+  {
+    this->Initialize();
+  }
 
   // make sure the hardware is up to date otherwise
   // the backing store may not match the current window
@@ -1102,8 +1071,7 @@ void vtkCocoaRenderWindow::Start()
     [context update];
   }
 
-  // set the current window
-  this->MakeCurrent();
+  this->Superclass::Start();
 }
 
 //----------------------------------------------------------------------------
@@ -1114,6 +1082,28 @@ void vtkCocoaRenderWindow::Initialize()
   {
     this->OnScreenInitialized = 1;
     this->CreateAWindow();
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkCocoaRenderWindow::Render()
+{
+  // Is this the first Render?
+  bool neverRendered = this->NeverRendered;
+
+  // Do the superclass stuff.
+  this->vtkOpenGLRenderWindow::Render();
+
+  // If and only if (1) we created the NSWindow ourselves (as opposed to it being provided to us),
+  // (2) this is the first render ever, (3) we are not already inside the rendering process, (4) we
+  // have passed through Initialize(), and (5) the window is mapped to screen, then kick the main
+  // runloop so that the NSWindow is actually rendered on-screen by macOS. (By running the runloop
+  // 'until' the 'distant past', it will not repeat and only run this once.)
+  if (this->WindowCreated && neverRendered && !this->InRender && this->OnScreenInitialized &&
+    this->Mapped)
+  {
+    NSRunLoop* mainRunLoop = [NSRunLoop mainRunLoop];
+    [mainRunLoop runUntilDate:[NSDate distantPast]];
   }
 }
 
@@ -1663,3 +1653,5 @@ void vtkCocoaRenderWindow::SetConnectContextToNSView(bool connect)
 {
   this->ConnectContextToNSView = connect;
 }
+
+VTK_ABI_NAMESPACE_END

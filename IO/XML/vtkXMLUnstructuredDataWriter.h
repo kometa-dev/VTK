@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLUnstructuredDataWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXMLUnstructuredDataWriter
  * @brief   Superclass for VTK XML unstructured data writers.
@@ -28,6 +16,7 @@
 
 #include <vtkSmartPointer.h> // for vtkSmartPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPointSet;
 class vtkCellArray;
 class vtkCellIterator;
@@ -100,7 +89,7 @@ protected:
   void WriteCellsInline(
     const char* name, vtkCellArray* cells, vtkDataArray* types, vtkIndent indent);
 
-  // New API with face infomration for polyhedron cell support.
+  // New API with face information for polyhedron cell support.
   void WriteCellsInline(const char* name, vtkCellArray* cells, vtkDataArray* types,
     vtkIdTypeArray* faces, vtkIdTypeArray* faceOffsets, vtkIndent indent);
 
@@ -121,7 +110,7 @@ protected:
   void WriteCellsAppendedData(vtkCellIterator* cellIter, vtkIdType numCells,
     vtkIdType cellSizeEstimate, int timestep, OffsetsManagerGroup* cellsManager);
 
-  // New API with face infomration for polyhedron cell support.
+  // New API with face information for polyhedron cell support.
   void WriteCellsAppendedData(vtkCellArray* cells, vtkDataArray* types, vtkIdTypeArray* faces,
     vtkIdTypeArray* faceOffsets, int timestep, OffsetsManagerGroup* cellsManager);
 
@@ -174,4 +163,5 @@ private:
   void operator=(const vtkXMLUnstructuredDataWriter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

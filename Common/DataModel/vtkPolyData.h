@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyData.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyData
  * @brief   concrete dataset represents vertices, lines, polygons, and triangle strips
@@ -69,6 +57,7 @@
 #include "vtkCellLinks.h"         // Needed for inline methods
 #include "vtkPolyDataInternals.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkVertex;
 class vtkPolyVertex;
 class vtkLine;
@@ -481,11 +470,20 @@ public:
   void ReplaceCell(vtkIdType cellId, int npts, const vtkIdType pts[]) VTK_SIZEHINT(pts, npts);
   /**@}*/
 
+  ///@{
   /**
    * Replace a point in the cell connectivity list with a different point. Use this
    * method only when the dataset is set as Editable.
+   *
+   * The version with cellPointIds avoids allocating/deallocating a vtkIdList at each call
+   * internally.
+   *
+   * THIS METHOD IS THREAD SAFE IF BuildCells() IS FIRST CALLED FROM A SINGLE THREAD.
    */
   void ReplaceCellPoint(vtkIdType cellId, vtkIdType oldPtId, vtkIdType newPtId);
+  void ReplaceCellPoint(
+    vtkIdType cellId, vtkIdType oldPtId, vtkIdType newPtId, vtkIdList* cellPointIds);
+  ///@}
 
   /**
    * Reverse the order of point ids defining the cell. Use this
@@ -701,6 +699,8 @@ protected:
   vtkPolyData();
   ~vtkPolyData() override;
 
+  void ReportReferences(vtkGarbageCollector*) override;
+
   using TaggedCellId = vtkPolyData_detail::TaggedCellId;
   using CellMap = vtkPolyData_detail::CellMap;
 
@@ -742,7 +742,6 @@ protected:
 private:
   void Cleanup();
 
-private:
   vtkPolyData(const vtkPolyData&) = delete;
   void operator=(const vtkPolyData&) = delete;
 };
@@ -917,16 +916,30 @@ inline vtkCellArray* vtkPolyData::GetCellArrayInternal(vtkPolyData::TaggedCellId
 inline void vtkPolyData::ReplaceCellPoint(vtkIdType cellId, vtkIdType oldPtId, vtkIdType newPtId)
 {
   vtkNew<vtkIdList> ids;
-  this->GetCellPoints(cellId, ids);
-  for (vtkIdType i = 0; i < ids->GetNumberOfIds(); i++)
+  this->ReplaceCellPoint(cellId, oldPtId, newPtId, ids);
+}
+
+//------------------------------------------------------------------------------
+inline void vtkPolyData::ReplaceCellPoint(
+  vtkIdType cellId, vtkIdType oldPtId, vtkIdType newPtId, vtkIdList* cellPointIds)
+{
+  if (!this->Cells)
   {
-    if (ids->GetId(i) == oldPtId)
+    this->BuildCells();
+  }
+  vtkIdType npts;
+  const vtkIdType* pts;
+  this->GetCellPoints(cellId, npts, pts, cellPointIds);
+  for (vtkIdType i = 0; i < npts; i++)
+  {
+    if (pts[i] == oldPtId)
     {
-      ids->SetId(i, newPtId);
+      const TaggedCellId tag = this->Cells->GetTag(cellId);
+      vtkCellArray* cells = this->GetCellArrayInternal(tag);
+      cells->ReplaceCellPointAtId(tag.GetCellId(), i, newPtId);
       break;
     }
   }
-  this->ReplaceCell(cellId, static_cast<int>(ids->GetNumberOfIds()), ids->GetPointer(0));
 }
 
 //------------------------------------------------------------------------------
@@ -971,4 +984,5 @@ inline void vtkPolyData::GetCellPoints(
   cells->GetCellAtId(tag.GetCellId(), npts, pts, ptIds);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

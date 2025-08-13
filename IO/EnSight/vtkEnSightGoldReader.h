@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEnSightGoldReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkEnSightGoldReader
  * @brief   class to read EnSight Gold files
@@ -43,6 +31,7 @@
 #include "vtkEnSightReader.h"
 #include "vtkIOEnSightModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiBlockDataSet;
 
 class VTKIOENSIGHT_EXPORT vtkEnSightGoldReader : public vtkEnSightReader
@@ -100,7 +89,7 @@ protected:
 
   /**
    * Read scalars per element for this dataset.  If an error occurred, 0 is
-   * returned; otherwise 1.  If there will be more than one componenet in the
+   * returned; otherwise 1.  If there will be more than one component in the
    * data array, it is assumed that 0 is the first component added.
    */
   int ReadScalarsPerElement(const char* fileName, const char* description, int timeStep,
@@ -182,4 +171,5 @@ private:
   friend class UndefPartialHelper;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

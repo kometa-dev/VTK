@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include <vtkBitArray.h>
 #include <vtkCellData.h>
 #include <vtkCubeSource.h>
@@ -349,6 +351,7 @@ bool CompareData(vtkImageData* Output, vtkImageData* Input)
     Input->GetDimensions()[0] * Input->GetDimensions()[1] * Input->GetDimensions()[2];
   for (int point = 0; point != point_count; ++point)
   {
+    // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison)
     if (memcmp(Input->GetPoint(point), Output->GetPoint(point), 3 * sizeof(double)) != 0)
       return false;
   }

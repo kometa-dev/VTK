@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPPainterCommunicator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPainterCommunicator
  * ranks that will execute a painter chain.
@@ -29,6 +17,7 @@
 #include "vtkPainterCommunicator.h"
 #include "vtkRenderingParallelLICModule.h" // for export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPPainterCommunicatorInternals;
 class vtkMPICommunicatorOpaqueComm;
 
@@ -36,7 +25,7 @@ class VTKRENDERINGPARALLELLIC_EXPORT vtkPPainterCommunicator : public vtkPainter
 {
 public:
   vtkPPainterCommunicator();
-  virtual ~vtkPPainterCommunicator();
+  ~vtkPPainterCommunicator() override;
 
   /**
    * Copier and assignment operators.
@@ -56,35 +45,35 @@ public:
   /**
    * Copy the communicator.
    */
-  virtual void Copy(const vtkPainterCommunicator* other, bool ownership);
+  void Copy(const vtkPainterCommunicator* other, bool ownership) override;
 
   /**
    * Duplicate the communicator.
    */
-  virtual void Duplicate(const vtkPainterCommunicator* other);
+  void Duplicate(const vtkPainterCommunicator* other) override;
 
   ///@{
   /**
    * Query MPI for information about the communicator.
    */
-  virtual int GetRank();
-  virtual int GetSize();
-  virtual bool GetIsNull();
+  int GetRank() override;
+  int GetSize() override;
+  bool GetIsNull() override;
   ///@}
 
   ///@{
   /**
    * Query MPI for information about the world communicator.
    */
-  virtual int GetWorldRank();
-  virtual int GetWorldSize();
+  int GetWorldRank() override;
+  int GetWorldSize() override;
   ///@}
 
   /**
    * Query MPI state.
    */
-  virtual bool GetMPIInitialized() { return this->MPIInitialized(); }
-  virtual bool GetMPIFinalized() { return this->MPIFinalized(); }
+  bool GetMPIInitialized() override { return vtkPPainterCommunicator::MPIInitialized(); }
+  bool GetMPIFinalized() override { return vtkPPainterCommunicator::MPIFinalized(); }
 
   static bool MPIInitialized();
   static bool MPIFinalized();
@@ -121,5 +110,6 @@ private:
   vtkPPainterCommunicatorInternals* Internals;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkPPainterCommunicator.h

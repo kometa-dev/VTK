@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiBlockPLOT3DReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include <sstream>
 
 #include "vtkMultiBlockPLOT3DReader.h"
@@ -46,9 +34,11 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkMultiBlockPLOT3DReader);
 vtkInformationKeyMacro(vtkMultiBlockPLOT3DReader, INTERMEDIATE_RESULT, Integer);
 vtkCxxSetObjectMacro(vtkMultiBlockPLOT3DReader, Controller, vtkMultiProcessController);
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -81,6 +71,7 @@ public:
 
 namespace Functors
 {
+VTK_ABI_NAMESPACE_BEGIN
 class ComputeFunctor
 {
 public:
@@ -1231,7 +1222,20 @@ public:
       { "Density", "Momentum", "Points", "Velocity" }, "StrainRate", 3);
   }
 };
+VTK_ABI_NAMESPACE_END
 }
+
+VTK_ABI_NAMESPACE_BEGIN
+
+#ifdef _WIN64
+#define vtk_fseek _fseeki64
+#define vtk_ftell _ftelli64
+#define vtk_off_t __int64
+#else
+#define vtk_fseek fseek
+#define vtk_ftell ftell
+#define vtk_off_t long
+#endif
 
 template <class DataType>
 class vtkPLOT3DArrayReader
@@ -1735,7 +1739,7 @@ int vtkMultiBlockPLOT3DReader::ReadMesh(
       this->Internal->Dimensions.resize(numBlocks);
     }
 
-    int* rawdims = reinterpret_cast<int*>(&this->Internal->Dimensions[0]);
+    int* rawdims = reinterpret_cast<int*>(this->Internal->Dimensions.data());
     mp->Broadcast(rawdims, 3 * numBlocks, 0);
 
     mp->Broadcast(&offset, 1, 0);
@@ -2098,7 +2102,7 @@ int vtkMultiBlockPLOT3DReader::ReadArrays(
       mp->Broadcast(&error, 1, 0);
       if (error)
       {
-        vtkErrorMacro("Error reading file " << fname.c_str());
+        vtkErrorMacro("Error reading file " << fname);
         this->ClearGeometryCache();
         return 0;
       }
@@ -2351,7 +2355,7 @@ int vtkMultiBlockPLOT3DReader::ReadArrays(
           throw Plot3DException();
         }
 
-        if (this->ReadFunctionHeader(fFp, &nFunctions[0]) != VTK_OK)
+        if (this->ReadFunctionHeader(fFp, nFunctions.data()) != VTK_OK)
         {
           throw Plot3DException();
         }
@@ -2370,7 +2374,7 @@ int vtkMultiBlockPLOT3DReader::ReadArrays(
       return 0;
     }
 
-    mp->Broadcast(&nFunctions[0], numBlocks, 0);
+    mp->Broadcast(nFunctions.data(), numBlocks, 0);
     mp->Broadcast(&offset, 1, 0);
 
     void* fFp2;
@@ -3634,3 +3638,4 @@ void vtkMultiBlockPLOT3DReader::PrintSelf(ostream& os, vtkIndent indent)
      << "PreserveIntermediateFunctions: " << (this->PreserveIntermediateFunctions ? "on" : "off")
      << endl;
 }
+VTK_ABI_NAMESPACE_END

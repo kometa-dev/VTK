@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAdaptiveDataSetSurfaceFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAdaptiveDataSetSurfaceFilter
  * @brief   Adaptively extract dataset surface
@@ -36,6 +24,7 @@
 #include "vtkFiltersHybridModule.h" // For export macro
 #include "vtkGeometryFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBitArray;
 class vtkCamera;
 class vtkHyperTreeGrid;
@@ -66,7 +55,7 @@ public:
 
   ///@{
   /**
-   * Set/Get for active the circle selection viewport (defaut true)
+   * Set/Get for active the circle selection viewport (default true)
    */
   vtkSetMacro(CircleSelection, bool);
   vtkGetMacro(CircleSelection, bool);
@@ -74,7 +63,7 @@ public:
 
   ///@{
   /**
-   * Set/Get for active the bounding box selection viewport (defaut false)
+   * Set/Get for active the bounding box selection viewport (default false)
    * JB C'est un facteur supplementaire d'acceleration possible
    * JB uniquement si l'on ne peut faire de rotation dans la vue.
    */
@@ -92,7 +81,7 @@ public:
 
   ///@{
   /**
-   * Set/Get for forced a fixed the level max (lost dynamicity) (defaut -1)
+   * Set/Get for forced a fixed the level max (lost dynamicity) (default -1)
    */
   vtkSetMacro(FixedLevelMax, int);
   vtkGetMacro(FixedLevelMax, int);
@@ -271,4 +260,5 @@ private:
   void operator=(const vtkAdaptiveDataSetSurfaceFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkAdaptiveDataSetSurfaceFilter_h

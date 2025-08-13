@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEncodedGradientEstimator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkEncodedGradientEstimator
@@ -38,6 +26,7 @@
 #include "vtkRenderingVolumeModule.h" // For export macro
 #include "vtkThreads.h"               // for VTK_MAX_THREADS
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageData;
 class vtkDirectionEncoder;
 class vtkMultiThreader;
@@ -94,12 +83,12 @@ public:
   /**
    * Recompute the encoded normals and gradient magnitudes.
    */
-  void Update(void);
+  void Update();
 
   /**
    * Get the encoded normals.
    */
-  unsigned short* GetEncodedNormals(void);
+  unsigned short* GetEncodedNormals();
 
   ///@{
   /**
@@ -112,7 +101,7 @@ public:
   /**
    * Get the gradient magnitudes
    */
-  unsigned char* GetGradientMagnitudes(void);
+  unsigned char* GetGradientMagnitudes();
 
   ///@{
   /**
@@ -223,7 +212,7 @@ protected:
 
   vtkDirectionEncoder* DirectionEncoder;
 
-  virtual void UpdateNormals(void) = 0;
+  virtual void UpdateNormals() = 0;
 
   float GradientMagnitudeScale;
   float GradientMagnitudeBias;
@@ -254,4 +243,5 @@ private:
   void operator=(const vtkEncodedGradientEstimator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

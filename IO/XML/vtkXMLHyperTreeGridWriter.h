@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLHyperTreeGridWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXMLHyperTreeGridWriter
  * @brief   Write VTK XML HyperTreeGrid files.
@@ -49,13 +37,13 @@
  *   accelerate the obtaining of a result which will be less precise and to
  *   allow the loading of a part of a mesh which would not hold in memory:
  *      - loading by limiting the maximum level to load;
- *      - loading by selecting (differentes description possibilities are
+ *      - loading by selecting (different description possibilities are
  *        offered) the HTs to take into account.
  *
  * The default version of the VTK XML HyperTreeGrid file format is the latest
  * version, now version 1.0.
  *
- * For developpers:
+ * For developers:
  * To ensure the durability of this storage format over time, at least, the drive
  * must continue to support playback of previous format.
  */
@@ -69,6 +57,7 @@
 
 #include <vector> // std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class OffsetsManagerGroup;
 class OffsetsManagerArray;
 class vtkBitArray;
@@ -193,4 +182,5 @@ private:
   void operator=(const vtkXMLHyperTreeGridWriter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

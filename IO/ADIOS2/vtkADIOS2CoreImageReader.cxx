@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkADIOSReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include <array>
 #include <limits>
 #include <map>
@@ -48,7 +36,6 @@
 #include "vtkPolyData.h"
 #include "vtkShortArray.h"
 #include "vtkSignedCharArray.h"
-#include "vtkStdString.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 #include "vtkType.h"
@@ -72,12 +59,14 @@
 // Helper functions
 //------------------------------------------------------------------------------
 
+VTK_ABI_NAMESPACE_BEGIN
 bool StringEndsWith(const std::string& a, const std::string& b)
 {
   return a.size() >= b.size() && a.compare(a.size() - b.size(), b.size(), b) == 0;
 }
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkADIOS2CoreImageReader);
+VTK_ABI_NAMESPACE_END
 namespace
 {
 inline std::vector<int> parseDimensions(const std::string& dimsStr)
@@ -92,6 +81,7 @@ inline std::vector<int> parseDimensions(const std::string& dimsStr)
   return dims;
 }
 }
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 struct vtkADIOS2CoreImageReader::vtkADIOS2CoreImageReaderImpl
@@ -359,12 +349,12 @@ bool vtkADIOS2CoreImageReader::OpenAndReadMetaData()
     vtkMPICommunicator* comm =
       static_cast<vtkMPICommunicator*>(this->Controller->GetCommunicator());
 
-    this->Impl->Adios.reset(new adios2::ADIOS(*comm->GetMPIComm()->GetHandle(), adios2::DebugON));
+    this->Impl->Adios.reset(new adios2::ADIOS(*comm->GetMPIComm()->GetHandle()));
 #else
     // Make sure the ADIOS subsystem is initialized before processing any
     // sort of request.
 
-    this->Impl->Adios.reset(new adios2::ADIOS(adios2::DebugON));
+    this->Impl->Adios.reset(new adios2::ADIOS());
     // Before processing any request, read the meta data first
 #endif
   }
@@ -507,13 +497,13 @@ int vtkADIOS2CoreImageReader::RequestData(vtkInformation* vtkNotUsed(request),
     this->RequestTimeStep = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP());
     if (!this->Impl->TimeStepsReverseMap.count(this->RequestTimeStep))
     {
-      vtkErrorMacro("The requested time step " << this->RequestTimeStep << " is not avaible!");
+      vtkErrorMacro("The requested time step " << this->RequestTimeStep << " is not available!");
       return 0;
     }
     this->Impl->RequestStep = this->Impl->TimeStepsReverseMap[this->RequestTimeStep];
   }
 
-  // Initailize work distribution for each rank
+  // Initialize work distribution for each rank
   if (!this->InitWorkDistribution())
   {
     this->Impl->Adios.reset(nullptr);
@@ -1041,3 +1031,4 @@ void vtkADIOS2CoreImageReader::GatherTimeStepsFromADIOSTimeArray()
     vtkErrorMacro("Fail to gather time steps from time array " << this->TimeStepArray << ex.what());
   }
 }
+VTK_ABI_NAMESPACE_END

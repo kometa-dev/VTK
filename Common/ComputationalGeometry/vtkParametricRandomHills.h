@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParametricRandomHills.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkParametricRandomHills
  * @brief   Generate a surface covered with randomly placed hills.
@@ -38,6 +26,7 @@
 #include "vtkCommonComputationalGeometryModule.h" // For export macro
 #include "vtkParametricFunction.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDoubleArray;
 class vtkMinimalStandardRandomSequence;
 
@@ -227,7 +216,7 @@ private:
   /**
    * Return a random number between 0 and 1.
    */
-  double Rand(void);
+  double Rand();
 
   /**
    * A random sequence generator.
@@ -240,7 +229,7 @@ private:
    * the u, v coordinates of each hill, their variances in the u, v directions
    * and their amplitudes.
    */
-  void MakeTheHillData(void);
+  void MakeTheHillData();
 
   /**
    * True if any parameters have changed.
@@ -260,4 +249,5 @@ private:
   ///@}
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

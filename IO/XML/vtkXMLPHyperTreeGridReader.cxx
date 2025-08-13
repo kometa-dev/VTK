@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLPHyperTreeGridReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLPHyperTreeGridReader.h"
 
 #include "vtkCallbackCommand.h"
@@ -31,6 +19,7 @@
 #include <cassert>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkXMLPHyperTreeGridReader);
 
 //------------------------------------------------------------------------------
@@ -201,7 +190,15 @@ int vtkXMLPHyperTreeGridReader::ReadPieceData()
 
   if (!output)
   {
-    vtkErrorMacro("Incorrect type of output: " << output->GetClassName());
+    if (this->GetCurrentOutput())
+    {
+      vtkErrorMacro(
+        "Expected: vtkHyperTreeGrid, got: " << this->GetCurrentOutput()->GetClassName());
+    }
+    else
+    {
+      vtkErrorMacro("Expected: vtkHyperTreeGrid, got NULL output");
+    }
     return 0;
   }
 
@@ -368,7 +365,7 @@ void vtkXMLPHyperTreeGridReader::SetupOutputInformation(vtkInformation* vtkNotUs
   {
     vtkErrorMacro("Should not still be processing output information if have set InformationError");
     return;
-  };
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -614,3 +611,4 @@ void vtkXMLPHyperTreeGridReader::RecursivelyProcessTree(
     }
   }
 }
+VTK_ABI_NAMESPACE_END

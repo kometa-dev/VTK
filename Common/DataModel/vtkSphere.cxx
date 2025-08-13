@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSphere.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSphere.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
 
 #include <algorithm>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSphere);
 
 //------------------------------------------------------------------------------
@@ -53,11 +42,13 @@ void vtkSphere::EvaluateGradient(double x[3], double n[3])
 // The following methods are used to compute bounding spheres.
 //
 #define VTK_ASSIGN_POINT(_x, _y)                                                                   \
+  do                                                                                               \
   {                                                                                                \
     _x[0] = _y[0];                                                                                 \
     _x[1] = _y[1];                                                                                 \
     _x[2] = _y[2];                                                                                 \
-  }
+  } while (false)
+
 //------------------------------------------------------------------------------
 // Inspired by Graphics Gems Vol. I ("An Efficient Bounding Sphere" by Jack Ritter).
 // The algorithm works in two parts: first an initial estimate of the largest sphere;
@@ -173,12 +164,13 @@ void vtkSphereComputeBoundingSphere(T* pts, vtkIdType numPts, T sphere[4], vtkId
 #undef VTK_ASSIGN_POINT
 
 #define VTK_ASSIGN_SPHERE(_x, _y)                                                                  \
+  do                                                                                               \
   {                                                                                                \
     _x[0] = _y[0];                                                                                 \
     _x[1] = _y[1];                                                                                 \
     _x[2] = _y[2];                                                                                 \
     _x[3] = _y[3];                                                                                 \
-  }
+  } while (false)
 // An approximation to the bounding sphere of a set of spheres. The algorithm
 // creates an initial approximation from two spheres that are expected to be
 // the farthest apart (taking into account their radius). A second pass may
@@ -389,3 +381,4 @@ void vtkSphere::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Center: (" << this->Center[0] << ", " << this->Center[1] << ", "
      << this->Center[2] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

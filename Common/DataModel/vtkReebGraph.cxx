@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkReebGraph.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkReebGraph.h"
 
 #include "vtkCell.h"
@@ -39,6 +22,7 @@
 //------------------------------------------------------------------------------
 // Contain all of the internal data structures, and macros, in the
 // implementation.
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 //------------------------------------------------------------------------------
@@ -51,14 +35,15 @@ inline bool vtkReebGraphVertexSoS(
 
 // INTERNAL MACROS ---------------------------------------------------------
 #define vtkReebGraphSwapVars(type, var1, var2)                                                     \
+  do                                                                                               \
   {                                                                                                \
     type tmp;                                                                                      \
     tmp = (var1);                                                                                  \
     (var1) = (var2);                                                                               \
     (var2) = tmp;                                                                                  \
-  }
+  } while (false)
 
-#define vtkReebGraphInitialStreamSize 1000
+constexpr int vtkReebGraphInitialStreamSize = 1000;
 
 #define vtkReebGraphIsSmaller(myReebGraph, nodeId0, nodeId1, node0, node1)                         \
   ((node0->Value < node1->Value) || (node0->Value == node1->Value && (nodeId0) < (nodeId1)))
@@ -78,6 +63,7 @@ inline bool vtkReebGraphVertexSoS(
       !this->GetArc((n)->ArcUpId)->ArcDwId0))
 
 #define vtkReebGraphAddUpArc(rg, N, A)                                                             \
+  do                                                                                               \
   {                                                                                                \
     vtkReebNode* n = this->GetNode(N);                                                             \
     vtkReebArc* a = this->GetArc(A);                                                               \
@@ -86,9 +72,10 @@ inline bool vtkReebGraphVertexSoS(
     if (n->ArcUpId)                                                                                \
       this->GetArc(n->ArcUpId)->ArcUpId0 = (A);                                                    \
     n->ArcUpId = (A);                                                                              \
-  }
+  } while (false)
 
 #define vtkReebGraphAddDownArc(rg, N, A)                                                           \
+  do                                                                                               \
   {                                                                                                \
     vtkReebNode* n = this->GetNode(N);                                                             \
     vtkReebArc* a = this->GetArc(A);                                                               \
@@ -97,9 +84,10 @@ inline bool vtkReebGraphVertexSoS(
     if (n->ArcDownId)                                                                              \
       this->GetArc(n->ArcDownId)->ArcUpId1 = (A);                                                  \
     n->ArcDownId = (A);                                                                            \
-  }
+  } while (false)
 
 #define vtkReebGraphRemoveUpArc(rg, N, A)                                                          \
+  do                                                                                               \
   {                                                                                                \
     vtkReebNode* n = this->GetNode(N);                                                             \
     vtkReebArc* a = this->GetArc(A);                                                               \
@@ -109,9 +97,10 @@ inline bool vtkReebGraphVertexSoS(
       n->ArcUpId = a->ArcDwId0;                                                                    \
     if (a->ArcDwId0)                                                                               \
       this->GetArc(a->ArcDwId0)->ArcUpId0 = a->ArcUpId0;                                           \
-  }
+  } while (false)
 
 #define vtkReebGraphRemoveDownArc(rg, N, A)                                                        \
+  do                                                                                               \
   {                                                                                                \
     vtkReebNode* n = this->GetNode(N);                                                             \
     vtkReebArc* a = this->GetArc(A);                                                               \
@@ -121,13 +110,14 @@ inline bool vtkReebGraphVertexSoS(
       n->ArcDownId = a->ArcDwId1;                                                                  \
     if (a->ArcDwId1)                                                                               \
       this->GetArc(a->ArcDwId1)->ArcUpId1 = a->ArcUpId1;                                           \
-  }
+  } while (false)
 
 #ifndef vtkReebGraphMax
 #define vtkReebGraphMax(a, b) (((a) >= (b)) ? (a) : (b))
 #endif
 
 #define vtkReebGraphStackPush(N)                                                                   \
+  do                                                                                               \
   {                                                                                                \
     if (nstack == mstack)                                                                          \
     {                                                                                              \
@@ -141,7 +131,7 @@ inline bool vtkReebGraphVertexSoS(
       }                                                                                            \
     }                                                                                              \
     stack[nstack++] = (N);                                                                         \
-  }
+  } while (false)
 
 #define vtkReebGraphStackSize() (nstack)
 
@@ -1964,7 +1954,6 @@ void vtkReebGraph::CloseStream()
   } while (aIt != localAdjacency.end());
 
   // now cleanup the internal representation
-  int nmyend = 0;
   for (vtkIdType N = 1; N < this->Storage->MainNodeTable.Size; N++)
   {
     // clear the node
@@ -1975,7 +1964,6 @@ void vtkReebGraph::CloseStream()
 
     if (!n->IsFinalized)
     {
-      nmyend++;
       this->Storage->EndVertex(N);
     }
   }
@@ -3375,3 +3363,4 @@ inline vtkIdType vtkReebGraph::Implementation::AddArc(vtkIdType nodeId0, vtkIdTy
   vtkIdType nodevtkReebArcble[] = { nodeId0, nodeId1 };
   return AddPath(2, nodevtkReebArcble, 0);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,18 +1,7 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class vtkmNDHistogram
  * @brief generate a n dimensional histogram field from input fields
@@ -34,12 +23,15 @@
 #ifndef vtkmNDHistogram_h
 #define vtkmNDHistogram_h
 
-#include "vtkAcceleratorsVTKmFiltersModule.h" // required for correct export
-#include "vtkArrayDataAlgorithm.h"
 #include <string>  // for std::string
 #include <utility> // for std::pair
 #include <vector>  // for std::vector
 
+#include "vtkAcceleratorsVTKmFiltersModule.h" // required for correct export
+#include "vtkArrayDataAlgorithm.h"
+#include "vtkmlib/vtkmInitializer.h" // Need for initializing vtk-m
+
+VTK_ABI_NAMESPACE_BEGIN
 class VTKACCELERATORSVTKMFILTERS_EXPORT vtkmNDHistogram : public vtkArrayDataAlgorithm
 {
 public:
@@ -75,6 +67,8 @@ private:
   std::vector<vtkIdType> NumberOfBins;
   std::vector<double> BinDeltas;
   std::vector<std::pair<double, double>> DataRanges;
+  vtkmInitializer Initializer;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkmNDHistogram_h

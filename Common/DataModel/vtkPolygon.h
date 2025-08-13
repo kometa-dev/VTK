@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolygon.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolygon
  * @brief   a cell that represents an n-sided polygon
@@ -28,6 +16,7 @@
 #include "vtkCell.h"
 #include "vtkCommonDataModelModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDoubleArray;
 class vtkIdTypeArray;
 class vtkLine;
@@ -208,7 +197,7 @@ public:
    * is an intersection.
    */
   static int IntersectPolygonWithPolygon(int npts, double* pts, double bounds[6], int npts2,
-    double* pts2, double bounds2[3], double tol, double x[3]);
+    double* pts2, double bounds2[6], double tol, double x[3]);
 
   /**
    * Intersect two convex 2D polygons to produce a line segment as output.
@@ -235,7 +224,7 @@ public:
   vtkSetMacro(UseMVCInterpolation, bool);
   ///@}
 
-  //@{
+  ///@{
   /**
    * Specify an internal tolerance for operations requiring polygon
    * triangulation.  (For example, clipping and contouring operations proceed
@@ -246,7 +235,7 @@ public:
    */
   vtkSetClampMacro(Tolerance, double, 0.0, 1.0);
   vtkGetMacro(Tolerance, double);
-  //@}
+  ///@}
 
 protected:
   vtkPolygon();
@@ -318,4 +307,5 @@ private:
   void operator=(const vtkPolygon&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

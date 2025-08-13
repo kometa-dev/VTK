@@ -1,18 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmf3Reader.cxx
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkXdmf3Reader.h"
 
@@ -58,6 +45,7 @@
 // TODO: make domains entirely optional and selectable
 
 //=============================================================================
+VTK_ABI_NAMESPACE_BEGIN
 class vtkXdmf3Reader::Internals
 {
   // Private implementation details for vtkXdmf3Reader
@@ -539,7 +527,7 @@ int vtkXdmf3Reader::RequestInformation(
   // Publish the times that we have data for
   if (!this->Internal->TimeSteps.empty())
   {
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &this->Internal->TimeSteps[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), this->Internal->TimeSteps.data(),
       static_cast<int>(this->Internal->TimeSteps.size()));
     double timeRange[2];
     timeRange[0] = this->Internal->TimeSteps.front();
@@ -958,3 +946,4 @@ int vtkXdmf3Reader::GetSILUpdateStamp()
 {
   return this->Internal->GetSIL()->GetMTime();
 }
+VTK_ABI_NAMESPACE_END

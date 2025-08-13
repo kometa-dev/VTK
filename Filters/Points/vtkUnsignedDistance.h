@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUnsignedDistance.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 /**
  * @class   vtkUnsignedDistance
  * @brief   compute unsigned (i.e., non-negative) distances from an input point cloud
@@ -39,7 +27,7 @@
  * This filter has one other unusual capability: it is possible to append
  * data in a sequence of operations to generate a single output. This is
  * useful when you have multiple point clouds (e.g., possibly from multiple
- * acqusition scans) and want to incrementally accumulate all the data.
+ * acquisition scans) and want to incrementally accumulate all the data.
  * However, the user must be careful to either specify the Bounds or
  * order the input such that the bounds of the first input completely
  * contains all other input data.  This is because the geometry and topology
@@ -69,6 +57,7 @@
 #include "vtkFiltersPointsModule.h" // For export macro
 #include "vtkImageAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPolyData;
 class vtkAbstractPointLocator;
 
@@ -228,4 +217,5 @@ private:
   void operator=(const vtkUnsignedDistance&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

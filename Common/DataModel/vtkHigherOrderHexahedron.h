@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHigherOrderHexahedron.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHigherOrderHexahedron
  * @brief   A 3D cell that represents an arbitrary order HigherOrder hex
@@ -28,12 +16,12 @@
 
 #include "vtkCellType.h"              // For GetCellType.
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For deprecation macros
 #include "vtkNew.h"                   // For member variable.
 #include "vtkNonLinearCell.h"
 #include "vtkSmartPointer.h" // For member variable.
 #include <functional>        //For std::function
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellData;
 class vtkDoubleArray;
 class vtkHexahedron;
@@ -89,12 +77,14 @@ public:
 
   double GetParametricDistance(const double pcoords[3]) override;
 
-  virtual void SetOrderFromCellData(
-    vtkCellData* cell_data, const vtkIdType numPts, const vtkIdType cell_id);
-  virtual void SetUniformOrderFromNumPoints(const vtkIdType numPts);
-  virtual void SetOrder(const int s, const int t, const int u);
+  virtual void SetOrderFromCellData(vtkCellData* cell_data, vtkIdType numPts, vtkIdType cell_id);
+  virtual void SetUniformOrderFromNumPoints(vtkIdType numPts);
+  virtual void SetOrder(int s, int t, int u);
   virtual const int* GetOrder();
   virtual int GetOrder(int i) { return this->GetOrder()[i]; }
+  /// Return true if the number of points supports a cell of uniform
+  /// degree along each axis.
+  static bool PointCountSupportsUniformOrder(vtkIdType pointsPerCell);
 
   void InterpolateFunctions(const double pcoords[3], double* weights) override = 0;
   void InterpolateDerivs(const double pcoords[3], double* derivs) override = 0;
@@ -106,17 +96,10 @@ public:
   bool TransformApproxToCellParams(int subCell, double* pcoords);
   bool TransformFaceToCellParams(int bdyFace, double* pcoords);
   virtual vtkHigherOrderCurve* GetEdgeCell() = 0;
-  VTK_DEPRECATED_IN_9_1_0("renamed to GetEdgeCell")
-  virtual vtkHigherOrderCurve* getEdgeCell();
   virtual vtkHigherOrderQuadrilateral* GetFaceCell() = 0;
-  VTK_DEPRECATED_IN_9_1_0("renamed to GetFaceCell")
-  virtual vtkHigherOrderQuadrilateral* getFaceCell();
   virtual vtkHigherOrderInterpolation* GetInterpolation() = 0;
-  VTK_DEPRECATED_IN_9_1_0("renamed to GetInterpolation")
-  virtual vtkHigherOrderInterpolation* getInterp();
 
-  static vtkIdType NodeNumberingMappingFromVTK8To9(
-    const int order[3], const vtkIdType node_id_vtk8);
+  static vtkIdType NodeNumberingMappingFromVTK8To9(const int order[3], vtkIdType node_id_vtk8);
 
 protected:
   vtkHigherOrderHexahedron();
@@ -149,4 +132,5 @@ inline int vtkHigherOrderHexahedron::GetParametricCenter(double center[3])
   return 0;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkHigherOrderHexahedron_h

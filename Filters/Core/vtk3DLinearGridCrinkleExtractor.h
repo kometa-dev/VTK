@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtk3DLinearGridCrinkleExtractor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtk3DLinearGridCrinkleExtractor
  * @brief   fast extraction of cells intersected by a plane
@@ -20,7 +8,7 @@
  * specified implicit function, extracts unstructured grid cells that
  * intersect the implicit function. (Since the surface of these cells roughly
  * follows the implicit function but is "bumpy", it is referred to as a
- * "crinkle" suface.) This filter operates on vtkUnstructuredGrids consisting
+ * "crinkle" surface.) This filter operates on vtkUnstructuredGrids consisting
  * of 3D linear cells: tetrahedra, hexahedra, voxels, pyramids, and/or
  * wedges. (The cells are linear in the sense that each cell edge is a
  * straight line.)  The filter is designed for high-speed, specialized
@@ -73,6 +61,7 @@
 #include "vtkDataObjectAlgorithm.h"
 #include "vtkFiltersCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkUnstructuredGrid;
 class vtkImplicitFunction;
 
@@ -202,4 +191,5 @@ private:
   void operator=(const vtk3DLinearGridCrinkleExtractor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

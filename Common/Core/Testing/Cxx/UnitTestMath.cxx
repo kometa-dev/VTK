@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    UnitTestMath.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 //
 // Note if you fix this test to fill in all the empty tests
@@ -1625,7 +1613,7 @@ int TestDeterminant2x2()
       std::cout << "Determinant2x2 expected " << 1.0 << " but got "
                 << vtkMath::Determinant2x2(a[0], a[1]) << std::endl;
       ++status;
-    };
+    }
   }
   {
     float a[2][2];
@@ -1652,7 +1640,7 @@ int TestDeterminant2x2()
       std::cout << "Determinant2x2 expected " << 1.0 << " but got "
                 << vtkMath::Determinant2x2(a[0], a[1]) << std::endl;
       ++status;
-    };
+    }
   }
   if (status)
   {
@@ -1696,7 +1684,7 @@ int TestDeterminant3x3()
       std::cout << "Determinant3x3 expected " << 1.0 << " but got "
                 << vtkMath::Determinant3x3(a[0], a[1], a[2]) << std::endl;
       ++status;
-    };
+    }
   }
   {
     float a[3][3];
@@ -1723,7 +1711,7 @@ int TestDeterminant3x3()
       std::cout << "Determinant3x3 expected " << 1.0 << " but got "
                 << vtkMath::Determinant3x3(a[0], a[1], a[2]) << std::endl;
       ++status;
-    };
+    }
   }
 
   if (status)

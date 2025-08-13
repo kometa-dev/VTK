@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestBoundingBox.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBoundingBox.h"
 #include "vtkMath.h"
@@ -20,11 +8,14 @@
 #include <limits>
 
 #define TestBoundingBoxFailMacro(b, msg)                                                           \
-  if (!(b))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    std::cerr << msg << std::endl;                                                                 \
-    return EXIT_FAILURE;                                                                           \
-  }
+    if (!(b))                                                                                      \
+    {                                                                                              \
+      std::cerr << msg << std::endl;                                                               \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  } while (false)
 
 int TestBoundingBox(int, char*[])
 {
@@ -74,7 +65,7 @@ int TestBoundingBox(int, char*[])
     bbox.GetBounds(bb);
     TestBoundingBoxFailMacro(
       !res && bb[0] == -1 && bb[1] == 1 && bb[2] == -1 && bb[3] == 1 && bb[4] == -1 && bb[5] == 1,
-      "Intersect Plane Failed!")
+      "Intersect Plane Failed!");
   }
   {
     double bb[6];

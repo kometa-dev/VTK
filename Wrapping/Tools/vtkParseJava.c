@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseJava.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkParse.h"
 #include "vtkParseHierarchy.h"
@@ -63,7 +51,6 @@ void outputScalarParamDeclarations(FILE* fp, int i, unsigned int aType)
       break;
     case VTK_PARSE_LONG:
     case VTK_PARSE_LONG_LONG:
-    case VTK_PARSE___INT64:
       fprintf(fp, "long ");
       break;
     case VTK_PARSE_BOOL:
@@ -123,10 +110,8 @@ void return_result(FILE* fp)
       break;
     case VTK_PARSE_LONG:
     case VTK_PARSE_LONG_LONG:
-    case VTK_PARSE___INT64:
     case VTK_PARSE_UNSIGNED_LONG:
     case VTK_PARSE_UNSIGNED_LONG_LONG:
-    case VTK_PARSE_UNSIGNED___INT64:
       fprintf(fp, "long ");
       break;
     case VTK_PARSE_BOOL:
@@ -163,10 +148,8 @@ void return_result(FILE* fp)
       break;
     case VTK_PARSE_LONG_PTR:
     case VTK_PARSE_LONG_LONG_PTR:
-    case VTK_PARSE___INT64_PTR:
     case VTK_PARSE_UNSIGNED_LONG_PTR:
     case VTK_PARSE_UNSIGNED_LONG_LONG_PTR:
-    case VTK_PARSE_UNSIGNED___INT64_PTR:
       fprintf(fp, "long[]  ");
       break;
     case VTK_PARSE_BOOL_PTR:
@@ -211,10 +194,8 @@ void return_result_native(FILE* fp)
       break;
     case VTK_PARSE_LONG:
     case VTK_PARSE_LONG_LONG:
-    case VTK_PARSE___INT64:
     case VTK_PARSE_UNSIGNED_LONG:
     case VTK_PARSE_UNSIGNED_LONG_LONG:
-    case VTK_PARSE_UNSIGNED___INT64:
       fprintf(fp, "long ");
       break;
     case VTK_PARSE_BOOL:
@@ -254,10 +235,8 @@ void return_result_native(FILE* fp)
       break;
     case VTK_PARSE_LONG_PTR:
     case VTK_PARSE_LONG_LONG_PTR:
-    case VTK_PARSE___INT64_PTR:
     case VTK_PARSE_UNSIGNED_LONG_PTR:
     case VTK_PARSE_UNSIGNED_LONG_LONG_PTR:
-    case VTK_PARSE_UNSIGNED___INT64_PTR:
       fprintf(fp, "long[]  ");
       break;
   }
@@ -273,7 +252,7 @@ static int CheckMatch(unsigned int type1, unsigned int type2, const char* c1, co
   static unsigned int shortTypes[] = { VTK_PARSE_UNSIGNED_SHORT, VTK_PARSE_SHORT, 0 };
   static unsigned int intTypes[] = { VTK_PARSE_UNSIGNED_INT, VTK_PARSE_INT, 0 };
   static unsigned int longTypes[] = { VTK_PARSE_UNSIGNED_LONG, VTK_PARSE_UNSIGNED_LONG_LONG,
-    VTK_PARSE_UNSIGNED___INT64, VTK_PARSE_LONG, VTK_PARSE_LONG_LONG, VTK_PARSE___INT64, 0 };
+    VTK_PARSE_LONG, VTK_PARSE_LONG_LONG, 0 };
 
   static unsigned int stringTypes[] = { VTK_PARSE_CHAR_PTR, VTK_PARSE_STRING_REF, VTK_PARSE_STRING,
     0 };
@@ -475,6 +454,12 @@ static int isClassWrapped(const char* classname)
       return 0;
     }
 
+    /* Templated classes are not wrapped in Java */
+    if (strchr(classname, '<'))
+    {
+      return 0;
+    }
+
     /* Only the primary class in the header is wrapped in Java */
     return vtkParseHierarchy_IsPrimary(entry);
   }
@@ -487,8 +472,8 @@ int checkFunctionSignature(ClassInfo* data)
   static const unsigned int supported_types[] = { VTK_PARSE_VOID, VTK_PARSE_BOOL, VTK_PARSE_FLOAT,
     VTK_PARSE_DOUBLE, VTK_PARSE_CHAR, VTK_PARSE_UNSIGNED_CHAR, VTK_PARSE_SIGNED_CHAR, VTK_PARSE_INT,
     VTK_PARSE_UNSIGNED_INT, VTK_PARSE_SHORT, VTK_PARSE_UNSIGNED_SHORT, VTK_PARSE_LONG,
-    VTK_PARSE_UNSIGNED_LONG, VTK_PARSE_LONG_LONG, VTK_PARSE_UNSIGNED_LONG_LONG, VTK_PARSE___INT64,
-    VTK_PARSE_UNSIGNED___INT64, VTK_PARSE_OBJECT, VTK_PARSE_STRING, VTK_PARSE_UNKNOWN, 0 };
+    VTK_PARSE_UNSIGNED_LONG, VTK_PARSE_LONG_LONG, VTK_PARSE_UNSIGNED_LONG_LONG, VTK_PARSE_OBJECT,
+    VTK_PARSE_STRING, VTK_PARSE_UNKNOWN, 0 };
 
   int i, j;
   int args_ok = 1;
@@ -497,8 +482,9 @@ int checkFunctionSignature(ClassInfo* data)
   unsigned int baseType = 0;
 
   /* some functions will not get wrapped no matter what else */
-  if (thisFunction->IsOperator || thisFunction->ArrayFailure || thisFunction->IsExcluded ||
-    thisFunction->IsDeleted || !thisFunction->IsPublic || !thisFunction->Name)
+  if (thisFunction->IsOperator || thisFunction->ArrayFailure || thisFunction->Template ||
+    thisFunction->IsExcluded || thisFunction->IsDeleted || !thisFunction->IsPublic ||
+    !thisFunction->Name)
   {
     return 0;
   }
@@ -596,8 +582,6 @@ int checkFunctionSignature(ClassInfo* data)
       args_ok = 0;
     if (aType == VTK_PARSE_UNSIGNED_LONG_LONG_PTR)
       args_ok = 0;
-    if (aType == VTK_PARSE_UNSIGNED___INT64_PTR)
-      args_ok = 0;
   }
 
   baseType = (rType & VTK_PARSE_BASE_TYPE);
@@ -661,8 +645,6 @@ int checkFunctionSignature(ClassInfo* data)
     args_ok = 0;
   if (rType == VTK_PARSE_UNSIGNED_LONG_LONG_PTR)
     args_ok = 0;
-  if (rType == VTK_PARSE_UNSIGNED___INT64_PTR)
-    args_ok = 0;
 
   /* make sure we have all the info we need for array arguments in */
   for (i = 0; i < thisFunction->NumberOfArguments; i++)
@@ -684,7 +666,6 @@ int checkFunctionSignature(ClassInfo* data)
     case VTK_PARSE_SHORT_PTR:
     case VTK_PARSE_LONG_PTR:
     case VTK_PARSE_LONG_LONG_PTR:
-    case VTK_PARSE___INT64_PTR:
     case VTK_PARSE_SIGNED_CHAR_PTR:
     case VTK_PARSE_BOOL_PTR:
     case VTK_PARSE_UNSIGNED_CHAR_PTR:
@@ -1170,8 +1151,9 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     /*const */ char javaDone[] = "VTKJavaWrapped";
     FILE* tfp;
     fname = options->OutputFileName;
-    dir = (char*)malloc(strlen(fname) + strlen(javaDone) + 2);
-    sprintf(dir, "%s", fname);
+    size_t dirlen = strlen(fname) + strlen(javaDone) + 2;
+    dir = (char*)malloc(dirlen);
+    snprintf(dir, dirlen, "%s", fname);
     len = strlen(dir);
     for (cc = len - 1; cc > 0; cc--)
     {
@@ -1189,6 +1171,11 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
       fclose(tfp);
     }
     free(dir);
+  }
+
+  if (hierarchyInfo)
+  {
+    vtkParseHierarchy_Free(hierarchyInfo);
   }
 
   vtkParse_Free(file_info);

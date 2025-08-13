@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCompositeDataWriter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCompositeDataWriter.h"
 
 #include "vtkAMRBox.h"
@@ -37,6 +26,7 @@
 #include <io.h> /* unlink */
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCompositeDataWriter);
 //------------------------------------------------------------------------------
 vtkCompositeDataWriter::vtkCompositeDataWriter() = default;
@@ -157,6 +147,13 @@ void vtkCompositeDataWriter::WriteData()
     vtkErrorMacro("Unsupported input type: " << input->GetClassName());
   }
 
+  // Try to write field data
+  vtkFieldData* fieldData = input->GetFieldData();
+  if (fieldData)
+  {
+    this->WriteFieldData(fp, fieldData);
+  }
+
   this->CloseVTKFile(fp);
 }
 
@@ -184,7 +181,6 @@ bool vtkCompositeDataWriter::WriteCompositeData(ostream* fp, vtkMultiBlockDataSe
     *fp << "ENDCHILD\n";
   }
 
-  this->WriteFieldData(fp, mb->GetFieldData());
   return true;
 }
 
@@ -385,3 +381,4 @@ void vtkCompositeDataWriter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

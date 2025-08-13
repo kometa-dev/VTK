@@ -5,6 +5,7 @@ set(classes
   vtkArrayDataAlgorithm
   vtkCachedStreamingDemandDrivenPipeline
   vtkCastToConcrete
+  vtkCellGridAlgorithm
   vtkCompositeDataPipeline
   vtkCompositeDataSetAlgorithm
   vtkDataObjectAlgorithm
@@ -43,7 +44,6 @@ set(classes
   vtkPolyDataAlgorithm
   vtkProgressObserver
   vtkReaderAlgorithm
-  vtkReaderExecutive
   vtkRectilinearGridAlgorithm
   vtkSMPProgressObserver
   vtkScalarTree
@@ -73,3 +73,4 @@ set(classes
 
 vtk_module_add_module(VTK::CommonExecutionModel
   CLASSES ${classes})
+vtk_add_test_mangling(VTK::CommonExecutionModel)

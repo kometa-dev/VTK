@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGeoTransform.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkGeoTransform.h"
 
@@ -29,6 +13,7 @@
 #include "vtk_libproj.h"
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGeoTransform);
 vtkCxxSetObjectMacro(vtkGeoTransform, SourceProjection, vtkGeoProjection);
 vtkCxxSetObjectMacro(vtkGeoTransform, DestinationProjection, vtkGeoProjection);
@@ -212,7 +197,7 @@ void vtkGeoTransform::InternalTransformPoints(double* x, vtkIdType numPts, int s
 #if PROJ_VERSION_MAJOR >= 5
       c.lp.lam = coord[0];
       c.lp.phi = coord[1];
-      c_out = proj_trans(src, PJ_FWD, c);
+      c_out = proj_trans(dst, PJ_FWD, c);
       coord[0] = c_out.xy.x;
       coord[1] = c_out.xy.y;
 #else
@@ -288,3 +273,4 @@ int vtkGeoTransform::ComputeUTMZone(double lon, double lat)
   }
   return result;
 }
+VTK_ABI_NAMESPACE_END

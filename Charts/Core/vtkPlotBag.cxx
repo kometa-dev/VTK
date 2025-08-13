@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotBag.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPlotBag.h"
 #include "vtkBrush.h"
@@ -34,6 +22,7 @@
 #include <sstream>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPlotBag);
 
 vtkSetObjectImplementationMacro(vtkPlotBag, LinePen, vtkPen);
@@ -337,8 +326,7 @@ vtkStdString vtkPlotBag::GetTooltipLabel(
           tooltipLabel += this->GetNumber(plotPos.GetY(), this->YAxis);
           break;
         case 'z':
-          tooltipLabel +=
-            density ? density->GetVariantValue(seriesIndex).ToString() : vtkStdString("?");
+          tooltipLabel += density ? density->GetVariantValue(seriesIndex).ToString() : "?";
           break;
         case 'i':
           if (this->IndexedLabels && seriesIndex >= 0 &&
@@ -407,8 +395,8 @@ void vtkPlotBag::SetInputData(vtkTable* table)
 void vtkPlotBag::SetInputData(
   vtkTable* table, const vtkStdString& yColumn, const vtkStdString& densityColumn)
 {
-  vtkDebugMacro(<< "Setting input, Y column = \"" << yColumn.c_str() << "\", "
-                << "Density column = \"" << densityColumn.c_str() << "\"");
+  vtkDebugMacro(<< "Setting input, Y column = \"" << yColumn << "\", "
+                << "Density column = \"" << densityColumn << "\"");
 
   if (table->GetColumnByName(densityColumn.c_str())->GetNumberOfTuples() !=
     table->GetColumnByName(yColumn.c_str())->GetNumberOfTuples())
@@ -425,10 +413,10 @@ void vtkPlotBag::SetInputData(
 void vtkPlotBag::SetInputData(vtkTable* table, const vtkStdString& xColumn,
   const vtkStdString& yColumn, const vtkStdString& densityColumn)
 {
-  vtkDebugMacro(<< "Setting input, X column = \"" << xColumn.c_str() << "\", "
-                << "Y column = \"" << yColumn.c_str() << "\""
+  vtkDebugMacro(<< "Setting input, X column = \"" << xColumn << "\", "
+                << "Y column = \"" << yColumn << "\""
                 << "\", "
-                << "Density column = \"" << densityColumn.c_str() << "\"");
+                << "Density column = \"" << densityColumn << "\"");
 
   this->Data->SetInputData(table);
   this->Data->SetInputArrayToProcess(
@@ -456,3 +444,4 @@ void vtkPlotBag::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

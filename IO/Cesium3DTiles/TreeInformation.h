@@ -1,20 +1,8 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TreeInformation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class TreeInformation
- * @brief Additional information and routins for 3D Tiles octree nodes.
+ * @brief Additional information and routines for 3D Tiles octree nodes.
  *
  * Additional information for all nodes in the octree used to generate
  * the 3D Tiles representation.
@@ -23,6 +11,7 @@
 #ifndef TreeInformation_h
 #define TreeInformation_h
 
+#include "vtkCesium3DTilesWriter.h"
 #include <vtkSmartPointer.h>
 
 #include <vtk_nlohmannjson.h>
@@ -31,8 +20,10 @@
 #include <array>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkCompositeDataSet;
+class vtkDataArray;
 class vtkIdList;
 class vtkImageData;
 class vtkIntArray;
@@ -45,24 +36,29 @@ class vtkIncrementalOctreeNode;
 class TreeInformation
 {
 public:
-  //@{
+  ///@{
   /**
    * Constructors for buildings, points and meshes.
    */
+  // buildings
   TreeInformation(vtkIncrementalOctreeNode* root, int numberOfNodes,
     const std::vector<vtkSmartPointer<vtkCompositeDataSet>>* buildings,
-    const std::string& textureBaseDirectory, bool saveTextures, bool contentGLTF, const char* crs,
+    const std::string& textureBaseDirectory, const std::string& propertyTextureFile,
+    bool saveTextures, bool contentGLTF, bool contentGLTFSaveGLB, const char* crs,
     const std::string& outputDir);
+  // points
   TreeInformation(vtkIncrementalOctreeNode* root, int numberOfNodes, vtkPointSet* points,
-    bool contentGLTF, const char* crs, const std::string& output);
+    bool contentGLTF, bool contentGLTFSaveGLB, const char* crs, const std::string& output);
+  // mesh
   TreeInformation(vtkIncrementalOctreeNode* root, int numberOfNodes, vtkPolyData* mesh,
-    const std::string& textureBaseDirectory, bool saveTextures, bool contentGLTF, const char* crs,
+    const std::string& textureBaseDirectory, const std::string& propertyTextureFile,
+    bool saveTextures, bool contentGLTF, bool contentGLTFSaveGLB, const char* crs,
     const std::string& output);
-  //@}
+  ///@}
 
   void PrintNode(vtkIncrementalOctreeNode* node);
 
-  //@{
+  ///@{
   /**
    * Returns the bounds for node with index 'i'
    * The versions that returns a bool returns true if the node is not empty,
@@ -71,7 +67,7 @@ public:
   std::array<double, 6> GetNodeTightBounds(int i) { return NodeTightBounds[i]; }
   bool GetNodeTightBounds(int i, double* bounds);
   static bool GetNodeTightBounds(void* data, vtkIncrementalOctreeNode* node, double* bounds);
-  //@}
+  ///@}
 
   /**
    * Adds a node geometric error cell attribute for the bounding
@@ -86,7 +82,7 @@ public:
    * and the geometric error.
    */
   void Compute();
-  void SaveTilesBuildings(bool mergeTilePolyData);
+  void SaveTilesBuildings(bool mergeTilePolyData, size_t mergedTextureWidth);
   void SaveTilesMesh();
   void SaveTilesPoints();
   void SaveTileset(const std::string& output);
@@ -118,11 +114,13 @@ protected:
   ///@}
   void SaveTileBuildings(vtkIncrementalOctreeNode* node, void* auxData);
   void SaveTileMesh(vtkIncrementalOctreeNode* node, void* auxData);
+  void WriteTileTexture(
+    vtkIncrementalOctreeNode* node, const std::string& fileName, vtkImageData* tileImage);
   /**
    * Compute the texture image for the tile and recompute texture coordinates
    */
-  vtkSmartPointer<vtkImageData> ComputeTileMeshTexture(
-    vtkPolyData* tileMesh, vtkImageData* textureImage);
+  vtkSmartPointer<vtkImageData> SplitTileTexture(
+    vtkPolyData* tileMesh, vtkImageData* textureImage, vtkDataArray* tcoordsTile);
   void SaveTilePoints(vtkIncrementalOctreeNode* node, void* auxData);
 
   ///@{
@@ -142,12 +140,18 @@ protected:
   std::string ContentTypeExtension() const;
   void Initialize();
   double GetRootLength2();
+  /**
+   * Execute the passed functor for each polydata. The functor returns true
+   * if it should continue execution. The function returns true if it executed
+   * for all polydata inside each building.
+   */
+  bool ForEachBuilding(vtkIncrementalOctreeNode* node, std::function<bool(vtkPolyData*)> Execute);
 
 private:
   /**
    * Buildings, Points or Mesh. @see vtkCesium3DTilesWriter::InputType
    */
-  int InputType;
+  enum vtkCesium3DTilesWriter::InputType InputType;
   vtkIncrementalOctreeNode* Root;
   ///@{
   /**
@@ -160,8 +164,10 @@ private:
 
   std::string OutputDir;
   std::string TextureBaseDirectory;
+  std::string PropertyTextureFile;
   bool SaveTextures;
   bool ContentGLTF;
+  bool ContentGLTFSaveGLB;
 
   const char* CRS;
   /**
@@ -181,5 +187,6 @@ private:
   nlohmann::json RootJson;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: TreeInformation.h

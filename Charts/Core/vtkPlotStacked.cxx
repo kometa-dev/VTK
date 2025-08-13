@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotStacked.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPlotStacked.h"
 
@@ -39,6 +27,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -573,15 +562,25 @@ void vtkPlotStacked::SetColor(unsigned char r, unsigned char g, unsigned char b,
 }
 
 //------------------------------------------------------------------------------
-void vtkPlotStacked::SetColor(double r, double g, double b)
+void vtkPlotStacked::SetColorF(double r, double g, double b, double a)
+{
+  this->Brush->SetColorF(r, g, b, a);
+}
+
+//------------------------------------------------------------------------------
+void vtkPlotStacked::SetColorF(double r, double g, double b)
 {
   this->Brush->SetColorF(r, g, b);
 }
 
 //------------------------------------------------------------------------------
-void vtkPlotStacked::GetColor(double rgb[3])
+void vtkPlotStacked::GetColorF(double rgb[3])
 {
-  this->Brush->GetColorF(rgb);
+  double rgba[4] = { 0.0, 0.0, 0.0, 0.0 };
+  this->Brush->GetColorF(rgba);
+  rgb[0] = rgba[0];
+  rgb[1] = rgba[1];
+  rgb[2] = rgba[2];
 }
 
 //------------------------------------------------------------------------------
@@ -799,3 +798,4 @@ vtkColorSeries* vtkPlotStacked::GetColorSeries()
 {
   return this->ColorSeries;
 }
+VTK_ABI_NAMESPACE_END

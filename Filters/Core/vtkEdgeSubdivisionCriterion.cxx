@@ -1,11 +1,6 @@
-/*
- * Copyright 2003 Sandia Corporation.
- * Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
- * license for use of this work by or on behalf of the
- * U.S. Government. Redistribution and use in source and binary forms, with
- * or without modification, are permitted provided that this Notice and any
- * statement of authorship are reproduced on all copies.
- */
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2003 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkEdgeSubdivisionCriterion.h"
 #include "vtkDataSetAttributes.h"
@@ -14,6 +9,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 void vtkEdgeSubdivisionCriterion::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -121,14 +117,17 @@ bool vtkEdgeSubdivisionCriterion::ViewDependentEval(const double* p0, double* p1
     Transform->MultiplyPoint(p2t, p2t);
     int p0Code = 0, p2Code = 0;
 #define ENDPOINT_CODE(code, pt)                                                                    \
-  if (pt[0] > pt[3])                                                                               \
-    code += 1;                                                                                     \
-  else if (pt[0] < -pt[3])                                                                         \
-    code += 2;                                                                                     \
-  if (pt[1] > pt[3])                                                                               \
-    code += 4;                                                                                     \
-  else if (pt[1] < -pt[3])                                                                         \
-    code += 8;
+  do                                                                                               \
+  {                                                                                                \
+    if (pt[0] > pt[3])                                                                             \
+      code += 1;                                                                                   \
+    else if (pt[0] < -pt[3])                                                                       \
+      code += 2;                                                                                   \
+    if (pt[1] > pt[3])                                                                             \
+      code += 4;                                                                                   \
+    else if (pt[1] < -pt[3])                                                                       \
+      code += 8;                                                                                   \
+  } while (false)
 
     ENDPOINT_CODE(p0Code, p0t);
     ENDPOINT_CODE(p2Code, p2t);
@@ -180,3 +179,4 @@ bool vtkEdgeSubdivisionCriterion::FixedFieldErrorEval(
 
   return false;
 }
+VTK_ABI_NAMESPACE_END

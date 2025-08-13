@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestCellValidator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // This tests vtkCellValidator
 
@@ -207,13 +195,16 @@ int TestCellValidator(int, char*[])
   vtkCellValidator::State state;
 
 #define CheckCell(cellPtr)                                                                         \
-  state = vtkCellValidator::Check(cellPtr, FLT_EPSILON);                                           \
-  if (state != vtkCellValidator::State::Valid)                                                     \
+  do                                                                                               \
   {                                                                                                \
-    cellPtr->Print(std::cout);                                                                     \
-    vtkCellValidator::PrintState(state, std::cout, vtkIndent(0));                                  \
-    return EXIT_FAILURE;                                                                           \
-  }
+    state = vtkCellValidator::Check(cellPtr, FLT_EPSILON);                                         \
+    if (state != vtkCellValidator::State::Valid)                                                   \
+    {                                                                                              \
+      cellPtr->Print(std::cout);                                                                   \
+      vtkCellValidator::PrintState(state, std::cout, vtkIndent(0));                                \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  } while (false)
 
   CheckCell(emptyCell);
   CheckCell(vertex);

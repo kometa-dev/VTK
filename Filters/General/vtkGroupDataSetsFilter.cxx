@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGroupDataSetsFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGroupDataSetsFilter.h"
 
 #include "vtkInformation.h"
@@ -34,6 +22,7 @@
 #include VTK_FMT(fmt/core.h)
 // clang-format on
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkGroupDataSetsFilter::vtkInternals
 {
 public:
@@ -184,6 +173,10 @@ int vtkGroupDataSetsFilter::RequestData(vtkInformation* vtkNotUsed(request),
     auto output = vtkPartitionedDataSet::GetData(outputVector, 0);
     for (auto& input : inputs)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       const auto datasets = vtkCompositeDataSet::GetDataSets<vtkDataObject>(input.second);
       for (auto& ds : datasets)
       {
@@ -197,6 +190,10 @@ int vtkGroupDataSetsFilter::RequestData(vtkInformation* vtkNotUsed(request),
     auto output = vtkMultiBlockDataSet::GetData(outputVector, 0);
     for (auto& input : inputs)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       if (vtkPartitionedDataSetCollection::SafeDownCast(input.second) ||
         vtkPartitionedDataSet::SafeDownCast(input.second))
       {
@@ -216,6 +213,10 @@ int vtkGroupDataSetsFilter::RequestData(vtkInformation* vtkNotUsed(request),
     auto output = vtkPartitionedDataSetCollection::GetData(outputVector, 0);
     for (auto& input : inputs)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       if (vtkPartitionedDataSetCollection::SafeDownCast(input.second) ||
         vtkMultiBlockDataSet::SafeDownCast(input.second))
       {
@@ -255,3 +256,4 @@ void vtkGroupDataSetsFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

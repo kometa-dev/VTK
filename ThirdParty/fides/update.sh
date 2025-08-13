@@ -8,7 +8,7 @@ readonly name="fides"
 readonly ownership="Fides Upstream <kwrobot@kitware.com>"
 readonly subtree="ThirdParty/$name/vtk$name"
 readonly repo="https://gitlab.kitware.com/third-party/fides.git"
-readonly tag="for/vtk-20220607-master-ac77ac7"
+readonly tag="for/vtk-20230731-master-c6a488f6"
 readonly paths="
 .gitattributes
 LICENSE.txt

@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtSQLDatabase.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkQtSQLDatabase
  * @brief   maintains a connection to an sql database
@@ -28,12 +12,12 @@
 #ifndef vtkQtSQLDatabase_h
 #define vtkQtSQLDatabase_h
 
-#include "vtkDeprecation.h"           // For deprecation macros
 #include "vtkGUISupportQtSQLModule.h" // For export macro
 #include "vtkSQLDatabase.h"
 
 #include <QtSql/QSqlDatabase> // For the database member
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSQLQuery;
 class vtkStringArray;
 
@@ -145,14 +129,6 @@ public:
   vtkGetStringMacro(ConnectOptions);
   ///@}
 
-  // VTK_DEPRECATED_IN_9_1_0: Remove header test exclusion when this is removed.
-  ///@{
-  VTK_DEPRECATED_IN_9_1_0("Renamed to DbPort to avoid Windows macro collisions")
-  void SetPort(int port) { this->SetDbPort(port); }
-  VTK_DEPRECATED_IN_9_1_0("Renamed to DbPort to avoid Windows macro collisions")
-  int GetPort() { return this->GetDbPort(); }
-  ///@}
-
   ///@{
   /**
    * The port used for connecting to the database.
@@ -212,5 +188,6 @@ private:
   void operator=(const vtkQtSQLDatabase&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkQtSQLDatabase_h
 // VTK-HeaderTest-Exclude: vtkQtSQLDatabase.h

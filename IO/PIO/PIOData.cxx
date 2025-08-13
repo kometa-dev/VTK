@@ -1,8 +1,11 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include <PIOData.h>
 #include <cstdlib>
 #include <iostream>
 #include <vtksys/FStream.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 PIO_DATA::PIO_DATA(const char* piofile, const std::list<std::string>* fields_to_read,
   bool _defer_read_data, const std::set<const char*, Cstring_less>* rdata,
   const std::set<const char*, Cstring_less>* cdata)
@@ -995,3 +998,4 @@ bool PIO_DATA::reconstruct_chunk_field(
   }
   return true;
 }
+VTK_ABI_NAMESPACE_END

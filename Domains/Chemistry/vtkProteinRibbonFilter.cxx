@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProteinRibbonFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkProteinRibbonFilter.h"
 
@@ -38,6 +26,7 @@
 #include <map>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkProteinRibbonFilter);
 
 namespace
@@ -165,7 +154,7 @@ int vtkProteinRibbonFilter::RequestData(
 
   for (int i = 0; i < input->GetNumberOfPoints(); i++)
   {
-    vtkStdString type = atomTypes->GetValue(i);
+    std::string type = atomTypes->GetValue(i);
     unsigned short atomicNum = static_cast<unsigned short>(atomType->GetValue(i));
 
     if (ishetatm->GetValue(i) && this->DrawSmallMoleculesAsSpheres)
@@ -425,3 +414,4 @@ void vtkProteinRibbonFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

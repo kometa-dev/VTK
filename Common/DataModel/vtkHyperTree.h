@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTree.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTree
  * @brief   A data object structured as a tree.
@@ -141,6 +129,7 @@
 #include <cassert> // Used internally
 #include <memory>  // std::shared_ptr
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBitArray;
 class vtkIdList;
 class vtkHyperTreeGridScales;
@@ -177,7 +166,6 @@ class VTKCOMMONDATAMODEL_EXPORT vtkHyperTree : public vtkObject
 {
 public:
   vtkTypeMacro(vtkHyperTree, vtkObject);
-
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
@@ -555,4 +543,5 @@ private:
   void operator=(const vtkHyperTree&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

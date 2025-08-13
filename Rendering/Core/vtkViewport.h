@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkViewport.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkViewport
  * @brief   abstract specification for Viewports
@@ -40,6 +28,7 @@
 
 #include <array> // To store matrices
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor2DCollection;
 class vtkAssemblyPath;
 class vtkProp;
@@ -67,18 +56,18 @@ public:
   /**
    * Query if a prop is in the list of props.
    */
-  int HasViewProp(vtkProp*);
+  vtkTypeBool HasViewProp(vtkProp*);
 
   /**
    * Remove a prop from the list of props. Does nothing if the prop
-   * is not already present.
+   * is not already present or if the parameter is NULL.
    */
   void RemoveViewProp(vtkProp*);
 
   /**
    * Remove all props from the list of props.
    */
-  void RemoveAllViewProps(void);
+  void RemoveAllViewProps();
 
   ///@{
   /**
@@ -128,6 +117,32 @@ public:
   vtkSetMacro(GradientBackground, bool);
   vtkGetMacro(GradientBackground, bool);
   vtkBooleanMacro(GradientBackground, bool);
+  ///@}
+
+  enum class GradientModes : int
+  {
+    // Background color is used at the bottom, Background2 color is used at the top.
+    VTK_GRADIENT_VERTICAL,
+    // Background color on the left, Background2 color on the right.
+    VTK_GRADIENT_HORIZONTAL,
+    // Background color in the center, Background2 color on and beyond the ellipse edge.
+    // Ellipse touches all sides of the viewport. The ellipse is a circle for viewports with equal
+    // width and height.
+    VTK_GRADIENT_RADIAL_VIEWPORT_FARTHEST_SIDE,
+    // Background color in the center, Background2 color on and beyond the ellipse edge.
+    // Ellipse touches all corners of the viewport. The ellipse is a circle for viewports with equal
+    // width and height.
+    VTK_GRADIENT_RADIAL_VIEWPORT_FARTHEST_CORNER,
+  };
+
+  ///@{
+  /**
+   * Specify the direction of the gradient background.
+   * All modes smoothly interpolate the color from `Background` to `Background2`
+   * @sa vtkViewport::GradientModes
+   */
+  vtkSetEnumMacro(GradientMode, GradientModes);
+  vtkGetEnumMacro(GradientMode, GradientModes);
   ///@}
 
   ///@{
@@ -197,7 +212,7 @@ public:
   /**
    * Is a given display point in this Viewport's viewport.
    */
-  virtual int IsInViewport(int x, int y);
+  virtual vtkTypeBool IsInViewport(int x, int y);
 
   /**
    * Return the vtkWindow that owns this vtkViewport.
@@ -450,6 +465,7 @@ protected:
   double PixelAspect[2];
   double Center[2];
   bool GradientBackground;
+  GradientModes GradientMode = GradientModes::VTK_GRADIENT_VERTICAL;
 
   double EnvironmentalBG[3];
   double EnvironmentalBG2[3];
@@ -470,4 +486,5 @@ private:
   void operator=(const vtkViewport&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

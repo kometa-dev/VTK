@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVoxelGrid.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkVoxelGrid.h"
 
 #include "vtkArrayListTemplate.h" // For processing attribute data
@@ -30,6 +18,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVoxelGrid);
 vtkCxxSetObjectMacro(vtkVoxelGrid, Kernel, vtkInterpolationKernel);
 
@@ -246,7 +235,7 @@ int vtkVoxelGrid::RequestData(vtkInformation* vtkNotUsed(request),
   switch (output->GetPoints()->GetDataType())
   {
     vtkTemplateMacro(Subsample<VTK_TT>::Execute((VTK_TT*)inPtr, inPD, outPD, this->Locator,
-      this->Kernel, numOutPts, &binMap[0], (VTK_TT*)outPtr));
+      this->Kernel, numOutPts, binMap.data(), (VTK_TT*)outPtr));
   }
 
   // Send attributes to output
@@ -285,3 +274,4 @@ void vtkVoxelGrid::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Number of Points Per Bin: " << this->NumberOfPointsPerBin << endl;
 }
+VTK_ABI_NAMESPACE_END

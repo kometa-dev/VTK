@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGeometryFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // VTK_DEPRECATED_IN_9_2_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
@@ -19,7 +7,6 @@
 
 #include "vtkArrayDispatch.h"
 #include "vtkArrayListTemplate.h" // For processing attribute data
-#include "vtkAtomicMutex.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkCellTypes.h"
@@ -41,6 +28,7 @@
 #include "vtkRectilinearGrid.h"
 #include "vtkSMPTools.h"
 #include "vtkStaticCellLinksTemplate.h"
+#include "vtkStaticFaceHashLinksTemplate.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStructuredData.h"
 #include "vtkStructuredGrid.h"
@@ -51,13 +39,19 @@
 #include "vtkVoxel.h"
 #include "vtkWedge.h"
 
+#include <cstring>
 #include <memory>
+#include <mutex>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGeometryFilter);
 vtkCxxSetObjectMacro(vtkGeometryFilter, Locator, vtkIncrementalPointLocator);
 
-static constexpr unsigned char MASKED_CELL_VALUE =
-  vtkDataSetAttributes::HIDDENCELL | vtkDataSetAttributes::DUPLICATECELL;
+static constexpr unsigned char MASKED_CELL_VALUE = vtkDataSetAttributes::HIDDENCELL |
+  vtkDataSetAttributes::DUPLICATECELL | vtkDataSetAttributes::REFINEDCELL;
+
+static constexpr unsigned char MASKED_CELL_VALUE_NOT_VISIBLE =
+  vtkDataSetAttributes::HIDDENCELL | vtkDataSetAttributes::REFINEDCELL;
 
 static constexpr unsigned char MASKED_POINT_VALUE = vtkDataSetAttributes::HIDDENPOINT;
 
@@ -176,8 +170,10 @@ template <typename TInputIdType>
 struct vtkExcludedFaces
 {
   vtkStaticCellLinksTemplate<TInputIdType>* Links;
+  vtkPolyData* ExcludedFaces;
   vtkExcludedFaces()
     : Links(nullptr)
+    , ExcludedFaces(nullptr)
   {
   }
   ~vtkExcludedFaces() { delete this->Links; }
@@ -211,9 +207,15 @@ int vtkGeometryFilter::RequestData(vtkInformation* vtkNotUsed(request),
   {
     excFaces = vtkPolyData::SafeDownCast(excInfo->Get(vtkDataObject::DATA_OBJECT()));
   }
+  int wholeExtent[6] = { 0, -1, 0, -1, 0, -1 };
+  if (input->GetExtentType() == VTK_3D_EXTENT)
+  {
+    const int* wholeExt32;
+    wholeExt32 = inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
+    std::copy(wholeExt32, wholeExt32 + 6, wholeExtent);
+  }
 
   // Prepare to delegate based on dataset type and characteristics.
-  int dataDim = 0;
   if (vtkPolyData::SafeDownCast(input))
   {
     return this->PolyDataExecute(input, output, excFaces);
@@ -222,35 +224,16 @@ int vtkGeometryFilter::RequestData(vtkInformation* vtkNotUsed(request),
   {
     return this->UnstructuredGridExecute(input, output, nullptr, excFaces);
   }
-  else if (auto imageData = vtkImageData::SafeDownCast(input))
+  else if (vtkImageData::SafeDownCast(input) || vtkRectilinearGrid::SafeDownCast(input) ||
+    vtkStructuredGrid::SafeDownCast(input))
   {
-    dataDim = imageData->GetDataDimension();
-  }
-  else if (auto rectilinearGrid = vtkRectilinearGrid::SafeDownCast(input))
-  {
-    dataDim = rectilinearGrid->GetDataDimension();
-  }
-  else if (auto structuredGrid = vtkStructuredGrid::SafeDownCast(input))
-  {
-    dataDim = structuredGrid->GetDataDimension();
+    return this->StructuredExecute(input, output, wholeExtent, excFaces);
   }
   else
   {
-    vtkErrorMacro("Data type " << input->GetClassName() << "is not supported.");
-    return 0;
+    // Use the general case
+    return this->DataSetExecute(input, output, excFaces);
   }
-
-  // Delegate to the faster structured processing if possible. It simplifies
-  // things if we only consider 3D structured datasets and no cell/point/extent cliiping.
-  // Otherwise, the general DataSetExecute will handle it just fine.
-  if (dataDim == 3 && !this->GetCellClipping() && !this->GetPointClipping() &&
-    !this->GetExtentClipping())
-  {
-    return this->StructuredExecute(input, output, inInfo, excFaces);
-  }
-
-  // Use the general case
-  return this->DataSetExecute(input, output, excFaces);
 }
 
 //------------------------------------------------------------------------------
@@ -271,7 +254,7 @@ void vtkGeometryFilter::SetExcludedFacesConnection(vtkAlgorithmOutput* algOutput
 }
 
 //------------------------------------------------------------------------------
-// Reutrn the input data or filter.
+// Return the input data or filter.
 vtkPolyData* vtkGeometryFilter::GetExcludedFaces()
 {
   if (this->GetNumberOfInputConnections(1) < 1)
@@ -346,16 +329,16 @@ class Face
 {
 public:
   Face* Next = nullptr;
-  TInputIdType OriginalCellId;
-  TInputIdType* PointIds;
   int NumberOfPoints;
   bool IsGhost;
+  TInputIdType OriginalCellId;
+  TInputIdType* PointIds;
 
   Face() = default;
   Face(const vtkIdType& originalCellId, const vtkIdType& numberOfPoints, const bool& isGhost)
-    : OriginalCellId(static_cast<TInputIdType>(originalCellId))
-    , NumberOfPoints(numberOfPoints)
+    : NumberOfPoints(static_cast<int>(numberOfPoints))
     , IsGhost(isGhost)
+    , OriginalCellId(static_cast<TInputIdType>(originalCellId))
   {
   }
 
@@ -369,52 +352,41 @@ public:
     {
       case 3:
       {
-        return this->PointIds[0] == other.PointIds[0] &&
-          ((this->PointIds[1] == other.PointIds[2] && this->PointIds[2] == other.PointIds[1]) ||
-            (this->PointIds[1] == other.PointIds[1] && this->PointIds[2] == other.PointIds[2]));
+        return (this->PointIds[1] == other.PointIds[2] && this->PointIds[2] == other.PointIds[1]) ||
+          (this->PointIds[1] == other.PointIds[1] && this->PointIds[2] == other.PointIds[2]);
       }
       case 4:
       {
-        return this->PointIds[0] == other.PointIds[0] && this->PointIds[2] == other.PointIds[2] &&
+        return this->PointIds[2] == other.PointIds[2] &&
           ((this->PointIds[1] == other.PointIds[3] && this->PointIds[3] == other.PointIds[1]) ||
             (this->PointIds[1] == other.PointIds[1] && this->PointIds[3] == other.PointIds[3]));
       }
       default:
       {
-        bool match = true;
-        if (this->PointIds[0] == other.PointIds[0])
+        // if the first two points match loop through forwards
+        // checking all points
+        if (this->NumberOfPoints > 1 && this->PointIds[1] == other.PointIds[1])
         {
-          // if the first two points match loop through forwards
-          // checking all points
-          if (this->NumberOfPoints > 1 && this->PointIds[1] == other.PointIds[1])
+          for (auto i = 2; i < this->NumberOfPoints; ++i)
           {
-            for (auto i = 2; i < this->NumberOfPoints; ++i)
+            if (this->PointIds[i] != other.PointIds[i])
             {
-              if (this->PointIds[i] != other.PointIds[i])
-              {
-                match = false;
-                break;
-              }
-            }
-          }
-          else
-          {
-            // check if the points go in the opposite direction
-            for (auto i = 1; i < this->NumberOfPoints; ++i)
-            {
-              if (this->PointIds[this->NumberOfPoints - i] != other.PointIds[i])
-              {
-                match = false;
-                break;
-              }
+              return false;
             }
           }
         }
         else
         {
-          match = false;
+          // check if the points go in the opposite direction
+          for (auto i = 1; i < this->NumberOfPoints; ++i)
+          {
+            if (this->PointIds[this->NumberOfPoints - i] != other.PointIds[i])
+            {
+              return false;
+            }
+          }
         }
-        return match;
+        return true;
       }
     }
   }
@@ -428,19 +400,79 @@ template <int TSize, typename TInputIdType>
 class StaticFace : public Face<TInputIdType>
 {
 private:
-  std::array<TInputIdType, TSize> PointIdsContainer{};
+  TInputIdType PointIdsContainer[TSize];
 
 public:
   StaticFace(const vtkIdType& originalCellId, const vtkIdType* pointIds, const bool& isGhost)
     : Face<TInputIdType>(originalCellId, TSize, isGhost)
   {
-    this->PointIds = this->PointIdsContainer.data();
+    this->PointIds = this->PointIdsContainer;
     this->Initialize(pointIds);
   }
 
   inline static constexpr int GetSize() { return TSize; }
 
-  void Initialize(const vtkIdType* pointIds)
+  template <int Size = TSize>
+  typename std::enable_if<(Size == 3), void>::type Initialize(const vtkIdType* pointIds)
+  {
+    // Reorder to get smallest id in first.
+    if (pointIds[1] < pointIds[0] && pointIds[1] < pointIds[2])
+    {
+      this->PointIds[0] = static_cast<TInputIdType>(pointIds[1]);
+      this->PointIds[1] = static_cast<TInputIdType>(pointIds[2]);
+      this->PointIds[2] = static_cast<TInputIdType>(pointIds[0]);
+    }
+    else if (pointIds[2] < pointIds[0] && pointIds[2] < pointIds[1])
+    {
+      this->PointIds[0] = static_cast<TInputIdType>(pointIds[2]);
+      this->PointIds[1] = static_cast<TInputIdType>(pointIds[0]);
+      this->PointIds[2] = static_cast<TInputIdType>(pointIds[1]);
+    }
+    else
+    {
+      this->PointIds[0] = static_cast<TInputIdType>(pointIds[0]);
+      this->PointIds[1] = static_cast<TInputIdType>(pointIds[1]);
+      this->PointIds[2] = static_cast<TInputIdType>(pointIds[2]);
+    }
+  }
+
+  template <int Size = TSize>
+  typename std::enable_if<(Size == 4), void>::type Initialize(const vtkIdType* pointIds)
+  {
+    // Reorder to get smallest id in first.
+    if (pointIds[1] < pointIds[0] && pointIds[1] < pointIds[2] && pointIds[1] < pointIds[3])
+    {
+      this->PointIds[0] = static_cast<TInputIdType>(pointIds[1]);
+      this->PointIds[1] = static_cast<TInputIdType>(pointIds[2]);
+      this->PointIds[2] = static_cast<TInputIdType>(pointIds[3]);
+      this->PointIds[3] = static_cast<TInputIdType>(pointIds[0]);
+    }
+    else if (pointIds[2] < pointIds[0] && pointIds[2] < pointIds[1] && pointIds[2] < pointIds[3])
+    {
+      this->PointIds[0] = static_cast<TInputIdType>(pointIds[2]);
+      this->PointIds[1] = static_cast<TInputIdType>(pointIds[3]);
+      this->PointIds[2] = static_cast<TInputIdType>(pointIds[0]);
+      this->PointIds[3] = static_cast<TInputIdType>(pointIds[1]);
+    }
+    else if (pointIds[3] < pointIds[0] && pointIds[3] < pointIds[1] && pointIds[3] < pointIds[2])
+    {
+      this->PointIds[0] = static_cast<TInputIdType>(pointIds[3]);
+      this->PointIds[1] = static_cast<TInputIdType>(pointIds[0]);
+      this->PointIds[2] = static_cast<TInputIdType>(pointIds[1]);
+      this->PointIds[3] = static_cast<TInputIdType>(pointIds[2]);
+    }
+    else
+    {
+      this->PointIds[0] = static_cast<TInputIdType>(pointIds[0]);
+      this->PointIds[1] = static_cast<TInputIdType>(pointIds[1]);
+      this->PointIds[2] = static_cast<TInputIdType>(pointIds[2]);
+      this->PointIds[3] = static_cast<TInputIdType>(pointIds[3]);
+    }
+  }
+
+  template <int Size = TSize>
+  typename std::enable_if<(Size != 3 && Size != 4), void>::type Initialize(
+    const vtkIdType* pointIds)
   {
     // find the index to the smallest id
     int offset = 0;
@@ -503,25 +535,6 @@ public:
   }
 };
 
-template <typename TInputIdType>
-using Triangle = StaticFace<3, TInputIdType>;
-template <typename TInputIdType>
-using Quad = StaticFace<4, TInputIdType>;
-template <typename TInputIdType>
-using Pentagon = StaticFace<5, TInputIdType>;
-template <typename TInputIdType>
-using Hexagon = StaticFace<6, TInputIdType>;
-template <typename TInputIdType>
-using Heptagon = StaticFace<7, TInputIdType>;
-template <typename TInputIdType>
-using Octagon = StaticFace<8, TInputIdType>;
-template <typename TInputIdType>
-using Nonagon = StaticFace<9, TInputIdType>;
-template <typename TInputIdType>
-using Decagon = StaticFace<10, TInputIdType>;
-template <typename TInputIdType>
-using Polygon = DynamicFace<TInputIdType>;
-
 /**
  * Memory pool for faces.
  * Code was aggregated from vtkDataSetSurfaceFilter
@@ -532,129 +545,96 @@ class FaceMemoryPool
 private:
   using TFace = Face<TInputIdType>;
 
-  vtkIdType NumberOfArrays;
-  vtkIdType ArrayLength;
-  vtkIdType NextArrayIndex;
-  vtkIdType NextFaceIndex;
-  unsigned char** Arrays;
+  static constexpr int FSize = sizeof(TFace);
+  static constexpr int SizeId = sizeof(TInputIdType);
+  static constexpr int PointerSize = sizeof(void*);
+  static constexpr bool Is64BitsSystem = PointerSize == 8;
+  static constexpr bool IsId64Bits = SizeId == 8;
+  // The following assert holds for both 32 and 64 bit Ids for both 32 and 64 bit systems.
+  static_assert(FSize % SizeId == 0, "Face size must be a multiple of Id size");
+  static constexpr bool EasyToComputeSize = !Is64BitsSystem || IsId64Bits;
+  static constexpr int FSizeDivSizeId = FSize / SizeId;
 
-  inline static int SizeofFace(const int& numberOfPoints)
+  inline static constexpr int SizeOfFace(const int& numberOfPoints)
   {
-    static constexpr int fSize = sizeof(TFace);
-    static constexpr int sizeId = sizeof(TInputIdType);
-    if (fSize % sizeId == 0)
-    {
-      return static_cast<int>(fSize + numberOfPoints * sizeId);
-    }
-    else
-    {
-      return static_cast<int>((fSize / sizeId + 1 + numberOfPoints) * sizeId);
-    }
+    return FaceMemoryPool::FSize +
+      (FaceMemoryPool::EasyToComputeSize
+          ? numberOfPoints * FaceMemoryPool::SizeId
+          : (numberOfPoints + (numberOfPoints & 1 /*fast %2*/)) * FaceMemoryPool::SizeId);
   }
+
+  static constexpr size_t ChunkSize = static_cast<size_t>(5000 * FaceMemoryPool::SizeOfFace(4));
+  size_t NextChunkIndex;
+  size_t NextFaceIndex;
+  std::vector<std::shared_ptr<unsigned char>> Chunks;
 
 public:
   FaceMemoryPool()
-    : NumberOfArrays(0)
-    , ArrayLength(0)
-    , NextArrayIndex(0)
+    : NextChunkIndex(0)
     , NextFaceIndex(0)
-    , Arrays(nullptr)
   {
   }
 
-  ~FaceMemoryPool() { this->Destroy(); }
+  // Copy ctor.
+  FaceMemoryPool(const FaceMemoryPool&) = default;
 
-  void Initialize(const vtkIdType& numberOfPoints)
+  // Copy assignment operator.
+  FaceMemoryPool& operator=(const FaceMemoryPool&) = default;
+
+  ~FaceMemoryPool() = default;
+
+  void Initialize()
   {
-    this->Destroy();
-    this->NumberOfArrays = 100;
-    this->NextArrayIndex = 0;
-    this->NextFaceIndex = 0;
-    this->Arrays = new unsigned char*[this->NumberOfArrays];
-    for (auto i = 0; i < this->NumberOfArrays; i++)
-    {
-      this->Arrays[i] = nullptr;
-    }
+    this->Reset();
     // size the chunks based on the size of a quadrilateral
-    int quadSize = SizeofFace(4);
-    if (numberOfPoints < this->NumberOfArrays)
-    {
-      this->ArrayLength = 50 * quadSize;
-    }
-    else
-    {
-      this->ArrayLength = (numberOfPoints / 2) * quadSize;
-    }
+    static constexpr int numberOfInitialChunks = 100;
+    this->NextChunkIndex = 0;
+    this->NextFaceIndex = 0;
+    this->Chunks.resize(numberOfInitialChunks, nullptr);
+    // Initialize the first chunk
+    this->Chunks[0] = std::shared_ptr<unsigned char>(
+      new unsigned char[FaceMemoryPool::ChunkSize], std::default_delete<unsigned char[]>());
   }
 
-  void Destroy()
+  void ResetIndices()
   {
-    for (auto i = 0; i < this->NumberOfArrays; i++)
-    {
-      delete[] this->Arrays[i];
-      this->Arrays[i] = nullptr;
-    }
-    delete[] this->Arrays;
-    this->Arrays = nullptr;
-    this->ArrayLength = 0;
-    this->NumberOfArrays = 0;
-    this->NextArrayIndex = 0;
+    this->NextChunkIndex = 0;
     this->NextFaceIndex = 0;
+  }
+
+  void Reset()
+  {
+    this->ResetIndices();
+    this->Chunks.clear();
   }
 
   TFace* Allocate(const int& numberOfPoints)
   {
     // see if there's room for this one
-    const int polySize = SizeofFace(numberOfPoints);
-    if (this->NextFaceIndex + polySize > this->ArrayLength)
+    const int polySize = FaceMemoryPool::SizeOfFace(numberOfPoints);
+    if (this->NextFaceIndex + polySize > FaceMemoryPool::ChunkSize)
     {
-      ++this->NextArrayIndex;
+      ++this->NextChunkIndex;
       this->NextFaceIndex = 0;
-    }
 
-    // Although this should not happen often, check first.
-    if (this->NextArrayIndex >= this->NumberOfArrays)
-    {
-      int idx, num;
-      unsigned char** newArrays;
-      num = this->NumberOfArrays * 2;
-      newArrays = new unsigned char*[num];
-      for (idx = 0; idx < num; ++idx)
+      // Although this should not happen often, check first.
+      if (this->NextChunkIndex >= this->Chunks.size())
       {
-        newArrays[idx] = nullptr;
-        if (idx < this->NumberOfArrays)
-        {
-          newArrays[idx] = this->Arrays[idx];
-        }
+        this->Chunks.resize(this->Chunks.size() * 2);
       }
-      delete[] this->Arrays;
-      this->Arrays = newArrays;
-      this->NumberOfArrays = num;
-    }
 
-    // Next: allocate a new array if necessary.
-    if (this->Arrays[this->NextArrayIndex] == nullptr)
-    {
-      this->Arrays[this->NextArrayIndex] = new unsigned char[this->ArrayLength];
+      // Next: allocate a new array if necessary.
+      if (this->Chunks[this->NextChunkIndex] == nullptr)
+      {
+        this->Chunks[this->NextChunkIndex] = std::shared_ptr<unsigned char>(
+          new unsigned char[FaceMemoryPool::ChunkSize], std::default_delete<unsigned char[]>());
+      }
     }
 
     TFace* face =
-      reinterpret_cast<TFace*>(this->Arrays[this->NextArrayIndex] + this->NextFaceIndex);
+      reinterpret_cast<TFace*>(this->Chunks[this->NextChunkIndex].get() + this->NextFaceIndex);
     face->NumberOfPoints = numberOfPoints;
-
-    static constexpr int fSize = sizeof(TFace);
-    static constexpr int sizeId = sizeof(TInputIdType);
-    // If necessary, we create padding after TFace such that
-    // the beginning of ids aligns evenly with sizeof(TInputIdType).
-    if (fSize % sizeId == 0)
-    {
-      face->PointIds = (TInputIdType*)face + fSize / sizeId;
-    }
-    else
-    {
-      face->PointIds = (TInputIdType*)face + fSize / sizeId + 1;
-    }
-
+    face->PointIds = (TInputIdType*)face + FaceMemoryPool::FSizeDivSizeId;
     this->NextFaceIndex += polySize;
 
     return face;
@@ -690,8 +670,8 @@ public:
   vtkIdType GetNumberOfCells() { return static_cast<vtkIdType>(this->OrigCellIds.size()); }
   vtkIdType GetNumberOfConnEntries() { return static_cast<vtkIdType>(this->Cells.size()); }
 
-  template <typename TGivenIds>
-  void InsertNextCell(TGivenIds npts, const TGivenIds* pts, TGivenIds cellId)
+  template <typename TGivenIds, typename TCellIdType>
+  void InsertNextCell(TGivenIds npts, const TGivenIds* pts, TCellIdType cellId)
   {
     // Only insert the face cell if it's not excluded
     if (this->ExcFaces && this->ExcFaces->MatchesCell(npts, pts))
@@ -731,115 +711,81 @@ public:
 };
 
 /**
- * Hash map for faces
+ * Forward list for faces
  */
 template <typename TInputIdType>
-class FaceHashMap
+class FaceForwardList
 {
 private:
   using TFace = Face<TInputIdType>;
   using TCellArrayType = CellArrayType<TInputIdType>;
   using TFaceMemoryPool = FaceMemoryPool<TInputIdType>;
-  struct Bucket
-  {
-    TFace* Head;
-    vtkAtomicMutex Lock;
-    Bucket()
-      : Head(nullptr)
-    {
-    }
-  };
-  size_t Size;
-  std::vector<Bucket> Buckets;
+
+  TFaceMemoryPool FacePool;
+  TFace* Head = nullptr;
 
 public:
-  FaceHashMap(const size_t& size)
-    : Size(size)
+  FaceForwardList() = default;
+
+  /**
+   * Initialize the list
+   */
+  void Initialize()
   {
-    this->Buckets.resize(this->Size);
+    this->FacePool.Initialize();
+    this->Reset();
   }
 
-  template <typename FaceType>
-  void Insert(const FaceType& f, TFaceMemoryPool& pool)
+  /**
+   * Reset the list
+   */
+  void Reset()
   {
-    const size_t key = static_cast<size_t>(f.PointIds[0]) % this->Size;
-    auto& bucket = this->Buckets[key];
-    auto& bucketHead = bucket.Head;
-    auto& bucketLock = bucket.Lock;
+    // reset list
+    this->Head = nullptr;
+    // reset face memory pool
+    this->FacePool.ResetIndices();
+  }
 
-    std::lock_guard<vtkAtomicMutex> lock(bucketLock);
-    auto current = bucketHead;
-    auto previous = current;
-    while (current != nullptr)
+  /**
+   * Try to insert a face into the list, if it's already there, delete it.
+   */
+  template <typename FaceType>
+  void Insert(const FaceType& face)
+  {
+    TFace** current = &this->Head;
+    while (*current != nullptr)
     {
-      if (*current == f)
+      if (**current == face)
       {
         // delete the duplicate
-        if (bucketHead == current)
-        {
-          bucketHead = current->Next;
-        }
-        else
-        {
-          previous->Next = current->Next;
-        }
+        *current = (*current)->Next;
         return;
       }
-      previous = current;
-      current = current->Next;
+      current = &(*current)->Next;
     }
-    // not found
-    TFace* newF = pool.Allocate(f.GetSize());
-    newF->Next = nullptr;
-    newF->OriginalCellId = f.OriginalCellId;
-    newF->IsGhost = f.IsGhost;
-    for (int i = 0; i < f.GetSize(); ++i)
-    {
-      newF->PointIds[i] = f.PointIds[i];
-    }
-    if (bucketHead == nullptr)
-    {
-      bucketHead = newF;
-    }
-    else
-    {
-      previous->Next = newF;
-    }
+    // not found, add it
+    TFace* newFace = this->FacePool.Allocate(face.GetSize());
+    newFace->Next = nullptr;
+    newFace->OriginalCellId = face.OriginalCellId;
+    std::memcpy(newFace->PointIds, face.PointIds, face.GetSize() * sizeof(TInputIdType));
+    newFace->IsGhost = face.IsGhost;
+    *current = newFace;
   }
 
-  void PopulateCellArrays(std::vector<TCellArrayType*>& threadedPolys)
+  /**
+   * Populate the cell array
+   */
+  void PopulateCellArray(TCellArrayType* polys)
   {
-    std::vector<TFace*> faces;
-    for (auto& bucket : this->Buckets)
+    for (auto currentFace = this->Head; currentFace != nullptr; currentFace = currentFace->Next)
     {
-      if (bucket.Head != nullptr)
+      if (!currentFace->IsGhost)
       {
-        auto current = bucket.Head;
-        while (current != nullptr)
-        {
-          if (!current->IsGhost)
-          {
-            faces.push_back(current);
-          }
-          current = current->Next;
-        }
+        polys->template InsertNextCell<TInputIdType>(
+          currentFace->NumberOfPoints, currentFace->PointIds, currentFace->OriginalCellId);
       }
     }
-    const vtkIdType numberOfThreads = static_cast<vtkIdType>(threadedPolys.size());
-    const vtkIdType numberOfFaces = static_cast<vtkIdType>(faces.size());
-    vtkSMPTools::For(0, numberOfThreads, [&](vtkIdType beginThreadId, vtkIdType endThreadId) {
-      for (vtkIdType threadId = beginThreadId; threadId < endThreadId; ++threadId)
-      {
-        vtkIdType begin = threadId * numberOfFaces / numberOfThreads;
-        vtkIdType end = (threadId + 1) * numberOfFaces / numberOfThreads;
-        for (vtkIdType i = begin; i < end; ++i)
-        {
-          auto& f = faces[i];
-          threadedPolys[threadId]->template InsertNextCell<TInputIdType>(
-            f->NumberOfPoints, f->PointIds, f->OriginalCellId);
-        }
-      }
-    });
   }
 };
 
@@ -853,7 +799,7 @@ template <typename TInputIdType>
 struct LocalDataType
 {
   using TCellArrayType = CellArrayType<TInputIdType>;
-  using TFaceMemoryPool = FaceMemoryPool<TInputIdType>;
+  using TFaceForwardList = FaceForwardList<TInputIdType>;
   // Later on (in Reduce()), a thread id is assigned to the thread.
   int ThreadId;
 
@@ -882,11 +828,8 @@ struct LocalDataType
   vtkSmartPointer<vtkGenericCell> Cell;
   vtkSmartPointer<vtkIdList> CellIds;
   vtkSmartPointer<vtkIdList> IPts;
-  vtkSmartPointer<vtkIdList> ICellIds;
-  vtkSmartPointer<vtkIdList> CellPointIds;
-  vtkSmartPointer<vtkPoints> Coords;
 
-  TFaceMemoryPool FacePool;
+  TFaceForwardList FaceList;
 
   LocalDataType()
   {
@@ -894,9 +837,6 @@ struct LocalDataType
     this->Cell.TakeReference(vtkGenericCell::New());
     this->CellIds.TakeReference(vtkIdList::New());
     this->IPts.TakeReference(vtkIdList::New());
-    this->ICellIds.TakeReference(vtkIdList::New());
-    this->CellPointIds.TakeReference(vtkIdList::New());
-    this->Coords.TakeReference(vtkPoints::New());
   }
 
   LocalDataType(const LocalDataType& other)
@@ -922,11 +862,8 @@ struct LocalDataType
     this->Cell.TakeReference(vtkGenericCell::New());
     this->CellIds.TakeReference(vtkIdList::New());
     this->IPts.TakeReference(vtkIdList::New());
-    this->ICellIds.TakeReference(vtkIdList::New());
-    this->CellPointIds.TakeReference(vtkIdList::New());
-    this->Coords.TakeReference(vtkPoints::New());
 
-    this->FacePool = other.FacePool;
+    this->FaceList = other.FaceList;
   }
 
   LocalDataType& operator=(const LocalDataType& other)
@@ -961,11 +898,8 @@ struct LocalDataType
     swap(this->Cell, other.Cell);
     swap(this->CellIds, other.CellIds);
     swap(this->IPts, other.IPts);
-    swap(this->ICellIds, other.ICellIds);
-    swap(this->CellPointIds, other.CellPointIds);
-    swap(this->Coords, other.Coords);
 
-    swap(this->FacePool, other.FacePool);
+    swap(this->FaceList, other.FaceList);
   }
 
   void SetPointMap(TInputIdType* ptMap)
@@ -983,11 +917,6 @@ struct LocalDataType
     this->Lines.SetExcludedFaces(exc);
     this->Polys.SetExcludedFaces(exc);
     this->Strips.SetExcludedFaces(exc);
-  }
-
-  void InitializeFacePool(const vtkIdType& numberOfPoints)
-  {
-    this->FacePool.Initialize(numberOfPoints);
   }
 };
 
@@ -1075,19 +1004,21 @@ void ExtractDSCellGeometry(
 // Given a cell and a bunch of supporting objects (to support computing and
 // minimize allocation/deallocation), extract boundary features from the cell.
 // This method works with unstructured grids.
-template <typename TInputIdType>
+template <typename TInputIdType, typename TCellArrayValueType>
 void ExtractCellGeometry(vtkUnstructuredGridBase* input, vtkIdType cellId, int cellType,
-  vtkIdType npts, const vtkIdType* pts, LocalDataType<TInputIdType>* localData,
-  FaceHashMap<TInputIdType>* faceMap, const bool& isGhost)
+  TCellArrayValueType npts, const TCellArrayValueType* pts, int faceId,
+  LocalDataType<TInputIdType>* localData, const bool& isGhost)
 {
-  using TCellArrayType = CellArrayType<TInputIdType>;
-  TCellArrayType& verts = localData->Verts;
-  TCellArrayType& lines = localData->Lines;
-  TCellArrayType& polys = localData->Polys;
-  TCellArrayType& strips = localData->Strips;
-  vtkGenericCell* cell = localData->Cell.Get();
+  using Triangle = StaticFace<3, TInputIdType>;
+  using Quad = StaticFace<4, TInputIdType>;
+  using Pentagon = StaticFace<5, TInputIdType>;
+  using Hexagon = StaticFace<6, TInputIdType>;
+  using Heptagon = StaticFace<7, TInputIdType>;
+  using Octagon = StaticFace<8, TInputIdType>;
+  using Nonagon = StaticFace<9, TInputIdType>;
+  using Decagon = StaticFace<10, TInputIdType>;
+  using Polygon = DynamicFace<TInputIdType>;
 
-  int faceId, numFaces, numFacePts;
   static constexpr int MAX_FACE_POINTS = 32;
   vtkIdType ptIds[MAX_FACE_POINTS]; // cell face point ids
   const vtkIdType* faceVerts;
@@ -1100,22 +1031,22 @@ void ExtractCellGeometry(vtkUnstructuredGridBase* input, vtkIdType cellId, int c
 
     case VTK_VERTEX:
     case VTK_POLY_VERTEX:
-      verts.InsertNextCell(npts, pts, cellId);
+      localData->Verts.InsertNextCell(npts, pts, cellId);
       break;
 
     case VTK_LINE:
     case VTK_POLY_LINE:
-      lines.InsertNextCell(npts, pts, cellId);
+      localData->Lines.InsertNextCell(npts, pts, cellId);
       break;
 
     case VTK_TRIANGLE:
     case VTK_QUAD:
     case VTK_POLYGON:
-      polys.InsertNextCell(npts, pts, cellId);
+      localData->Polys.InsertNextCell(npts, pts, cellId);
       break;
 
     case VTK_TRIANGLE_STRIP:
-      strips.InsertNextCell(npts, pts, cellId);
+      localData->Strips.InsertNextCell(npts, pts, cellId);
       break;
 
     case VTK_PIXEL:
@@ -1126,178 +1057,143 @@ void ExtractCellGeometry(vtkUnstructuredGridBase* input, vtkIdType cellId, int c
       ptIds[1] = pts[pixelConvert[1]];
       ptIds[2] = pts[pixelConvert[2]];
       ptIds[3] = pts[pixelConvert[3]];
-      polys.InsertNextCell(npts, ptIds, cellId);
+      localData->Polys.InsertNextCell(static_cast<vtkIdType>(npts), ptIds, cellId);
       break;
 
     case VTK_TETRA:
-      for (faceId = 0; faceId < 4; faceId++)
-      {
-        faceVerts = vtkTetra::GetFaceArray(faceId);
-        ptIds[0] = pts[faceVerts[0]];
-        ptIds[1] = pts[faceVerts[1]];
-        ptIds[2] = pts[faceVerts[2]];
-        faceMap->Insert(Triangle<TInputIdType>(cellId, ptIds, isGhost), localData->FacePool);
-      }
+      faceVerts = vtkTetra::GetFaceArray(faceId);
+      ptIds[0] = pts[faceVerts[0]];
+      ptIds[1] = pts[faceVerts[1]];
+      ptIds[2] = pts[faceVerts[2]];
+      localData->FaceList.Insert(Triangle(cellId, ptIds, isGhost));
       break;
 
     case VTK_VOXEL:
-      for (faceId = 0; faceId < 6; faceId++)
-      {
-        faceVerts = vtkVoxel::GetFaceArray(faceId);
-        ptIds[0] = pts[faceVerts[pixelConvert[0]]];
-        ptIds[1] = pts[faceVerts[pixelConvert[1]]];
-        ptIds[2] = pts[faceVerts[pixelConvert[2]]];
-        ptIds[3] = pts[faceVerts[pixelConvert[3]]];
-        faceMap->Insert(Quad<TInputIdType>(cellId, ptIds, isGhost), localData->FacePool);
-      }
+      faceVerts = vtkVoxel::GetFaceArray(faceId);
+      ptIds[0] = pts[faceVerts[pixelConvert[0]]];
+      ptIds[1] = pts[faceVerts[pixelConvert[1]]];
+      ptIds[2] = pts[faceVerts[pixelConvert[2]]];
+      ptIds[3] = pts[faceVerts[pixelConvert[3]]];
+      localData->FaceList.Insert(Quad(cellId, ptIds, isGhost));
       break;
 
     case VTK_HEXAHEDRON:
-      for (faceId = 0; faceId < 6; faceId++)
-      {
-        faceVerts = vtkHexahedron::GetFaceArray(faceId);
-        ptIds[0] = pts[faceVerts[0]];
-        ptIds[1] = pts[faceVerts[1]];
-        ptIds[2] = pts[faceVerts[2]];
-        ptIds[3] = pts[faceVerts[3]];
-        faceMap->Insert(Quad<TInputIdType>(cellId, ptIds, isGhost), localData->FacePool);
-      }
+      faceVerts = vtkHexahedron::GetFaceArray(faceId);
+      ptIds[0] = pts[faceVerts[0]];
+      ptIds[1] = pts[faceVerts[1]];
+      ptIds[2] = pts[faceVerts[2]];
+      ptIds[3] = pts[faceVerts[3]];
+      localData->FaceList.Insert(Quad(cellId, ptIds, isGhost));
       break;
 
     case VTK_WEDGE:
-      for (faceId = 0; faceId < 5; faceId++)
+      faceVerts = vtkWedge::GetFaceArray(faceId);
+      ptIds[0] = pts[faceVerts[0]];
+      ptIds[1] = pts[faceVerts[1]];
+      ptIds[2] = pts[faceVerts[2]];
+      if (faceVerts[3] < 0)
       {
-        faceVerts = vtkWedge::GetFaceArray(faceId);
-        ptIds[0] = pts[faceVerts[0]];
-        ptIds[1] = pts[faceVerts[1]];
-        ptIds[2] = pts[faceVerts[2]];
-        if (faceVerts[3] < 0)
-        {
-          faceMap->Insert(Triangle<TInputIdType>(cellId, ptIds, isGhost), localData->FacePool);
-        }
-        else
-        {
-          ptIds[3] = pts[faceVerts[3]];
-          faceMap->Insert(Quad<TInputIdType>(cellId, ptIds, isGhost), localData->FacePool);
-        }
+        localData->FaceList.Insert(Triangle(cellId, ptIds, isGhost));
+      }
+      else
+      {
+        ptIds[3] = pts[faceVerts[3]];
+        localData->FaceList.Insert(Quad(cellId, ptIds, isGhost));
       }
       break;
 
     case VTK_PYRAMID:
-      for (faceId = 0; faceId < 5; faceId++)
+      faceVerts = vtkPyramid::GetFaceArray(faceId);
+      ptIds[0] = pts[faceVerts[0]];
+      ptIds[1] = pts[faceVerts[1]];
+      ptIds[2] = pts[faceVerts[2]];
+      if (faceVerts[3] < 0)
       {
-        faceVerts = vtkPyramid::GetFaceArray(faceId);
-        ptIds[0] = pts[faceVerts[0]];
-        ptIds[1] = pts[faceVerts[1]];
-        ptIds[2] = pts[faceVerts[2]];
-        if (faceVerts[3] < 0)
-        {
-          faceMap->Insert(Triangle<TInputIdType>(cellId, ptIds, isGhost), localData->FacePool);
-        }
-        else
-        {
-          ptIds[3] = pts[faceVerts[3]];
-          faceMap->Insert(Quad<TInputIdType>(cellId, ptIds, isGhost), localData->FacePool);
-        }
+        localData->FaceList.Insert(Triangle(cellId, ptIds, isGhost));
+      }
+      else
+      {
+        ptIds[3] = pts[faceVerts[3]];
+        localData->FaceList.Insert(Quad(cellId, ptIds, isGhost));
       }
       break;
 
     case VTK_HEXAGONAL_PRISM:
-      for (faceId = 0; faceId < 8; faceId++)
+      faceVerts = vtkHexagonalPrism::GetFaceArray(faceId);
+      ptIds[0] = pts[faceVerts[0]];
+      ptIds[1] = pts[faceVerts[1]];
+      ptIds[2] = pts[faceVerts[2]];
+      ptIds[3] = pts[faceVerts[3]];
+      if (faceVerts[4] < 0)
       {
-        faceVerts = vtkHexagonalPrism::GetFaceArray(faceId);
-        ptIds[0] = pts[faceVerts[0]];
-        ptIds[1] = pts[faceVerts[1]];
-        ptIds[2] = pts[faceVerts[2]];
-        ptIds[3] = pts[faceVerts[3]];
-        if (faceVerts[4] < 0)
-        {
-          faceMap->Insert(Quad<TInputIdType>(cellId, ptIds, isGhost), localData->FacePool);
-        }
-        else
-        {
-          ptIds[4] = pts[faceVerts[4]];
-          ptIds[5] = pts[faceVerts[5]];
-          faceMap->Insert(Hexagon<TInputIdType>(cellId, ptIds, isGhost), localData->FacePool);
-        }
+        localData->FaceList.Insert(Quad(cellId, ptIds, isGhost));
+      }
+      else
+      {
+        ptIds[4] = pts[faceVerts[4]];
+        ptIds[5] = pts[faceVerts[5]];
+        localData->FaceList.Insert(Hexagon(cellId, ptIds, isGhost));
       }
       break;
 
     case VTK_PENTAGONAL_PRISM:
-      for (faceId = 0; faceId < 7; faceId++)
+      faceVerts = vtkPentagonalPrism::GetFaceArray(faceId);
+      ptIds[0] = pts[faceVerts[0]];
+      ptIds[1] = pts[faceVerts[1]];
+      ptIds[2] = pts[faceVerts[2]];
+      ptIds[3] = pts[faceVerts[3]];
+      if (faceVerts[4] < 0)
       {
-        faceVerts = vtkPentagonalPrism::GetFaceArray(faceId);
-        ptIds[0] = pts[faceVerts[0]];
-        ptIds[1] = pts[faceVerts[1]];
-        ptIds[2] = pts[faceVerts[2]];
-        ptIds[3] = pts[faceVerts[3]];
-        if (faceVerts[4] < 0)
-        {
-          faceMap->Insert(Quad<TInputIdType>(cellId, ptIds, isGhost), localData->FacePool);
-        }
-        else
-        {
-          ptIds[4] = pts[faceVerts[4]];
-          faceMap->Insert(Pentagon<TInputIdType>(cellId, ptIds, isGhost), localData->FacePool);
-        }
+        localData->FaceList.Insert(Quad(cellId, ptIds, isGhost));
+      }
+      else
+      {
+        ptIds[4] = pts[faceVerts[4]];
+        localData->FaceList.Insert(Pentagon(cellId, ptIds, isGhost));
       }
       break;
 
     default:
       // Other types of 3D linear cells handled by vtkGeometryFilter. Exactly what
       // is a linear cell is defined by vtkCellTypes::IsLinear().
+      auto cell = localData->Cell;
       input->GetCell(cellId, cell);
-      if (cell->GetCellDimension() == 3)
+      if (cell->GetCellDimension() == 3 && cell->GetNumberOfFaces() > 0)
       {
-        for (faceId = 0, numFaces = cell->GetNumberOfFaces(); faceId < numFaces; faceId++)
+        vtkCell* face = cell->GetFace(faceId);
+        const int numFacePts = static_cast<int>(face->PointIds->GetNumberOfIds());
+        switch (numFacePts)
         {
-          vtkCell* face = cell->GetFace(faceId);
-          numFacePts = static_cast<int>(face->PointIds->GetNumberOfIds());
-          switch (numFacePts)
-          {
-            case 3:
-              faceMap->Insert(
-                Triangle<TInputIdType>(cellId, face->PointIds->GetPointer(0), isGhost),
-                localData->FacePool);
-              break;
-            case 4:
-              faceMap->Insert(Quad<TInputIdType>(cellId, face->PointIds->GetPointer(0), isGhost),
-                localData->FacePool);
-              break;
-            case 5:
-              faceMap->Insert(
-                Pentagon<TInputIdType>(cellId, face->PointIds->GetPointer(0), isGhost),
-                localData->FacePool);
-              break;
-            case 6:
-              faceMap->Insert(Hexagon<TInputIdType>(cellId, face->PointIds->GetPointer(0), isGhost),
-                localData->FacePool);
-              break;
-            case 7:
-              faceMap->Insert(
-                Heptagon<TInputIdType>(cellId, face->PointIds->GetPointer(0), isGhost),
-                localData->FacePool);
-              break;
-            case 8:
-              faceMap->Insert(Octagon<TInputIdType>(cellId, face->PointIds->GetPointer(0), isGhost),
-                localData->FacePool);
-              break;
-            case 9:
-              faceMap->Insert(Nonagon<TInputIdType>(cellId, face->PointIds->GetPointer(0), isGhost),
-                localData->FacePool);
-              break;
-            case 10:
-              faceMap->Insert(Decagon<TInputIdType>(cellId, face->PointIds->GetPointer(0), isGhost),
-                localData->FacePool);
-              break;
-            default:
-              faceMap->Insert(
-                Polygon<TInputIdType>(cellId, numFacePts, face->PointIds->GetPointer(0), isGhost),
-                localData->FacePool);
-              break;
-          }
-        } // for all cell faces
-      }   // if 3D
+          case 3:
+            localData->FaceList.Insert(Triangle(cellId, face->PointIds->GetPointer(0), isGhost));
+            break;
+          case 4:
+            localData->FaceList.Insert(Quad(cellId, face->PointIds->GetPointer(0), isGhost));
+            break;
+          case 5:
+            localData->FaceList.Insert(Pentagon(cellId, face->PointIds->GetPointer(0), isGhost));
+            break;
+          case 6:
+            localData->FaceList.Insert(Hexagon(cellId, face->PointIds->GetPointer(0), isGhost));
+            break;
+          case 7:
+            localData->FaceList.Insert(Heptagon(cellId, face->PointIds->GetPointer(0), isGhost));
+            break;
+          case 8:
+            localData->FaceList.Insert(Octagon(cellId, face->PointIds->GetPointer(0), isGhost));
+            break;
+          case 9:
+            localData->FaceList.Insert(Nonagon(cellId, face->PointIds->GetPointer(0), isGhost));
+            break;
+          case 10:
+            localData->FaceList.Insert(Decagon(cellId, face->PointIds->GetPointer(0), isGhost));
+            break;
+          default:
+            localData->FaceList.Insert(
+              Polygon(cellId, numFacePts, face->PointIds->GetPointer(0), isGhost));
+            break;
+        }
+      } // if 3D
       else
       {
         vtkLog(ERROR, "Unknown cell type.");
@@ -1310,6 +1206,7 @@ void ExtractCellGeometry(vtkUnstructuredGridBase* input, vtkIdType cellId, int c
 template <typename TInputIdType>
 struct ExtractCellBoundaries
 {
+  vtkGeometryFilter* Self;
   // If point merging is specified, then a point map is created.
   TInputIdType* PointMap;
 
@@ -1335,10 +1232,11 @@ struct ExtractCellBoundaries
   using TThreadOutputType = ThreadOutputType<TInputIdType>;
   TThreadOutputType* Threads;
 
-  ExtractCellBoundaries(const char* cellVis, const unsigned char* cellGhosts,
-    const unsigned char* pointGhost, vtkExcludedFaces<TInputIdType>* exc,
-    TThreadOutputType* threads)
-    : PointMap(nullptr)
+  ExtractCellBoundaries(vtkGeometryFilter* self, const char* cellVis,
+    const unsigned char* cellGhosts, const unsigned char* pointGhost,
+    vtkExcludedFaces<TInputIdType>* exc, TThreadOutputType* threads)
+    : Self(self)
+    , PointMap(nullptr)
     , CellVis(cellVis)
     , CellGhosts(cellGhosts)
     , PointGhost(pointGhost)
@@ -1433,102 +1331,143 @@ struct ExtractCellBoundaries
 
 // Extract unstructured grid boundary by visiting each cell and examining
 // cell features.
-template <typename TInputIdType>
+template <typename TInputIdType, typename TFaceIdType>
 struct ExtractUG : public ExtractCellBoundaries<TInputIdType>
 {
   // The unstructured grid to process
-  vtkUnstructuredGridBase* GridBase;
   vtkUnstructuredGrid* Grid;
-  using TFaceHashMap = FaceHashMap<TInputIdType>;
-  std::shared_ptr<TFaceHashMap> FaceMap;
+  using TFaceHashLinks = vtkStaticFaceHashLinksTemplate<TInputIdType, TFaceIdType>;
+  const TFaceHashLinks& FaceHashLinks;
   bool RemoveGhostInterfaces;
 
-  ExtractUG(vtkUnstructuredGridBase* gridBase, const char* cellVis, const unsigned char* cellGhost,
-    const unsigned char* pointGhost, bool merging, bool removeGhostInterfaces,
+  vtkIdType NumberOfCells;
+  const unsigned char MASKED_CELL;
+
+  ExtractUG(vtkGeometryFilter* self, vtkUnstructuredGrid* grid, TFaceHashLinks& faceHashLinks,
+    const char* cellVis, const unsigned char* cellGhost, const unsigned char* pointGhost,
     vtkExcludedFaces<TInputIdType>* exc, ThreadOutputType<TInputIdType>* t)
-    : ExtractCellBoundaries<TInputIdType>(cellVis, cellGhost, pointGhost, exc, t)
-    , GridBase(gridBase)
-    , RemoveGhostInterfaces(removeGhostInterfaces)
+    : ExtractCellBoundaries<TInputIdType>(self, cellVis, cellGhost, pointGhost, exc, t)
+    , Grid(grid)
+    , FaceHashLinks(faceHashLinks)
+    , RemoveGhostInterfaces(self->GetRemoveGhostInterfaces())
+    , NumberOfCells(grid->GetNumberOfCells())
+    , MASKED_CELL(
+        self->GetRemoveGhostInterfaces() ? MASKED_CELL_VALUE : MASKED_CELL_VALUE_NOT_VISIBLE)
   {
-    if (merging)
+    if (self->GetMerging())
     {
-      this->CreatePointMap(gridBase->GetNumberOfPoints());
+      this->CreatePointMap(grid->GetNumberOfPoints());
     }
-    this->FaceMap =
-      std::make_shared<TFaceHashMap>(static_cast<size_t>(gridBase->GetNumberOfPoints()));
-    this->Grid = vtkUnstructuredGrid::SafeDownCast(this->GridBase);
   }
 
   // Initialize thread data
   void Initialize() override
   {
     this->ExtractCellBoundaries<TInputIdType>::Initialize();
-    this->LocalData.Local().InitializeFacePool(this->Grid->GetNumberOfPoints());
+    this->LocalData.Local().FaceList.Initialize();
   }
 
-  void operator()(vtkIdType beginCellId, vtkIdType endCellId)
+  struct FaceOperator
   {
-    auto faceMap = this->FaceMap.get();
-    auto& localData = this->LocalData.Local();
-    auto& cellPointIds = localData.CellPointIds;
+    template <typename CellStateT>
+    void operator()(CellStateT& state, ExtractUG* This, vtkIdType beginHash, vtkIdType endHash)
+    {
+      auto& localData = This->LocalData.Local();
+      auto& faceHashLinks = This->FaceHashLinks;
+      auto& faceList = localData.FaceList;
+      auto& polys = localData.Polys;
 
-    vtkIdType npts;
-    const vtkIdType* pts;
-    unsigned char type;
-    bool isGhost;
-    if (this->Grid)
-    {
-      const auto& cellTypes =
-        vtk::DataArrayValueRange<1>(this->Grid->GetCellTypesArray(), beginCellId, endCellId);
-      auto cellTypesItr = cellTypes.begin();
-      for (vtkIdType cellId = beginCellId; cellId < endCellId; ++cellId, ++cellTypesItr)
+      using ValueType = typename CellStateT::ValueType;
+      const ValueType* connectivityPtr = state.GetConnectivity()->GetPointer(0);
+      const ValueType* offsetsPtr = state.GetOffsets()->GetPointer(0);
+      const unsigned char* cellTypes = This->Grid->GetCellTypesArray()->GetPointer(0);
+
+      vtkIdType localFaceId;
+      bool isGhost;
+      const bool isFirst = vtkSMPTools::GetSingleThread();
+      const auto checkAbortInterval = std::min((endHash - beginHash) / 10 + 1, (vtkIdType)1000);
+      for (vtkIdType hash = beginHash; hash < endHash; ++hash)
       {
-        isGhost = this->CellGhosts && this->CellGhosts[cellId] & MASKED_CELL_VALUE;
-        type = *cellTypesItr;
-        if (isGhost && (vtkCellTypes::GetDimension(type) < 3 || !this->RemoveGhostInterfaces))
+        if (hash % checkAbortInterval == 0)
+        {
+          if (isFirst)
+          {
+            This->Self->CheckAbort();
+          }
+          if (This->Self->GetAbortOutput())
+          {
+            break;
+          }
+        }
+        const auto numberOfFaces = faceHashLinks.GetNumberOfFacesInHash(hash);
+        if (numberOfFaces == 0)
         {
           continue;
         }
-        // If the cell is visible process it
-        if (!this->CellVis || this->CellVis[cellId])
+        const auto cellsOfFacesInHash = faceHashLinks.GetCellIdOfFacesInHash(hash);
+        const auto facesOfFacesInHash = faceHashLinks.GetFaceIdOfFacesInHash(hash);
+        for (localFaceId = 0; localFaceId < numberOfFaces; ++localFaceId)
         {
-          this->Grid->GetCellPoints(cellId, npts, pts, cellPointIds);
-          ExtractCellGeometry(this->Grid, cellId, type, npts, pts, &localData, faceMap, isGhost);
-        } // if cell visible
-      }   // for all cells in this batch
-    }
-    else
-    {
-      for (vtkIdType cellId = beginCellId; cellId < endCellId; ++cellId)
+          auto& cellId = cellsOfFacesInHash[localFaceId];
+          auto& faceId = facesOfFacesInHash[localFaceId];
+          // ----------------------------------Ghost explanation------------------------------------
+          // Note: Both cell dimension compute MASKED_CELL based on RemoveGhostInterfaces.
+          //
+          // For 0d-1d-2d cells, we have 2 cases:
+          // 1) When RemoveGhostInterfaces is on, we want to remove all types of ghosts.
+          // Since isGhost is always true for every type of ghost, and dim < 3, they will be
+          // skipped. 2) When RemoveGhostInterfaces is off, we want to keep only the duplicate
+          // ghosts. Since isGhost will be false for duplicates, the duplicates cells will be kept
+          // the rest will be skipped.
+          //
+          // For 3d cells, we have 2 cases:
+          // 1) When RemoveGhostInterfaces is on, we want to remove all types of ghosts.
+          // Since isGhost is always true for every type of ghost, these cells will be processed
+          // and their faces will be removed in the PopulateCellArray step of the faceList.
+          // 2) When RemoveGhostInterfaces is off, we want to keep only the duplicate ghosts.
+          // Since isGhost is always false for duplicates, the duplicate cells will be kept and the
+          // the rest will be skipped.
+          const unsigned char& type = cellTypes[cellId];
+          isGhost = This->CellGhosts && This->CellGhosts[cellId] & This->MASKED_CELL;
+          if (isGhost && (vtkCellTypes::GetDimension(type) < 3 || !This->RemoveGhostInterfaces))
+          {
+            continue;
+          }
+          // If the cell is visible process it
+          if (!This->CellVis || This->CellVis[cellId])
+          {
+            // get cell points by just accessing the connectivity/offsets array
+            const ValueType npts = offsetsPtr[cellId + 1] - offsetsPtr[cellId];
+            const ValueType* pts = connectivityPtr + offsetsPtr[cellId];
+            ExtractCellGeometry(This->Grid, cellId, type, npts, pts, faceId, &localData, isGhost);
+          } // if cell visible
+        }   // for all cells in this hash
+        // add external faces from the face list to polys (if any)
+        faceList.PopulateCellArray(&polys);
+        // and reset the list.
+        faceList.Reset();
+      } // for all populated hashes
+      if (isFirst)
       {
-        isGhost = this->CellGhosts && this->CellGhosts[cellId] & MASKED_CELL_VALUE;
-        type = static_cast<unsigned char>(this->GridBase->GetCellType(cellId));
-        if (isGhost && (vtkCellTypes::GetDimension(type) < 3 || !this->RemoveGhostInterfaces))
-        {
-          continue;
-        }
-        // If the cell is visible process it
-        if (!this->CellVis || this->CellVis[cellId])
-        {
-          this->GridBase->GetCellPoints(cellId, cellPointIds);
-          npts = cellPointIds->GetNumberOfIds();
-          pts = cellPointIds->GetPointer(0);
-          ExtractCellGeometry(
-            this->GridBase, cellId, type, npts, pts, &localData, faceMap, isGhost);
-        } // if cell visible
-      }   // for all cells in this batch
+        This->Self->UpdateProgress(
+          static_cast<double>(0.4 * endHash / faceHashLinks.GetNumberOfHashes() + 0.4));
+      }
     }
-  } // operator()
+  };
+
+  void operator()(vtkIdType beginHash, vtkIdType endHash)
+  {
+    this->Grid->GetCells()->Visit(FaceOperator{}, this, beginHash, endHash);
+  }
 
   // Composite local thread data
   void Reduce() override
   {
-    std::vector<CellArrayType<TInputIdType>*> threadedPolys;
+    // free up memory from the face list
     for (auto& localData : this->LocalData)
     {
-      threadedPolys.push_back(&localData.Polys);
+      localData.FaceList.Initialize();
     }
-    this->FaceMap->PopulateCellArrays(threadedPolys);
     this->ExtractCellBoundaries<TInputIdType>::Reduce();
   }
 };
@@ -1541,6 +1480,7 @@ struct ExtractStructured : public ExtractCellBoundaries<TInputIdType>
   bool FastMode;      // Whether to use fast mode or not
   bool* ExtractFaces; // Whether to extract faces or not
   int* Extent;        // Data extent
+  int* WholeExtent;   // Whole extent
   int Dimension;      // Dimension of the input
   int Dims[3];        // Grid dimensions
 
@@ -1551,13 +1491,16 @@ struct ExtractStructured : public ExtractCellBoundaries<TInputIdType>
   int IAxis, JAxis; // Axis indices
   int MinFace;      // Whether to extract max face or min face
 
-  ExtractStructured(TGrid* ds, bool fastMode, bool* extractFaces, bool merging,
-    vtkExcludedFaces<TInputIdType>* exc, ThreadOutputType<TInputIdType>* t)
-    : ExtractCellBoundaries<TInputIdType>(nullptr, nullptr, nullptr, exc, t)
+  vtkIdType NumberOfFaces;
+
+  ExtractStructured(vtkGeometryFilter* self, TGrid* ds, int* wholeExtent, bool* extractFaces,
+    bool merging, vtkExcludedFaces<TInputIdType>* exc, ThreadOutputType<TInputIdType>* t)
+    : ExtractCellBoundaries<TInputIdType>(self, nullptr, nullptr, nullptr, exc, t)
     , Input(ds)
-    , FastMode(fastMode)
+    , FastMode(self->GetFastMode())
     , ExtractFaces(extractFaces)
     , Extent(ds->GetExtent())
+    , WholeExtent(wholeExtent)
     , Dimension(ds->GetDataDimension())
   {
     this->Dims[0] = this->Extent[1] - this->Extent[0] + 1;
@@ -1565,16 +1508,59 @@ struct ExtractStructured : public ExtractCellBoundaries<TInputIdType>
     this->Dims[2] = this->Extent[5] - this->Extent[4] + 1;
     if (merging)
     {
-      this->CreatePointMap(this->Dims[0] * this->Dims[1] * this->Dims[2]);
+      this->CreatePointMap(ds->GetNumberOfPoints());
     }
     this->ForceSimpleVisibilityCheck = extractFaces != nullptr;
-    this->AllCellsVisible = !((this->Input->HasAnyGhostCells() || this->Input->HasAnyBlankCells()));
+    this->AllCellsVisible = !this->Input->GetCellData()->HasAnyGhostBitSet(
+      self->GetRemoveGhostInterfaces() ? MASKED_CELL_VALUE : MASKED_CELL_VALUE_NOT_VISIBLE);
   }
 
   // Initialize thread data
   void Initialize() override { this->ExtractCellBoundaries<TInputIdType>::Initialize(); }
 
-  std::array<TInputIdType, 4> GetFace(const int ijk[3], bool minFace)
+  /**
+   * This check is needed to understand of a side of the structure data needs to be extracted
+   * when running in distributed mode.
+   */
+  bool CheckIfFaceShouldBeProcessed()
+  {
+    auto& aAxis = this->CurrentAxis;
+    auto& bAxis = this->IAxis;
+    auto& cAxis = this->JAxis;
+
+    int aA2 = aAxis * 2;
+    int bA2 = bAxis * 2;
+    int cA2 = cAxis * 2;
+
+    // We might as well put the test for this face here.
+    if (this->Extent[bA2] == this->Extent[bA2 + 1] || this->Extent[cA2] == this->Extent[cA2 + 1])
+    {
+      return false;
+    }
+    if (!this->MinFace)
+    {
+      if (this->Extent[aA2 + 1] < this->WholeExtent[aA2 + 1])
+      {
+        return false;
+      }
+    }
+    else
+    { // min faces have a slightly different condition to avoid coincident faces.
+      if (this->Extent[aA2] == this->Extent[aA2 + 1] || this->Extent[aA2] > this->WholeExtent[aA2])
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  enum FaceMode
+  {
+    WHOLE_FACE = 0,     // Used by the FaceOperator
+    SHRINKING_FACES = 1 // Used by ShrinkingFacesOperator
+  };
+
+  std::array<TInputIdType, 4> GetFace(const int ijk[3], bool minFace, FaceMode faceMode)
   {
     const int& axis = this->CurrentAxis;
     const int& iAxis = this->IAxis;
@@ -1602,12 +1588,11 @@ struct ExtractStructured : public ExtractCellBoundaries<TInputIdType>
     face[3] =
       static_cast<TInputIdType>(vtkStructuredData::ComputePointIdForExtent(this->Extent, ptIjk));
 
-    if (minFace)
+    if (minFace || faceMode == FaceMode::WHOLE_FACE)
     {
       // invert face order to get an outside pointing normal.
-      return std::array<TInputIdType, 4>({ face[0], face[3], face[2], face[1] });
+      std::swap(face[1], face[3]);
     }
-
     return face;
   }
 
@@ -1628,14 +1613,28 @@ struct ExtractStructured : public ExtractCellBoundaries<TInputIdType>
     int ijk[3];
     ijk[axis] = this->MinFace ? extent[axis2] : extent[axis2 + 1] - 1;
     const int faceWidth_1 = dims[iAxis] - 1;
+    const bool isFirst = vtkSMPTools::GetSingleThread();
+    const auto checkAbortInterval =
+      std::min((faceEndCellId - faceBeginCellId) / 10 + 1, (vtkIdType)1000);
     for (vtkIdType faceCellId = faceBeginCellId; faceCellId < faceEndCellId; ++faceCellId)
     {
+      if (faceCellId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Self->CheckAbort();
+        }
+        if (this->Self->GetAbortOutput())
+        {
+          break;
+        }
+      }
       ijk[iAxis] = extent[iAxis2] + static_cast<int>(faceCellId % faceWidth_1);
       ijk[jAxis] = extent[jAxis2] + static_cast<int>(faceCellId / faceWidth_1);
       cellId = static_cast<TInputIdType>(vtkStructuredData::ComputeCellIdForExtent(extent, ijk));
       if (!this->ForceSimpleVisibilityCheck || this->Input->IsCellVisible(cellId))
       {
-        const auto face = this->GetFace(ijk, this->MinFace);
+        const auto face = this->GetFace(ijk, this->MinFace, FaceMode::WHOLE_FACE);
         polys.template InsertNextCell<TInputIdType>(4, face.data(), cellId);
       }
     }
@@ -1677,8 +1676,22 @@ struct ExtractStructured : public ExtractCellBoundaries<TInputIdType>
     bool minFace;
     int ijk[3];
     const int faceWidth_1 = dims[iAxis] - 1;
+    const bool isFirst = vtkSMPTools::GetSingleThread();
+    const auto checkAbortInterval =
+      std::min((faceEndCellId - faceBeginCellId) / 10 + 1, (vtkIdType)1000);
     for (vtkIdType faceCellId = faceBeginCellId; faceCellId < faceEndCellId; ++faceCellId)
     {
+      if (faceCellId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Self->CheckAbort();
+        }
+        if (this->Self->GetAbortOutput())
+        {
+          break;
+        }
+      }
       ijk[iAxis] = extent[iAxis2] + static_cast<int>(faceCellId % faceWidth_1);
       ijk[jAxis] = extent[jAxis2] + static_cast<int>(faceCellId / faceWidth_1);
       minFace = true;
@@ -1691,7 +1704,7 @@ struct ExtractStructured : public ExtractCellBoundaries<TInputIdType>
         {
           // this ensures correct cell-data is picked for the face
           ijk[axis] = minFace ? k : (k - 1);
-          const auto face = this->GetFace(ijk, minFace);
+          const auto face = this->GetFace(ijk, minFace, FaceMode::SHRINKING_FACES);
           cellId =
             static_cast<TInputIdType>(vtkStructuredData::ComputeCellIdForExtent(extent, ijk));
           polys.template InsertNextCell<TInputIdType>(4, face.data(), cellId);
@@ -1709,7 +1722,7 @@ struct ExtractStructured : public ExtractCellBoundaries<TInputIdType>
                 static_cast<TInputIdType>(vtkStructuredData::ComputeCellIdForExtent(extent, ijk));
               if (this->Input->IsCellVisible(reverseCellId))
               {
-                const auto face2 = this->GetFace(ijk, /*minFace=*/false);
+                const auto face2 = this->GetFace(ijk, /*minFace=*/false, FaceMode::SHRINKING_FACES);
                 polys.template InsertNextCell<TInputIdType>(4, face2.data(), reverseCellId);
                 break;
               }
@@ -1724,8 +1737,8 @@ struct ExtractStructured : public ExtractCellBoundaries<TInputIdType>
       if (!minFace && !this->FastMode)
       {
         cellId = static_cast<TInputIdType>(vtkStructuredData::ComputeCellIdForExtent(extent, ijk));
-        ijk[axis] = extent[5] - 1;
-        const auto face = this->GetFace(ijk, /*minFace=*/false);
+        ijk[axis] = extent[axis2 + 1] - 1;
+        const auto face = this->GetFace(ijk, /*minFace=*/false, FaceMode::SHRINKING_FACES);
         polys.template InsertNextCell<TInputIdType>(4, face.data(), cellId);
       }
     }
@@ -1733,55 +1746,64 @@ struct ExtractStructured : public ExtractCellBoundaries<TInputIdType>
 
   void operator()(vtkIdType faceBeginCellId, vtkIdType faceEndCellId)
   {
+    const bool isFirst = vtkSMPTools::GetSingleThread();
     if (this->AllCellsVisible || this->ForceSimpleVisibilityCheck)
     {
       this->FaceOperator(faceBeginCellId, faceEndCellId);
+      if (isFirst)
+      {
+        this->Self->UpdateProgress(static_cast<double>(0.05 * (this->CurrentAxis + !this->MinFace) +
+          (0.05 * faceEndCellId / this->NumberOfFaces)));
+      }
     }
     else
     {
       this->ShrinkingFacesOperator(faceBeginCellId, faceEndCellId);
+      if (isFirst)
+      {
+        this->Self->UpdateProgress(static_cast<double>(
+          0.1 * this->CurrentAxis + (0.1 * faceEndCellId / this->NumberOfFaces)));
+      }
     }
   } // operator()
 
   // Composite local thread data
   void Reduce() override {}
 
-  static ExtractCellBoundaries<TInputIdType>* Execute(TGrid* ds, bool fastMode, bool* extractFaces,
-    bool merging, vtkExcludedFaces<TInputIdType>* exc, ThreadOutputType<TInputIdType>* t)
+  static ExtractCellBoundaries<TInputIdType>* Execute(vtkGeometryFilter* self, TGrid* ds,
+    int* wholeExtent, bool* extractFaces, bool merging, vtkExcludedFaces<TInputIdType>* exc,
+    ThreadOutputType<TInputIdType>* t)
   {
-    auto extract =
-      new ExtractStructured<TGrid, TInputIdType>(ds, fastMode, extractFaces, merging, exc, t);
+    auto extract = new ExtractStructured<TGrid, TInputIdType>(
+      self, ds, wholeExtent, extractFaces, merging, exc, t);
     if (extract->AllCellsVisible || extract->ForceSimpleVisibilityCheck)
     {
       const auto& extent = extract->Extent;
       auto& axis = extract->CurrentAxis;
       auto& iAxis = extract->IAxis;
       auto& jAxis = extract->JAxis;
-      vtkIdType numberOfFaces;
       for (axis = 0; axis < 3; ++axis)
       {
         // axisMin-face
         iAxis = (axis + 1) % 3;
         jAxis = (axis + 2) % 3;
         extract->MinFace = true;
-        bool processFace =
-          extract->ForceSimpleVisibilityCheck ? extract->ExtractFaces[2 * axis] : true;
-        if (processFace)
+        bool processFace = !extract->ForceSimpleVisibilityCheck || extract->ExtractFaces[2 * axis];
+        if (processFace && extract->CheckIfFaceShouldBeProcessed())
         {
-          numberOfFaces = std::abs(extent[2 * iAxis + 1] - extent[2 * iAxis]) *
+          extract->NumberOfFaces = std::abs(extent[2 * iAxis + 1] - extent[2 * iAxis]) *
             std::abs(extent[2 * jAxis] - extent[2 * jAxis + 1]);
-          vtkSMPTools::For(0, numberOfFaces, *extract);
+          vtkSMPTools::For(0, extract->NumberOfFaces, *extract);
         }
         // axisMax-face
         std::swap(iAxis, jAxis);
         extract->MinFace = false;
-        processFace =
-          extract->ForceSimpleVisibilityCheck ? extract->ExtractFaces[2 * axis + 1] : true;
-        if (processFace)
+        processFace = !extract->ForceSimpleVisibilityCheck || extract->ExtractFaces[2 * axis + 1];
+        if (processFace && extract->CheckIfFaceShouldBeProcessed())
         {
-          numberOfFaces = std::abs(extent[2 * iAxis + 1] - extent[2 * iAxis]) *
+          extract->NumberOfFaces = std::abs(extent[2 * iAxis + 1] - extent[2 * iAxis]) *
             std::abs(extent[2 * jAxis] - extent[2 * jAxis + 1]);
-          vtkSMPTools::For(0, numberOfFaces, *extract);
+          vtkSMPTools::For(0, extract->NumberOfFaces, *extract);
         }
       }
     }
@@ -1791,14 +1813,13 @@ struct ExtractStructured : public ExtractCellBoundaries<TInputIdType>
       auto& axis = extract->CurrentAxis;
       auto& iAxis = extract->IAxis;
       auto& jAxis = extract->JAxis;
-      vtkIdType numberOfFaces;
       for (axis = 0; axis < 3; ++axis)
       {
         iAxis = (axis + 1) % 3;
         jAxis = (axis + 2) % 3;
-        numberOfFaces = std::abs(extent[2 * iAxis + 1] - extent[2 * iAxis]) *
+        extract->NumberOfFaces = std::abs(extent[2 * iAxis + 1] - extent[2 * iAxis]) *
           std::abs(extent[2 * jAxis] - extent[2 * jAxis + 1]);
-        vtkSMPTools::For(0, numberOfFaces, *extract);
+        vtkSMPTools::For(0, extract->NumberOfFaces, *extract);
       }
     }
     extract->ExtractCellBoundaries<TInputIdType>::Reduce();
@@ -1814,12 +1835,17 @@ struct ExtractDS : public ExtractCellBoundaries<TInputIdType>
 {
   // The unstructured grid to process
   vtkDataSet* DataSet;
+  vtkIdType NumberOfCells;
+  const unsigned char MASKED_CELL;
 
-  ExtractDS(vtkDataSet* ds, const char* cellVis, const unsigned char* cellGhost,
-    const unsigned char* pointGhost, vtkExcludedFaces<TInputIdType>* exc,
-    ThreadOutputType<TInputIdType>* t)
-    : ExtractCellBoundaries<TInputIdType>(cellVis, cellGhost, pointGhost, exc, t)
+  ExtractDS(vtkGeometryFilter* self, vtkDataSet* ds, const char* cellVis,
+    const unsigned char* cellGhost, const unsigned char* pointGhost,
+    vtkExcludedFaces<TInputIdType>* exc, ThreadOutputType<TInputIdType>* t)
+    : ExtractCellBoundaries<TInputIdType>(self, cellVis, cellGhost, pointGhost, exc, t)
     , DataSet(ds)
+    , NumberOfCells(ds->GetNumberOfCells())
+    , MASKED_CELL(
+        self->GetRemoveGhostInterfaces() ? MASKED_CELL_VALUE : MASKED_CELL_VALUE_NOT_VISIBLE)
   {
     // Point merging is always required since points are not explicitly
     // represented and cannot be passed through to the output.
@@ -1832,14 +1858,26 @@ struct ExtractDS : public ExtractCellBoundaries<TInputIdType>
   // Initialize thread data
   void Initialize() override { this->ExtractCellBoundaries<TInputIdType>::Initialize(); }
 
-  void operator()(vtkIdType cellId, vtkIdType endCellId)
+  void operator()(vtkIdType beginCellId, vtkIdType endCellId)
   {
     auto& localData = this->LocalData.Local();
-
-    for (; cellId < endCellId; ++cellId)
+    const bool isFirst = vtkSMPTools::GetSingleThread();
+    const auto checkAbortInterval = std::min((endCellId - beginCellId) / 10 + 1, (vtkIdType)1000);
+    for (vtkIdType cellId = beginCellId; cellId < endCellId; ++cellId)
     {
+      if (cellId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Self->CheckAbort();
+        }
+        if (this->Self->GetAbortOutput())
+        {
+          break;
+        }
+      }
       // Handle ghost cells here.  Another option was used cellVis array.
-      if (this->CellGhosts && this->CellGhosts[cellId] & MASKED_CELL_VALUE)
+      if (this->CellGhosts && this->CellGhosts[cellId] & this->MASKED_CELL)
       { // Do not create surfaces in outer ghost cells.
         continue;
       }
@@ -1851,7 +1889,11 @@ struct ExtractDS : public ExtractCellBoundaries<TInputIdType>
       } // if cell visible
 
     } // for all cells in this batch
-  }   // operator()
+    if (isFirst)
+    {
+      this->Self->UpdateProgress(static_cast<double>(0.8 * endCellId / this->NumberOfCells));
+    }
+  } // operator()
 
   // Composite local thread data
   void Reduce() override { this->ExtractCellBoundaries<TInputIdType>::Reduce(); }
@@ -1923,24 +1965,40 @@ struct GenerateExpPoints
   TOP* OutPts;
   TInputIdType* PointMap;
   ArrayList* PtArrays;
+  vtkGeometryFilter* Filter;
 
-  GenerateExpPoints(TIP* inPts, TOP* outPts, TInputIdType* ptMap, ArrayList* ptArrays)
+  GenerateExpPoints(
+    TIP* inPts, TOP* outPts, TInputIdType* ptMap, ArrayList* ptArrays, vtkGeometryFilter* filter)
     : InPts(inPts)
     , OutPts(outPts)
     , PointMap(ptMap)
     , PtArrays(ptArrays)
+    , Filter(filter)
   {
   }
 
-  void operator()(vtkIdType ptId, vtkIdType endPtId)
+  void operator()(vtkIdType beginPtId, vtkIdType endPtId)
   {
     const auto inPts = vtk::DataArrayTupleRange<3>(this->InPts);
     auto outPts = vtk::DataArrayTupleRange<3>(this->OutPts);
     vtkIdType mapId;
-
-    for (; ptId < endPtId; ++ptId)
+    const bool isFirst = vtkSMPTools::GetSingleThread();
+    const auto checkAbortInterval = std::min((endPtId - beginPtId) / 10 + 1, (vtkIdType)1000);
+    for (vtkIdType ptId = beginPtId; ptId < endPtId; ++ptId)
     {
-      if ((mapId = this->PointMap[ptId]) >= 0)
+      if (ptId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
+      mapId = this->PointMap[ptId];
+      if (mapId >= 0)
       {
         auto xIn = inPts[ptId];
         auto xOut = outPts[mapId];
@@ -1961,24 +2019,40 @@ struct GenerateImpPoints
   TOP* OutPts;
   TInputIdType* PointMap;
   ArrayList* PtArrays;
+  vtkGeometryFilter* Filter;
 
-  GenerateImpPoints(vtkDataSet* inPts, TOP* outPts, TInputIdType* ptMap, ArrayList* ptArrays)
+  GenerateImpPoints(vtkDataSet* inPts, TOP* outPts, TInputIdType* ptMap, ArrayList* ptArrays,
+    vtkGeometryFilter* filter)
     : InPts(inPts)
     , OutPts(outPts)
     , PointMap(ptMap)
     , PtArrays(ptArrays)
+    , Filter(filter)
   {
   }
 
-  void operator()(vtkIdType ptId, vtkIdType endPtId)
+  void operator()(vtkIdType beginPtId, vtkIdType endPtId)
   {
     auto outPts = vtk::DataArrayTupleRange<3>(this->OutPts);
     double xIn[3];
     vtkIdType mapId;
-
-    for (; ptId < endPtId; ++ptId)
+    const bool isFirst = vtkSMPTools::GetSingleThread();
+    const auto checkAbortInterval = std::min((endPtId - beginPtId) / 10 + 1, (vtkIdType)1000);
+    for (vtkIdType ptId = beginPtId; ptId < endPtId; ++ptId)
     {
-      if ((mapId = this->PointMap[ptId]) >= 0)
+      if (ptId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
+      mapId = this->PointMap[ptId];
+      if (mapId >= 0)
       {
         this->InPts->GetPoint(ptId, xIn);
         auto xOut = outPts[mapId];
@@ -1996,9 +2070,11 @@ template <typename TInputIdType>
 struct GeneratePtsWorker
 {
   vtkIdType NumOutputPoints;
+  vtkGeometryFilter* Filter;
 
-  GeneratePtsWorker()
+  GeneratePtsWorker(vtkGeometryFilter* filter)
     : NumOutputPoints(0)
+    , Filter(filter)
   {
   }
 
@@ -2025,6 +2101,12 @@ struct GeneratePtsWorker
 template <typename TInputIdType>
 struct ExpPtsWorker : public GeneratePtsWorker<TInputIdType>
 {
+
+  ExpPtsWorker(vtkGeometryFilter* filter)
+    : GeneratePtsWorker<TInputIdType>(filter)
+  {
+  }
+
   template <typename TIP, typename TOP>
   void operator()(TIP* inPts, TOP* outPts, vtkIdType numInputPts, vtkPointData* inPD,
     vtkPointData* outPD, ExtractCellBoundaries<TInputIdType>* extract)
@@ -2038,7 +2120,7 @@ struct ExpPtsWorker : public GeneratePtsWorker<TInputIdType>
     ptArrays.AddArrays(this->NumOutputPoints, inPD, outPD, 0.0, false);
 
     outPts->SetNumberOfTuples(this->NumOutputPoints);
-    GenerateExpPoints<TIP, TOP, TInputIdType> genPts(inPts, outPts, ptMap, &ptArrays);
+    GenerateExpPoints<TIP, TOP, TInputIdType> genPts(inPts, outPts, ptMap, &ptArrays, this->Filter);
     vtkSMPTools::For(0, numInputPts, genPts);
   }
 };
@@ -2047,6 +2129,12 @@ struct ExpPtsWorker : public GeneratePtsWorker<TInputIdType>
 template <typename TInputIdType>
 struct ImpPtsWorker : public GeneratePtsWorker<TInputIdType>
 {
+
+  ImpPtsWorker(vtkGeometryFilter* filter)
+    : GeneratePtsWorker<TInputIdType>(filter)
+  {
+  }
+
   template <typename TOP>
   void operator()(TOP* outPts, vtkDataSet* inPts, vtkIdType numInputPts, vtkPointData* inPD,
     vtkPointData* outPD, ExtractCellBoundaries<TInputIdType>* extract)
@@ -2060,7 +2148,7 @@ struct ImpPtsWorker : public GeneratePtsWorker<TInputIdType>
     ptArrays.AddArrays(this->NumOutputPoints, inPD, outPD, 0.0, false);
 
     outPts->SetNumberOfTuples(this->NumOutputPoints);
-    GenerateImpPoints<TOP, TInputIdType> genPts(inPts, outPts, ptMap, &ptArrays);
+    GenerateImpPoints<TOP, TInputIdType> genPts(inPts, outPts, ptMap, &ptArrays, this->Filter);
     vtkSMPTools::For(0, numInputPts, genPts);
   }
 };
@@ -2090,26 +2178,29 @@ struct CompositeCells
   vtkCellArray* Strips; // output triangle strips
   TOutputIdType* StripsConnPtr;
   TOutputIdType* StripsOffsetPtr;
+  vtkGeometryFilter* Filter;
 
   CompositeCells(TInputIdType* ptMap, ArrayList* cellArrays,
     ExtractCellBoundaries<TInputIdType>* extract, ThreadOutputType<TInputIdType>* threads,
-    vtkCellArray* verts, vtkCellArray* lines, vtkCellArray* polys, vtkCellArray* strips)
+    vtkCellArray* verts, vtkCellArray* lines, vtkCellArray* polys, vtkCellArray* strips,
+    vtkGeometryFilter* filter)
     : PointMap(ptMap)
     , CellArrays(cellArrays)
     , Extractor(extract)
     , Threads(threads)
     , Verts(verts)
-    , Lines(lines)
-    , Polys(polys)
-    , Strips(strips)
     , VertsConnPtr(nullptr)
     , VertsOffsetPtr(nullptr)
+    , Lines(lines)
     , LinesConnPtr(nullptr)
     , LinesOffsetPtr(nullptr)
+    , Polys(polys)
     , PolysConnPtr(nullptr)
     , PolysOffsetPtr(nullptr)
+    , Strips(strips)
     , StripsConnPtr(nullptr)
     , StripsOffsetPtr(nullptr)
+    , Filter(filter)
   {
     // Allocate data for the output cell arrays: connectivity and
     // offsets are required to construct a cell array.
@@ -2192,12 +2283,25 @@ struct CompositeCells
     }
   }
 
-  void operator()(vtkIdType thread, vtkIdType threadEnd)
+  void operator()(vtkIdType threadBegin, vtkIdType threadEnd)
   {
     auto* extract = this->Extractor;
 
-    for (; thread < threadEnd; ++thread)
+    const auto checkAbortInterval = std::min((threadEnd - threadBegin) / 10 + 1, (vtkIdType)1000);
+    const bool isFirst = vtkSMPTools::GetSingleThread();
+    for (vtkIdType thread = threadBegin; thread < threadEnd; ++thread)
     {
+      if (thread % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
       auto tItr = (*this->Threads)[thread];
 
       if (this->VertsConnPtr)
@@ -2232,14 +2336,16 @@ struct CompositeCellIds
   ::CompositeCells<TInputIdType, TOutputIdType>* CompositeCells;
   ThreadOutputType<TInputIdType>* Threads;
   vtkIdType* OrigIds;
+  vtkGeometryFilter* Filter;
 
   CompositeCellIds(ExtractCellBoundaries<TInputIdType>* extract,
     ::CompositeCells<TInputIdType, TOutputIdType>* compositeCells,
-    ThreadOutputType<TInputIdType>* threads, vtkIdType* origIds)
+    ThreadOutputType<TInputIdType>* threads, vtkIdType* origIds, vtkGeometryFilter* filter)
     : Extractor(extract)
     , CompositeCells(compositeCells)
     , Threads(threads)
     , OrigIds(origIds)
+    , Filter(filter)
   {
   }
 
@@ -2254,13 +2360,25 @@ struct CompositeCellIds
     }
   }
 
-  void operator()(vtkIdType thread, vtkIdType threadEnd)
+  void operator()(vtkIdType threadBegin, vtkIdType threadEnd)
   {
     auto* extract = this->Extractor;
     auto* compositeCells = this->CompositeCells;
-
-    for (; thread < threadEnd; ++thread)
+    const auto checkAbortInterval = std::min((threadEnd - threadBegin) / 10 + 1, (vtkIdType)1000);
+    const bool isFirst = vtkSMPTools::GetSingleThread();
+    for (vtkIdType thread = threadBegin; thread < threadEnd; ++thread)
     {
+      if (thread % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
       auto tItr = (*this->Threads)[thread];
 
       if (compositeCells->VertsConnPtr)
@@ -2315,18 +2433,12 @@ int ExecutePolyData(vtkGeometryFilter* self, vtkDataSet* dataSetInput, vtkPolyDa
 
   vtkDebugWithObjectMacro(self, << "Executing geometry filter for poly data input");
 
-  vtkUnsignedCharArray* temp = nullptr;
   if (cd)
   {
-    temp = cd->GetGhostArray();
-  }
-  if (!temp)
-  {
-    vtkDebugWithObjectMacro(self, "No appropriate ghost levels field available.");
-  }
-  else
-  {
-    cellGhosts = temp->GetPointer(0);
+    if (auto ghosts = cd->GetGhostArray())
+    {
+      cellGhosts = ghosts->GetPointer(0);
+    }
   }
 
   auto cellClipping = self->GetCellClipping();
@@ -2401,18 +2513,22 @@ int ExecutePolyData(vtkGeometryFilter* self, vtkDataSet* dataSetInput, vtkPolyDa
   outputCD->CopyAllocate(cd, numCells, numCells / 2);
   input->BuildCells(); // needed for GetCellPoints()
 
+  const unsigned char MASKED_CELL =
+    self->GetRemoveGhostInterfaces() ? MASKED_CELL_VALUE : MASKED_CELL_VALUE_NOT_VISIBLE;
   vtkIdType progressInterval = numCells / 20 + 1;
-  for (cellId = 0; cellId < numCells; cellId++)
+  bool abort = false;
+  for (cellId = 0; cellId < numCells && !abort; cellId++)
   {
     // Progress and abort method support
     if (!(cellId % progressInterval))
     {
       vtkDebugWithObjectMacro(self, << "Process cell #" << cellId);
       self->UpdateProgress(static_cast<double>(cellId) / numCells);
+      abort = self->CheckAbort();
     }
 
     // Handle ghost cells here.  Another option was used cellVis array.
-    if (cellGhosts && cellGhosts[cellId] & MASKED_CELL_VALUE)
+    if (cellGhosts && cellGhosts[cellId] & MASKED_CELL)
     { // Do not create surfaces in outer ghost cells.
       continue;
     }
@@ -2470,14 +2586,16 @@ int ExecutePolyData(vtkGeometryFilter* self, vtkDataSet* dataSetInput, vtkPolyDa
 int vtkGeometryFilter::PolyDataExecute(
   vtkDataSet* dataSetInput, vtkPolyData* output, vtkPolyData* excludedFaces)
 {
-  bool use64BitsIds = (dataSetInput->GetNumberOfPoints() > VTK_INT_MAX ||
-    dataSetInput->GetNumberOfCells() > VTK_INT_MAX);
+#ifdef VTK_USE_64BIT_IDS
+  bool use64BitsIds = (dataSetInput->GetNumberOfPoints() > VTK_TYPE_INT32_MAX ||
+    dataSetInput->GetNumberOfCells() > VTK_TYPE_INT32_MAX);
   if (use64BitsIds)
   {
-    using TInputIdType = vtkIdType;
+    using TInputIdType = vtkTypeInt64;
     vtkExcludedFaces<TInputIdType> exc;
     if (excludedFaces)
     {
+      exc.ExcludedFaces = excludedFaces;
       vtkCellArray* excPolys = excludedFaces->GetPolys();
       if (excPolys->GetNumberOfCells() > 0)
       {
@@ -2489,11 +2607,13 @@ int vtkGeometryFilter::PolyDataExecute(
     return ExecutePolyData<TInputIdType>(this, dataSetInput, output, &exc);
   }
   else
+#endif
   {
-    using TInputIdType = int;
+    using TInputIdType = vtkTypeInt32;
     vtkExcludedFaces<TInputIdType> exc;
     if (excludedFaces)
     {
+      exc.ExcludedFaces = excludedFaces;
       vtkCellArray* excPolys = excludedFaces->GetPolys();
       if (excPolys->GetNumberOfCells() > 0)
       {
@@ -2517,70 +2637,107 @@ namespace
 //------------------------------------------------------------------------------
 struct CharacterizeGrid
 {
-  vtkUnstructuredGridBase* GridBase;
-  vtkUnstructuredGrid* Grid;
-  unsigned char* Types;
-  unsigned char IsLinear;
-  vtkSMPThreadLocal<unsigned char> LocalIsLinear;
+  vtkUnstructuredGridBase* Grid;
 
-  CharacterizeGrid(vtkUnstructuredGridBase* gridBase)
-    : GridBase(gridBase)
+  using CellTypesInformation = vtkGeometryFilterHelper::CellTypesInformation;
+  using CellType = vtkGeometryFilterHelper::CellType;
+  vtkSMPThreadLocal<CellTypesInformation> TLCellTypesInfo;
+
+  CellTypesInformation CellTypesInfo;
+  unsigned char IsLinear;
+
+  CharacterizeGrid(vtkUnstructuredGridBase* grid)
+    : Grid(grid)
   {
-    this->Grid = vtkUnstructuredGrid::SafeDownCast(this->GridBase);
-    if (this->Grid)
+  }
+
+  void Initialize()
+  {
+    CellTypesInformation& cellTypesInfo = this->TLCellTypesInfo.Local();
+    std::fill(cellTypesInfo.begin(), cellTypesInfo.end(), false);
+  }
+
+  static void AssignCellTypeInfo(const unsigned char& cellType, CellTypesInformation& cellTypesInfo)
+  {
+    switch (cellType)
     {
-      this->Types = this->Grid->GetCellTypesArray()->GetPointer(0);
+      case VTK_VERTEX:
+      case VTK_POLY_VERTEX:
+        if (!cellTypesInfo[CellType::VERTS])
+        {
+          cellTypesInfo[CellType::VERTS] = true;
+        }
+        break;
+      case VTK_LINE:
+      case VTK_POLY_LINE:
+        if (!cellTypesInfo[CellType::LINES])
+        {
+          cellTypesInfo[CellType::LINES] = true;
+        }
+        break;
+      case VTK_TRIANGLE:
+      case VTK_QUAD:
+      case VTK_POLYGON:
+        if (!cellTypesInfo[CellType::POLYS])
+        {
+          cellTypesInfo[CellType::POLYS] = true;
+        }
+        break;
+      case VTK_TRIANGLE_STRIP:
+        if (!cellTypesInfo[CellType::STRIPS])
+        {
+          cellTypesInfo[CellType::STRIPS] = true;
+        }
+        break;
+      case VTK_EMPTY_CELL:
+      case VTK_PIXEL:
+      case VTK_TETRA:
+      case VTK_VOXEL:
+      case VTK_HEXAHEDRON:
+      case VTK_WEDGE:
+      case VTK_PYRAMID:
+      case VTK_PENTAGONAL_PRISM:
+      case VTK_HEXAGONAL_PRISM:
+      case VTK_CONVEX_POINT_SET:
+      case VTK_POLYHEDRON:
+        if (!cellTypesInfo[CellType::OTHER_LINEAR_CELLS])
+        {
+          cellTypesInfo[CellType::OTHER_LINEAR_CELLS] = true;
+        }
+        break;
+      default:
+        if (!cellTypesInfo[CellType::NON_LINEAR_CELLS])
+        {
+          cellTypesInfo[CellType::NON_LINEAR_CELLS] = true;
+        }
     }
   }
 
-  void Initialize() { this->LocalIsLinear.Local() = 1; }
-
-  void operator()(vtkIdType cellId, vtkIdType endCellId)
+  void operator()(vtkIdType beginCellId, vtkIdType endCellId)
   {
-    if (!this->LocalIsLinear.Local())
+    CellTypesInformation& cellTypesInfo = this->TLCellTypesInfo.Local();
+    for (vtkIdType cellId = beginCellId; cellId < endCellId; ++cellId)
     {
-      return;
-    }
-    if (this->Grid)
-    {
-      // Check against linear cell types
-      for (; cellId < endCellId; ++cellId)
-      {
-        if (!vtkCellTypes::IsLinear(this->Types[cellId]))
-        {
-          this->LocalIsLinear.Local() = 0;
-          break;
-        }
-      }
-    }
-    else
-    {
-      // Check against linear cell types
-      for (; cellId < endCellId; ++cellId)
-      {
-        if (!vtkCellTypes::IsLinear(
-              static_cast<unsigned char>(this->GridBase->GetCellType(cellId))))
-        {
-          this->LocalIsLinear.Local() = 0;
-          return;
-        }
-      }
+      CharacterizeGrid::AssignCellTypeInfo(
+        static_cast<unsigned char>(this->Grid->GetCellType(cellId)), cellTypesInfo);
     }
   }
 
   void Reduce()
   {
-    this->IsLinear = 1;
-    auto tItr = this->LocalIsLinear.begin();
-    auto tEnd = this->LocalIsLinear.end();
-    for (; tItr != tEnd; ++tItr)
+    // initialize
+    std::fill(this->CellTypesInfo.begin(), this->CellTypesInfo.end(), false);
+    for (const auto& cellTypesInfo : this->TLCellTypesInfo)
     {
-      if (*tItr == 0)
+      for (auto i = 0; i < CellType::NUM_CELL_TYPES; ++i)
       {
-        this->IsLinear = 0;
-        return;
+        if (cellTypesInfo[i] && !this->CellTypesInfo[i])
+        {
+          this->CellTypesInfo[i] = true;
+        }
       }
     }
+    this->IsLinear = static_cast<unsigned char>(!this->CellTypesInfo[CellType::NON_LINEAR_CELLS]);
   }
 };
 
@@ -2614,7 +2771,7 @@ void PassPointIds(const char* name, vtkIdType numInputPts, vtkIdType numOutputPt
 template <typename TInputIdType, typename TOutputIdType>
 void PassCellIds(const char* name, ExtractCellBoundaries<TInputIdType>* extract,
   CompositeCells<TInputIdType, TOutputIdType>* compositeCells,
-  ThreadOutputType<TInputIdType>* threads, vtkCellData* outCD)
+  ThreadOutputType<TInputIdType>* threads, vtkCellData* outCD, vtkGeometryFilter* filter)
 {
   vtkIdType numOutputCells = extract->NumCells;
   vtkNew<vtkIdTypeArray> origCellIds;
@@ -2625,7 +2782,8 @@ void PassCellIds(const char* name, ExtractCellBoundaries<TInputIdType>* extract,
   vtkIdType* origIds = origCellIds->GetPointer(0);
 
   // Now populate the original cell ids
-  CompositeCellIds<TInputIdType, TOutputIdType> compIds(extract, compositeCells, threads, origIds);
+  CompositeCellIds<TInputIdType, TOutputIdType> compIds(
+    extract, compositeCells, threads, origIds, filter);
   vtkSMPTools::For(0, static_cast<vtkIdType>(threads->size()), compIds);
 }
 
@@ -2639,10 +2797,10 @@ vtkGeometryFilterHelper* vtkGeometryFilterHelper::CharacterizeUnstructuredGrid(
 
   // Check to see if the data actually has nonlinear cells.  Handling
   // nonlinear cells requires delegation to the appropriate filter.
-  vtkIdType numCells = input->GetNumberOfCells();
   CharacterizeGrid characterize(input);
-  vtkSMPTools::For(0, numCells, characterize);
+  vtkSMPTools::For(0, input->GetNumberOfCells(), characterize);
 
+  info->CellTypesInfo = characterize.CellTypesInfo;
   info->IsLinear = characterize.IsLinear;
 
   return info;
@@ -2679,7 +2837,7 @@ void vtkGeometryFilterHelper::CopyFilterParams(vtkDataSetSurfaceFilter* dssf, vt
 namespace
 {
 //----------------------------------------------------------------------------
-template <typename TInputIdType>
+template <typename TInputIdType, typename TFaceIdType>
 int ExecuteUnstructuredGrid(vtkGeometryFilter* self, vtkDataSet* dataSetInput, vtkPolyData* output,
   vtkGeometryFilterHelper* info, vtkExcludedFaces<TInputIdType>* exc)
 {
@@ -2690,7 +2848,6 @@ int ExecuteUnstructuredGrid(vtkGeometryFilter* self, vtkDataSet* dataSetInput, v
     return 0;
   }
   vtkUnstructuredGrid* uGrid = vtkUnstructuredGrid::SafeDownCast(uGridBase);
-  bool isUnstructuredGrid = (uGrid != nullptr);
 
   // If no info, then compute information about the unstructured grid.
   // Depending on the outcome, we may process the data ourselves, or send over
@@ -2713,6 +2870,55 @@ int ExecuteUnstructuredGrid(vtkGeometryFilter* self, vtkDataSet* dataSetInput, v
     delete info;
     return 1;
   }
+  // if it's an unstructured grid base and not an unstructured grid
+  if (!uGrid && uGridBase)
+  {
+    if (info_owned)
+    {
+      delete info;
+    }
+    return self->DataSetExecute(uGridBase, output, exc->ExcludedFaces);
+  }
+  // fast conversion when input is actually polydata with one cell array
+  if (uGrid &&
+    (info->HasOnlyVerts() || info->HasOnlyLines() || info->HasOnlyPolys() || info->HasOnlyStrips()))
+  {
+    vtkNew<vtkPolyData> polyDataInput;
+    polyDataInput->SetPoints(uGrid->GetPoints());
+    polyDataInput->GetPointData()->ShallowCopy(uGrid->GetPointData());
+    if (self->GetPassThroughPointIds() &&
+      polyDataInput->GetPointData()->HasArray(self->GetOriginalPointIdsName()))
+    {
+      polyDataInput->GetPointData()->RemoveArray(self->GetOriginalPointIdsName());
+    }
+    if (info->HasOnlyVerts())
+    {
+      polyDataInput->SetVerts(uGrid->GetCells());
+    }
+    else if (info->HasOnlyLines())
+    {
+      polyDataInput->SetLines(uGrid->GetCells());
+    }
+    else if (info->HasOnlyPolys())
+    {
+      polyDataInput->SetPolys(uGrid->GetCells());
+    }
+    else if (info->HasOnlyStrips())
+    {
+      polyDataInput->SetStrips(uGrid->GetCells());
+    }
+    polyDataInput->GetCellData()->ShallowCopy(uGrid->GetCellData());
+    if (self->GetPassThroughCellIds() &&
+      polyDataInput->GetCellData()->HasArray(self->GetOriginalCellIdsName()))
+    {
+      polyDataInput->GetCellData()->RemoveArray(self->GetOriginalCellIdsName());
+    }
+    if (info_owned)
+    {
+      delete info;
+    }
+    return ExecutePolyData<TInputIdType>(self, polyDataInput, output, exc);
+  }
   if (info_owned)
   {
     delete info;
@@ -2722,11 +2928,11 @@ int ExecuteUnstructuredGrid(vtkGeometryFilter* self, vtkDataSet* dataSetInput, v
   vtkIdType npts = 0;
   vtkNew<vtkIdList> pointIdList;
   const vtkIdType* pts = nullptr;
-  vtkPoints* inPts = uGridBase->GetPoints();
-  vtkIdType numInputPts = uGridBase->GetNumberOfPoints(), numOutputPts;
-  vtkIdType numCells = uGridBase->GetNumberOfCells();
-  vtkPointData* inPD = uGridBase->GetPointData();
-  vtkCellData* inCD = uGridBase->GetCellData();
+  vtkPoints* inPts = uGrid->GetPoints();
+  vtkIdType numInputPts = uGrid->GetNumberOfPoints(), numOutputPts;
+  vtkIdType numCells = uGrid->GetNumberOfCells();
+  vtkPointData* inPD = uGrid->GetPointData();
+  vtkCellData* inCD = uGrid->GetCellData();
   vtkPointData* outPD = output->GetPointData();
   vtkCellData* outCD = output->GetCellData();
   vtkNew<vtkAOSDataArrayTemplate<char>> cellVisArray;
@@ -2736,30 +2942,19 @@ int ExecuteUnstructuredGrid(vtkGeometryFilter* self, vtkDataSet* dataSetInput, v
 
   vtkDebugWithObjectMacro(self, << "Executing geometry filter for unstructured grid input");
 
-  vtkDataArray* temp = nullptr;
   if (inCD)
   {
-    temp = inCD->GetArray(vtkDataSetAttributes::GhostArrayName());
-  }
-  if ((!temp) || (temp->GetDataType() != VTK_UNSIGNED_CHAR) || (temp->GetNumberOfComponents() != 1))
-  {
-    vtkDebugWithObjectMacro(self, "No appropriate ghost levels field available.");
-  }
-  else
-  {
-    cellGhosts = static_cast<vtkUnsignedCharArray*>(temp)->GetPointer(0);
+    if (auto ghosts = inCD->GetGhostArray())
+    {
+      cellGhosts = ghosts->GetPointer(0);
+    }
   }
   if (inPD)
   {
-    temp = inPD->GetArray(vtkDataSetAttributes::GhostArrayName());
-  }
-  if ((!temp) || (temp->GetDataType() != VTK_UNSIGNED_CHAR) || (temp->GetNumberOfComponents() != 1))
-  {
-    vtkDebugWithObjectMacro(self, "No appropriate ghost levels field available.");
-  }
-  else
-  {
-    pointGhosts = static_cast<vtkUnsignedCharArray*>(temp)->GetPointer(0);
+    if (auto ghosts = inPD->GetGhostArray())
+    {
+      pointGhosts = ghosts->GetPointer(0);
+    }
   }
 
   auto cellClipping = self->GetCellClipping();
@@ -2781,6 +2976,7 @@ int ExecuteUnstructuredGrid(vtkGeometryFilter* self, vtkDataSet* dataSetInput, v
     cellVis = cellVisArray->GetPointer(0);
   }
 
+  outPD->CopyGlobalIdsOn();
   outCD->CopyGlobalIdsOn();
 
   // Loop over the cells determining what's visible. This could be threaded
@@ -2790,16 +2986,7 @@ int ExecuteUnstructuredGrid(vtkGeometryFilter* self, vtkDataSet* dataSetInput, v
     double x[3];
     for (cellId = 0; cellId < numCells; ++cellId)
     {
-      if (isUnstructuredGrid)
-      {
-        uGrid->GetCellPoints(cellId, npts, pts, pointIdList);
-      }
-      else
-      {
-        uGridBase->GetCellPoints(cellId, pointIdList);
-        npts = pointIdList->GetNumberOfIds();
-        pts = pointIdList->GetPointer(0);
-      }
+      uGrid->GetCellPoints(cellId, npts, pts, pointIdList);
       cellVis[cellId] = 1;
       if (cellClipping && (cellId < cellMinimum || cellId > cellMaximum))
       {
@@ -2859,18 +3046,26 @@ int ExecuteUnstructuredGrid(vtkGeometryFilter* self, vtkDataSet* dataSetInput, v
   output->SetPolys(polys);
   output->SetStrips(strips);
 
+  // Build a face hash links to quickly determine the faces that have the same hash.
+  vtkStaticFaceHashLinksTemplate<TInputIdType, TFaceIdType> faceHashLinks;
+  faceHashLinks.BuildHashLinks(uGrid);
+  self->UpdateProgress(0.4);
+
   // Threaded visit of each cell to extract boundary features. Each thread gathers
   // output which is then composited into the final vtkPolyData.
   // Keep track of each thread's output, we'll need this later for compositing.
   ThreadOutputType<TInputIdType> threads;
 
   // Perform the threaded boundary cell extraction. This performs some
-  // initial reduction and allocation of the output. It also computes offets
+  // initial reduction and allocation of the output. It also computes offsets
   // and sizes for allocation and writing of data.
-  auto* extract = new ExtractUG<TInputIdType>(uGridBase, cellVis, cellGhosts, pointGhosts,
-    self->GetMerging(), self->GetRemoveGhostInterfaces(), exc, &threads);
-  vtkSMPTools::For(0, numCells, *extract);
+  auto* extract = new ExtractUG<TInputIdType, TFaceIdType>(
+    self, uGrid, faceHashLinks, cellVis, cellGhosts, pointGhosts, exc, &threads);
+  vtkSMPTools::For(0, faceHashLinks.GetNumberOfHashes(), *extract);
   numCells = extract->NumCells;
+  self->UpdateProgress(0.8);
+  // free up the hash links
+  faceHashLinks.Reset();
 
   // If merging points, then it's necessary to allocate the points array,
   // configure the point map, and generate the new points. Here we are using
@@ -2881,7 +3076,7 @@ int ExecuteUnstructuredGrid(vtkGeometryFilter* self, vtkDataSet* dataSetInput, v
   {
     using vtkArrayDispatch::Reals;
     using ExpPtsDispatch = vtkArrayDispatch::Dispatch2ByValueType<Reals, Reals>;
-    ExpPtsWorker<TInputIdType> compWorker;
+    ExpPtsWorker<TInputIdType> compWorker(self);
     if (!ExpPtsDispatch::Execute(
           inPts->GetData(), outPts->GetData(), compWorker, numInputPts, inPD, outPD, extract))
     { // Fallback to slowpath for other point types
@@ -2897,43 +3092,48 @@ int ExecuteUnstructuredGrid(vtkGeometryFilter* self, vtkDataSet* dataSetInput, v
       PassPointIds(self->GetOriginalPointIdsName(), numInputPts, numOutputPts, ptMap, outPD);
     }
   }
+  self->UpdateProgress(0.9);
 
   // Finally we can composite the output topology.
   ArrayList cellArrays;
   outCD->CopyAllocate(inCD, numCells);
   cellArrays.AddArrays(numCells, inCD, outCD, 0.0, false);
 
+#ifdef VTK_USE_64BIT_IDS
   vtkIdType connectivitySize =
     extract->VertsNumPts + extract->LinesNumPts + extract->PolysNumPts + extract->StripsNumPts;
 
-  if (connectivitySize > VTK_INT_MAX)
+  bool use64BitsIds = connectivitySize > VTK_TYPE_INT32_MAX;
+  if (use64BitsIds)
   {
-    using TOutputIdType = vtkIdType;
+    using TOutputIdType = vtkTypeInt64;
     CompositeCells<TInputIdType, TOutputIdType> compCells(
-      ptMap, &cellArrays, extract, &threads, verts, lines, polys, strips);
+      ptMap, &cellArrays, extract, &threads, verts, lines, polys, strips, self);
     vtkSMPTools::For(0, static_cast<vtkIdType>(threads.size()), compCells);
 
     // Generate originating cell ids if requested.
     if (self->GetPassThroughCellIds())
     {
       PassCellIds<TInputIdType, TOutputIdType>(
-        self->GetOriginalCellIdsName(), extract, &compCells, &threads, outCD);
+        self->GetOriginalCellIdsName(), extract, &compCells, &threads, outCD, self);
     }
   }
   else
+#endif
   {
-    using TOutputIdType = int;
+    using TOutputIdType = vtkTypeInt32;
     CompositeCells<TInputIdType, TOutputIdType> compCells(
-      ptMap, &cellArrays, extract, &threads, verts, lines, polys, strips);
+      ptMap, &cellArrays, extract, &threads, verts, lines, polys, strips, self);
     vtkSMPTools::For(0, static_cast<vtkIdType>(threads.size()), compCells);
 
     // Generate originating cell ids if requested.
     if (self->GetPassThroughCellIds())
     {
       PassCellIds<TInputIdType, TOutputIdType>(
-        self->GetOriginalCellIdsName(), extract, &compCells, &threads, outCD);
+        self->GetOriginalCellIdsName(), extract, &compCells, &threads, outCD, self);
     }
   }
+  self->UpdateProgress(1.0);
 
   vtkDebugWithObjectMacro(self, << "Extracted " << output->GetNumberOfPoints() << " points,"
                                 << output->GetNumberOfCells() << " cells.");
@@ -2948,14 +3148,17 @@ int ExecuteUnstructuredGrid(vtkGeometryFilter* self, vtkDataSet* dataSetInput, v
 int vtkGeometryFilter::UnstructuredGridExecute(vtkDataSet* dataSetInput, vtkPolyData* output,
   vtkGeometryFilterHelper* info, vtkPolyData* excludedFaces)
 {
-  bool use64BitsIds = (dataSetInput->GetNumberOfPoints() > VTK_INT_MAX ||
-    dataSetInput->GetNumberOfCells() > VTK_INT_MAX);
+  const auto uGrid = vtkUnstructuredGrid::SafeDownCast(dataSetInput);
+#ifdef VTK_USE_64BIT_IDS
+  bool use64BitsIds = (dataSetInput->GetNumberOfPoints() > VTK_TYPE_INT32_MAX ||
+    dataSetInput->GetNumberOfCells() > VTK_TYPE_INT32_MAX);
   if (use64BitsIds)
   {
-    using TInputIdType = vtkIdType;
+    using TInputIdType = vtkTypeInt64;
     vtkExcludedFaces<TInputIdType> exc;
     if (excludedFaces)
     {
+      exc.ExcludedFaces = excludedFaces;
       vtkCellArray* excPolys = excludedFaces->GetPolys();
       if (excPolys->GetNumberOfCells() > 0)
       {
@@ -2964,14 +3167,27 @@ int vtkGeometryFilter::UnstructuredGridExecute(vtkDataSet* dataSetInput, vtkPoly
           dataSetInput->GetNumberOfPoints(), excPolys->GetNumberOfCells(), excPolys);
       }
     }
-    return ExecuteUnstructuredGrid<TInputIdType>(this, dataSetInput, output, info, &exc);
+    if (uGrid && !uGrid->GetFaces())
+    {
+      using TFaceIdType = vtkTypeInt8;
+      return ExecuteUnstructuredGrid<TInputIdType, TFaceIdType>(
+        this, dataSetInput, output, info, &exc);
+    }
+    else
+    {
+      using TFaceIdType = vtkTypeInt32;
+      return ExecuteUnstructuredGrid<TInputIdType, TFaceIdType>(
+        this, dataSetInput, output, info, &exc);
+    }
   }
   else
+#endif
   {
-    using TInputIdType = int;
+    using TInputIdType = vtkTypeInt32;
     vtkExcludedFaces<TInputIdType> exc;
     if (excludedFaces)
     {
+      exc.ExcludedFaces = excludedFaces;
       vtkCellArray* excPolys = excludedFaces->GetPolys();
       if (excPolys->GetNumberOfCells() > 0)
       {
@@ -2980,7 +3196,18 @@ int vtkGeometryFilter::UnstructuredGridExecute(vtkDataSet* dataSetInput, vtkPoly
           dataSetInput->GetNumberOfPoints(), excPolys->GetNumberOfCells(), excPolys);
       }
     }
-    return ExecuteUnstructuredGrid<TInputIdType>(this, dataSetInput, output, info, &exc);
+    if (uGrid && !uGrid->GetFaces())
+    {
+      using TFaceIdType = vtkTypeInt8;
+      return ExecuteUnstructuredGrid<TInputIdType, TFaceIdType>(
+        this, dataSetInput, output, info, &exc);
+    }
+    else
+    {
+      using TFaceIdType = vtkTypeInt32;
+      return ExecuteUnstructuredGrid<TInputIdType, TFaceIdType>(
+        this, dataSetInput, output, info, &exc);
+    }
   }
 }
 
@@ -2995,7 +3222,7 @@ namespace
 //------------------------------------------------------------------------------
 template <typename TInputIdType>
 int ExecuteStructured(vtkGeometryFilter* self, vtkDataSet* input, vtkPolyData* output,
-  vtkInformation* vtkNotUsed(inInfo), vtkExcludedFaces<TInputIdType>* exc, bool* extractFace)
+  int* wholeExtent, vtkExcludedFaces<TInputIdType>* exc, bool* extractFace)
 {
   vtkIdType numCells = input->GetNumberOfCells();
   vtkPointData* inPD = input->GetPointData();
@@ -3019,22 +3246,25 @@ int ExecuteStructured(vtkGeometryFilter* self, vtkDataSet* input, vtkPolyData* o
   output->SetPolys(polys);
   ThreadOutputType<TInputIdType> threads;
 
+  outPD->CopyGlobalIdsOn();
+  outCD->CopyGlobalIdsOn();
+
   ExtractCellBoundaries<TInputIdType>* extStr;
   // if extractFace are defined, it's an AMR block
   if (auto image = vtkImageData::SafeDownCast(input))
   {
     extStr = ExtractStructured<vtkImageData, TInputIdType>::Execute(
-      image, self->GetFastMode(), extractFace, mergePts, exc, &threads);
+      self, image, wholeExtent, extractFace, mergePts, exc, &threads);
   }
   else if (auto sGrid = vtkStructuredGrid::SafeDownCast(input))
   {
     extStr = ExtractStructured<vtkStructuredGrid, TInputIdType>::Execute(
-      sGrid, self->GetFastMode(), extractFace, mergePts, exc, &threads);
+      self, sGrid, wholeExtent, extractFace, mergePts, exc, &threads);
   }
   else if (auto rGrid = vtkRectilinearGrid::SafeDownCast(input))
   {
     extStr = ExtractStructured<vtkRectilinearGrid, TInputIdType>::Execute(
-      rGrid, self->GetFastMode(), extractFace, mergePts, exc, &threads);
+      self, rGrid, wholeExtent, extractFace, mergePts, exc, &threads);
   }
   else
   {
@@ -3042,6 +3272,7 @@ int ExecuteStructured(vtkGeometryFilter* self, vtkDataSet* input, vtkPolyData* o
     return 0;
   }
   numCells = extStr->NumCells;
+  self->UpdateProgress(0.3);
 
   // Generate the output points
   vtkIdType numInputPts = input->GetNumberOfPoints(), numOutputPts;
@@ -3072,7 +3303,7 @@ int ExecuteStructured(vtkGeometryFilter* self, vtkDataSet* input, vtkPolyData* o
   {
     using vtkArrayDispatch::Reals;
     using ExpPtsDispatch = vtkArrayDispatch::Dispatch2ByValueType<Reals, Reals>;
-    ExpPtsWorker<TInputIdType> compWorker;
+    ExpPtsWorker<TInputIdType> compWorker(self);
     if (!ExpPtsDispatch::Execute(
           inPts->GetData(), outPts->GetData(), compWorker, numInputPts, inPD, outPD, extStr))
     { // Fallback to slowpath for other point types
@@ -3086,7 +3317,7 @@ int ExecuteStructured(vtkGeometryFilter* self, vtkDataSet* input, vtkPolyData* o
     // the geometry (i.e., points) now.
     using vtkArrayDispatch::Reals;
     using ImpPtsDispatch = vtkArrayDispatch::DispatchByValueType<Reals>;
-    ImpPtsWorker<TInputIdType> compWorker;
+    ImpPtsWorker<TInputIdType> compWorker(self);
     if (!ImpPtsDispatch::Execute(
           outPts->GetData(), compWorker, input, numInputPts, inPD, outPD, extStr))
     { // Fallback to slowpath for other point types
@@ -3103,43 +3334,48 @@ int ExecuteStructured(vtkGeometryFilter* self, vtkDataSet* input, vtkPolyData* o
   {
     PassPointIds(self->GetOriginalPointIdsName(), numInputPts, numOutputPts, ptMap, outPD);
   }
+  self->UpdateProgress(0.75);
 
   // Finally we can composite the output topology.
   ArrayList cellArrays;
   outCD->CopyAllocate(inCD, numCells);
   cellArrays.AddArrays(numCells, inCD, outCD, 0.0, false);
 
+#ifdef VTK_USE_64BIT_IDS
   vtkIdType connectivitySize =
     extStr->VertsNumPts + extStr->LinesNumPts + extStr->PolysNumPts + extStr->StripsNumPts;
 
-  if (connectivitySize > VTK_INT_MAX)
+  bool use64BitsIds = connectivitySize > VTK_TYPE_INT32_MAX;
+  if (use64BitsIds)
   {
-    using TOutputIdType = vtkIdType;
+    using TOutputIdType = vtkTypeInt64;
     CompositeCells<TInputIdType, TOutputIdType> compCells(
-      ptMap, &cellArrays, extStr, &threads, nullptr, nullptr, polys, nullptr);
+      ptMap, &cellArrays, extStr, &threads, nullptr, nullptr, polys, nullptr, self);
     vtkSMPTools::For(0, static_cast<vtkIdType>(threads.size()), compCells);
 
     // Generate originating cell ids if requested.
     if (self->GetPassThroughCellIds())
     {
       PassCellIds<TInputIdType, TOutputIdType>(
-        self->GetOriginalCellIdsName(), extStr, &compCells, &threads, outCD);
+        self->GetOriginalCellIdsName(), extStr, &compCells, &threads, outCD, self);
     }
   }
   else
+#endif
   {
-    using TOutputIdType = int;
+    using TOutputIdType = vtkTypeInt32;
     CompositeCells<TInputIdType, TOutputIdType> compCells(
-      ptMap, &cellArrays, extStr, &threads, nullptr, nullptr, polys, nullptr);
+      ptMap, &cellArrays, extStr, &threads, nullptr, nullptr, polys, nullptr, self);
     vtkSMPTools::For(0, static_cast<vtkIdType>(threads.size()), compCells);
 
     // Generate originating cell ids if requested.
     if (self->GetPassThroughCellIds())
     {
       PassCellIds<TInputIdType, TOutputIdType>(
-        self->GetOriginalCellIdsName(), extStr, &compCells, &threads, outCD);
+        self->GetOriginalCellIdsName(), extStr, &compCells, &threads, outCD, self);
     }
   }
+  self->UpdateProgress(1.0);
 
   vtkDebugWithObjectMacro(self, << "Extracted " << output->GetNumberOfPoints() << " points,"
                                 << output->GetNumberOfCells() << " cells.");
@@ -3151,16 +3387,76 @@ int ExecuteStructured(vtkGeometryFilter* self, vtkDataSet* input, vtkPolyData* o
 
 //------------------------------------------------------------------------------
 int vtkGeometryFilter::StructuredExecute(vtkDataSet* input, vtkPolyData* output,
-  vtkInformation* inInfo, vtkPolyData* excludedFaces, bool* extractFace)
+  vtkInformation* inInfo, vtkPolyData* exc, bool* extractFace)
 {
-  bool use64BitsIds =
-    (input->GetNumberOfPoints() > VTK_INT_MAX || input->GetNumberOfCells() > VTK_INT_MAX);
+  int wholeExtent[6] = { 0, -1, 0, -1, 0, -1 };
+  if (input->GetExtentType() == VTK_3D_EXTENT)
+  {
+    const int* wholeExt32;
+    if (inInfo)
+    {
+      wholeExt32 = inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
+      std::copy(wholeExt32, wholeExt32 + 6, wholeExtent);
+    }
+  }
+  return this->StructuredExecute(input, output, wholeExtent, exc, extractFace);
+}
+
+//------------------------------------------------------------------------------
+int vtkGeometryFilter::StructuredExecute(
+  vtkDataSet* input, vtkPolyData* output, vtkInformation* inInfo, bool* extractFace)
+{
+  int wholeExtent[6] = { 0, -1, 0, -1, 0, -1 };
+  if (input->GetExtentType() == VTK_3D_EXTENT)
+  {
+    const int* wholeExt32;
+    if (inInfo)
+    {
+      wholeExt32 = inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
+      std::copy(wholeExt32, wholeExt32 + 6, wholeExtent);
+    }
+  }
+  return this->StructuredExecute(input, output, wholeExtent, extractFace);
+}
+
+//------------------------------------------------------------------------------
+int vtkGeometryFilter::StructuredExecute(vtkDataSet* input, vtkPolyData* output, int* wholeExtent,
+  vtkPolyData* excludedFaces, bool* extractFace)
+{
+  int dataDim = -1;
+  if (auto imageData = vtkImageData::SafeDownCast(input))
+  {
+    dataDim = imageData->GetDataDimension();
+  }
+  else if (auto structured = vtkStructuredGrid::SafeDownCast(input))
+  {
+    dataDim = structured->GetDataDimension();
+  }
+  else if (auto rectilinear = vtkRectilinearGrid::SafeDownCast(input))
+  {
+    dataDim = rectilinear->GetDataDimension();
+  }
+  assert(dataDim != -1);
+
+  // Delegate to the generic dataset processing if structuredGrid is not 3d or cell/point/extent
+  // clipping is requested. Otherwise. use the fast structured algorithms. This is done for
+  // simplification purposes.
+  if (dataDim != 3 || this->GetCellClipping() || this->GetPointClipping() ||
+    this->GetExtentClipping())
+  {
+    return this->DataSetExecute(input, output, excludedFaces);
+  }
+
+#ifdef VTK_USE_64BIT_IDS
+  bool use64BitsIds = (input->GetNumberOfPoints() > VTK_TYPE_INT32_MAX ||
+    input->GetNumberOfCells() > VTK_TYPE_INT32_MAX);
   if (use64BitsIds)
   {
-    using TInputIdType = vtkIdType;
+    using TInputIdType = vtkTypeInt64;
     vtkExcludedFaces<TInputIdType> exc;
     if (excludedFaces)
     {
+      exc.ExcludedFaces = excludedFaces;
       vtkCellArray* excPolys = excludedFaces->GetPolys();
       if (excPolys->GetNumberOfCells() > 0)
       {
@@ -3169,14 +3465,16 @@ int vtkGeometryFilter::StructuredExecute(vtkDataSet* input, vtkPolyData* output,
           input->GetNumberOfPoints(), excPolys->GetNumberOfCells(), excPolys);
       }
     }
-    return ExecuteStructured<TInputIdType>(this, input, output, inInfo, &exc, extractFace);
+    return ExecuteStructured<TInputIdType>(this, input, output, wholeExtent, &exc, extractFace);
   }
   else
+#endif
   {
-    using TInputIdType = int;
+    using TInputIdType = vtkTypeInt32;
     vtkExcludedFaces<TInputIdType> exc;
     if (excludedFaces)
     {
+      exc.ExcludedFaces = excludedFaces;
       vtkCellArray* excPolys = excludedFaces->GetPolys();
       if (excPolys->GetNumberOfCells() > 0)
       {
@@ -3185,16 +3483,16 @@ int vtkGeometryFilter::StructuredExecute(vtkDataSet* input, vtkPolyData* output,
           input->GetNumberOfPoints(), excPolys->GetNumberOfCells(), excPolys);
       }
     }
-    return ExecuteStructured<TInputIdType>(this, input, output, inInfo, &exc, extractFace);
+    return ExecuteStructured<TInputIdType>(this, input, output, wholeExtent, &exc, extractFace);
   }
 }
 
 //------------------------------------------------------------------------------
 // Process various types of structured datasets.
 int vtkGeometryFilter::StructuredExecute(
-  vtkDataSet* input, vtkPolyData* output, vtkInformation* inInfo, bool* extractFace)
+  vtkDataSet* input, vtkPolyData* output, int* wholeExtent, bool* extractFace)
 {
-  return this->StructuredExecute(input, output, inInfo, nullptr, extractFace);
+  return this->StructuredExecute(input, output, wholeExtent, nullptr, extractFace);
 }
 
 //------------------------------------------------------------------------------
@@ -3220,30 +3518,19 @@ int ExecuteDataSet(vtkGeometryFilter* self, vtkDataSet* input, vtkPolyData* outp
 
   vtkDebugWithObjectMacro(self, << "Executing geometry filter");
 
-  vtkDataArray* temp = nullptr;
   if (inCD)
   {
-    temp = inCD->GetArray(vtkDataSetAttributes::GhostArrayName());
-  }
-  if ((!temp) || (temp->GetDataType() != VTK_UNSIGNED_CHAR) || (temp->GetNumberOfComponents() != 1))
-  {
-    vtkDebugWithObjectMacro(self, "No appropriate ghost levels field available.");
-  }
-  else
-  {
-    cellGhosts = static_cast<vtkUnsignedCharArray*>(temp)->GetPointer(0);
+    if (auto ghosts = inCD->GetGhostArray())
+    {
+      cellGhosts = ghosts->GetPointer(0);
+    }
   }
   if (inPD)
   {
-    temp = inPD->GetArray(vtkDataSetAttributes::GhostArrayName());
-  }
-  if ((!temp) || (temp->GetDataType() != VTK_UNSIGNED_CHAR) || (temp->GetNumberOfComponents() != 1))
-  {
-    vtkDebugWithObjectMacro(self, "No appropriate ghost levels field available.");
-  }
-  else
-  {
-    pointGhosts = static_cast<vtkUnsignedCharArray*>(temp)->GetPointer(0);
+    if (auto ghosts = inPD->GetGhostArray())
+    {
+      pointGhosts = ghosts->GetPointer(0);
+    }
   }
 
   auto cellClipping = self->GetCellClipping();
@@ -3333,9 +3620,10 @@ int ExecuteDataSet(vtkGeometryFilter* self, vtkDataSet* input, vtkPolyData* outp
 
   // The extraction process for vtkDataSet
   ThreadOutputType<TInputIdType> threads;
-  ExtractDS<TInputIdType> extract(input, cellVis, cellGhosts, pointGhosts, exc, &threads);
+  ExtractDS<TInputIdType> extract(self, input, cellVis, cellGhosts, pointGhosts, exc, &threads);
   vtkSMPTools::For(0, numCells, extract);
   numCells = extract.NumCells;
+  self->UpdateProgress(0.8);
 
   // If merging points, then it's necessary to allocate the points
   // array. This will be populated later when the final compositing
@@ -3345,7 +3633,7 @@ int ExecuteDataSet(vtkGeometryFilter* self, vtkDataSet* input, vtkPolyData* outp
   // Generate the new points
   using vtkArrayDispatch::Reals;
   using ImpPtsDispatch = vtkArrayDispatch::DispatchByValueType<Reals>;
-  ImpPtsWorker<TInputIdType> compWorker;
+  ImpPtsWorker<TInputIdType> compWorker(self);
   if (!ImpPtsDispatch::Execute(
         outPts->GetData(), compWorker, input, numInputPts, inPD, outPD, &extract))
   { // Fallback to slowpath for other point types
@@ -3361,43 +3649,48 @@ int ExecuteDataSet(vtkGeometryFilter* self, vtkDataSet* input, vtkPolyData* outp
   {
     PassPointIds(self->GetOriginalPointIdsName(), numInputPts, numOutputPts, ptMap, outPD);
   }
+  self->UpdateProgress(0.9);
 
   // Finally we can composite the output topology.
   ArrayList cellArrays;
   outCD->CopyAllocate(inCD, numCells);
   cellArrays.AddArrays(numCells, inCD, outCD, 0.0, false);
 
+#ifdef VTK_USE_64BIT_IDS
   vtkIdType connectivitySize =
     extract.VertsNumPts + extract.LinesNumPts + extract.PolysNumPts + extract.StripsNumPts;
 
-  if (connectivitySize > VTK_INT_MAX)
+  bool use64BitsIds = connectivitySize > VTK_TYPE_INT32_MAX;
+  if (use64BitsIds)
   {
-    using TOutputIdType = vtkIdType;
+    using TOutputIdType = vtkTypeInt64;
     CompositeCells<TInputIdType, TOutputIdType> compCells(
-      ptMap, &cellArrays, &extract, &threads, verts, lines, polys, strips);
+      ptMap, &cellArrays, &extract, &threads, verts, lines, polys, strips, self);
     vtkSMPTools::For(0, static_cast<vtkIdType>(threads.size()), compCells);
 
     // Generate originating cell ids if requested.
     if (self->GetPassThroughCellIds())
     {
       PassCellIds<TInputIdType, TOutputIdType>(
-        self->GetOriginalCellIdsName(), &extract, &compCells, &threads, outCD);
+        self->GetOriginalCellIdsName(), &extract, &compCells, &threads, outCD, self);
     }
   }
   else
+#endif
   {
-    using TOutputIdType = int;
+    using TOutputIdType = vtkTypeInt32;
     CompositeCells<TInputIdType, TOutputIdType> compCells(
-      ptMap, &cellArrays, &extract, &threads, verts, lines, polys, strips);
+      ptMap, &cellArrays, &extract, &threads, verts, lines, polys, strips, self);
     vtkSMPTools::For(0, static_cast<vtkIdType>(threads.size()), compCells);
 
     // Generate originating cell ids if requested.
     if (self->GetPassThroughCellIds())
     {
       PassCellIds<TInputIdType, TOutputIdType>(
-        self->GetOriginalCellIdsName(), &extract, &compCells, &threads, outCD);
+        self->GetOriginalCellIdsName(), &extract, &compCells, &threads, outCD, self);
     }
   }
+  self->UpdateProgress(1.0);
 
   vtkDebugWithObjectMacro(self, << "Extracted " << output->GetNumberOfPoints() << " points,"
                                 << output->GetNumberOfCells() << " cells.");
@@ -3418,6 +3711,7 @@ int vtkGeometryFilter::DataSetExecute(
     vtkExcludedFaces<TInputIdType> exc;
     if (excludedFaces)
     {
+      exc.ExcludedFaces = excludedFaces;
       vtkCellArray* excPolys = excludedFaces->GetPolys();
       if (excPolys->GetNumberOfCells() > 0)
       {
@@ -3434,6 +3728,7 @@ int vtkGeometryFilter::DataSetExecute(
     vtkExcludedFaces<TInputIdType> exc;
     if (excludedFaces)
     {
+      exc.ExcludedFaces = excludedFaces;
       vtkCellArray* excPolys = excludedFaces->GetPolys();
       if (excPolys->GetNumberOfCells() > 0)
       {
@@ -3466,9 +3761,17 @@ int vtkGeometryFilter::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   numPieces = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES());
   ghostLevels = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
 
-  if (numPieces > 1)
+  if (numPieces > 1 && this->PieceInvariant)
   {
-    ++ghostLevels;
+    // The special execute for structured data handle boundaries internally.
+    // PolyData does not need any ghost levels.
+    vtkDataObject* dobj = inInfo->Get(vtkDataObject::DATA_OBJECT());
+    if (dobj && !strcmp(dobj->GetClassName(), "vtkUnstructuredGrid"))
+    { // Processing does nothing for ghost levels yet so ...
+      // Be careful to set output ghost level value one less than default
+      // when they are implemented.  I had trouble with multiple executes.
+      ++ghostLevels;
+    }
   }
 
   inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER(), piece);
@@ -3478,3 +3781,4 @@ int vtkGeometryFilter::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

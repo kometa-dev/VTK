@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataPlaneCutter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyDataPlaneCutter
  * @brief   threaded (high-performance) cutting of a vtkPolyData with a plane
@@ -30,7 +18,7 @@
  *
  * @warning
  * The method CanFullyProcessDataObject() is available to see whether the
- * input data can be successully processed by this filter. Use this method
+ * input data can be successfully processed by this filter. Use this method
  * sparingly because it can be slow.
  *
  * @warning
@@ -50,6 +38,7 @@
 #include "vtkPolyDataAlgorithm.h"
 #include "vtkSmartPointer.h" // For SmartPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSCORE_EXPORT vtkPolyDataPlaneCutter : public vtkPolyDataAlgorithm
 {
 public:
@@ -150,5 +139,6 @@ private:
   vtkPolyDataPlaneCutter(const vtkPolyDataPlaneCutter&) = delete;
   void operator=(const vtkPolyDataPlaneCutter&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif

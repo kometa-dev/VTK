@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPhyloXMLTreeWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPhyloXMLTreeWriter.h"
 
 #include "vtkDataSetAttributes.h"
@@ -26,6 +14,7 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkXMLDataElement.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPhyloXMLTreeWriter);
 
 //------------------------------------------------------------------------------
@@ -123,7 +112,7 @@ void vtkPhyloXMLTreeWriter::WriteTreeLevelElement(vtkTree* input, vtkXMLDataElem
     vtkNew<vtkXMLDataElement> element;
     element->SetName(elementName);
     vtkStdString val = array->GetVariantValue(0).ToString();
-    element->SetCharacterData(val, static_cast<int>(val.length()));
+    element->SetCharacterData(val.c_str(), static_cast<int>(val.length()));
 
     // set the attribute for this element if one was requested.
     if (strcmp(attributeName, "") != 0)
@@ -159,7 +148,7 @@ void vtkPhyloXMLTreeWriter::WriteTreeLevelProperties(vtkTree* input, vtkXMLDataE
 
 //------------------------------------------------------------------------------
 void vtkPhyloXMLTreeWriter::WriteCladeElement(
-  vtkTree* const input, vtkIdType vertex, vtkXMLDataElement* parentElement)
+  vtkTree* input, vtkIdType vertex, vtkXMLDataElement* parentElement)
 {
   // create new clade element for this vertex
   vtkNew<vtkXMLDataElement> cladeElement;
@@ -204,7 +193,7 @@ void vtkPhyloXMLTreeWriter::WriteCladeElement(
 
 //------------------------------------------------------------------------------
 void vtkPhyloXMLTreeWriter::WriteBranchLengthAttribute(
-  vtkTree* const input, vtkIdType vertex, vtkXMLDataElement* element)
+  vtkTree* input, vtkIdType vertex, vtkXMLDataElement* element)
 {
   if (!this->EdgeWeightArray)
   {
@@ -236,12 +225,12 @@ void vtkPhyloXMLTreeWriter::WriteNameElement(vtkIdType vertex, vtkXMLDataElement
     return;
   }
 
-  vtkStdString name = this->NodeNameArray->GetVariantValue(vertex).ToString();
+  std::string name = this->NodeNameArray->GetVariantValue(vertex).ToString();
   if (!name.empty())
   {
     vtkNew<vtkXMLDataElement> nameElement;
     nameElement->SetName("name");
-    nameElement->SetCharacterData(name, static_cast<int>(name.length()));
+    nameElement->SetCharacterData(name.c_str(), static_cast<int>(name.length()));
     element->AddNestedElement(nameElement);
   }
 
@@ -253,7 +242,7 @@ void vtkPhyloXMLTreeWriter::WriteNameElement(vtkIdType vertex, vtkXMLDataElement
 
 //------------------------------------------------------------------------------
 void vtkPhyloXMLTreeWriter::WriteConfidenceElement(
-  vtkTree* const input, vtkIdType vertex, vtkXMLDataElement* element)
+  vtkTree* input, vtkIdType vertex, vtkXMLDataElement* element)
 {
   vtkAbstractArray* confidenceArray = input->GetVertexData()->GetAbstractArray("confidence");
   if (!confidenceArray)
@@ -261,7 +250,7 @@ void vtkPhyloXMLTreeWriter::WriteConfidenceElement(
     return;
   }
 
-  vtkStdString confidence = confidenceArray->GetVariantValue(vertex).ToString();
+  std::string confidence = confidenceArray->GetVariantValue(vertex).ToString();
   if (!confidence.empty())
   {
     vtkNew<vtkXMLDataElement> confidenceElement;
@@ -269,12 +258,12 @@ void vtkPhyloXMLTreeWriter::WriteConfidenceElement(
 
     // set the type attribute for this element if possible.
     const char* type = this->GetArrayAttribute(confidenceArray, "type");
-    if (strcmp(type, "") != 0)
+    if (*type)
     {
       confidenceElement->SetAttribute("type", type);
     }
 
-    confidenceElement->SetCharacterData(confidence, static_cast<int>(confidence.length()));
+    confidenceElement->SetCharacterData(confidence.c_str(), static_cast<int>(confidence.length()));
     element->AddNestedElement(confidenceElement);
   }
 
@@ -286,7 +275,7 @@ void vtkPhyloXMLTreeWriter::WriteConfidenceElement(
 
 //------------------------------------------------------------------------------
 void vtkPhyloXMLTreeWriter::WriteColorElement(
-  vtkTree* const input, vtkIdType vertex, vtkXMLDataElement* element)
+  vtkTree* input, vtkIdType vertex, vtkXMLDataElement* element)
 {
   vtkUnsignedCharArray* colorArray =
     vtkArrayDownCast<vtkUnsignedCharArray>(input->GetVertexData()->GetAbstractArray("color"));
@@ -426,18 +415,13 @@ void vtkPhyloXMLTreeWriter::WritePropertyElement(
   {
     datatype = "xsd:unsignedInt";
   }
-  else if (variantType == "unsigned long" || variantType == "unsigned __int64" ||
-    variantType == "idtype")
+  else if (variantType == "unsigned long" || variantType == "idtype")
   {
     datatype = "xsd:unsignedLong";
   }
-  else if (variantType == "__int64")
-  {
-    datatype = "xsd:long";
-  }
 
   // get the value for this property
-  vtkStdString val = array->GetVariantValue(vertex).ToString();
+  std::string val = array->GetVariantValue(vertex).ToString();
 
   // create the new property element and add it to our document.
   vtkNew<vtkXMLDataElement> propertyElement;
@@ -449,7 +433,7 @@ void vtkPhyloXMLTreeWriter::WritePropertyElement(
   {
     propertyElement->SetAttribute("unit", unit.c_str());
   }
-  propertyElement->SetCharacterData(val, static_cast<int>(val.length()));
+  propertyElement->SetCharacterData(val.c_str(), static_cast<int>(val.length()));
 
   element->AddNestedElement(propertyElement);
 }
@@ -530,3 +514,4 @@ void vtkPhyloXMLTreeWriter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "EdgeWeightArrayName: " << this->EdgeWeightArrayName << endl;
   os << indent << "NodeNameArrayName: " << this->NodeNameArrayName << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageMapper3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageMapper3D
  * @brief   abstract class for mapping images to the screen
@@ -33,6 +21,7 @@
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkThreads.h"             // for VTK_MAX_THREADS
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderer;
 class vtkProp3D;
 class vtkPoints;
@@ -272,4 +261,5 @@ private:
   friend class vtkImageToImageMapper3DFriendship;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

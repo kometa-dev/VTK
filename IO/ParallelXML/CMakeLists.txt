@@ -11,7 +11,6 @@ set(classes
   vtkXMLPHyperTreeGridWriter
   vtkXMLPImageDataWriter
   vtkXMLPMultiBlockDataWriter
-  vtkXMLPPartitionedDataSetWriter
   vtkXMLPPolyDataWriter
   vtkXMLPRectilinearGridWriter
   vtkXMLPStructuredDataWriter
@@ -23,3 +22,4 @@ set(classes
 
 vtk_module_add_module(VTK::IOParallelXML
   CLASSES ${classes})
+vtk_add_test_mangling(VTK::IOParallelXML)

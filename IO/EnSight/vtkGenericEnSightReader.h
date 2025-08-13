@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericEnSightReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGenericEnSightReader
  * @brief   class to read any type of EnSight files
@@ -26,6 +14,7 @@
 #include "vtkIOEnSightModule.h" // For export macro
 #include "vtkMultiBlockDataSetAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCallbackCommand;
 class vtkDataArrayCollection;
 class vtkDataArraySelection;
@@ -282,6 +271,16 @@ public:
   // THIB
   vtkGenericEnSightReader* GetReader() { return this->Reader; }
 
+  ///@{
+  /**
+   * Get/set to ApplyTetrahedralize.
+   * It's used to apply a Tetrahedralize filter to prevent potential non manifold triangles
+   * produced by the ensight solver.
+   */
+  vtkGetMacro(ApplyTetrahedralize, bool);
+  vtkSetMacro(ApplyTetrahedralize, bool);
+  ///@}
+
 protected:
   vtkGenericEnSightReader();
   ~vtkGenericEnSightReader() override;
@@ -447,9 +446,12 @@ protected:
   // Wrapper around an stl map
   TranslationTableType* TranslationTable;
 
+  bool ApplyTetrahedralize = false;
+
 private:
   vtkGenericEnSightReader(const vtkGenericEnSightReader&) = delete;
   void operator=(const vtkGenericEnSightReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

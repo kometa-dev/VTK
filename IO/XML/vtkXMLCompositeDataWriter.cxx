@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkXMLCompositeDataWriter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLCompositeDataWriter.h"
 
 #include "vtkCallbackCommand.h"
@@ -47,6 +36,7 @@
 
 //------------------------------------------------------------------------------
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkXMLCompositeDataWriterInternals
 {
   // These are used to by GetDefaultFileExtension(). This helps us avoid
@@ -121,7 +111,7 @@ unsigned int vtkXMLCompositeDataWriter::GetNumberOfDataTypes()
 //------------------------------------------------------------------------------
 int* vtkXMLCompositeDataWriter::GetDataTypesPointer()
 {
-  return &this->Internal->DataTypes[0];
+  return this->Internal->DataTypes.data();
 }
 
 //------------------------------------------------------------------------------
@@ -370,8 +360,7 @@ void vtkXMLCompositeDataWriter::MakeDirectory(const char* name)
   if (!vtksys::SystemTools::MakeDirectory(name))
   {
     vtkErrorMacro(<< "Sorry unable to create directory: " << name << endl
-                  << "Last system error was: "
-                  << vtksys::SystemTools::GetLastSystemError().c_str());
+                  << "Last system error was: " << vtksys::SystemTools::GetLastSystemError());
   }
 }
 
@@ -381,8 +370,7 @@ void vtkXMLCompositeDataWriter::RemoveADirectory(const char* name)
   if (!vtksys::SystemTools::RemoveADirectory(name))
   {
     vtkErrorMacro(<< "Sorry unable to remove a directory: " << name << endl
-                  << "Last system error was: "
-                  << vtksys::SystemTools::GetLastSystemError().c_str());
+                  << "Last system error was: " << vtksys::SystemTools::GetLastSystemError());
   }
 }
 
@@ -589,8 +577,7 @@ vtkStdString vtkXMLCompositeDataWriter::CreatePieceFileName(int piece)
   }
 
   std::ostringstream stream;
-  stream << this->Internal->FilePrefix.c_str() << "/" << this->Internal->FilePrefix.c_str() << "_"
-         << piece << ".";
+  stream << this->Internal->FilePrefix << "/" << this->Internal->FilePrefix << "_" << piece << ".";
   const char* ext = this->GetDefaultFileExtensionForDataSet(this->Internal->DataTypes[piece]);
   stream << (ext ? ext : "");
   return stream.str();
@@ -616,3 +603,4 @@ void vtkXMLCompositeDataWriter::RemoveWrittenFiles(const char* SubDirectory)
   this->DeleteAFile();
   this->InputInformation = nullptr;
 }
+VTK_ABI_NAMESPACE_END

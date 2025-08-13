@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkXMLMultiBlockDataReader.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLMultiBlockDataReader.h"
 
 #include "vtkCompositeDataPipeline.h"
@@ -26,6 +15,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkXMLDataElement.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkXMLMultiBlockDataReader);
 //------------------------------------------------------------------------------
 vtkXMLMultiBlockDataReader::vtkXMLMultiBlockDataReader() = default;
@@ -144,12 +134,11 @@ void vtkXMLMultiBlockDataReader::ReadComposite(vtkXMLDataElement* element,
     if (strcmp(tagName, "DataSet") == 0)
     {
       vtkSmartPointer<vtkDataObject> childDS;
-      const char* name = nullptr;
+      const char* name = childXML->GetAttribute("name");
       if (this->ShouldReadDataSet(dataSetIndex, index, numPieces))
       {
         // Read
         childDS.TakeReference(this->ReadDataObject(childXML, filePath));
-        name = childXML->GetAttribute("name");
       }
       // insert
       if (mblock)
@@ -392,3 +381,4 @@ int vtkXMLMultiBlockDataReader::RequestInformation(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

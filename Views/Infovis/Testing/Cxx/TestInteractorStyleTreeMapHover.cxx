@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkActor.h"
 #include "vtkIntArray.h"
@@ -14,7 +16,6 @@
 #include "vtkRenderer.h"
 #include "vtkSmartPointer.h"
 #include "vtkSquarifyLayoutStrategy.h"
-#include "vtkStdString.h"
 #include "vtkTree.h"
 #include "vtkTreeFieldAggregator.h"
 #include "vtkTreeMapLayout.h"

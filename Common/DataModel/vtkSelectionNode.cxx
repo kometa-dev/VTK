@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSelectionNode.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSelectionNode.h"
 
 #include "vtkDataArrayRange.h"
@@ -34,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSelectionNode);
 vtkCxxSetObjectMacro(vtkSelectionNode, SelectionData, vtkDataSetAttributes);
 
@@ -74,9 +63,10 @@ vtkInformationKeyMacro(vtkSelectionNode, EPSILON, Double);
 vtkInformationKeyMacro(vtkSelectionNode, ZBUFFER_VALUE, Double);
 vtkInformationKeyMacro(vtkSelectionNode, CONTAINING_CELLS, Integer);
 vtkInformationKeyMacro(vtkSelectionNode, CONNECTED_LAYERS, Integer);
+vtkInformationKeyMacro(vtkSelectionNode, CONNECTED_LAYERS_REMOVE_SEED, Integer);
+vtkInformationKeyMacro(vtkSelectionNode, CONNECTED_LAYERS_REMOVE_INTERMEDIATE_LAYERS, Integer);
 vtkInformationKeyMacro(vtkSelectionNode, PIXEL_COUNT, Integer);
 vtkInformationKeyMacro(vtkSelectionNode, INVERSE, Integer);
-vtkInformationKeyMacro(vtkSelectionNode, INDEXED_VERTICES, Integer);
 vtkInformationKeyMacro(vtkSelectionNode, COMPONENT_NUMBER, Integer);
 vtkInformationKeyMacro(vtkSelectionNode, ASSEMBLY_NAME, String);
 vtkInformationKeyMacro(vtkSelectionNode, SELECTORS, StringVector);
@@ -268,7 +258,7 @@ bool vtkSelectionNode::EqualProperties(vtkSelectionNode* other, bool fullcompare
     return false;
   }
 
-  vtkSmartPointer<vtkInformationIterator> iterSelf = vtkSmartPointer<vtkInformationIterator>::New();
+  vtkNew<vtkInformationIterator> iterSelf;
 
   iterSelf->SetInformation(this->Properties);
 
@@ -276,8 +266,7 @@ bool vtkSelectionNode::EqualProperties(vtkSelectionNode* other, bool fullcompare
   for (iterSelf->InitTraversal(); !iterSelf->IsDoneWithTraversal(); iterSelf->GoToNextItem())
   {
     vtkInformationKey* key = iterSelf->GetCurrentKey();
-    vtkInformationIntegerKey* ikey = vtkInformationIntegerKey::SafeDownCast(key);
-    vtkInformationObjectBaseKey* okey = vtkInformationObjectBaseKey::SafeDownCast(key);
+    auto ikey = static_cast<vtkInformationIntegerKey*>(key);
     if (ikey)
     {
       if (!otherProperties->Has(ikey) || this->Properties->Get(ikey) != otherProperties->Get(ikey))
@@ -285,11 +274,16 @@ bool vtkSelectionNode::EqualProperties(vtkSelectionNode* other, bool fullcompare
         return false;
       }
     }
-    if (okey)
+    else
     {
-      if (!otherProperties->Has(okey) || this->Properties->Get(okey) != otherProperties->Get(okey))
+      auto okey = static_cast<vtkInformationObjectBaseKey*>(key);
+      if (okey)
       {
-        return false;
+        if (!otherProperties->Has(okey) ||
+          this->Properties->Get(okey) != otherProperties->Get(okey))
+        {
+          return false;
+        }
       }
     }
   }
@@ -483,7 +477,7 @@ void vtkSelectionNode::SubtractSelectionList(vtkSelectionNode* other)
     {
       vtkErrorMacro(<< "Do not know how to subtract the given content type " << type << ".");
     }
-  };
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -550,3 +544,4 @@ int vtkSelectionNode::ConvertAttributeTypeToSelectionField(int attrType)
       return vtkSelectionNode::CELL;
   }
 }
+VTK_ABI_NAMESPACE_END

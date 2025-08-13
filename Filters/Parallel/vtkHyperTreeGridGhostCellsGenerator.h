@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridGhostCellsGenerator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridGhostCellsGenerator
  * @brief   Generated ghost cells (HyperTree's distributed).
@@ -38,6 +26,7 @@
 
 #include <vector> // For vtkHypertreeGridGhostCellsGenerator::ExtractInterface
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBitArray;
 class vtkCellData;
 class vtkHyperTreeGrid;
@@ -87,8 +76,8 @@ protected:
    * @param indices An array produced by this filter mapping the nodes of the interface with their
    * location in the input data array.
    * @param grid Input vtkHyperTreeGrid used to have the neighborhood profile. This neighborhood
-   * profile is tested with the mask parameter to know wether to descend or not in the current hyper
-   * tree.
+   * profile is tested with the mask parameter to know whether to descend or not in the current
+   * hyper tree.
    * @param mask Input parameter which should be shaped as vtkHyperTreeGrid::GetChildMask() of the
    * input. This parameter is used to only descend on the interface with the other processes.
    * @param pos This parameter will be equal to the number of nodes in the hyper tree to send to the
@@ -119,4 +108,5 @@ private:
   void operator=(const vtkHyperTreeGridGhostCellsGenerator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkHyperTreeGridGhostCellsGenerator */

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPyramid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPyramid.h"
 
@@ -31,6 +19,7 @@
 #include <cassert>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPyramid);
 
 namespace
@@ -123,10 +112,9 @@ constexpr vtkIdType valenceAtPoint[vtkPyramid::NumberOfPoints] = {
   3  // 4
 };
 
-typedef int EDGE_LIST;
 struct TRIANGLE_CASES_t
 {
-  EDGE_LIST edges[13];
+  int edges[13];
 };
 using TRIANGLE_CASES = struct TRIANGLE_CASES_t;
 TRIANGLE_CASES triCases[] = {
@@ -178,22 +166,22 @@ bool vtkPyramid::ComputeCentroid(vtkPoints* points, const vtkIdType* pointIds, d
   centroid[0] = centroid[1] = centroid[2] = 0.0;
   if (!pointIds)
   {
-    vtkPolygon::ComputeCentroid(points, numberOfPointsInFace[4], faces[4], centroid);
+    vtkPolygon::ComputeCentroid(points, numberOfPointsInFace[0], faces[0], centroid);
     points->GetPoint(4, p);
   }
   else
   {
-    vtkIdType facePointsIds[4] = { pointIds[faces[4][0]], pointIds[faces[4][1]],
-      pointIds[faces[4][2]], pointIds[faces[4][3]] };
-    vtkPolygon::ComputeCentroid(points, numberOfPointsInFace[4], facePointsIds, centroid);
+    vtkIdType facePointsIds[4] = { pointIds[faces[0][0]], pointIds[faces[0][1]],
+      pointIds[faces[0][2]], pointIds[faces[0][3]] };
+    vtkPolygon::ComputeCentroid(points, numberOfPointsInFace[0], facePointsIds, centroid);
     points->GetPoint(pointIds[4], p);
   }
-  centroid[0] += 3 * p[0];
-  centroid[1] += 3 * p[1];
-  centroid[2] += 3 * p[2];
-  centroid[0] *= 0.25;
-  centroid[1] *= 0.25;
-  centroid[2] *= 0.25;
+  centroid[0] *= 0.75;
+  centroid[1] *= 0.75;
+  centroid[2] *= 0.75;
+  centroid[0] += 0.25 * p[0];
+  centroid[1] += 0.25 * p[1];
+  centroid[2] += 0.25 * p[2];
   return true;
 }
 
@@ -243,8 +231,13 @@ int vtkPyramid::EvaluatePosition(const double x[3], double closestPoint[3], int&
   subId = 0;
 
   // Efficient point access
-  vtkDoubleArray* pointArray = static_cast<vtkDoubleArray*>(this->Points->GetData());
-  const double* pts = pointArray->GetPointer(0);
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
   const double *pt0, *pt1, *tmp;
 
   // There are problems searching for the apex point so we check if
@@ -299,7 +292,7 @@ int vtkPyramid::EvaluatePosition(const double x[3], double closestPoint[3], int&
     }
   }
   // longestEdge value is already squared
-  double volumeBound = pow(longestEdge, 1.5);
+  double volumeBound = longestEdge * std::sqrt(longestEdge);
   double determinantTolerance = 1e-20 < .00001 * volumeBound ? 1e-20 : .00001 * volumeBound;
 
   //  set initial position for Newton's method
@@ -423,14 +416,23 @@ void vtkPyramid::EvaluateLocation(
   int& vtkNotUsed(subId), const double pcoords[3], double x[3], double* weights)
 {
   int i, j;
-  double pt[3];
+  const double* pt;
 
   vtkPyramid::InterpolationFunctions(pcoords, weights);
+
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
 
   x[0] = x[1] = x[2] = 0.0;
   for (i = 0; i < 5; i++)
   {
-    this->Points->GetPoint(i, pt);
+    pt = pts + 3 * i;
     for (j = 0; j < 3; j++)
     {
       x[j] += pt[j] * weights[i];
@@ -521,7 +523,7 @@ void vtkPyramid::Contour(double value, vtkDataArray* cellScalars,
 {
   static const int CASE_MASK[5] = { 1, 2, 4, 8, 16 };
   TRIANGLE_CASES* triCase;
-  EDGE_LIST* edge;
+  int* edge;
   int i, j, index, v1, v2, newCellId;
   const vtkIdType* vert;
   vtkIdType pts[3];
@@ -857,10 +859,10 @@ void vtkPyramid::Derivatives(
     // derivatives which really ends up as the same thing.
     double pcoords1[3] = { .5, .5, 2. * .998 - pcoords[2] };
     std::vector<double> derivs1(3 * dim);
-    this->Derivatives(subId, pcoords1, values, dim, &(derivs1[0]));
+    this->Derivatives(subId, pcoords1, values, dim, derivs1.data());
     double pcoords2[3] = { .5, .5, .998 };
     std::vector<double> derivs2(3 * dim);
-    this->Derivatives(subId, pcoords2, values, dim, &(derivs2[0]));
+    this->Derivatives(subId, pcoords2, values, dim, derivs2.data());
     for (int i = 0; i < dim * 3; i++)
     {
       derivs[i] = 2. * derivs2[i] - derivs1[i];
@@ -1074,3 +1076,4 @@ void vtkPyramid::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Quad:\n";
   this->Quad->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

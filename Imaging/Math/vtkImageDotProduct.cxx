@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageDotProduct.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageDotProduct.h"
 
 #include "vtkImageData.h"
@@ -21,6 +9,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageDotProduct);
 
 //------------------------------------------------------------------------------
@@ -54,7 +43,7 @@ void vtkImageDotProductExecute(vtkImageDotProduct* self, vtkImageData* in1Data,
   vtkImageIterator<T> inIt1(in1Data, outExt);
   vtkImageIterator<T> inIt2(in2Data, outExt);
   vtkImageProgressIterator<T> outIt(outData, outExt, self, id);
-  float dot;
+  double dot;
 
   // find the region to loop over
   int maxC = in1Data->GetNumberOfScalarComponents();
@@ -73,7 +62,7 @@ void vtkImageDotProductExecute(vtkImageDotProduct* self, vtkImageData* in1Data,
       dot = 0.0;
       for (idxC = 0; idxC < maxC; idxC++)
       {
-        dot += static_cast<float>(*inSI1 * *inSI2);
+        dot += static_cast<double>(*inSI1) * static_cast<double>(*inSI2);
         ++inSI1;
         ++inSI2;
       }
@@ -129,3 +118,4 @@ void vtkImageDotProduct::ThreadedRequestData(vtkInformation* vtkNotUsed(request)
       return;
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPIOReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPIOReader.h"
 
 #include "PIOAdaptor.h"
@@ -36,6 +24,7 @@
 #include <iostream>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPIOReader);
 vtkCxxSetObjectMacro(vtkPIOReader, Controller, vtkMultiProcessController);
 
@@ -168,7 +157,7 @@ int vtkPIOReader::RequestInformation(vtkInformation* vtkNotUsed(reqInfo),
   }
 
   // Set the current TIME_STEP() data based on requested TimeArrayName
-  if (strcmp(this->ActiveTimeDataArrayName, this->CurrentTimeDataArrayName.c_str()) != 0)
+  if (this->ActiveTimeDataArrayName != this->CurrentTimeDataArrayName)
   {
     this->CurrentTimeDataArrayName = this->ActiveTimeDataArrayName;
     if (strcmp(this->ActiveTimeDataArrayName, "SimulationTime") == 0)
@@ -271,7 +260,7 @@ int vtkPIOReader::RequestData(vtkInformation* vtkNotUsed(reqInfo),
   }
   else
   {
-    // Pipeline actived from python script
+    // Pipeline activated from python script
     if (this->CurrentTimeStep < 0 || this->CurrentTimeStep >= this->NumberOfTimeSteps)
     {
       this->CurrentTimeStep = 0;
@@ -379,8 +368,9 @@ const char* vtkPIOReader::GetTimeDataArray(int idx) const
   if (idx < 0 || idx > static_cast<int>(this->TimeDataStringArray->GetNumberOfValues()))
   {
     vtkErrorMacro("Invalid index for 'GetTimeDataArray': " << idx);
+    return nullptr;
   }
-  return this->TimeDataStringArray->GetValue(idx);
+  return this->TimeDataStringArray->GetValue(idx).c_str();
 }
 
 void vtkPIOReader::PrintSelf(ostream& os, vtkIndent indent)
@@ -394,3 +384,4 @@ void vtkPIOReader::PrintSelf(ostream& os, vtkIndent indent)
 
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVolumeTexture.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class  vtkVolumeTexture
@@ -75,6 +63,7 @@
 #include "vtkTimeStamp.h"                    // For UploadTime
 #include "vtkTuple.h"                        // For Size6 and Size3
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkDataSet;
 class vtkImageData;
@@ -135,7 +124,7 @@ public:
   /**
    *  Set a number of blocks per axis.
    */
-  void SetPartitions(int const x, int const y, int const z);
+  void SetPartitions(int x, int y, int z);
   const Size3& GetPartitions();
 
   /**
@@ -180,7 +169,7 @@ public:
    * custom shader code. For example, when looking up color values through the
    * transfer function texture, the scalar value must be scaled and offset.
    */
-  static void GetScaleAndBias(const int scalarType, float* scalarRange, float& scale, float& bias);
+  static void GetScaleAndBias(int scalarType, float* scalarRange, float& scale, float& bias);
   vtkDataArray* GetLoadedScalars();
 
   bool HandleLargeDataTypes;
@@ -216,14 +205,14 @@ private:
    * Load an image block as defined in volBlock into GPU memory.
    * Requires an active OpenGL context.
    */
-  bool LoadTexture(int const interpolation, VolumeBlock* volBlock);
+  bool LoadTexture(int interpolation, VolumeBlock* volBlock);
 
   /**
    * Divide the image data in NxMxO user-defined blocks.
    */
   void SplitVolume(vtkImageData* imageData, Size3 const& part);
 
-  void CreateBlocks(unsigned int const format, unsigned int const internalFormat, int const type);
+  void CreateBlocks(unsigned int format, unsigned int internalFormat, int type);
 
   void AdjustExtentForCell(Size6& extent);
   Size3 ComputeBlockSize(int* extent);
@@ -233,7 +222,7 @@ private:
    * vtkDataArray type (scalarType) and the number of array components.
    */
   void SelectTextureFormat(unsigned int& format, unsigned int& internalFormat, int& type,
-    int const scalarType, int const noOfComponents);
+    int scalarType, int noOfComponents);
 
   void ScaleRange(int const scalarType, int const noOfComponents);
 
@@ -278,15 +267,14 @@ private:
    * a volume would not fit in the GPU (due to MAX_TEXTURE_SIZE limitations,
    * memory availability, etc.).
    */
-  bool AreDimensionsValid(
-    vtkTextureObject* texture, int const width, int const height, int const depth);
+  bool AreDimensionsValid(vtkTextureObject* texture, int width, int height, int depth);
 
-  bool SafeLoadTexture(vtkTextureObject* texture, int const width, int const height,
-    int const depth, int numComps, int dataType, void* dataPtr);
+  bool SafeLoadTexture(vtkTextureObject* texture, int width, int height, int depth, int numComps,
+    int dataType, void* dataPtr);
   ///@}
 
-  void UpdateInterpolationType(int const interpolation);
-  void SetInterpolation(int const interpolation);
+  void UpdateInterpolationType(int interpolation);
+  void SetInterpolation(int interpolation);
 
   //----------------------------------------------------------------------------
   vtkTimeStamp UpdateTime;
@@ -306,4 +294,5 @@ private:
   vtkDataArray* Scalars;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkVolumeTexture_h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHigherOrderInterpolation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHigherOrderInterpolation.h"
 
 #include "vtkDoubleArray.h"
@@ -30,6 +18,7 @@
 // vtkStandardNewMacro(vtkHigherOrderInterpolation);
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 static constexpr double hexCorner[8][3] = { { 0., 0., 0. }, { +1., 0., 0. }, { +1., +1., 0. },
   { 0., +1., 0. }, { 0., 0., +1. }, { +1., 0., +1. }, { +1., +1., +1. }, { 0., +1., +1. } };
 
@@ -114,7 +103,7 @@ int vtkHigherOrderInterpolation::Tensor1ShapeFunctions(const int order[1], const
 {
   std::vector<double> ll;
   ll.resize(order[0] + 1);
-  function_evaluate_shape_functions(order[0], pcoords[0], &ll[0]);
+  function_evaluate_shape_functions(order[0], pcoords[0], ll.data());
   int sn = 0;
 
   shape[sn++] = ll[0];
@@ -130,7 +119,7 @@ int vtkHigherOrderInterpolation::Tensor1ShapeDerivatives(const int order[1], con
   double* derivs, void (*function_evaluate_shape_and_gradient)(int, double, double*, double*))
 {
   std::vector<double> dummy(order[0] + 1);
-  function_evaluate_shape_and_gradient(order[0], pcoords[0], &dummy[0], derivs);
+  function_evaluate_shape_and_gradient(order[0], pcoords[0], dummy.data(), derivs);
   return order[0] + 1;
 }
 
@@ -144,7 +133,7 @@ int vtkHigherOrderInterpolation::Tensor2ShapeFunctions(const int order[2], const
   for (i = 0; i < 2; ++i)
   {
     ll[i].resize(order[i] + 1);
-    function_evaluate_shape_functions(order[i], pcoords[i], &ll[i][0]);
+    function_evaluate_shape_functions(order[i], pcoords[i], ll[i].data());
   }
 
   int sn = 0;
@@ -195,7 +184,7 @@ int vtkHigherOrderInterpolation::Tensor2ShapeDerivatives(const int order[2],
   {
     ll[i].resize(order[i] + 1);
     dd[i].resize(order[i] + 1);
-    function_evaluate_shape_and_gradient(order[i], pcoords[i], &ll[i][0], &dd[i][0]);
+    function_evaluate_shape_and_gradient(order[i], pcoords[i], ll[i].data(), dd[i].data());
   }
 
   int sn = 0;
@@ -256,7 +245,7 @@ int vtkHigherOrderInterpolation::Tensor3ShapeFunctions(const int order[3], const
   for (i = 0; i < 3; ++i)
   {
     ll[i].resize(order[i] + 1);
-    function_evaluate_shape_functions(order[i], pcoords[i], &ll[i][0]);
+    function_evaluate_shape_functions(order[i], pcoords[i], ll[i].data());
   }
 
   int sn = 0;
@@ -369,7 +358,7 @@ int vtkHigherOrderInterpolation::Tensor3ShapeDerivatives(const int order[3],
   {
     ll[i].resize(order[i] + 1);
     dd[i].resize(order[i] + 1);
-    function_evaluate_shape_and_gradient(order[i], pcoords[i], &ll[i][0], &dd[i][0]);
+    function_evaluate_shape_and_gradient(order[i], pcoords[i], ll[i].data(), dd[i].data());
   }
 
   int sn = 0;
@@ -550,7 +539,7 @@ void vtkHigherOrderInterpolation::Tensor3EvaluateDerivative(const int order[3],
   vtkIdType numberOfPoints = points->GetNumberOfPoints();
   this->PrepareForOrder(order, numberOfPoints);
   this->Tensor3ShapeDerivatives(
-    order, pcoords, &this->DerivSpace[0], function_evaluate_shape_and_gradient);
+    order, pcoords, this->DerivSpace.data(), function_evaluate_shape_and_gradient);
 
   // compute inverse Jacobian
   double *jI[3], j0[3], j1[3], j2[3];
@@ -584,9 +573,9 @@ void vtkHigherOrderInterpolation::Tensor3EvaluateDerivative(const int order[3],
 }
 
 /// Wedge shape function computation
-void vtkHigherOrderInterpolation::WedgeShapeFunctions(const int order[3],
-  const vtkIdType numberOfPoints, const double pcoords[3], double* shape,
-  vtkHigherOrderTriangle& tri, void (*function_evaluate_shape_functions)(int, double, double*))
+void vtkHigherOrderInterpolation::WedgeShapeFunctions(const int order[3], vtkIdType numberOfPoints,
+  const double pcoords[3], double* shape, vtkHigherOrderTriangle& tri,
+  void (*function_evaluate_shape_functions)(int, double, double*))
 {
   if (order[0] != order[1])
   {
@@ -636,7 +625,7 @@ void vtkHigherOrderInterpolation::WedgeShapeFunctions(const int order[3],
 #endif
 
   std::vector<double> ll(tOrder + 1);
-  function_evaluate_shape_functions(tOrder, pcoords[2], &ll[0]);
+  function_evaluate_shape_functions(tOrder, pcoords[2], ll.data());
   vtkVector3d triP(pcoords);
   triP[2] = 0;
   const int numtripts = (rsOrder + 1) * (rsOrder + 2) / 2;
@@ -644,7 +633,7 @@ void vtkHigherOrderInterpolation::WedgeShapeFunctions(const int order[3],
   tri.GetPoints()->SetNumberOfPoints(numtripts);
   tri.GetPointIds()->SetNumberOfIds(numtripts);
   tri.Initialize();
-  tri.InterpolateFunctions(triP.GetData(), &tt[0]);
+  tri.InterpolateFunctions(triP.GetData(), tt.data());
 
   int sn;
   // int numPts = numtripts * (tOrder + 1);
@@ -671,8 +660,7 @@ void vtkHigherOrderInterpolation::WedgeShapeFunctions(const int order[3],
 
 /// Wedge shape-function derivative evaluation
 void vtkHigherOrderInterpolation::WedgeShapeDerivatives(const int order[3],
-  const vtkIdType numberOfPoints, const double pcoords[3], double* derivs,
-  vtkHigherOrderTriangle& tri,
+  vtkIdType numberOfPoints, const double pcoords[3], double* derivs, vtkHigherOrderTriangle& tri,
   void (*function_evaluate_shape_and_gradient)(int, double, double*, double*))
 {
   if (order[0] != order[1])
@@ -687,7 +675,7 @@ void vtkHigherOrderInterpolation::WedgeShapeDerivatives(const int order[3],
 
   std::vector<double> ll(tOrder + 1);
   std::vector<double> ld(tOrder + 1);
-  function_evaluate_shape_and_gradient(tOrder, pcoords[2], &ll[0], &ld[0]);
+  function_evaluate_shape_and_gradient(tOrder, pcoords[2], ll.data(), ld.data());
   vtkVector3d triP(pcoords);
   triP[2] = 0;
   const int numtripts = (rsOrder + 1) * (rsOrder + 2) / 2;
@@ -696,8 +684,8 @@ void vtkHigherOrderInterpolation::WedgeShapeDerivatives(const int order[3],
   tri.GetPoints()->SetNumberOfPoints(numtripts);
   tri.GetPointIds()->SetNumberOfIds(numtripts);
   tri.Initialize();
-  tri.InterpolateFunctions(triP.GetData(), &tt[0]);
-  tri.InterpolateDerivs(triP.GetData(), &td[0]);
+  tri.InterpolateFunctions(triP.GetData(), tt.data());
+  tri.InterpolateDerivs(triP.GetData(), td.data());
 
   int numPts = numtripts * (tOrder + 1);
 #ifdef VTK_21_POINT_WEDGE
@@ -807,13 +795,13 @@ void vtkHigherOrderInterpolation::WedgeShapeDerivatives(const int order[3],
   }
 }
 
-void vtkHigherOrderInterpolation::WedgeEvaluate(const int order[3], const vtkIdType numberOfPoints,
+void vtkHigherOrderInterpolation::WedgeEvaluate(const int order[3], vtkIdType numberOfPoints,
   const double* pcoords, double* fieldVals, int fieldDim, double* fieldAtPCoords,
   vtkHigherOrderTriangle& tri, void (*function_evaluate_shape_functions)(int, double, double*))
 {
   this->PrepareForOrder(order, numberOfPoints);
-  this->WedgeShapeFunctions(
-    order, numberOfPoints, pcoords, &this->ShapeSpace[0], tri, function_evaluate_shape_functions);
+  this->WedgeShapeFunctions(order, numberOfPoints, pcoords, this->ShapeSpace.data(), tri,
+    function_evaluate_shape_functions);
   // Loop over components of the field:
   for (int cc = 0; cc < fieldDim; ++cc)
   {
@@ -833,7 +821,7 @@ void vtkHigherOrderInterpolation::WedgeEvaluateDerivative(const int order[3], co
 {
   vtkIdType numberOfPoints = points->GetNumberOfPoints();
   this->PrepareForOrder(order, numberOfPoints);
-  this->WedgeShapeDerivatives(order, numberOfPoints, pcoords, &this->DerivSpace[0], tri,
+  this->WedgeShapeDerivatives(order, numberOfPoints, pcoords, this->DerivSpace.data(), tri,
     function_evaluate_shape_and_gradient);
 
   // compute inverse Jacobian
@@ -1263,8 +1251,7 @@ void vtkHigherOrderInterpolation::AppendWedgeCollocationPoints(vtkPoints* pts, i
 }
 #endif // 0
 
-void vtkHigherOrderInterpolation::PrepareForOrder(
-  const int order[3], const vtkIdType numberOfPoints)
+void vtkHigherOrderInterpolation::PrepareForOrder(const int order[3], vtkIdType numberOfPoints)
 {
   // Ensure some scratch space is allocated for templated evaluation methods.
   std::size_t maxShape =
@@ -1279,3 +1266,4 @@ void vtkHigherOrderInterpolation::PrepareForOrder(
     this->DerivSpace.resize(maxDeriv);
   }
 }
+VTK_ABI_NAMESPACE_END

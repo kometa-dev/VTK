@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBezierWedge.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBezierWedge.h"
 
@@ -32,6 +20,7 @@
 #include "vtkVectorOperators.h"
 #include "vtkWedge.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBezierWedge);
 
 vtkBezierWedge::vtkBezierWedge() = default;
@@ -149,24 +138,12 @@ vtkCell* vtkBezierWedge::GetFace(int faceId)
   }
 }
 
-/**\brief EvaluateLocation Given a point_id. This is required by Bezier because the interior points
- * are non-interpolatory .
- */
-void vtkBezierWedge::EvaluateLocationProjectedNode(
-  int& subId, const vtkIdType point_id, double x[3], double* weights)
-{
-  this->vtkHigherOrderWedge::SetParametricCoords();
-  double pcoords[3];
-  this->PointParametricCoordinates->GetPoint(this->PointIds->FindIdLocation(point_id), pcoords);
-  this->vtkHigherOrderWedge::EvaluateLocation(subId, pcoords, x, weights);
-}
-
 void vtkBezierWedge::InterpolateFunctions(const double pcoords[3], double* weights)
 {
   vtkBezierInterpolation::WedgeShapeFunctions(
     this->GetOrder(), this->GetOrder()[3], pcoords, weights);
 
-  // If the unit cell has rational weigths: weights_i = weights_i * rationalWeights / sum( weights_i
+  // If the unit cell has rational weights: weights_i = weights_i * rationalWeights / sum( weights_i
   // * rationalWeights )
   const bool has_rational_weights = RationalWeights->GetNumberOfTuples() > 0;
   if (has_rational_weights)
@@ -192,8 +169,7 @@ void vtkBezierWedge::InterpolateDerivs(const double pcoords[3], double* derivs)
 
 /**\brief Set the rational weight of the cell, given a vtkDataSet
  */
-void vtkBezierWedge::SetRationalWeightsFromPointData(
-  vtkPointData* point_data, const vtkIdType numPts)
+void vtkBezierWedge::SetRationalWeightsFromPointData(vtkPointData* point_data, vtkIdType numPts)
 {
   vtkDataArray* v = point_data->GetRationalWeights();
   if (v)
@@ -228,3 +204,4 @@ vtkHigherOrderInterpolation* vtkBezierWedge::GetInterpolation()
 {
   return Interp;
 };
+VTK_ABI_NAMESPACE_END

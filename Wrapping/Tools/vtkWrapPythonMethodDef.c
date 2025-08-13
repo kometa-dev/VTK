@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPythonMethodDef.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapPythonMethodDef.h"
 #include "vtkWrapPythonClass.h"
@@ -295,7 +283,6 @@ void vtkWrapPython_GenerateMethods(FILE* fp, const char* classname, ClassInfo* d
   int numberOfWrappedFunctions = 0;
   FunctionInfo** wrappedFunctions;
   FunctionInfo* theFunc;
-  char* cp;
   const char* ccp;
 
   wrappedFunctions = (FunctionInfo**)malloc(data->NumberOfFunctions * sizeof(FunctionInfo*));
@@ -323,9 +310,7 @@ void vtkWrapPython_GenerateMethods(FILE* fp, const char* classname, ClassInfo* d
       (!vtkWrap_IsConstructor(data, theFunc) == !do_constructors))
     {
       ccp = vtkWrapText_PythonSignature(theFunc);
-      cp = (char*)malloc(strlen(ccp) + 1);
-      strcpy(cp, ccp);
-      theFunc->Signature = cp;
+      theFunc->Signature = vtkParse_CacheString(finfo->Strings, ccp, strlen(ccp));
       wrappedFunctions[numberOfWrappedFunctions++] = theFunc;
     }
   }
@@ -344,7 +329,7 @@ void vtkWrapPython_GenerateMethods(FILE* fp, const char* classname, ClassInfo* d
     {
       fprintf(fp, "\n");
 
-      vtkWrapPython_GenerateOneMethod(fp, classname, data, hinfo, wrappedFunctions,
+      vtkWrapPython_GenerateOneMethod(fp, classname, data, finfo, hinfo, wrappedFunctions,
         numberOfWrappedFunctions, fnum, is_vtkobject, do_constructors);
 
     } /* is this method non NULL */
@@ -872,7 +857,7 @@ static void vtkWrapPython_ReplaceInvokeEvent(FILE* fp, const char* classname, Cl
       for (eventIdx = 0; eventIdx < 2; eventIdx++)
       {
         fprintf(fp,
-          "  {nullptr, PyvtkObject_InvokeEvent_%s%s, METH_VARARGS,\n"
+          "  {\"InvokeEvent\", PyvtkObject_InvokeEvent_%s%s, METH_VARARGS,\n"
           "   \"@%s%s\"},\n",
           eventTypeString[eventIdx], callBackTypeString[callBackIdx], eventTypeString[eventIdx],
           fullCallBackTypeString[callBackIdx]);
@@ -940,7 +925,7 @@ static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, Cla
       "  if (op && ap.CheckArgCount(1) &&\n"
       "      ap.GetValue(temp0))\n"
       "  {\n"
-      "    sprintf(tempr, \"Addr=%%p\", static_cast<void*>(op));\n"
+      "    snprintf(tempr, sizeof(tempr), \"Addr=%%p\", static_cast<void*>(op));\n"
       "\n"
       "    result = ap.BuildValue(tempr);\n"
       "  }\n"

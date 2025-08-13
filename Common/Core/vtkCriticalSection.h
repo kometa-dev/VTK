@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCriticalSection.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCriticalSection
  * @brief   Critical section locking class
@@ -41,10 +29,11 @@
 #include "vtkObject.h"
 #include <mutex> // for std::mutex
 
+VTK_ABI_NAMESPACE_BEGIN
 // Remove with VTK_DEPRECATED_IN_9_2_0 because it was not actually deprecated
 // in 9.1.0.
-VTK_DEPRECATED_IN_9_1_0("Use std::mutex instead")
-class VTKCOMMONCORE_EXPORT vtkCriticalSection : public vtkObject
+class VTK_DEPRECATED_IN_9_1_0("Use std::mutex instead") VTKCOMMONCORE_EXPORT vtkCriticalSection
+  : public vtkObject
 {
 public:
   static vtkCriticalSection* New();
@@ -82,4 +71,7 @@ inline void vtkCriticalSection::Unlock()
   this->mtx.unlock();
 }
 
+VTK_ABI_NAMESPACE_END
 #endif
+
+// VTK-HeaderTest-Exclude: vtkCriticalSection.h

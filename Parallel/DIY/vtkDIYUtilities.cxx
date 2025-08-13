@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDIYUtilities.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDIYUtilities.h"
 
 #include "vtkAbstractArray.h"
@@ -31,7 +19,6 @@
 #include "vtkRectilinearGridToPointSet.h"
 #include "vtkSOADataArrayTemplate.h"
 #include "vtkSmartPointer.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkUnstructuredGrid.h"
 #include "vtkXMLDataObjectWriter.h"
@@ -47,6 +34,7 @@
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 //==============================================================================
@@ -234,15 +222,15 @@ void vtkDIYUtilities::AllReduce(diy::mpi::communicator& comm, vtkBoundingBox& bb
   if (comm.size() > 1)
   {
     std::vector<double> local_minpoint(3), local_maxpoint(3);
-    bbox.GetMinPoint(&local_minpoint[0]);
-    bbox.GetMaxPoint(&local_maxpoint[0]);
+    bbox.GetMinPoint(local_minpoint.data());
+    bbox.GetMaxPoint(local_maxpoint.data());
 
     std::vector<double> global_minpoint(3), global_maxpoint(3);
     diy::mpi::all_reduce(comm, local_minpoint, global_minpoint, diy::mpi::minimum<float>());
     diy::mpi::all_reduce(comm, local_maxpoint, global_maxpoint, diy::mpi::maximum<float>());
 
-    bbox.SetMinPoint(&global_minpoint[0]);
-    bbox.SetMaxPoint(&global_maxpoint[0]);
+    bbox.SetMinPoint(global_minpoint.data());
+    bbox.SetMaxPoint(global_maxpoint.data());
   }
 }
 
@@ -493,7 +481,7 @@ void vtkDIYUtilities::Load(diy::BinaryBuffer& bb, vtkDataSet*& p)
     }
     else
     {
-      vtkLogF(ERROR, "Currrently type '%d' (%s) is not supported.", type,
+      vtkLogF(ERROR, "Currently type '%d' (%s) is not supported.", type,
         vtkDataObjectTypes::GetClassNameFromTypeId(type));
       // aborting for debugging purposes.
       abort();
@@ -643,3 +631,4 @@ void vtkDIYUtilities::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

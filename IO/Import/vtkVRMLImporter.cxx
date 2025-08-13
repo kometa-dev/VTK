@@ -1,25 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVRMLImporter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (C) 1996 Silicon Graphics, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /* ======================================================================
 
    Importer based on BNF Yacc and Lex parser definition from:
 
         **************************************************
         * VRML 2.0 Parser
-        * Copyright (C) 1996 Silicon Graphics, Inc.
-        *
         * Author(s) :    Gavin Bell
         *                Daniel Woods (first port)
         **************************************************
@@ -41,6 +28,7 @@
 #include "vtkIdTypeArray.h"
 #include "vtkLight.h"
 #include "vtkLookupTable.h"
+#include "vtkMath.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
@@ -62,6 +50,7 @@
 #include "vtkVRMLImporter_Yacc.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkVRMLImporterInternal
 {
 public:
@@ -928,6 +917,13 @@ void vtkVRMLImporter::exitField()
     this->DeleteObject(this->Parser->yylval.vec3f);
     this->Parser->yylval.vec3f = nullptr;
   }
+  // For the translation field of the Transform node
+  else if (fieldName == "rotation" && nodeTypeName == "Transform")
+  {
+    float angle = vtkMath::DegreesFromRadians(this->Parser->yylval.vec4f[3]);
+    this->CurrentTransform->RotateWXYZ(angle, this->Parser->yylval.vec4f[0],
+      this->Parser->yylval.vec4f[1], this->Parser->yylval.vec4f[2]);
+  }
   // For the scale field of the transform node
   else if (fieldName == "scale" && nodeTypeName == "Transform")
   {
@@ -1414,3 +1410,4 @@ std::string vtkVRMLImporter::GetOutputsDescription()
   }
   return ss.str();
 }
+VTK_ABI_NAMESPACE_END

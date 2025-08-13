@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHigherOrderQuadrilateral.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkHigherOrderQuadrilateral.h"
 
@@ -32,13 +17,7 @@
 #include "vtkVector.h"
 #include "vtkVectorOperators.h"
 
-vtkHigherOrderCurve* vtkHigherOrderQuadrilateral::getEdgeCell()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkHigherOrderQuadrilateral::getEdgeCell, "VTK 9.1", vtkHigherOrderQuadrilateral::GetEdgeCell);
-  return this->GetEdgeCell();
-}
-
+VTK_ABI_NAMESPACE_BEGIN
 vtkHigherOrderQuadrilateral::vtkHigherOrderQuadrilateral()
 {
   this->Approx = nullptr;
@@ -201,12 +180,21 @@ void vtkHigherOrderQuadrilateral::EvaluateLocation(
   subId = 0; // TODO: Should this be -1?
   this->InterpolateFunctions(pcoords, weights);
 
-  double p[3];
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
+  const double* p;
   x[0] = x[1] = x[2] = 0.;
   vtkIdType nPoints = this->GetPoints()->GetNumberOfPoints();
   for (vtkIdType idx = 0; idx < nPoints; ++idx)
   {
-    this->Points->GetPoint(idx, p);
+    p = pts + 3 * idx;
     for (vtkIdType jdx = 0; jdx < 3; ++jdx)
     {
       x[jdx] += p[jdx] * weights[idx];
@@ -573,7 +561,7 @@ bool vtkHigherOrderQuadrilateral::TransformApproxToCellParams(int subCell, doubl
 /**\brief Set the degree  of the cell, given a vtkDataSet and cellId
  */
 void vtkHigherOrderQuadrilateral::SetOrderFromCellData(
-  vtkCellData* cell_data, const vtkIdType numPts, const vtkIdType cell_id)
+  vtkCellData* cell_data, vtkIdType numPts, vtkIdType cell_id)
 {
   vtkDataArray* v = cell_data->GetHigherOrderDegrees();
   if (v)
@@ -590,7 +578,7 @@ void vtkHigherOrderQuadrilateral::SetOrderFromCellData(
   }
 }
 
-void vtkHigherOrderQuadrilateral::SetUniformOrderFromNumPoints(const vtkIdType numPts)
+void vtkHigherOrderQuadrilateral::SetUniformOrderFromNumPoints(vtkIdType numPts)
 {
   int deg = static_cast<int>(round(std::sqrt(static_cast<int>(numPts)))) - 1;
   this->SetOrder(deg, deg);
@@ -598,7 +586,7 @@ void vtkHigherOrderQuadrilateral::SetUniformOrderFromNumPoints(const vtkIdType n
     vtkErrorMacro("The degrees are direction dependents, and should be set in the input file.");
 }
 
-void vtkHigherOrderQuadrilateral::SetOrder(const int s, const int t)
+void vtkHigherOrderQuadrilateral::SetOrder(int s, int t)
 {
   if (this->PointParametricCoordinates && (Order[0] != s || Order[1] != t))
     this->PointParametricCoordinates->Reset();
@@ -624,3 +612,23 @@ const int* vtkHigherOrderQuadrilateral::GetOrder()
   }
   return this->Order;
 }
+
+bool vtkHigherOrderQuadrilateral::PointCountSupportsUniformOrder(vtkIdType pointsPerCell)
+{
+  // Determine if sqrt(N) is integral (and if so, what is it?).
+  vtkIdType nn = pointsPerCell;
+  int h = nn % 0x0f; // Perfect squares in base 16 must end in 0, 1, 4, or 9.
+  if (h > 9 || (h > 1 && h < 4) || (h > 4 && h < 9))
+  {
+    // Trivially reject numbers with a bad final digit.
+    return false;
+  }
+  // There's a chance we have a perfect square, do the hard work.
+  int root = std::floor(std::sqrt(nn) + 0.5);
+  if (root * root != nn)
+  {
+    return false;
+  }
+  return root >= 4;
+}
+VTK_ABI_NAMESPACE_END

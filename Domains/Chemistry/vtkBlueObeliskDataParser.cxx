@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBlueObeliskDataParser.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBlueObeliskDataParser.h"
 
@@ -19,7 +7,6 @@
 #include "vtkBlueObeliskData.h"
 #include "vtkFloatArray.h"
 #include "vtkObjectFactory.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkUnsignedShortArray.h"
 
@@ -37,6 +24,7 @@
 #endif
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBlueObeliskDataParser);
 
 //------------------------------------------------------------------------------
@@ -45,11 +33,11 @@ vtkBlueObeliskDataParser::vtkBlueObeliskDataParser()
   , IsProcessingAtom(false)
   , IsProcessingValue(false)
   , CurrentValueType(None)
-  , CurrentSymbol(new vtkStdString)
-  , CurrentName(new vtkStdString)
-  , CurrentPeriodicTableBlock(new vtkStdString)
-  , CurrentElectronicConfiguration(new vtkStdString)
-  , CurrentFamily(new vtkStdString)
+  , CurrentSymbol(new std::string)
+  , CurrentName(new std::string)
+  , CurrentPeriodicTableBlock(new std::string)
+  , CurrentElectronicConfiguration(new std::string)
+  , CurrentFamily(new std::string)
 {
 }
 
@@ -360,6 +348,12 @@ void vtkBlueObeliskDataParser::SetCurrentValue(const char* data, int length)
 //------------------------------------------------------------------------------
 void vtkBlueObeliskDataParser::SetCurrentValue(const char* data)
 {
+  if (!data)
+  {
+    vtkWarningMacro(<< "Cannot parse `nullptr` for datatype " << this->CurrentValueType << ".");
+    return;
+  }
+
   vtkDebugMacro(<< "Parsing string '" << data << "' for datatype " << this->CurrentValueType
                 << ".");
   switch (this->CurrentValueType)
@@ -435,7 +429,7 @@ void vtkBlueObeliskDataParser::ResizeArrayIfNeeded(vtkAbstractArray* arr, vtkIdT
 
 //------------------------------------------------------------------------------
 void vtkBlueObeliskDataParser::ResizeAndSetValue(
-  vtkStdString* val, vtkStringArray* arr, vtkIdType ind)
+  std::string* val, vtkStringArray* arr, vtkIdType ind)
 {
   vtkBlueObeliskDataParser::ResizeArrayIfNeeded(arr, ind);
   arr->SetValue(ind, val->c_str());
@@ -457,13 +451,13 @@ void vtkBlueObeliskDataParser::ResizeAndSetValue(
 }
 
 //------------------------------------------------------------------------------
-inline int vtkBlueObeliskDataParser::parseInt(const char* d)
+int vtkBlueObeliskDataParser::parseInt(const char* d)
 {
   return atoi(d);
 }
 
 //------------------------------------------------------------------------------
-inline float vtkBlueObeliskDataParser::parseFloat(const char* d)
+float vtkBlueObeliskDataParser::parseFloat(const char* d)
 {
   float value;
   std::stringstream stream(d);
@@ -478,7 +472,7 @@ inline float vtkBlueObeliskDataParser::parseFloat(const char* d)
 }
 
 //------------------------------------------------------------------------------
-inline void vtkBlueObeliskDataParser::parseFloat3(const char* str, float arr[3])
+void vtkBlueObeliskDataParser::parseFloat3(const char* str, float arr[3])
 {
   unsigned short ind = 0;
 
@@ -497,17 +491,18 @@ inline void vtkBlueObeliskDataParser::parseFloat3(const char* str, float arr[3])
 }
 
 //------------------------------------------------------------------------------
-inline unsigned short vtkBlueObeliskDataParser::parseUnsignedShort(const char* d)
+unsigned short vtkBlueObeliskDataParser::parseUnsignedShort(const char* d)
 {
   return static_cast<unsigned short>(atoi(d));
 }
 
 //------------------------------------------------------------------------------
-inline vtkStdString* vtkBlueObeliskDataParser::ToLower(vtkStdString* str)
+std::string* vtkBlueObeliskDataParser::ToLower(std::string* str)
 {
-  for (vtkStdString::iterator it = str->begin(), it_end = str->end(); it != it_end; ++it)
+  for (std::string::iterator it = str->begin(), it_end = str->end(); it != it_end; ++it)
   {
     *it = static_cast<char>(tolower(*it));
   }
   return str;
 }
+VTK_ABI_NAMESPACE_END

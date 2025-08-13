@@ -1,25 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAppendFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAppendFilter.h"
 
 #include "vtkBoundingBox.h"
 #include "vtkCell.h"
 #include "vtkCellData.h"
-#include "vtkDataArrayRange.h"
 #include "vtkDataSetCollection.h"
-#include "vtkExecutive.h"
 #include "vtkIdTypeArray.h"
 #include "vtkIncrementalOctreePointLocator.h"
 #include "vtkInformation.h"
@@ -29,12 +15,12 @@
 #include "vtkPointData.h"
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
-#include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
 #include <string>
 #include <unordered_map>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAppendFilter);
 
 //------------------------------------------------------------------------------
@@ -279,7 +265,7 @@ int vtkAppendFilter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkIdType ptOffset = 0;
   float decimal = 0.0;
   inputs->InitTraversal(iter);
-  int abort = 0;
+  bool abort = false;
   double p[3];
   while (!abort && (dataSet = inputs->GetNextDataSet(iter)))
   {
@@ -313,7 +299,8 @@ int vtkAppendFilter::RequestData(vtkInformation* vtkNotUsed(request),
         else
         {
           vtkIdType globalPtId = 0;
-          ptInserter->InsertUniquePoint(dataSet->GetPoint(ptId), globalPtId);
+          dataSet->GetPoint(ptId, p);
+          ptInserter->InsertUniquePoint(p, globalPtId);
           globalIndices[ptId + ptOffset] = globalPtId;
           // The point inserter puts the point into newPts, so we don't have to do that here.
         }
@@ -321,7 +308,8 @@ int vtkAppendFilter::RequestData(vtkInformation* vtkNotUsed(request),
       else
       {
         globalIndices[ptId + ptOffset] = ptId + ptOffset;
-        newPts->SetPoint(ptId + ptOffset, dataSet->GetPoint(ptId));
+        dataSet->GetPoint(ptId, p);
+        newPts->SetPoint(ptId + ptOffset, p);
       }
 
       // Update progress
@@ -330,7 +318,7 @@ int vtkAppendFilter::RequestData(vtkInformation* vtkNotUsed(request),
       {
         decimal += 0.05;
         this->UpdateProgress(decimal);
-        abort = this->GetAbortExecute();
+        abort = this->CheckAbort();
       }
     }
 
@@ -372,7 +360,7 @@ int vtkAppendFilter::RequestData(vtkInformation* vtkNotUsed(request),
       {
         decimal += 0.05;
         this->UpdateProgress(decimal);
-        abort = this->GetAbortExecute();
+        abort = this->CheckAbort();
       }
     }
     ptOffset += dataSetNumPts;
@@ -522,3 +510,4 @@ void vtkAppendFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "OutputPointsPrecision: " << this->OutputPointsPrecision << "\n";
   os << indent << "Tolerance: " << this->Tolerance << "\n";
 }
+VTK_ABI_NAMESPACE_END

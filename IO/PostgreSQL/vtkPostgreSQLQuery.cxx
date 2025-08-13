@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPostgreSQLQuery.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkPostgreSQLQuery.h"
 
 #include "vtkObjectFactory.h"
@@ -37,6 +21,7 @@
 
 #define DECLARE_CONVERTER(TargetType) vtkVariant ConvertStringTo##TargetType(bool, const char*);
 
+VTK_ABI_NAMESPACE_BEGIN
 DECLARE_CONVERTER(Boolean);
 DECLARE_CONVERTER(SignedChar);
 DECLARE_CONVERTER(UnsignedChar);
@@ -825,7 +810,7 @@ vtkVariant ConvertStringToFloat(bool isBinary, const char* rawData)
   }
   else
   {
-    vtkStdString rawString(rawData);
+    std::string rawString(rawData);
     float finalResult;
 
     // Catch NaN
@@ -923,7 +908,7 @@ vtkVariant ConvertStringToDouble(bool isBinary, const char* rawData)
   else
   {
     double finalResult;
-    vtkStdString rawString(rawData);
+    std::string rawString(rawData);
 
     // Catch NaN
     if (rawData[0] == 'N' || rawData[0] == 'n')
@@ -1030,3 +1015,4 @@ int vtkPostgreSQLQuery::GetNumberOfRows()
     return PQntuples(this->QueryInternals->QueryResults);
   }
 }
+VTK_ABI_NAMESPACE_END

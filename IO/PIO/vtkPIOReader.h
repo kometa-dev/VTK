@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPIOReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPIOReader
  * @brief   class for reading PIO (Parallel Input Output) data files
@@ -30,6 +18,7 @@
 #include "vtkMultiBlockDataSetAlgorithm.h"
 #include "vtkStdString.h" // for vtkStdString
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCallbackCommand;
 class vtkDataArraySelection;
 class vtkFloatArray;
@@ -180,4 +169,5 @@ private:
   void operator=(const vtkPIOReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

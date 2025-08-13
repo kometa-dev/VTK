@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOMETIFFReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOMETIFFReader.h"
 #include "vtkTIFFReaderInternal.h"
 
@@ -40,6 +28,7 @@
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOMETIFFReader::vtkOMEInternals
 {
 public:
@@ -377,7 +366,8 @@ int vtkOMETIFFReader::RequestInformation(
       start += increment;
       return ret;
     });
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &timesteps[0], omeinternals.SizeT);
+    outInfo->Set(
+      vtkStreamingDemandDrivenPipeline::TIME_STEPS(), timesteps.data(), omeinternals.SizeT);
 
     double range[2] = { timesteps.front(), timesteps.back() };
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), range, 2);
@@ -447,3 +437,4 @@ void vtkOMETIFFReader::ExecuteDataWithInformation(vtkDataObject* dobj, vtkInform
   omeinternals.ExtractFromCache(output, time_step);
   output->SetSpacing(this->DataSpacing);
 }
+VTK_ABI_NAMESPACE_END

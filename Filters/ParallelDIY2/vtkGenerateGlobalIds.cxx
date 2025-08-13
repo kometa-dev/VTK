@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenerateGlobalIds.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkGenerateGlobalIds.h"
 
@@ -61,6 +46,7 @@
 
 namespace impl
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 static vtkBoundingBox AllReduceBounds(
   diy::mpi::communicator& comm, std::vector<vtkSmartPointer<vtkPoints>> points)
@@ -173,7 +159,7 @@ static bool GenerateIds(vtkDataObject* dobj, vtkGenerateGlobalIds* self, bool ce
     }
     else
     {
-      // now dequeue owership information and process locally to assign ids
+      // now dequeue ownership information and process locally to assign ids
       // to locally owned points and flag ghost points.
       b->DequeueOwnershipInformation(rp);
     }
@@ -234,6 +220,7 @@ static bool GenerateIds(vtkDataObject* dobj, vtkGenerateGlobalIds* self, bool ce
   self->UpdateProgress(1.0);
   return true;
 }
+VTK_ABI_NAMESPACE_END
 }
 
 namespace
@@ -347,7 +334,7 @@ struct PointTT
     locator->SetDataSet(grid);
     locator->SetTolerance(tolerance);
     locator->BuildLocator();
-    locator->MergePoints(tolerance, &mergemap[0]);
+    locator->MergePoints(tolerance, mergemap.data());
     return mergemap;
   }
 };
@@ -705,6 +692,8 @@ struct Serialization<::CellTT>
 };
 }
 
+VTK_ABI_NAMESPACE_BEGIN
+
 vtkStandardNewMacro(vtkGenerateGlobalIds);
 vtkCxxSetObjectMacro(vtkGenerateGlobalIds, Controller, vtkMultiProcessController);
 //------------------------------------------------------------------------------
@@ -764,3 +753,4 @@ void vtkGenerateGlobalIds::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Controller: " << this->Controller << endl;
   os << indent << "Tolerance: " << this->Tolerance << endl;
 }
+VTK_ABI_NAMESPACE_END

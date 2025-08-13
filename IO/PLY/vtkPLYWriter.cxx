@@ -1,21 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPLYWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPLYWriter.h"
 
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
+#include "vtkErrorCode.h"
 #include "vtkFloatArray.h"
 #include "vtkInformation.h"
 #include "vtkObjectFactory.h"
@@ -28,6 +17,7 @@
 
 #include <cstddef>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPLYWriter);
 
 vtkCxxSetObjectMacro(vtkPLYWriter, LookupTable, vtkScalarsToColors);
@@ -49,6 +39,7 @@ vtkPLYWriter::vtkPLYWriter()
   this->HeaderComments = vtkSmartPointer<vtkStringArray>::New();
   this->HeaderComments->InsertNextValue("VTK generated PLY File");
   this->WriteToOutputString = false;
+  this->WriteObjectInformation = true;
 }
 
 vtkPLYWriter::~vtkPLYWriter()
@@ -89,7 +80,7 @@ void vtkPLYWriter::WriteData()
   vtkSmartPointer<vtkUnsignedCharArray> cellColors, pointColors;
   PlyFile* ply;
   static const char* elemNames[] = { "vertex", "face" };
-  static PlyProperty vertProps[] = {
+  PlyProperty vertProps[] = {
     // property information for a vertex
     { "x", PLY_FLOAT, PLY_FLOAT, static_cast<int>(offsetof(plyVertex, x)), 0, 0, 0, 0 },
     { "y", PLY_FLOAT, PLY_FLOAT, static_cast<int>(offsetof(plyVertex, x) + sizeof(float)), 0, 0, 0,
@@ -148,6 +139,7 @@ void vtkPLYWriter::WriteData()
   if (ply == nullptr)
   {
     vtkErrorMacro(<< "Error opening PLY file");
+    this->SetErrorCode(vtkErrorCode::CannotOpenFileError);
     return;
   }
 
@@ -209,9 +201,12 @@ void vtkPLYWriter::WriteData()
   // write comments and an object information field
   for (idx = 0; idx < this->HeaderComments->GetNumberOfValues(); ++idx)
   {
-    vtkPLY::ply_put_comment(ply, this->HeaderComments->GetValue(idx));
+    vtkPLY::ply_put_comment(ply, this->HeaderComments->GetValue(idx).c_str());
   }
-  vtkPLY::ply_put_obj_info(ply, "vtkPolyData points and polygons: vtk4.0");
+  if (this->WriteObjectInformation)
+  {
+    vtkPLY::ply_put_obj_info(ply, "vtkPolyData points and polygons: vtk4.0");
+  }
 
   // complete the header
   vtkPLY::ply_header_complete(ply);
@@ -489,6 +484,7 @@ void vtkPLYWriter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "EnableAlpha: " << this->EnableAlpha << "\n";
   os << indent << "Alpha: " << static_cast<int>(this->Alpha) << "\n";
+  os << indent << "WriteObjectInformation: " << this->WriteObjectInformation << "\n";
 }
 
 void vtkPLYWriter::AddComment(const std::string& comment)
@@ -511,3 +507,4 @@ int vtkPLYWriter::FillInputPortInformation(int, vtkInformation* info)
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkPolyData");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

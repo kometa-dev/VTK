@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataEdgeConnectivityFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyDataEdgeConnectivityFilter
  * @brief   segment polygonal mesh based on shared edge connectivity
@@ -42,7 +30,7 @@
  *
  * Barrier edges add a unique twist to the filter. By using them, it is
  * possible to segment out portions of a mesh with very small, very large, or
- * inbetween polygon-sized features.
+ * in between polygon-sized features.
  *
  * Due to the nature of edge connectivity, the filter only operates on
  * polygons. Vertices, lines, and triangle strips are ignored (and not passed
@@ -94,6 +82,7 @@
 #define VTK_EXTRACT_CLOSEST_POINT_REGION 6
 #define VTK_EXTRACT_LARGE_REGIONS 7
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkCharArray;
 class vtkIdList;
@@ -400,7 +389,7 @@ protected:
   vtkSmartPointer<vtkIdList> CellIds;
   vtkSmartPointer<vtkIdList> CellNeighbors;
   vtkSmartPointer<vtkIdList> CellEdgeNeighbors;
-  double BRange2[2]; // BarrierEdgeLenght[0,1]**2 of edge lengths defining barriers
+  double BRange2[2]; // BarrierEdgeLength[0,1]**2 of edge lengths defining barriers
 
 private:
   vtkPolyDataEdgeConnectivityFilter(const vtkPolyDataEdgeConnectivityFilter&) = delete;
@@ -442,4 +431,5 @@ inline const char* vtkPolyDataEdgeConnectivityFilter::GetExtractionModeAsString(
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

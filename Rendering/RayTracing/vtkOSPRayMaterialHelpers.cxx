@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOSPRayMaterialHelpers.cpp
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOSPRayMaterialHelpers.h"
 #include "vtkImageData.h"
@@ -25,6 +13,7 @@
 #include <limits>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 OSPTexture vtkOSPRayMaterialHelpers::NewTexture2D(RTW::Backend* backend, const osp::vec2i& size,
   const OSPTextureFormat type, void* data, const uint32_t _flags)
 {
@@ -355,7 +344,7 @@ OSPMaterial vtkOSPRayMaterialHelpers::MakeMaterial(
   else
   {
     vtkGenericWarningMacro(
-      "Warning: unrecognized material \"" << implname.c_str() << "\", using a default obj");
+      "Warning: unrecognized material \"" << implname << "\", using a default obj");
     return NewMaterial(orn, oRenderer, "obj");
   }
 
@@ -387,3 +376,4 @@ OSPMaterial vtkOSPRayMaterialHelpers::NewMaterial(
   ospCommit(result);
   return result;
 }
+VTK_ABI_NAMESPACE_END

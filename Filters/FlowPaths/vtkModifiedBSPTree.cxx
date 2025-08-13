@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkModifiedBSPTree.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // VTK_DEPRECATED_IN_9_2_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
@@ -32,6 +20,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkModifiedBSPTree);
 
 //------------------------------------------------------------------------------
@@ -512,7 +501,7 @@ void vtkModifiedBSPTree::GenerateRepresentation(int level, vtkPolyData* pd)
     ns.pop();
     if (node->depth == level)
     {
-      bl.push_back(box(node->Bounds));
+      bl.emplace_back(node->Bounds);
     }
     else
     {
@@ -527,7 +516,7 @@ void vtkModifiedBSPTree::GenerateRepresentation(int level, vtkPolyData* pd)
       }
       else if (level == -1)
       {
-        bl.push_back(box(node->Bounds));
+        bl.emplace_back(node->Bounds);
       }
     }
   }
@@ -779,7 +768,7 @@ struct IntersectionInfo
 };
 
 //------------------------------------------------------------------------------
-int vtkModifiedBSPTree::IntersectWithLine(const double p1[3], const double p2[3], const double tol,
+int vtkModifiedBSPTree::IntersectWithLine(const double p1[3], const double p2[3], double tol,
   vtkPoints* points, vtkIdList* cellIds, vtkGenericCell* cell)
 {
   this->BuildLocator();
@@ -1118,3 +1107,4 @@ bool BSPNode::Inside(double point[3]) const
     this->Bounds[2] <= point[1] && point[1] <= this->Bounds[3] && this->Bounds[4] <= point[2] &&
     point[2] <= this->Bounds[5];
 }
+VTK_ABI_NAMESPACE_END

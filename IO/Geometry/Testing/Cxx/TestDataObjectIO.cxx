@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestDataObjectIO.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCellData.h"
 #include "vtkCubeSource.h"
 #include "vtkDataObjectWriter.h"
@@ -66,7 +54,13 @@ void InitializeData(vtkStructuredGrid* Data)
 
 bool CompareData(vtkStructuredGrid* Output, vtkStructuredGrid* Input)
 {
-  return memcmp(Input->GetDimensions(), Output->GetDimensions(), 3 * sizeof(int)) == 0;
+  int inputDims[3];
+  Input->GetDimensions(inputDims);
+
+  int outputDims[3];
+  Output->GetDimensions(outputDims);
+
+  return memcmp(inputDims, outputDims, 3 * sizeof(int)) == 0;
 }
 
 void InitializeData(vtkTable* Data)

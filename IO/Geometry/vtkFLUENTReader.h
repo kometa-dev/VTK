@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFLUENTReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkFLUENTReader
  * @brief   reads a dataset in Fluent file format
@@ -38,6 +26,7 @@
 #include "vtkIOGeometryModule.h" // For export macro
 #include "vtkMultiBlockDataSetAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArraySelection;
 class vtkPoints;
 class vtkTriangle;
@@ -74,7 +63,7 @@ public:
   /**
    * Get the number of cell arrays available in the input.
    */
-  int GetNumberOfCellArrays(void);
+  int GetNumberOfCellArrays();
 
   /**
    * Get the name of the cell array with the given index in
@@ -252,4 +241,5 @@ private:
   vtkFLUENTReader(const vtkFLUENTReader&) = delete;
   void operator=(const vtkFLUENTReader&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

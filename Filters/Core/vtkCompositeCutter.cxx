@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeCutter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCompositeCutter.h"
 
 #include "vtkAppendPolyData.h"
@@ -32,11 +20,11 @@
 #include "vtkPolyData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
-#include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
 #include <cassert>
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCompositeCutter);
 
 #ifdef DEBUGME
@@ -127,7 +115,7 @@ int vtkCompositeCutter::RequestUpdateExtent(
       }
     }
     PRINT("Cutter demand " << intersected.size() << " blocks");
-    inInfo->Set(vtkCompositeDataPipeline::UPDATE_COMPOSITE_INDICES(), &intersected[0],
+    inInfo->Set(vtkCompositeDataPipeline::UPDATE_COMPOSITE_INDICES(), intersected.data(),
       static_cast<int>(intersected.size()));
   }
   return 1;
@@ -146,7 +134,7 @@ int vtkCompositeCutter::RequestData(
   }
 
   vtkNew<vtkAppendPolyData> append;
-  int numObjects(0);
+  append->SetContainerAlgorithm(this);
 
   using Opts = vtk::CompositeDataSetOptions;
   for (vtkDataObject* dObj : vtk::Range(inData, Opts::SkipEmptyNodes))
@@ -158,7 +146,6 @@ int vtkCompositeCutter::RequestData(
     outInfo->Set(vtkDataObject::DATA_OBJECT(), out);
     this->Superclass::RequestData(request, inputVector, outputVector);
     append->AddInputData(out);
-    numObjects++;
   }
   append->Update();
 
@@ -172,3 +159,4 @@ void vtkCompositeCutter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

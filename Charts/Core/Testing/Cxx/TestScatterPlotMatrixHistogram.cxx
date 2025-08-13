@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestScatterPlotMatrixHistogram.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkChart.h"
 #include "vtkContextView.h"
@@ -46,7 +34,7 @@ void PopulateMatrixPlot(vtkScatterPlotMatrix* matrix, int numberOfPoints)
   tangent->SetName("tan(x)");
   table->AddColumn(tangent);
   // Test the chart scatter plot matrix
-  float inc = 4.0 * vtkMath::Pi() / (numberOfPoints - 1);
+  double inc = 4.0 * vtkMath::Pi() / (numberOfPoints - 1);
   table->SetNumberOfRows(numberOfPoints);
   for (int i = 0; i < numberOfPoints; ++i)
   {

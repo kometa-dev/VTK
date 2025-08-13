@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestIOSSExodus.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * Test for paraview/paraview#17404
  */
@@ -36,15 +24,18 @@ static std::string GetFileName(int argc, char* argv[], const char* fnameC)
 }
 
 #define VERIFY(x, y)                                                                               \
-  if ((x) == false)                                                                                \
+  do                                                                                               \
   {                                                                                                \
-    vtkLogF(ERROR, "%s -- failed!", (y));                                                          \
-    return EXIT_FAILURE;                                                                           \
-  }                                                                                                \
-  else                                                                                             \
-  {                                                                                                \
-    vtkLogF(1, "%s -- success", (y));                                                              \
-  }
+    if ((x) == false)                                                                              \
+    {                                                                                              \
+      vtkLogF(ERROR, "%s -- failed!", (y));                                                        \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+    else                                                                                           \
+    {                                                                                              \
+      vtkLogF(1, "%s -- success", (y));                                                            \
+    }                                                                                              \
+  } while (false)
 
 int TestIOSSAttributes(int argc, char* argv[])
 {

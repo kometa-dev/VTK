@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMySQLDatabase.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkMySQLDatabase.h"
 #include "vtkMySQLDatabasePrivate.h"
 #include "vtkMySQLQuery.h"
@@ -33,6 +17,7 @@
 
 #define VTK_MYSQL_DEFAULT_PORT 3306
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMySQLDatabase);
 
 //------------------------------------------------------------------------------
@@ -339,7 +324,7 @@ bool vtkMySQLDatabase::ParseURL(const char* URL)
   if (!vtksys::SystemTools::ParseURL(
         urlstr, protocol, username, password, hostname, dataport, database))
   {
-    vtkGenericWarningMacro("Invalid URL: \"" << urlstr.c_str() << "\"");
+    vtkGenericWarningMacro("Invalid URL: \"" << urlstr << "\"");
     return false;
   }
 
@@ -374,7 +359,7 @@ vtkStdString vtkMySQLDatabase::GetColumnSpecification(
 
   // Figure out column type
   int colType = schema->GetColumnTypeFromHandle(tblHandle, colHandle);
-  vtkStdString colTypeStr;
+  std::string colTypeStr;
 
   switch (static_cast<vtkSQLDatabaseSchema::DatabaseColumnType>(colType))
   {
@@ -423,7 +408,7 @@ vtkStdString vtkMySQLDatabase::GetColumnSpecification(
   else // if ( !colTypeStr.empty() )
   {
     vtkGenericWarningMacro("Unable to get column specification: unsupported data type " << colType);
-    return vtkStdString();
+    return {};
   }
 
   // Decide whether size is allowed, required, or unused
@@ -547,7 +532,7 @@ vtkStdString vtkMySQLDatabase::GetIndexSpecification(
   {
     vtkGenericWarningMacro(
       "Unable to get index specification: index has incorrect number of columns " << numCnm);
-    return vtkStdString();
+    return {};
   }
 
   bool firstCnm = true;
@@ -577,7 +562,7 @@ bool vtkMySQLDatabase::CreateDatabase(const char* dbName, bool dropExisting = fa
   {
     this->DropDatabase(dbName);
   }
-  vtkStdString queryStr;
+  std::string queryStr;
   queryStr = "CREATE DATABASE ";
   queryStr += dbName;
   bool status = false;
@@ -607,7 +592,7 @@ bool vtkMySQLDatabase::CreateDatabase(const char* dbName, bool dropExisting = fa
 
 bool vtkMySQLDatabase::DropDatabase(const char* dbName)
 {
-  vtkStdString queryStr;
+  std::string queryStr;
   queryStr = "DROP DATABASE IF EXISTS ";
   queryStr += dbName;
   bool status = false;
@@ -633,3 +618,4 @@ bool vtkMySQLDatabase::DropDatabase(const char* dbName)
   }
   return status;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBezierTetra.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBezierTetra
  * @brief   A 3D cell that represents an arbitrary order Bezier tetrahedron
@@ -32,9 +20,9 @@
 #define vtkBezierTetra_h
 
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_1_0
 #include "vtkHigherOrderTetra.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTetra;
 class vtkBezierCurve;
 class vtkBezierTriangle;
@@ -51,11 +39,7 @@ public:
   int GetCellType() override { return VTK_BEZIER_TETRAHEDRON; }
   vtkCell* GetEdge(int edgeId) override;
   vtkCell* GetFace(int faceId) override;
-  VTK_DEPRECATED_IN_9_1_0(
-    "EvaluateLocationProjectedNode is deprecated, use instead EvaluateLocation.")
-  void EvaluateLocationProjectedNode(
-    int& subId, const vtkIdType point_id, double x[3], double* weights);
-  void SetRationalWeightsFromPointData(vtkPointData* point_data, const vtkIdType numPts);
+  void SetRationalWeightsFromPointData(vtkPointData* point_data, vtkIdType numPts);
   void InterpolateFunctions(const double pcoords[3], double* weights) override;
   void InterpolateDerivs(const double pcoords[3], double* derivs) override;
 
@@ -76,4 +60,5 @@ private:
   void operator=(const vtkBezierTetra&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

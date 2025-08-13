@@ -1,26 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMeshQuality.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-  Copyright 2003-2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
-  license for use of this work by or on behalf of the
-  U.S. Government. Redistribution and use in source and binary forms, with
-  or without modification, are permitted provided that this Notice and any
-  statement of authorship are reproduced on all copies.
-
-  Contact: dcthomp@sandia.gov,pppebay@sandia.gov
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2003-2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkMeshQuality
  * @brief   Calculate functions of quality of the elements of a mesh
@@ -72,9 +52,10 @@
 #define vtkMeshQuality_h
 
 #include "vtkDataSetAlgorithm.h"
-#include "vtkDeprecation.h"          // For deprecation
+#include "vtkDeprecation.h"          // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkFiltersVerdictModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCell;
 class vtkDataArray;
 class vtkDoubleArray;
@@ -1115,7 +1096,7 @@ public:
    * corresponding edge lengths and normalized to the unit wedge:
    * q = min(  2 / sqrt(3) * ((L_2 X L_0) * L_3)_k / sqrt(mag(L_2) * mag(L_0) * mag(L_3))),
    * where ((L_2 X L_0) * L_3)_k is the determinant of the Jacobian of the tetrahedron defined
-   * at the kth corner node, and L_2, L_0 and L_3 are the egdes defined according to the
+   * at the kth corner node, and L_2, L_0 and L_3 are the edges defined according to the
    * standard for tetrahedral elements.
    */
   static double WedgeScaledJacobian(vtkCell* cell);
@@ -1455,4 +1436,5 @@ private:
   void operator=(const vtkMeshQuality&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkMeshQuality_h

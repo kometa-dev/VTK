@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOggTheoraWriter.cxx
-
-  Copyright (c) Michael Wild, Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Michael Wild
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOggTheoraWriter.h"
 
@@ -25,6 +14,7 @@
 #include <ctime>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOggTheoraWriterInternal
 {
 public:
@@ -153,7 +143,7 @@ int vtkOggTheoraWriterInternal::Start()
   // the frame rate (as a fraction)
   thInfo.fps_numerator = this->FrameRate;
   thInfo.fps_denominator = 1;
-  // pixel ascpect ratio
+  // pixel aspect ratio
   thInfo.aspect_numerator = 1;
   thInfo.aspect_denominator = 1;
 
@@ -356,7 +346,7 @@ void vtkOggTheoraWriterInternal::RGB2YCbCr(vtkImageData* id, th_ycbcr_buffer ycb
   typedef unsigned char uchar;
 
   //
-  // constant coefficiens
+  // constant coefficients
   //
 
   static const uchar OffY = 16, OffCr = 128, OffCb = 128;
@@ -589,3 +579,4 @@ void vtkOggTheoraWriter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Rate: " << this->Rate << endl;
   os << indent << "Subsampling: " << this->Subsampling << endl;
 }
+VTK_ABI_NAMESPACE_END

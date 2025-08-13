@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeDataReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCompositeDataReader.h"
 
 #include "vtkAMRBox.h"
@@ -40,6 +28,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCompositeDataReader);
 //------------------------------------------------------------------------------
 vtkCompositeDataReader::vtkCompositeDataReader() = default;
@@ -217,6 +206,13 @@ int vtkCompositeDataReader::ReadMeshSimple(const std::string& fname, vtkDataObje
     this->ReadCompositeData(pdc);
   }
 
+  // Try to read field data for each data type
+  if (this->ReadString(line) && strncmp(this->LowerCase(line), "field", 5) == 0)
+  {
+    vtkSmartPointer<vtkFieldData> fd = vtkSmartPointer<vtkFieldData>::Take(this->ReadFieldData());
+    output->SetFieldData(fd);
+  }
+
   return 1;
 }
 
@@ -287,12 +283,6 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkMultiBlockDataSet* mb)
     }
   }
 
-  if (this->ReadString(line) && strncmp(this->LowerCase(line), "field", 5) == 0)
-  {
-    vtkSmartPointer<vtkFieldData> fd = vtkSmartPointer<vtkFieldData>::Take(this->ReadFieldData());
-    mb->SetFieldData(fd);
-  }
-
   return true;
 }
 
@@ -361,7 +351,7 @@ bool vtkCompositeDataReader::ReadCompositeData(vtkOverlappingAMR* oamr)
   }
 
   // initialize the AMR.
-  oamr->Initialize(num_levels, &blocksPerLevel[0]);
+  oamr->Initialize(num_levels, blocksPerLevel.data());
   oamr->SetGridDescription(description);
   oamr->SetOrigin(origin);
   for (int cc = 0; cc < num_levels; cc++)
@@ -779,3 +769,4 @@ void vtkCompositeDataReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

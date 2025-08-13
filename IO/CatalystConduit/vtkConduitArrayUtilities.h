@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConduitArrayUtilities.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkConduitArrayUtilities
  * @brief helper to convert Conduit arrays to VTK arrays.
@@ -31,15 +19,14 @@
 #include "vtkIOCatalystConduitModule.h" // for exports
 #include "vtkObject.h"
 #include "vtkSmartPointer.h" // for vtkSmartPointer
-#include <string>            // for std::string
 
+#include "conduit.h" // for conduit_node
+
+#include <string> // for std::string
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
 class vtkDataArray;
-
-extern "C"
-{
-  typedef void conduit_node;
-}
 
 class VTKIOCATALYSTCONDUIT_EXPORT vtkConduitArrayUtilities : public vtkObject
 {
@@ -48,14 +35,14 @@ public:
   vtkTypeMacro(vtkConduitArrayUtilities, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Returns a vtkDataArray from a conduit node in the conduit mcarray protocol.
    */
   static vtkSmartPointer<vtkDataArray> MCArrayToVTKArray(const conduit_node* mcarray);
   static vtkSmartPointer<vtkDataArray> MCArrayToVTKArray(
     const conduit_node* mcarray, const std::string& arrayname);
-  //@}
+  ///@}
 
   /**
    * Converts an mcarray to vtkCellArray.
@@ -94,5 +81,6 @@ private:
   vtkConduitArrayUtilities(const vtkConduitArrayUtilities&) = delete;
   void operator=(const vtkConduitArrayUtilities&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif

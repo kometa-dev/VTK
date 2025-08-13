@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestSurfaceConstrainedHandleWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // This test demonstrates a distance widget constrained to lie on the
 // surface of a polygonal mesh. Both handles are constrained to the mesh'
@@ -302,7 +290,7 @@ int TestPolygonalSurfaceConstrainedDistanceWidget(int argc, char* argv[])
   pointPlacer->AddProp(demActor);
   pointPlacer->GetPolys()->AddItem(pd);
 
-  // We can optionally constain the handles to a certain height (measured as
+  // We can optionally constrain the handles to a certain height (measured as
   // the offset along the surface normal) from the surface.
 
   if (distanceOffsetSpecified)

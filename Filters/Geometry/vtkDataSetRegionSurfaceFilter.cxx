@@ -1,12 +1,6 @@
-//=========================================================================
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataSetRegionSurfaceFilter.h"
 
 #include "vtkCellArray.h"
@@ -32,6 +26,7 @@
 
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSetRegionSurfaceFilter::Internals
 {
 public:
@@ -146,6 +141,8 @@ int vtkDataSetRegionSurfaceFilter::RequestData(
     vtkPolyData* output = vtkPolyData::GetData(outputVector, 0);
     output->GetPointData()->RemoveArray("vtkOriginalPointIds");
   }
+
+  this->CheckAbort();
 
   return 1;
 }
@@ -304,7 +301,7 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
   // Traverse cells to extract geometry
   //
   progressCount = 0;
-  int abort = 0;
+  bool abort = false;
   vtkIdType progressInterval = numCells / 20 + 1;
 
   // First insert all points lines in output and 3D geometry in hash.
@@ -320,7 +317,7 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
     {
       vtkDebugMacro(<< "Process cell #" << cellId);
       this->UpdateProgress(static_cast<double>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
       progressCount = 0;
     }
     progressCount++;
@@ -1169,3 +1166,4 @@ vtkFastGeomQuad* vtkDataSetRegionSurfaceFilter::GetNextVisibleQuadFromHash()
 
   return quad;
 }
+VTK_ABI_NAMESPACE_END

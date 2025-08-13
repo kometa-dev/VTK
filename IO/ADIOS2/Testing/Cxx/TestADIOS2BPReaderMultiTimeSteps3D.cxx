@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestTemporalXdmfReaderWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Description:
 // This tests reading of a simple ADIOS2 bp file.
 
@@ -127,7 +115,7 @@ int TestADIOS2BPReaderMultiTimeSteps3D(int argc, char* argv[])
 
   rendWin->Render();
 
-  // Do the test comparsion
+  // Do the test comparison
   int retval = vtkRegressionTestImage(rendWin);
   if (retval == vtkRegressionTester::DO_INTERACTOR)
   {

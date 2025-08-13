@@ -1,11 +1,16 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataArraySelection.h"
 #include "vtkNew.h"
 
 #define TASSERT(x)                                                                                 \
-  if (!(x))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "ERROR: failed at " << __LINE__ << "!" << endl; /*return EXIT_FAILURE;*/               \
-  }
+    if (!(x))                                                                                      \
+    {                                                                                              \
+      cerr << "ERROR: failed at " << __LINE__ << "!" << endl; /*return EXIT_FAILURE;*/             \
+    }                                                                                              \
+  } while (false)
 
 int TestDataArraySelection(int, char*[])
 {

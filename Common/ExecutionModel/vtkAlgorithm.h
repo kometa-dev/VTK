@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAlgorithm.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAlgorithm
  * @brief   Superclass for all sources, filters, and sinks in VTK.
@@ -35,6 +23,7 @@
 #include "vtkCommonExecutionModelModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkAlgorithmInternals;
 class vtkAlgorithmOutput;
@@ -88,7 +77,7 @@ public:
    * Check whether this algorithm has an assigned executive.  This
    * will NOT create a default executive.
    */
-  int HasExecutive();
+  vtkTypeBool HasExecutive();
 
   /**
    * Get this algorithm's executive.  If it has none, a default
@@ -194,6 +183,11 @@ public:
   bool UsesGarbageCollector() const override { return true; }
   ///@}
 
+  /**
+   *  Set AbortExecute Flag and update LastAbortTime.
+   */
+  void SetAbortExecuteAndUpdateTime();
+
   ///@{
   /**
    * Set/Get the AbortExecute flag for the process object. Process objects
@@ -217,6 +211,36 @@ public:
    * should range between (0,1).
    */
   void UpdateProgress(double amount);
+
+  /**
+   * Checks to see if this filter should abort.
+   */
+  bool CheckAbort();
+
+  ///@{
+  /**
+   * Set/get a Container algorithm for this algorithm. Allows this algorithm
+   * to check to abort status of its Container algorithm as well as have access
+   * to its Container's information.
+   */
+  void SetContainerAlgorithm(vtkAlgorithm* containerAlg)
+  {
+    this->ContainerAlgorithm = containerAlg;
+  };
+  vtkAlgorithm* GetContainerAlgorithm() { return this->ContainerAlgorithm; };
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get an internal variable used to communicate between the algorithm and
+   * executive. If the executive sees this value is set, it will initialize
+   * the output data and pass the ABORTED flag downstream.
+   *
+   * CheckAbort sets this value to true if the function returns true.
+   */
+  vtkSetMacro(AbortOutput, bool);
+  vtkGetMacro(AbortOutput, bool);
+  ///@}
 
   ///@{
   /**
@@ -257,7 +281,7 @@ public:
   ///@}
 
   // left public for performance since it is used in inner loops
-  vtkTypeBool AbortExecute;
+  std::atomic<vtkTypeBool> AbortExecute;
 
   /**
    * Keys used to specify input port requirements.
@@ -312,6 +336,12 @@ public:
    * \ingroup InformationKeys
    */
   static vtkInformationIntegerKey* CAN_HANDLE_PIECE_REQUEST();
+
+  /**
+   *
+   * \ingroup InformationKeys
+   */
+  static vtkInformationIntegerKey* ABORTED();
 
   ///@{
   /**
@@ -626,8 +656,8 @@ public:
   /**
    * Turn release data flag on or off for all output ports.
    */
-  virtual void SetReleaseDataFlag(int);
-  virtual int GetReleaseDataFlag();
+  virtual void SetReleaseDataFlag(vtkTypeBool);
+  virtual vtkTypeBool GetReleaseDataFlag();
   void ReleaseDataFlagOn();
   void ReleaseDataFlagOff();
   ///@}
@@ -700,12 +730,25 @@ protected:
   vtkAlgorithm();
   ~vtkAlgorithm() override;
 
+  // Time stamp to store the last time any filter was aborted.
+  static vtkTimeStamp LastAbortTime;
+
+  // Time stamp to store the last time this filter checked for an
+  // abort.
+  vtkTimeStamp LastAbortCheckTime;
+
   // Keys used to indicate that input/output port information has been
   // filled.
   static vtkInformationIntegerKey* PORT_REQUIREMENTS_FILLED();
 
   // Arbitrary extra information associated with this algorithm
   vtkInformation* Information;
+
+  /**
+   * Checks to see if an upstream filter has been aborted. If an abort
+   * has occurred, return true.
+   */
+  bool CheckUpstreamAbort();
 
   /**
    * Fill the input port information objects for this algorithm.  This
@@ -889,12 +932,14 @@ private:
   static void ConnectionRemoveAllInput(vtkAlgorithm* consumer, int port);
   static void ConnectionRemoveAllOutput(vtkAlgorithm* producer, int port);
 
-private:
   vtkAlgorithm(const vtkAlgorithm&) = delete;
   void operator=(const vtkAlgorithm&) = delete;
 
   double ProgressShift;
   double ProgressScale;
+  vtkAlgorithm* ContainerAlgorithm;
+  bool AbortOutput;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

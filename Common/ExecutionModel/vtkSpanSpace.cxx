@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSpanSpace.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSpanSpace.h"
 
 #include "vtkCell.h"
@@ -27,6 +15,7 @@
 #include "vtkUnstructuredGrid.h"
 
 // Methods and functors for processing in parallel
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 { // begin anonymous namespace
 
@@ -636,7 +625,6 @@ vtkIdType vtkSpanSpace::GetNumberOfCellBatches(double scalarValue)
 
   // Find the rectangle in span space that spans the isovalue
   vtkInternalSpanSpace* sp = this->SpanSpace;
-  ;
   sp->GetSpanRectangle(scalarValue, this->RMin, this->RMax);
 
   // Loop over each span row to count total memory allocation required.
@@ -691,7 +679,6 @@ const vtkIdType* vtkSpanSpace::GetCellBatch(vtkIdType batchNum, vtkIdType& numCe
 {
   // Make sure that everything is hunky dory
   vtkInternalSpanSpace* sp = this->SpanSpace;
-  ;
   vtkIdType pos = batchNum * this->BatchSize;
   if (sp->NumCells < 1 || !sp->CandidateCells || pos >= sp->NumCandidates)
   {
@@ -724,3 +711,4 @@ void vtkSpanSpace::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Compute Resolution: " << (this->ComputeResolution ? "On\n" : "Off\n");
   os << indent << "Number of Cells Per Bucket: " << this->NumberOfCellsPerBucket << "\n";
 }
+VTK_ABI_NAMESPACE_END

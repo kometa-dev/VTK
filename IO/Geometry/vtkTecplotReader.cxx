@@ -1,31 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTecplotReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*****************************************************************************
- *
- * Copyright (c) 2000 - 2009, Lawrence Livermore National Security, LLC
- * Produced at the Lawrence Livermore National Laboratory
- * LLNL-CODE-400124
- * All rights reserved.
- *
- * This file was adapted from the ASCII Tecplot reader of VisIt. For  details,
- * see https://visit.llnl.gov/.  The full copyright notice is contained in the
- * file COPYRIGHT located at the root of the VisIt distribution or at
- * http://www.llnl.gov/visit/copyright.html.
- *
- *****************************************************************************/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2000 - 2009, Lawrence Livermore National Security, LLC
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkTecplotReader.h"
 
@@ -52,6 +27,7 @@
 
 #include <cctype> // for isspace(), isalnum()
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTecplotReader);
 
 // ============================================================================
@@ -618,7 +594,7 @@ int vtkTecplotReader::IsDataAttributeCellBased(const char* attrName)
   {
     for (unsigned int i = 0; i < this->Variables.size(); i++)
     {
-      if (strcmp(this->Variables[i].c_str(), attrName) == 0)
+      if (this->Variables[i] == attrName)
       {
         varIndex = i;
         break;
@@ -956,7 +932,8 @@ void vtkTecplotReader::GetStructuredGridFromBlockPackingZone(int iDimSize, int j
   pntCords = nullptr;
 
   if ((this->Internal->TopologyDim == 2 || this->Internal->TopologyDim == 3) ||
-    (this->Internal->TopologyDim == 0 && this->Internal->GeometryDim > 1))
+    ((this->Internal->TopologyDim == 0 || this->Internal->TopologyDim == 1) &&
+      this->Internal->GeometryDim > 1))
   {
     multZone->SetBlock(zoneIndx, strcGrid);
     multZone->GetMetaData(zoneIndx)->Set(vtkCompositeDataSet::NAME(), zoneName);
@@ -2060,7 +2037,7 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
         else
         {
           // UNKNOWN FORMAT
-          vtkErrorMacro(<< this->FileName << ": The format " << format.c_str()
+          vtkErrorMacro(<< this->FileName << ": The format " << format
                         << " found in the file is unknown.");
           return;
         }
@@ -2107,7 +2084,7 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
         }
         else
         {
-          vtkWarningMacro(<< " ZONETYPE '" << zoneType << "' is currently supported.");
+          vtkWarningMacro(<< " ZONETYPE '" << zoneType << "' is currently unsupported.");
         }
       }
 
@@ -2151,8 +2128,7 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
               if (pos != std::string::npos)
               {
                 exprDef.replace(pos, 1, "}");
-                vtkDebugMacro(
-                  "Expr name = " << exprName.c_str() << ", Expr def = " << exprDef.c_str());
+                vtkDebugMacro("Expr name = " << exprName << ", Expr def = " << exprDef);
               }
             }
           }
@@ -2173,7 +2149,7 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
     else
     {
       // UNKNOWN RECORD TYPE
-      vtkErrorMacro(<< this->FileName << ": The record type " << tok.c_str()
+      vtkErrorMacro(<< this->FileName << ": The record type " << tok
                     << " found in the file is unknown.");
       return;
     }
@@ -2193,3 +2169,4 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
 
   this->Internal->Completed = 1;
 }
+VTK_ABI_NAMESPACE_END

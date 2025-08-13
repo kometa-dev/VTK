@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointSmoothingFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPointSmoothingFilter
  * @brief   adjust point positions to form a pleasing, packed arrangement
@@ -98,6 +86,7 @@
 #include "vtkFiltersPointsModule.h" // For export macro
 #include "vtkPointSetAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractPointLocator;
 class vtkDataArray;
 class vtkPlane;
@@ -145,7 +134,7 @@ public:
    * used; the next choice is to use isotropic scalar smoothing; and finally
    * if no frame field, tensors, or scalars are available, uniform smoothing
    * will be used. If both scalars, tensors, and /or a frame field are
-   * present, the user can specifiy which to use; or to use uniform or
+   * present, the user can specify which to use; or to use uniform or
    * geometric smoothing.
    */
   vtkSetClampMacro(SmoothingMode, int, DEFAULT_SMOOTHING, FRAME_FIELD_SMOOTHING);
@@ -211,7 +200,7 @@ public:
    * Enable or disable constraints on points. Point constraints are used to
    * prevent points from moving, or to move only on a plane. This can prevent
    * shrinking or growing point clouds. If enabled, a local topological
-   * anlysis is performed to determine whether a point should be marked
+   * analysis is performed to determine whether a point should be marked
    * "Fixed" i.e., never moves; "Plane", the point only moves on a plane; or
    * "Unconstrained", the point can move freely. If all points in the
    * neighborhood surrounding a point are in the cone defined by FixedAngle,
@@ -383,4 +372,5 @@ private:
   void operator=(const vtkPointSmoothingFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

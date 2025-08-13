@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSPHCubicKernel.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSPHCubicKernel
  * @brief   a cubic SPH interpolation kernel
@@ -41,6 +29,7 @@
 #include "vtkSPHKernel.h"
 #include <algorithm> // For std::min()
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 class vtkDoubleArray;
 
@@ -68,8 +57,8 @@ public:
    */
   double ComputeFunctionWeight(const double d) override
   {
-    double tmp1 = 2.0 - std::min(d, 2.0);
-    double tmp2 = 1.0 - std::min(d, 1.0);
+    double tmp1 = 2.0 - (std::min)(d, 2.0);
+    double tmp2 = 1.0 - (std::min)(d, 1.0);
     return (0.25 * tmp1 * tmp1 * tmp1 - tmp2 * tmp2 * tmp2);
   }
   ///@}
@@ -81,8 +70,8 @@ public:
    */
   double ComputeDerivWeight(const double d) override
   {
-    double tmp1 = 2.0 - std::min(d, 2.0);
-    double tmp2 = 1.0 - std::min(d, 1.0);
+    double tmp1 = 2.0 - (std::min)(d, 2.0);
+    double tmp2 = 1.0 - (std::min)(d, 1.0);
     return (-0.75 * tmp1 * tmp1 + 3.0 * tmp2 * tmp2);
   }
   ///@}
@@ -96,4 +85,5 @@ private:
   void operator=(const vtkSPHCubicKernel&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

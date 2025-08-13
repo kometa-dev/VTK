@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestAMRBlanking.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME TestAMRBlanking.cxx -- Simple test for AMR blanking (visibility)
 //
 // .SECTION Description
@@ -50,7 +38,7 @@ vtkOverlappingAMR* GetAMRDataSet(const int description)
   std::vector<int> blocksPerLevel(2, 1);
 
   vtkOverlappingAMR* amrDataSet = vtkOverlappingAMR::New();
-  amrDataSet->Initialize(static_cast<int>(blocksPerLevel.size()), &blocksPerLevel[0]);
+  amrDataSet->Initialize(static_cast<int>(blocksPerLevel.size()), blocksPerLevel.data());
   amrDataSet->SetGridDescription(description);
   amrDataSet->SetOrigin(origin);
 

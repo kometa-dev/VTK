@@ -1,22 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkParallelCoordinatesRepresentation.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-  -------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkParallelCoordinatesRepresentation.h"
 
@@ -68,7 +52,6 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkSelection.h"
 #include "vtkSelectionNode.h"
 #include "vtkSortDataArray.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 #include "vtkTextMapper.h"
@@ -82,6 +65,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <sstream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkParallelCoordinatesRepresentation);
 
 //------------------------------------------------------------------------------
@@ -312,7 +296,7 @@ std::string vtkParallelCoordinatesRepresentation::GetHoverString(vtkView* view, 
       double v = pct * (r[1] - r[0]) + r[0];
       vtkVariant var(v);
 
-      this->SetInternalHoverText(vtkVariant(v).ToString());
+      this->SetInternalHoverText(vtkVariant(v).ToString().c_str());
     }
     else if (p[0] > this->Xs[0] && p[1] < this->Xs[this->NumberOfAxes - 1] && p[1] <= this->YMax &&
       p[1] >= this->YMin)
@@ -793,7 +777,7 @@ int vtkParallelCoordinatesRepresentation::UpdatePlotProperties(vtkStringArray* i
   // set everything on the axes
   for (int i = 0; i < this->NumberOfAxes; i++)
   {
-    this->Axes[i]->SetTitle(this->AxisTitles->GetValue(i));
+    this->Axes[i]->SetTitle(this->AxisTitles->GetValue(i).c_str());
     this->Axes[i]->SetRange(
       this->Mins[i] + this->MinOffsets[i], this->Maxs[i] + this->MaxOffsets[i]);
     this->Axes[i]->GetProperty()->SetColor(this->AxisColor);
@@ -1334,7 +1318,7 @@ int vtkParallelCoordinatesRepresentation::SwapAxisPositions(int position1, int p
   this->Axes[position1] = this->Axes[position2];
   this->Axes[position2] = axtmp;
 
-  vtkStdString tmpStr = this->AxisTitles->GetValue(position1);
+  std::string tmpStr = this->AxisTitles->GetValue(position1);
   this->AxisTitles->SetValue(position1, this->AxisTitles->GetValue(position2));
   this->AxisTitles->SetValue(position2, tmpStr);
 
@@ -1987,3 +1971,4 @@ int vtkParallelCoordinatesRepresentation::GetNumberOfSelections()
 {
   return (int)this->I->SelectionActors.size();
 }
+VTK_ABI_NAMESPACE_END

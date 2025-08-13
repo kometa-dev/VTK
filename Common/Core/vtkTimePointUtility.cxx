@@ -1,32 +1,16 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTimePointUtility.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkTimePointUtility.h"
 
 #include "vtkObjectFactory.h"
-#include "vtkStdString.h"
 
 #include <cctype> // for isdigit
 #include <locale> // C++ locale
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 const int vtkTimePointUtility::MILLIS_PER_SECOND = 1000;
 const int vtkTimePointUtility::MILLIS_PER_MINUTE = 60000;
 const int vtkTimePointUtility::MILLIS_PER_HOUR = 3600000;
@@ -193,7 +177,7 @@ vtkTypeUInt64 vtkTimePointUtility::ISO8601ToTimePoint(const char* cstr, bool* ok
   bool formatValid = true;
   vtkTypeUInt64 value = 0;
 
-  vtkStdString str(cstr);
+  std::string str(cstr);
 
   if (str.length() == 19 || str.length() == 23)
   {
@@ -202,7 +186,7 @@ vtkTypeUInt64 vtkTimePointUtility::ISO8601ToTimePoint(const char* cstr, bool* ok
     // -OR-
     // Format is [YYYY]-[MM]-[DD]T[hh]:[mm]:[ss].[SSS]
     // Index:     0123 4 56 7 89 0 12 3 45 6 78 9 012
-    for (vtkStdString::size_type c = 0; c < str.length(); c++)
+    for (std::string::size_type c = 0; c < str.length(); c++)
     {
       if (c == 4 || c == 7)
       {
@@ -262,7 +246,7 @@ vtkTypeUInt64 vtkTimePointUtility::ISO8601ToTimePoint(const char* cstr, bool* ok
   {
     // Format is [YYYY]-[MM]-[DD]
     // Index:     0123 4 56 7 89
-    for (vtkStdString::size_type c = 0; c < str.length(); c++)
+    for (std::string::size_type c = 0; c < str.length(); c++)
     {
       if (c == 4 || c == 7)
       {
@@ -293,7 +277,7 @@ vtkTypeUInt64 vtkTimePointUtility::ISO8601ToTimePoint(const char* cstr, bool* ok
     // -OR-
     // Format is [hh]:[mm]:[ss].[SSS]
     // Index:     01 2 34 5 67 8 901
-    for (vtkStdString::size_type c = 0; c < str.length(); c++)
+    for (std::string::size_type c = 0; c < str.length(); c++)
     {
       if (c == 2 || c == 5)
       {
@@ -420,3 +404,4 @@ const char* vtkTimePointUtility::TimePointToISO8601(vtkTypeUInt64 time, int form
   strcpy(copy, oss.str().c_str());
   return copy;
 }
+VTK_ABI_NAMESPACE_END

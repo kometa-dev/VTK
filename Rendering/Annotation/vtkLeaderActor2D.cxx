@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLeaderActor2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLeaderActor2D.h"
 
 #include "vtkCellArray.h"
@@ -25,6 +13,7 @@
 #include "vtkViewport.h"
 #include "vtkWindow.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLeaderActor2D);
 
 vtkCxxSetObjectMacro(vtkLeaderActor2D, LabelTextProperty, vtkTextProperty);
@@ -288,7 +277,7 @@ void vtkLeaderActor2D::BuildLeader(vtkViewport* viewport)
   // Build the arrows---------------------------------------
   if (this->ArrowPlacement == vtkLeaderActor2D::VTK_ARROW_NONE)
   {
-    ; // do nothin
+    // do nothing
   }
   else // we are creating arrows
   {
@@ -510,7 +499,7 @@ void vtkLeaderActor2D::BuildCurvedLeader(double p1[3], double p2[3], double ray[
   if ((theta1 >= 0.0 && theta1 <= vtkMath::Pi() && theta2 >= 0.0 && theta2 <= vtkMath::Pi()) ||
     (theta1 <= 0.0 && theta1 >= -vtkMath::Pi() && theta2 <= 0.0 && theta2 >= -vtkMath::Pi()))
   {
-    ; // do nothin angles are fine
+    // do nothing angles are fine
   }
   else if (theta1 >= 0.0 && theta2 <= 0.0)
   {
@@ -752,3 +741,4 @@ void vtkLeaderActor2D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Angle: " << this->Angle << "\n";
   os << indent << "Length: " << this->Length << "\n";
 }
+VTK_ABI_NAMESPACE_END

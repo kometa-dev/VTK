@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkValueSelector.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkValueSelector.h"
 
 #include "vtkArrayDispatch.h"
@@ -20,7 +8,6 @@
 #include "vtkDataObject.h"
 #include "vtkDataSetAttributes.h"
 #include "vtkInformation.h"
-#include "vtkLegacy.h" // For VTK_LEGACY_SILENT
 #include "vtkObjectFactory.h"
 #include "vtkSMPTools.h"
 #include "vtkSelectionNode.h"
@@ -30,6 +17,7 @@
 
 #include <cassert>
 #include <type_traits>
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -180,49 +168,51 @@ struct ArrayValueRangeFunctor
 
     if (comp >= 0)
     {
-      vtkSMPTools::For(0, fArray->GetNumberOfTuples(), [=](vtkIdType begin, vtkIdType end) {
-        const auto fRange = vtk::DataArrayTupleRange(fArray, begin, end);
-        const auto selRange = vtk::DataArrayTupleRange<2>(selList);
-        auto insideRange = vtk::DataArrayValueRange<1>(this->InsidednessArray, begin, end);
+      vtkSMPTools::For(0, fArray->GetNumberOfTuples(),
+        [this, comp, fArray, selList](vtkIdType begin, vtkIdType end) {
+          const auto fRange = vtk::DataArrayTupleRange(fArray, begin, end);
+          const auto selRange = vtk::DataArrayTupleRange<2>(selList);
+          auto insideRange = vtk::DataArrayValueRange<1>(this->InsidednessArray, begin, end);
 
-        using FTupleCRefType = typename decltype(fRange)::ConstTupleReferenceType;
-        using STupleCRefType = typename decltype(selRange)::ConstTupleReferenceType;
+          using FTupleCRefType = typename decltype(fRange)::ConstTupleReferenceType;
+          using STupleCRefType = typename decltype(selRange)::ConstTupleReferenceType;
 
-        auto insideIter = insideRange.begin();
-        for (FTupleCRefType fTuple : fRange)
-        {
-          const ValueType val = fTuple[comp];
-          auto matchIter = std::find_if(selRange.cbegin(), selRange.cend(),
-            [&](STupleCRefType range) -> bool { return val >= range[0] && val <= range[1]; });
-          *insideIter++ = matchIter != selRange.cend() ? 1 : 0;
-        }
-      });
+          auto insideIter = insideRange.begin();
+          for (FTupleCRefType fTuple : fRange)
+          {
+            const ValueType val = fTuple[comp];
+            auto matchIter = std::find_if(selRange.cbegin(), selRange.cend(),
+              [&](STupleCRefType range) -> bool { return val >= range[0] && val <= range[1]; });
+            *insideIter++ = matchIter != selRange.cend() ? 1 : 0;
+          }
+        });
     }
     else
     {
       // compare vector magnitude.
-      vtkSMPTools::For(0, fArray->GetNumberOfTuples(), [=](vtkIdType begin, vtkIdType end) {
-        const auto fRange = vtk::DataArrayTupleRange(fArray, begin, end);
-        const auto selRange = vtk::DataArrayTupleRange<2>(selList);
-        auto insideRange = vtk::DataArrayValueRange<1>(this->InsidednessArray, begin, end);
+      vtkSMPTools::For(
+        0, fArray->GetNumberOfTuples(), [this, fArray, selList](vtkIdType begin, vtkIdType end) {
+          const auto fRange = vtk::DataArrayTupleRange(fArray, begin, end);
+          const auto selRange = vtk::DataArrayTupleRange<2>(selList);
+          auto insideRange = vtk::DataArrayValueRange<1>(this->InsidednessArray, begin, end);
 
-        using FTupleCRefType = typename decltype(fRange)::ConstTupleReferenceType;
-        using STupleCRefType = typename decltype(selRange)::ConstTupleReferenceType;
+          using FTupleCRefType = typename decltype(fRange)::ConstTupleReferenceType;
+          using STupleCRefType = typename decltype(selRange)::ConstTupleReferenceType;
 
-        auto insideIter = insideRange.begin();
-        for (FTupleCRefType fTuple : fRange)
-        {
-          ValueType val{ 0 };
-          for (const ValueType fComp : fTuple)
+          auto insideIter = insideRange.begin();
+          for (FTupleCRefType fTuple : fRange)
           {
-            val += fComp * fComp;
+            ValueType val{ 0 };
+            for (const ValueType fComp : fTuple)
+            {
+              val += fComp * fComp;
+            }
+            const auto mag = static_cast<ValueType>(std::sqrt(val));
+            auto matchIter = std::find_if(selRange.cbegin(), selRange.cend(),
+              [&](STupleCRefType range) -> bool { return mag >= range[0] && mag <= range[1]; });
+            *insideIter++ = matchIter != selRange.cend() ? 1 : 0;
           }
-          const auto mag = static_cast<ValueType>(std::sqrt(val));
-          auto matchIter = std::find_if(selRange.cbegin(), selRange.cend(),
-            [&](STupleCRefType range) -> bool { return mag >= range[0] && mag <= range[1]; });
-          *insideIter++ = matchIter != selRange.cend() ? 1 : 0;
-        }
-      });
+        });
     }
   }
 
@@ -537,12 +527,10 @@ void vtkValueSelector::Initialize(vtkSelectionNode* node)
       case vtkSelectionNode::THRESHOLDS:
         if (selectionList->GetNumberOfComponents() == 1)
         {
-#ifndef VTK_LEGACY_SILENT
           vtkWarningMacro(
             "Warning: range selections should use two-component arrays to specify the"
             " range.  Using single component arrays with a tuple for the low and high ends of the"
             " range is legacy behavior and may be removed in future releases.");
-#endif
           auto selList = vtkDataArray::SafeDownCast(selectionList.GetPointer());
           if (selList)
           {
@@ -584,7 +572,7 @@ void vtkValueSelector::Initialize(vtkSelectionNode* node)
       default:
         vtkErrorMacro("vtkValueSelector doesn't support content-type: " << contentType);
         break;
-    };
+    }
   }
   catch (const std::runtime_error& e)
   {
@@ -611,3 +599,4 @@ void vtkValueSelector::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

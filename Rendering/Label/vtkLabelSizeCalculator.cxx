@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLabelSizeCalculator.h"
 
 #include "vtkCellData.h"
@@ -21,6 +23,7 @@
 
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLabelSizeCalculator::Internals
 {
 public:
@@ -235,7 +238,7 @@ vtkIntArray* vtkLabelSizeCalculator::LabelSizesForArray(
     if (this->GetDebug())
     {
       cout << "LSC: " << bds[0] << " " << bds[1] << " " << bds[2] << " " << bds[3] << " \""
-           << labels->GetVariantValue(i).ToString().c_str() << "\"\n";
+           << labels->GetVariantValue(i).ToString() << "\"\n";
     }
 
     bds += 4;
@@ -243,3 +246,4 @@ vtkIntArray* vtkLabelSizeCalculator::LabelSizesForArray(
 
   return lsz;
 }
+VTK_ABI_NAMESPACE_END

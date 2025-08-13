@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContourGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMPMergePolyDataHelper.h"
 
 #include "vtkCellArray.h"
@@ -27,6 +15,7 @@
 
 #include <algorithm>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -128,20 +117,20 @@ void MergePoints(
   }
 
   vtkParallelMergePoints mergePoints;
-  mergePoints.BucketIds = &nonEmptyBuckets[0];
+  mergePoints.BucketIds = nonEmptyBuckets.data();
   mergePoints.Merger = (*begin).Locator;
   mergePoints.OutputPointData = (*begin).Output->GetPointData();
   if (!idMaps.empty())
   {
     mergePoints.Merger->InitializeMerge();
-    mergePoints.IdMaps = &idMaps[0];
+    mergePoints.IdMaps = idMaps.data();
     // Prepare output point data
     int numArrays = mergePoints.OutputPointData->GetNumberOfArrays();
     for (int i = 0; i < numArrays; i++)
     {
       mergePoints.OutputPointData->GetArray(i)->Resize(numPts);
     }
-    mergePoints.InputPointDatas = &pds[0];
+    mergePoints.InputPointDatas = pds.data();
 
     // The first locator is what we will use to accumulate all others
     // So all iteration starts from second dataset.
@@ -509,3 +498,4 @@ vtkPolyData* vtkSMPMergePolyDataHelper::MergePolyData(std::vector<InputData>& in
 
   return outPolyData;
 }
+VTK_ABI_NAMESPACE_END

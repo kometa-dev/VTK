@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSocket.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSocket.h"
 
 #include "vtkObjectFactory.h"
@@ -72,8 +60,7 @@
   do                                                                                               \
   {                                                                                                \
     (_ret) = (_call);                                                                              \
-  } while (                                                                                        \
-    ((_ret) == vtkSocketErrorReturnMacro) && (vtkErrnoMacro == vtkSocketErrorIdMacro(EINTR)));
+  } while (((_ret) == vtkSocketErrorReturnMacro) && (vtkErrnoMacro == vtkSocketErrorIdMacro(EINTR)))
 
 // use when _str may be a null pointer but _fallback is not.
 #define vtkSafeStrMacro(_str, _fallback) ((_str) ? (_str) : (_fallback))
@@ -81,16 +68,17 @@
 // convert error number to string and report via vtkErrorMacro.
 #define vtkSocketErrorMacro(_eno, _message)                                                        \
   vtkErrorMacro(<< (_message) << " " << vtkSafeStrMacro(vtkStrerrorMacro(_eno), "unknown error")   \
-                << ".");
+                << ".")
 
 // convert error number to string and report via vtkGenericWarningMacro
 #define vtkSocketGenericErrorMacro(_message)                                                       \
   vtkGenericWarningMacro(<< (_message) << " "                                                      \
                          << vtkSafeStrMacro(vtkStrerrorMacro(vtkErrnoMacro), "unknown error")      \
-                         << ".");
+                         << ".")
 
 // on windows strerror doesn't handle socket error codes
 #if defined(_WIN32) && !defined(__CYGWIN__)
+VTK_ABI_NAMESPACE_BEGIN
 static const char* wsaStrerror(int wsaeid)
 {
   wchar_t wbuf[256];
@@ -114,9 +102,11 @@ static const char* wsaStrerror(int wsaeid)
 
   return buf;
 }
+VTK_ABI_NAMESPACE_END
 #endif
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkSocket::vtkSocket()
 {
   this->SocketDescriptor = -1;
@@ -617,3 +607,4 @@ void vtkSocket::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "SocketDescriptor: " << this->SocketDescriptor << endl;
 }
+VTK_ABI_NAMESPACE_END

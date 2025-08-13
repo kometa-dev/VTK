@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSDL2RenderWindowInteractor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSDL2RenderWindowInteractor
  * @brief   implements SDL2 specific functions
@@ -26,6 +14,7 @@
 #include "vtkRenderingUIModule.h" // For export macro
 #include <map>                    // for ivar
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGUI_EXPORT vtkSDL2RenderWindowInteractor : public vtkRenderWindowInteractor
 {
 public:
@@ -40,12 +29,11 @@ public:
   /**
    * Initialize the event handler
    */
-  virtual void Initialize() override;
+  void Initialize() override;
 
   /**
-   * Run the event loop and return. This is provided so that you can
-   * implement your own event loop but yet use the vtk event handling as
-   * well.
+   * Process all user-interaction, timer events and return.
+   * If there are no events, this method returns immediately.
    */
   void ProcessEvents() override;
 
@@ -54,7 +42,7 @@ public:
    * calls PostQuitMessage(0) to terminate the application. An application can Specify
    * ExitMethod for alternative behavior (i.e. suppression of keyboard exit)
    */
-  void TerminateApp(void) override;
+  void TerminateApp() override;
 
   /**
    * These methods correspond to the Exit, User and Pick
@@ -98,4 +86,5 @@ private:
   void operator=(const vtkSDL2RenderWindowInteractor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

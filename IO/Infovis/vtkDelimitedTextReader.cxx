@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDelimitedTextReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkDelimitedTextReader.h"
 #include "vtkCommand.h"
@@ -54,6 +38,7 @@
 /// Output iterator object that parses a stream of Unicode characters into records and
 /// fields, inserting them into a vtkTable.
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -160,7 +145,7 @@ public:
     // Look for field delimiters unless we're in a string ...
     if (!this->WithinString && this->FieldDelimiters.count(value))
     {
-      // Handle special case of merging consective delimiters ...
+      // Handle special case of merging consecutive delimiters ...
       if (!(this->CurrentField.empty() && this->MergeConsDelims))
       {
         this->InsertField();
@@ -371,12 +356,9 @@ void vtkDelimitedTextReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "UnicodeCharacterSet: "
      << (this->UnicodeCharacterSet ? this->UnicodeCharacterSet : "(none)") << endl;
   os << indent << "MaxRecords: " << this->MaxRecords << endl;
-  os << indent << "UnicodeRecordDelimiters: '" << this->UnicodeRecordDelimiters.c_str() << "'"
-     << endl;
-  os << indent << "UnicodeFieldDelimiters: '" << this->UnicodeFieldDelimiters.c_str() << "'"
-     << endl;
-  os << indent << "UnicodeStringDelimiters: '" << this->UnicodeStringDelimiters.c_str() << "'"
-     << endl;
+  os << indent << "UnicodeRecordDelimiters: '" << this->UnicodeRecordDelimiters << "'" << endl;
+  os << indent << "UnicodeFieldDelimiters: '" << this->UnicodeFieldDelimiters << "'" << endl;
+  os << indent << "UnicodeStringDelimiters: '" << this->UnicodeStringDelimiters << "'" << endl;
   os << indent << "StringDelimiter: " << this->StringDelimiter << endl;
   os << indent << "ReplacementCharacter: " << this->ReplacementCharacter << endl;
   os << indent << "FieldDelimiterCharacters: "
@@ -494,7 +476,7 @@ int vtkDelimitedTextReader::RequestData(
   return this->ReadData(output_table);
 }
 
-int vtkDelimitedTextReader::ReadData(vtkTable* const output_table)
+int vtkDelimitedTextReader::ReadData(vtkTable* output_table)
 {
   this->LastError = "";
 
@@ -535,6 +517,32 @@ int vtkDelimitedTextReader::ReadData(vtkTable* const output_table)
       input_stream_pt = &string_stream;
     }
 
+    {
+      namespace vtkfs = vtksys::FStream;
+      vtkfs::BOM fBOM = vtkfs::ReadBOM(*input_stream_pt);
+
+      if (!this->UnicodeCharacterSet)
+      {
+        switch (fBOM)
+        {
+          case vtkfs::BOM_UTF8:
+            this->UnicodeCharacterSet = new char[6];
+            strcpy(this->UnicodeCharacterSet, "UTF-8");
+            break;
+          case vtkfs::BOM_UTF16BE:
+            this->UnicodeCharacterSet = new char[9];
+            strcpy(this->UnicodeCharacterSet, "UTF-16BE");
+            break;
+          case vtkfs::BOM_UTF16LE:
+            this->UnicodeCharacterSet = new char[9];
+            strcpy(this->UnicodeCharacterSet, "UTF-16LE");
+            break;
+          default:
+            break;
+        }
+      }
+    }
+
     vtkTextCodec* transCodec = nullptr;
 
     if (this->UnicodeCharacterSet)
@@ -543,20 +551,21 @@ int vtkDelimitedTextReader::ReadData(vtkTable* const output_table)
     }
     else
     {
-      char tstring[2];
-      tstring[1] = '\0';
-      tstring[0] = this->StringDelimiter;
-      // don't use Set* methods since they change the MTime in
-      // RequestData() !!!!!
-      std::string fieldDelimiterCharacters = this->FieldDelimiterCharacters;
-      if (this->AddTabFieldDelimiter)
-      {
-        fieldDelimiterCharacters.push_back('\t');
-      }
-      this->UnicodeFieldDelimiters = fieldDelimiterCharacters;
-      this->UnicodeStringDelimiters = tstring;
       transCodec = vtkTextCodecFactory::CodecToHandle(*input_stream_pt);
     }
+
+    char tstring[2];
+    tstring[1] = '\0';
+    tstring[0] = this->StringDelimiter;
+    // don't use Set* methods since they change the MTime in
+    // RequestData() !!!!!
+    std::string fieldDelimiterCharacters = this->FieldDelimiterCharacters;
+    if (this->AddTabFieldDelimiter)
+    {
+      fieldDelimiterCharacters.push_back('\t');
+    }
+    this->UnicodeFieldDelimiters = fieldDelimiterCharacters;
+    this->UnicodeStringDelimiters = tstring;
 
     if (nullptr == transCodec)
     {
@@ -597,7 +606,7 @@ int vtkDelimitedTextReader::ReadData(vtkTable* const output_table)
         else
         {
           throw std::runtime_error(
-            "Could not find pedigree id array: " + vtkStdString(this->PedigreeIdArrayName));
+            "Could not find pedigree id array: " + std::string(this->PedigreeIdArrayName));
         }
       }
     }
@@ -634,3 +643,4 @@ int vtkDelimitedTextReader::ReadData(vtkTable* const output_table)
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

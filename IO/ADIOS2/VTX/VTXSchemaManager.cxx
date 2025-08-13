@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    VTXSchemaManager.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /*
  * VTXSchemaManager.cxx
@@ -32,10 +20,11 @@
 
 namespace vtx
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 // PUBLIC
 void VTXSchemaManager::Update(
-  const std::string& streamName, const size_t /*step*/, const std::string& schemaName)
+  const std::string& streamName, size_t /*step*/, const std::string& schemaName)
 {
   // can't do it in the constructor as it need MPI initialized
   if (!this->ADIOS)
@@ -50,8 +39,13 @@ void VTXSchemaManager::Update(
 
     const std::string fileName = helper::GetFileName(this->StreamName);
     this->IO = this->ADIOS->DeclareIO(fileName);
-    this->IO.SetEngine(helper::GetEngineType(fileName));
+    this->IO.SetEngine("BPFile");
+#ifdef IOADIOS2_BP5_RANDOM_ACCESS
+    // ReadRandomAccess necessary for BP5 format, optional for BP3/4
+    this->Engine = this->IO.Open(fileName, adios2::Mode::ReadRandomAccess);
+#else
     this->Engine = this->IO.Open(fileName, adios2::Mode::Read);
+#endif
     InitReader();
   }
   else
@@ -60,7 +54,7 @@ void VTXSchemaManager::Update(
   }
 }
 
-void VTXSchemaManager::Fill(vtkMultiBlockDataSet* multiBlock, const size_t step)
+void VTXSchemaManager::Fill(vtkMultiBlockDataSet* multiBlock, size_t step)
 {
   this->Reader->Fill(multiBlock, step);
 }
@@ -160,4 +154,5 @@ bool VTXSchemaManager::InitReaderXMLVTK()
   return success;
 }
 
-} // end var namespace
+VTK_ABI_NAMESPACE_END
+} // end vtx namespace

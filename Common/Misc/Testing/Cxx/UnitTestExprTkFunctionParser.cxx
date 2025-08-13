@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    UnitTestExprTkFunctionParser.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSmartPointer.h"
 
@@ -145,7 +133,7 @@ bool TestUnaryOperations()
   parser->SetScalarVariableValue("y", 2.0);
   for (unsigned i = 0; i < 4; i++)
   {
-    parser->SetFunction(&formula[i][0]);
+    parser->SetFunction(formula[i].data());
     double result = parser->GetScalarResult();
     if (!vtkMathUtilities::FuzzyCompare(
           result, expected[i], std::numeric_limits<double>::epsilon() * 1.0))

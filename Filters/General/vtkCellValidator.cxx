@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellValidator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCellValidator.h"
 
@@ -87,6 +75,7 @@
 #include <sstream>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCellValidator);
 
 //------------------------------------------------------------------------------
@@ -351,7 +340,7 @@ bool vtkCellValidator::Convex(vtkCell* cell, double vtkNotUsed(tolerance))
         polyhedron_pointIds[i] = i;
       }
 
-      // udpate the face ids
+      // update the face ids
       vtkIdType cpt = 0;
       for (vtkIdType i = 0; i < faces_n; i++)
       {
@@ -1919,6 +1908,10 @@ int vtkCellValidator::RequestData(vtkInformation* vtkNotUsed(request),
   State state;
   for (it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     it->GetCell(cell);
     state = Check(cell, this->Tolerance);
     stateArray->SetValue(counter, static_cast<short>(state));
@@ -1982,3 +1975,4 @@ void vtkCellValidator::PrintState(vtkCellValidator::State state, ostream& os, vt
     }
   }
 }
+VTK_ABI_NAMESPACE_END

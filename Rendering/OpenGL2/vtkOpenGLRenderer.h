@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLRenderer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenGLRenderer
  * @brief   OpenGL renderer
@@ -23,13 +11,16 @@
 #ifndef vtkOpenGLRenderer_h
 #define vtkOpenGLRenderer_h
 
-#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_1_0
 #include "vtkRenderer.h"
+
+#include "vtkOpenGLQuadHelper.h"       // for ivar
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkSmartPointer.h"           // For vtkSmartPointer
+#include <memory>                      // for unique_ptr
 #include <string>                      // Ivars
 #include <vector>                      // STL Header
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFloatArray;
 class vtkOpenGLFXAAFilter;
 class vtkRenderPass;
@@ -55,7 +46,7 @@ public:
   /**
    * Concrete open gl render method.
    */
-  void DeviceRender(void) override;
+  void DeviceRender() override;
 
   /**
    * Overridden to support hidden line removal.
@@ -70,12 +61,12 @@ public:
    */
   void DeviceRenderTranslucentPolygonalGeometry(vtkFrameBufferObjectBase* fbo = nullptr) override;
 
-  void Clear(void) override;
+  void Clear() override;
 
   /**
    * Ask lights to load themselves into graphics pipeline.
    */
-  int UpdateLights(void) override;
+  int UpdateLights() override;
 
   /**
    * Is rendering at translucent geometry stage using depth peeling and
@@ -84,16 +75,6 @@ public:
    * (Used by vtkOpenGLProperty or vtkOpenGLTexture)
    */
   int GetDepthPeelingHigherLayer();
-
-  /**
-   * Indicate if this system is subject to the Apple/AMD bug
-   * of not having a working glPrimitiveId <rdar://20747550>.
-   * The bug is fixed on macOS 10.11 and later, and this method
-   * will return false when the OS is new enough.
-   */
-  VTK_DEPRECATED_IN_9_1_0(
-    "Removed in 9.1.0 as this bug does not affect any macOS release that VTK supports")
-  bool HaveApplePrimitiveIdBug();
 
   /**
    * Indicate if this system is subject to the apple/NVIDIA bug that causes
@@ -252,6 +233,7 @@ protected:
   vtkPBRIrradianceTexture* EnvMapIrradiance;
   vtkPBRPrefilterTexture* EnvMapPrefiltered;
   vtkSmartPointer<vtkFloatArray> SphericalHarmonics;
+  std::unique_ptr<vtkOpenGLQuadHelper> BackgroundRenderer;
   bool UseSphericalHarmonics;
 
 private:
@@ -259,4 +241,5 @@ private:
   void operator=(const vtkOpenGLRenderer&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

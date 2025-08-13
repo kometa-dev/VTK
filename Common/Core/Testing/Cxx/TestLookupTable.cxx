@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestLookupTable.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Test some generic features of vtkLookupTable
 
 #include "vtkCommand.h"
@@ -22,12 +10,15 @@
 
 // simple macro for performing tests
 #define TestAssert(t)                                                                              \
-  if (!(t))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "In " << __FILE__ << ":";                                                              \
-    cerr << " Test assertion failed line " << __LINE__ << ": " << #t << "\n";                      \
-    rval |= 1;                                                                                     \
-  }
+    if (!(t))                                                                                      \
+    {                                                                                              \
+      cerr << "In " << __FILE__ << ":";                                                            \
+      cerr << " Test assertion failed line " << __LINE__ << ": " << #t << "\n";                    \
+      rval |= 1;                                                                                   \
+    }                                                                                              \
+  } while (false)
 
 #define TestVector4d(t1, t2)                                                                       \
   TestAssert((vtkMathUtilities::FuzzyCompare<double>(t1[0], t2[0]) &&                              \

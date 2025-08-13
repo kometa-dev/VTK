@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInformationExecutivePortVectorKey.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInformationExecutivePortVectorKey.h"
 
 #include "vtkExecutive.h"
@@ -26,6 +14,7 @@
 #define VTK_USE_SINGLE_REF 1
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkInformationExecutivePortVectorKey::vtkInformationExecutivePortVectorKey(
   const char* name, const char* location)
   : vtkInformationKey(name, location)
@@ -178,7 +167,7 @@ vtkExecutive** vtkInformationExecutivePortVectorKey::GetExecutives(vtkInformatio
 {
   vtkInformationExecutivePortVectorValue* v =
     static_cast<vtkInformationExecutivePortVectorValue*>(this->GetAsObjectBase(info));
-  return (v && !v->Executives.empty()) ? (&v->Executives[0]) : nullptr;
+  return (v && !v->Executives.empty()) ? v->Executives.data() : nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -186,7 +175,7 @@ int* vtkInformationExecutivePortVectorKey::GetPorts(vtkInformation* info)
 {
   vtkInformationExecutivePortVectorValue* v =
     static_cast<vtkInformationExecutivePortVectorValue*>(this->GetAsObjectBase(info));
-  return (v && !v->Ports.empty()) ? (&v->Ports[0]) : nullptr;
+  return (v && !v->Ports.empty()) ? v->Ports.data() : nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -274,7 +263,7 @@ vtkExecutive** vtkInformationExecutivePortVectorKey ::GetExecutivesWatchAddress(
 {
   vtkInformationExecutivePortVectorValue* v =
     static_cast<vtkInformationExecutivePortVectorValue*>(this->GetAsObjectBase(info));
-  return (v && !v->Executives.empty()) ? (&v->Executives[0]) : nullptr;
+  return (v && !v->Executives.empty()) ? v->Executives.data() : nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -282,5 +271,6 @@ int* vtkInformationExecutivePortVectorKey ::GetPortsWatchAddress(vtkInformation*
 {
   vtkInformationExecutivePortVectorValue* v =
     static_cast<vtkInformationExecutivePortVectorValue*>(this->GetAsObjectBase(info));
-  return (v && !v->Ports.empty()) ? (&v->Ports[0]) : nullptr;
+  return (v && !v->Ports.empty()) ? v->Ports.data() : nullptr;
 }
+VTK_ABI_NAMESPACE_END

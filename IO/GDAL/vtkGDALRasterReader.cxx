@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGDALRasterReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkGDALRasterReader.h"
 
@@ -51,6 +39,7 @@
 #include <sstream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGDALRasterReader);
 
 //------------------------------------------------------------------------------
@@ -427,19 +416,19 @@ void vtkGDALRasterReader::vtkGDALRasterReaderInternal::GenericReadData()
         rawUniformGridData.resize(4 * destWidth * destHeight * pixelSpace);
 
         err = redBand->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-          static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 0 * bandSpace),
+          static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 0 * bandSpace),
           destWidth, destHeight, this->TargetDataType, pixelSpace, lineSpace);
         assert(err == CE_None);
         err = greenBand->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-          static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 1 * bandSpace),
+          static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 1 * bandSpace),
           destWidth, destHeight, this->TargetDataType, pixelSpace, lineSpace);
         assert(err == CE_None);
         err = blueBand->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-          static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 2 * bandSpace),
+          static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 2 * bandSpace),
           destWidth, destHeight, this->TargetDataType, pixelSpace, lineSpace);
         assert(err == CE_None);
         err = alphaBand->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-          static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 3 * bandSpace),
+          static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 3 * bandSpace),
           destWidth, destHeight, this->TargetDataType, pixelSpace, lineSpace);
         assert(err == CE_None);
         completedBand = 4.0;
@@ -450,15 +439,15 @@ void vtkGDALRasterReader::vtkGDALRasterReaderInternal::GenericReadData()
         rawUniformGridData.resize(3 * destWidth * destHeight * pixelSpace);
 
         err = redBand->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-          static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 0 * bandSpace),
+          static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 0 * bandSpace),
           destWidth, destHeight, this->TargetDataType, 0, 0);
         assert(err == CE_None);
         err = greenBand->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-          static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 1 * bandSpace),
+          static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 1 * bandSpace),
           destWidth, destHeight, this->TargetDataType, 0, 0);
         assert(err == CE_None);
         err = blueBand->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-          static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 2 * bandSpace),
+          static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 2 * bandSpace),
           destWidth, destHeight, this->TargetDataType, 0, 0);
         assert(err == CE_None);
         completedBand = 3.0;
@@ -477,11 +466,11 @@ void vtkGDALRasterReader::vtkGDALRasterReaderInternal::GenericReadData()
         rawUniformGridData.resize(2 * destWidth * destHeight * pixelSpace);
 
         err = grayBand->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-          static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 0 * bandSpace),
+          static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 0 * bandSpace),
           destWidth, destHeight, this->TargetDataType, pixelSpace, lineSpace);
         assert(err == CE_None);
         err = alphaBand->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-          static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 1 * bandSpace),
+          static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 1 * bandSpace),
           destWidth, destHeight, this->TargetDataType, pixelSpace, lineSpace);
         assert(err == CE_None);
         completedBand = 2.0;
@@ -492,7 +481,7 @@ void vtkGDALRasterReader::vtkGDALRasterReaderInternal::GenericReadData()
         this->Reader->SetNumberOfScalarComponents(1);
         rawUniformGridData.resize(destWidth * destHeight * pixelSpace);
         err = grayBand->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-          static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 0 * bandSpace),
+          static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 0 * bandSpace),
           destWidth, destHeight, this->TargetDataType, pixelSpace, lineSpace);
         assert(err == CE_None);
         completedBand = 1.0;
@@ -506,7 +495,7 @@ void vtkGDALRasterReader::vtkGDALRasterReaderInternal::GenericReadData()
       this->Reader->SetNumberOfScalarComponents(1);
       rawUniformGridData.resize(destWidth * destHeight * pixelSpace);
       err = paletteBand->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-        static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 0 * bandSpace),
+        static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 0 * bandSpace),
         destWidth, destHeight, this->TargetDataType, pixelSpace, lineSpace);
       assert(err == CE_None);
 
@@ -528,7 +517,7 @@ void vtkGDALRasterReader::vtkGDALRasterReaderInternal::GenericReadData()
     {
       groupIndex[0] = i;
       err = allBands[i]->RasterIO(GF_Read, windowX, windowY, windowWidth, windowHeight,
-        static_cast<void*>(reinterpret_cast<GByte*>(&rawUniformGridData[0]) + 0 * bandSpace),
+        static_cast<void*>(reinterpret_cast<GByte*>(rawUniformGridData.data()) + 0 * bandSpace),
         destWidth, destHeight, this->TargetDataType, pixelSpace, lineSpace);
       assert(err == CE_None);
       this->Convert<VTK_TYPE, RAW_TYPE>(rawUniformGridData, destWidth, destHeight, groupIndex,
@@ -957,7 +946,7 @@ int vtkGDALRasterReader::RequestData(vtkInformation* vtkNotUsed(request),
   this->Impl->UniformGridData->GetFieldData()->AddArray(projectionData);
 
   // Add NoDataValue as field data
-  // GDALDatset can have 1 value for each raster band
+  // GDALDataset can have 1 value for each raster band
   // Use NaN for undefined values
   vtkSmartPointer<vtkDoubleArray> noDataArray = vtkSmartPointer<vtkDoubleArray>::New();
   noDataArray->SetName("NO_DATA_VALUE");
@@ -1140,3 +1129,4 @@ void vtkGDALRasterReader::EnableAllCellArrays()
 {
   this->Impl->CellArraySelection->EnableAllArrays();
 }
+VTK_ABI_NAMESPACE_END

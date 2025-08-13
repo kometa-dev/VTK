@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "QVTKTableModelAdapterTestClass.h"
 
 #include <iostream>
@@ -11,10 +13,6 @@
 #include "vtkSmartPointer.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
-
-#include <QCoreApplication>
-
-using namespace std;
 
 QVTKTableModelAdapterTestClass::QVTKTableModelAdapterTestClass(QObject* parent)
   : QAbstractTableModel(parent)

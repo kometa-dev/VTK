@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCMLMoleculeReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCMLMoleculeReader.h"
 
 #include "vtkDataObject.h"
@@ -31,6 +19,7 @@
 #include <vector>
 
 // Subclass of vtkXMLParser -- definitions at end of file
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCMLParser : public vtkXMLParser
 {
 public:
@@ -188,7 +177,6 @@ void vtkCMLParser::NewMolecule(const char**)
 
 void vtkCMLParser::NewAtom(const char** attr)
 {
-  vtkAtom atom = this->Target->AppendAtom();
   int attrInd = 0;
   unsigned short atomicNum = 0;
   float pos[3];
@@ -222,6 +210,13 @@ void vtkCMLParser::NewAtom(const char** attr)
     ++attrInd;
   }
 
+  if (!id)
+  {
+    vtkErrorMacro(<< "Found an atom without an id; skipping");
+    return;
+  }
+
+  vtkAtom atom = this->Target->AppendAtom();
   atom.SetAtomicNumber(atomicNum);
   atom.SetPosition(pos);
 
@@ -323,3 +318,4 @@ void vtkCMLParser::NewBond(const char** attr)
 
   this->Target->AppendBond(atomId1, atomId2, order);
 }
+VTK_ABI_NAMESPACE_END

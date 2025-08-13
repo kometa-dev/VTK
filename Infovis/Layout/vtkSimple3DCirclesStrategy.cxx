@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSimple3DCirclesStrategy.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSimple3DCirclesStrategy.h"
 
 #include "vtkAbstractArray.h"
@@ -31,6 +19,7 @@
 #include <algorithm> // For min, max, swap, etc.
 #include <list>      // For internal store
 
+VTK_ABI_NAMESPACE_BEGIN
 template <class T>
 bool IsZero(T value)
 {
@@ -663,3 +652,4 @@ void vtkSimple3DCirclesStrategy::Transform(double Local[], double Global[])
   Global[1] = this->Origin[1] + Global[1];
   Global[2] = this->Origin[2] + Global[2];
 }
+VTK_ABI_NAMESPACE_END

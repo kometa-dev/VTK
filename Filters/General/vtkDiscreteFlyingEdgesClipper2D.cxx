@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDiscreteFlyingEdgesClipper2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDiscreteFlyingEdgesClipper2D.h"
 
 #include "vtkCellArray.h"
@@ -33,6 +21,7 @@
 #include <set>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDiscreteFlyingEdgesClipper2D);
 
 //============================================================================
@@ -228,13 +217,27 @@ public:
   class Pass1
   {
   public:
-    Pass1(vtkDiscreteClipperAlgorithm<TT>* algo) { this->Algo = algo; }
+    Pass1(vtkDiscreteClipperAlgorithm<TT>* algo, vtkDiscreteFlyingEdgesClipper2D* filter)
+    {
+      this->Algo = algo;
+      this->Filter = filter;
+    }
     vtkDiscreteClipperAlgorithm<TT>* Algo;
+    vtkDiscreteFlyingEdgesClipper2D* Filter;
     void operator()(vtkIdType row, vtkIdType end)
     {
       TT* rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
+      bool isFirst = vtkSMPTools::GetSingleThread();
       for (; row < end; ++row)
       {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
         this->Algo->ClassifyXEdges(rowPtr, row);
         rowPtr += this->Algo->Inc1;
       } // for all rows in this batch
@@ -244,13 +247,27 @@ public:
   class Pass2
   {
   public:
-    Pass2(vtkDiscreteClipperAlgorithm<TT>* algo) { this->Algo = algo; }
+    Pass2(vtkDiscreteClipperAlgorithm<TT>* algo, vtkDiscreteFlyingEdgesClipper2D* filter)
+    {
+      this->Algo = algo;
+      this->Filter = filter;
+    }
     vtkDiscreteClipperAlgorithm<TT>* Algo;
+    vtkDiscreteFlyingEdgesClipper2D* Filter;
     void operator()(vtkIdType row, vtkIdType end)
     {
       TT* rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
+      bool isFirst = vtkSMPTools::GetSingleThread();
       for (; row < end; ++row)
       {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
         this->Algo->ClassifyYEdges(rowPtr, row);
         rowPtr += this->Algo->Inc1;
       } // for all rows in this batch
@@ -260,13 +277,27 @@ public:
   class Pass4
   {
   public:
-    Pass4(vtkDiscreteClipperAlgorithm<TT>* algo) { this->Algo = algo; }
+    Pass4(vtkDiscreteClipperAlgorithm<TT>* algo, vtkDiscreteFlyingEdgesClipper2D* filter)
+    {
+      this->Algo = algo;
+      this->Filter = filter;
+    }
     vtkDiscreteClipperAlgorithm<TT>* Algo;
+    vtkDiscreteFlyingEdgesClipper2D* Filter;
     void operator()(vtkIdType row, vtkIdType end)
     {
       T* rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
+      bool isFirst = vtkSMPTools::GetSingleThread();
       for (; row < end; ++row)
       {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
         this->Algo->GenerateOutput(rowPtr, row);
         rowPtr += this->Algo->Inc1;
       } // for all rows in this batch
@@ -1135,7 +1166,6 @@ void vtkDiscreteClipperAlgorithm<T>::ClassifyYEdges(T* inPtr0, vtkIdType row)
   // Grab the dyad cases bounding this pixel. Remember this is trimmed.
   inPtr0 += xL;
   T* inPtr1 = inPtr0 + this->Inc1;
-  ;
   T* inPtr0x = inPtr0 + 1;
   T* inPtr1x = inPtr0x + this->Inc1;
 
@@ -1401,17 +1431,17 @@ void vtkDiscreteClipperAlgorithm<T>::ContourImage(vtkDiscreteFlyingEdgesClipper2
   // PASS 1: Traverse all rows identifying intersections and classifying the
   // dyads. Also accumulate information necessary for later allocation.  For
   // example the number of output points is computed.
-  Pass1<T> pass1(&algo);
+  Pass1<T> pass1(&algo, self);
   vtkSMPTools::For(0, algo.Dims[1], pass1);
 
   // PASS 2: Traverse all rows and process interior information. Continue building
   // dyad case table from this information.
-  Pass2<T> pass2(&algo);
+  Pass2<T> pass2(&algo, self);
   vtkSMPTools::For(0, algo.Dims[1] - 1, pass2);
 
   // PASS 3: Now allocate output. First we have to update the x-Edge meta
   // data to partition the output into separate pieces so independent threads
-  // can write into separate memory partititions. Once allocation is
+  // can write into separate memory partitions. Once allocation is
   // complete, process on a row by row basis and produce output points and
   // polygon primitives, (if necessary).
   vtkIdType numXPts, numYPts, numPolys, connLen;
@@ -1457,7 +1487,7 @@ void vtkDiscreteClipperAlgorithm<T>::ContourImage(vtkDiscreteFlyingEdgesClipper2
 
     // PASS 4: Now process each x-pixel-row and produce the output
     // primitives.
-    Pass4<T> pass4(&algo);
+    Pass4<T> pass4(&algo, self);
     vtkSMPTools::For(0, algo.Dims[1] - 1, pass4);
   } // if output generated
 
@@ -1598,3 +1628,4 @@ void vtkDiscreteFlyingEdgesClipper2D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Compute Scalars: " << (this->ComputeScalars ? "On\n" : "Off\n");
   os << indent << "ArrayComponent: " << this->ArrayComponent << endl;
 }
+VTK_ABI_NAMESPACE_END

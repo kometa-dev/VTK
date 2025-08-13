@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSPHQuinticKernel.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSPHQuinticKernel
  * @brief   a quintic SPH interpolation kernel
@@ -41,6 +29,7 @@
 #include "vtkSPHKernel.h"
 #include <algorithm> // For std::min()
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 class vtkDoubleArray;
 
@@ -68,9 +57,9 @@ public:
    */
   double ComputeFunctionWeight(const double d) override
   {
-    double tmp1 = 3.0 - std::min(d, 3.0);
-    double tmp2 = 2.0 - std::min(d, 2.0);
-    double tmp3 = 1.0 - std::min(d, 1.0);
+    double tmp1 = 3.0 - (std::min)(d, 3.0);
+    double tmp2 = 2.0 - (std::min)(d, 2.0);
+    double tmp3 = 1.0 - (std::min)(d, 1.0);
     return (tmp1 * tmp1 * tmp1 * tmp1 * tmp1 - 6.0 * tmp2 * tmp2 * tmp2 * tmp2 * tmp2 +
       15.0 * tmp3 * tmp3 * tmp3 * tmp3 * tmp3);
   }
@@ -83,9 +72,9 @@ public:
    */
   double ComputeDerivWeight(const double d) override
   {
-    double tmp1 = 3.0 - std::min(d, 3.0);
-    double tmp2 = 2.0 - std::min(d, 2.0);
-    double tmp3 = 1.0 - std::min(d, 1.0);
+    double tmp1 = 3.0 - (std::min)(d, 3.0);
+    double tmp2 = 2.0 - (std::min)(d, 2.0);
+    double tmp3 = 1.0 - (std::min)(d, 1.0);
     return (-5.0 * tmp1 * tmp1 * tmp1 * tmp1 + 30.0 * tmp2 * tmp2 * tmp2 * tmp2 +
       -75.0 * tmp3 * tmp3 * tmp3 * tmp3);
   }
@@ -100,4 +89,5 @@ private:
   void operator=(const vtkSPHQuinticKernel&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

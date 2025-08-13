@@ -1,22 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCutter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCutter.h"
 
 #include "vtk3DLinearGridPlaneCutter.h"
-#include "vtkArrayDispatch.h"
-#include "vtkAssume.h"
+#include "vtkAppendDataSets.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkCellIterator.h"
@@ -37,6 +24,7 @@
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPlane.h"
+#include "vtkPlaneCutter.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 #include "vtkRectilinearGrid.h"
@@ -46,13 +34,13 @@
 #include "vtkStructuredGrid.h"
 #include "vtkSynchronizedTemplates3D.h"
 #include "vtkSynchronizedTemplatesCutter3D.h"
-#include "vtkTimerLog.h"
 #include "vtkUnstructuredGridBase.h"
 
 #include <algorithm>
 #include <cmath>
 
-vtkStandardNewMacro(vtkCutter);
+VTK_ABI_NAMESPACE_BEGIN
+vtkObjectFactoryNewMacro(vtkCutter);
 vtkCxxSetObjectMacro(vtkCutter, CutFunction, vtkImplicitFunction);
 vtkCxxSetObjectMacro(vtkCutter, Locator, vtkIncrementalPointLocator);
 
@@ -61,7 +49,6 @@ vtkCxxSetObjectMacro(vtkCutter, Locator, vtkIncrementalPointLocator);
 // generating cut scalars turned off.
 vtkCutter::vtkCutter(vtkImplicitFunction* cf)
 {
-  this->ContourValues = vtkContourValues::New();
   this->SortBy = VTK_SORT_BY_VALUE;
   this->CutFunction = cf;
   this->GenerateCutScalars = 0;
@@ -69,23 +56,18 @@ vtkCutter::vtkCutter(vtkImplicitFunction* cf)
   this->GenerateTriangles = 1;
   this->OutputPointsPrecision = DEFAULT_PRECISION;
 
-  this->SynchronizedTemplates3D = vtkSynchronizedTemplates3D::New();
-  this->SynchronizedTemplatesCutter3D = vtkSynchronizedTemplatesCutter3D::New();
-  this->GridSynchronizedTemplates = vtkGridSynchronizedTemplates3D::New();
-  this->RectilinearSynchronizedTemplates = vtkRectilinearSynchronizedTemplates::New();
+  this->PlaneCutter->SetContainerAlgorithm(this);
+  this->SynchronizedTemplates3D->SetContainerAlgorithm(this);
+  this->SynchronizedTemplatesCutter3D->SetContainerAlgorithm(this);
+  this->GridSynchronizedTemplates->SetContainerAlgorithm(this);
+  this->RectilinearSynchronizedTemplates->SetContainerAlgorithm(this);
 }
 
 //------------------------------------------------------------------------------
 vtkCutter::~vtkCutter()
 {
-  this->ContourValues->Delete();
   this->SetCutFunction(nullptr);
   this->SetLocator(nullptr);
-
-  this->SynchronizedTemplates3D->Delete();
-  this->SynchronizedTemplatesCutter3D->Delete();
-  this->GridSynchronizedTemplates->Delete();
-  this->RectilinearSynchronizedTemplates->Delete();
 }
 
 //------------------------------------------------------------------------------
@@ -296,32 +278,6 @@ void vtkCutter::RectilinearGridCutter(vtkDataSet* dataSetInput, vtkPolyData* thi
   contourData->Delete();
 }
 
-namespace
-{
-//------------------------------------------------------------------------------
-// Find the first visible cell in a vtkStructuredGrid.
-//
-vtkIdType GetFirstVisibleCell(vtkDataSet* DataSetInput)
-{
-  vtkStructuredGrid* input = vtkStructuredGrid::SafeDownCast(DataSetInput);
-  if (input)
-  {
-    if (input->HasAnyBlankCells())
-    {
-      vtkIdType size = input->GetNumberOfElements(vtkDataSet::CELL);
-      for (vtkIdType i = 0; i < size; ++i)
-      {
-        if (input->IsCellVisible(i) != 0)
-        {
-          return i;
-        }
-      }
-    }
-  }
-  return 0;
-}
-}
-
 //------------------------------------------------------------------------------
 // Cut through data generating surface.
 //
@@ -354,84 +310,120 @@ int vtkCutter::RequestData(
     return 1;
   }
 
-#ifdef TIMEME
-  vtkSmartPointer<vtkTimerLog> timer = vtkSmartPointer<vtkTimerLog>::New();
-  timer->StartTimer();
-#endif
-
-  if ((input->GetDataObjectType() == VTK_STRUCTURED_POINTS ||
-        input->GetDataObjectType() == VTK_IMAGE_DATA) &&
-    input->GetCell(0) && input->GetCell(0)->GetCellDimension() >= 3)
-  {
-    this->StructuredPointsCutter(input, output, request, inputVector, outputVector);
-  }
-  else if (input->GetDataObjectType() == VTK_STRUCTURED_GRID && input->GetCell(0) &&
-    input->GetCell(GetFirstVisibleCell(input))->GetCellDimension() >= 3)
-  {
-    this->StructuredGridCutter(input, output);
-  }
-  else if (input->GetDataObjectType() == VTK_RECTILINEAR_GRID &&
-    static_cast<vtkRectilinearGrid*>(input)->GetDataDimension() == 3)
-  {
-    this->RectilinearGridCutter(input, output);
-  }
-  else if (input->GetDataObjectType() == VTK_UNSTRUCTURED_GRID_BASE ||
-    input->GetDataObjectType() == VTK_UNSTRUCTURED_GRID)
-  {
-    // See if the input can be fully processed by the fast vtk3DLinearGridPlaneCutter.
-    // This algorithm can provide a substantial speed improvement over the more general
-    // algorithm for vtkUnstructuredGrids.
-    if (this->GetGenerateTriangles() && this->GetCutFunction() &&
-      this->GetCutFunction()->IsA("vtkPlane") && this->GetNumberOfContours() == 1 &&
-      this->GetGenerateCutScalars() == 0 &&
-      vtk3DLinearGridPlaneCutter::CanFullyProcessDataObject(input))
+  vtkPlane* plane = vtkPlane::SafeDownCast(this->CutFunction);
+  auto executePlaneCutter = [&]() {
+    if (this->Locator == nullptr)
     {
-      vtkNew<vtk3DLinearGridPlaneCutter> linear3DCutter;
+      this->CreateDefaultLocator();
+    }
 
+    vtkNew<vtkAppendDataSets> append;
+    append->SetContainerAlgorithm(this);
+    append->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
+    append->MergePointsOff();
+    append->SetOutputDataSetType(VTK_POLY_DATA);
+    for (vtkIdType i = 0; i < this->GetNumberOfContours(); ++i)
+    {
       // Create a copy of vtkPlane and nudge it by the single contour
-      vtkPlane* plane = vtkPlane::SafeDownCast(this->GetCutFunction());
       vtkNew<vtkPlane> newPlane;
       newPlane->SetNormal(plane->GetNormal());
       newPlane->SetOrigin(plane->GetOrigin());
-
-      // Evaluate the distance the origin is from the original plane. This accomodates
+      // Evaluate the distance the origin is from the original plane. This accommodates
       // subclasses of vtkPlane that may have an additional offset parameter not
       // accessible through the vtkPlane interface. Use this distance to adjust the origin
       // in newPlane.
       double d = plane->EvaluateFunction(plane->GetOrigin());
-
       // In addition. We'll need to shift by the contour value.
-      newPlane->Push(-d + this->GetValue(0));
+      newPlane->Push(-d + this->GetValue(i));
 
-      linear3DCutter->SetPlane(newPlane);
+      this->PlaneCutter->SetInputData(input);
+      this->PlaneCutter->SetPlane(newPlane);
       bool mergePoints =
         this->GetLocator() && !this->GetLocator()->IsA("vtkNonMergingPointLocator");
-      linear3DCutter->SetMergePoints(mergePoints);
-      linear3DCutter->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
-      linear3DCutter->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
-      vtkNew<vtkEventForwarderCommand> progressForwarder;
-      progressForwarder->SetTarget(this);
-      linear3DCutter->AddObserver(vtkCommand::ProgressEvent, progressForwarder);
-
-      int retval = linear3DCutter->ProcessRequest(request, inputVector, outputVector);
-
-      return retval;
+      this->PlaneCutter->SetMergePoints(mergePoints);
+      this->PlaneCutter->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
+      this->PlaneCutter->SetGeneratePolygons(!this->GetGenerateTriangles());
+      this->PlaneCutter->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
+      this->PlaneCutter->BuildTreeOff();
+      this->PlaneCutter->ComputeNormalsOff();
+      this->PlaneCutter->Update();
+      vtkNew<vtkPolyData> pd;
+      pd->ShallowCopy(this->PlaneCutter->GetOutput());
+      append->AddInputData(pd);
     }
-
-    vtkDebugMacro(<< "Executing Unstructured Grid Cutter");
-    this->UnstructuredGridCutter(input, output);
+    append->Update();
+    output->ShallowCopy(append->GetOutput());
+  };
+  if (vtkImageData::SafeDownCast(input) &&
+    static_cast<vtkImageData*>(input)->GetDataDimension() == 3)
+  {
+    if (plane && this->GetGenerateCutScalars() == 0)
+    {
+      executePlaneCutter();
+    }
+    else
+    {
+      if (input->GetDataObjectType() == VTK_UNIFORM_GRID)
+      {
+        this->DataSetCutter(input, output);
+      }
+      else
+      {
+        this->StructuredPointsCutter(input, output, request, inputVector, outputVector);
+      }
+    }
+  }
+  else if (vtkStructuredGrid::SafeDownCast(input) &&
+    static_cast<vtkStructuredGrid*>(input)->GetDataDimension() == 3)
+  {
+    if (plane && this->GetGenerateCutScalars() == 0)
+    {
+      executePlaneCutter();
+    }
+    else
+    {
+      this->StructuredGridCutter(input, output);
+    }
+  }
+  else if (vtkRectilinearGrid::SafeDownCast(input) &&
+    static_cast<vtkRectilinearGrid*>(input)->GetDataDimension() == 3)
+  {
+    if (plane && this->GetGenerateCutScalars() == 0)
+    {
+      executePlaneCutter();
+    }
+    else
+    {
+      this->RectilinearGridCutter(input, output);
+    }
+  }
+  else if (vtkUnstructuredGridBase::SafeDownCast(input))
+  {
+    if (plane && this->GetGenerateCutScalars() == 0 && this->GetGenerateTriangles() == 1)
+    {
+      executePlaneCutter();
+    }
+    else
+    {
+      this->UnstructuredGridCutter(input, output);
+    }
+  }
+  else if (vtkPolyData::SafeDownCast(input))
+  {
+    if (plane && this->GetGenerateCutScalars() == 0 && this->GetGenerateTriangles() == 1)
+    {
+      executePlaneCutter();
+    }
+    else
+    {
+      this->DataSetCutter(input, output);
+    }
   }
   else
   {
-    vtkDebugMacro(<< "Executing DataSet Cutter");
     this->DataSetCutter(input, output);
   }
 
-#ifdef TIMEME
-  timer->StopTimer();
-  cout << "Sliced " << output->GetNumberOfCells() << " cells in " << timer->GetElapsedTime()
-       << " secs " << endl;
-#endif
   return 1;
 }
 
@@ -491,7 +483,7 @@ void vtkCutter::DataSetCutter(vtkDataSet* input, vtkPolyData* output)
   vtkCellData *inCD = input->GetCellData(), *outCD = output->GetCellData();
   vtkIdList* cellIds;
   vtkIdType numContours = this->ContourValues->GetNumberOfContours();
-  int abortExecute = 0;
+  bool abortExecute = false;
 
   cellScalars = vtkDoubleArray::New();
 
@@ -596,7 +588,7 @@ void vtkCutter::DataSetCutter(vtkDataSet* input, vtkPolyData* output)
         {
           vtkDebugMacro(<< "Cutting #" << cut);
           this->UpdateProgress(static_cast<double>(cut) / numCuts);
-          abortExecute = this->GetAbortExecute();
+          abortExecute = this->CheckAbort();
         }
 
         input->GetCell(cellId, cell);
@@ -652,7 +644,7 @@ void vtkCutter::DataSetCutter(vtkDataSet* input, vtkPolyData* output)
         {
           vtkDebugMacro(<< "Cutting #" << cellId);
           this->UpdateProgress(static_cast<double>(cellId) / numCells);
-          abortExecute = this->GetAbortExecute();
+          abortExecute = this->CheckAbort();
         }
 
         // I assume that "GetCellType" is fast.
@@ -747,7 +739,7 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
   double* contourValuesEnd = contourValues + numContours;
   double* contourIter;
 
-  int abortExecute = 0;
+  bool abortExecute = false;
 
   double range[2];
 
@@ -857,7 +849,7 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
         {
           vtkDebugMacro(<< "Cutting #" << cut);
           this->UpdateProgress(static_cast<double>(cut) / numCuts);
-          abortExecute = this->GetAbortExecute();
+          abortExecute = this->CheckAbort();
         }
 
         pointIdList = cellIter->GetPointIds();
@@ -938,7 +930,7 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
         {
           vtkDebugMacro(<< "Cutting #" << cellId);
           this->UpdateProgress(static_cast<double>(cellId) / numCuts);
-          abortExecute = this->GetAbortExecute();
+          abortExecute = this->CheckAbort();
         }
 
         // Just fetch the cell type -- least expensive.
@@ -1087,3 +1079,4 @@ void vtkCutter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Precision of the output points: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

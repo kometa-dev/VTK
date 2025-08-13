@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVASPAnimationReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkVASPAnimationReader.h"
 
@@ -54,6 +42,7 @@ bool parse(const std::string& str, T& result)
 
 } // end anon namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVASPAnimationReader);
 
 //------------------------------------------------------------------------------
@@ -162,7 +151,7 @@ int vtkVASPAnimationReader::RequestInformation(
     vtkInformation* outInfo = outInfos->GetInformationObject(0);
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), timeRange, 2);
     outInfo->Set(
-      vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &times[0], static_cast<int>(times.size()));
+      vtkStreamingDemandDrivenPipeline::TIME_STEPS(), times.data(), static_cast<int>(times.size()));
   }
 
   return 1;
@@ -366,3 +355,4 @@ bool vtkVASPAnimationReader::ReadMolecule(std::istream& in, vtkMolecule* molecul
 
   return true;
 }
+VTK_ABI_NAMESPACE_END

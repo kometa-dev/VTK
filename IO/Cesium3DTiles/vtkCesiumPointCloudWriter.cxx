@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCesiumPointCloudWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCesiumPointCloudWriter.h"
 #include "vtkArrayDispatch.h"
 #include "vtkAssemblyPath.h"
@@ -85,21 +73,46 @@ struct SaveRgbArray
   template <typename ArrayT>
   void operator()(ArrayT* array, vtkIdList* pointIds, std::ofstream& out)
   {
+    vtkTypeUInt16Array* a = vtkTypeUInt16Array::FastDownCast(array);
+    bool unsignedCharRange = false;
     int numberOfComponents = array->GetNumberOfComponents();
+    if (a)
+    {
+      int j;
+      for (j = 0; j < numberOfComponents; ++j)
+      {
+        double r[2];
+        a->GetFiniteRange(r, j);
+        if (r[1] > 255)
+        {
+          break;
+        }
+      }
+      if (j == numberOfComponents)
+      {
+        unsignedCharRange = true;
+      }
+    }
     for (vtkIdType i = 0; i < pointIds->GetNumberOfIds(); ++i)
     {
       std::array<char, 4> rgba = { { 0, 0, 0, 0 } };
       for (int j = 0; j < numberOfComponents; ++j)
       {
-        rgba[j] = static_cast<char>(array->GetTypedComponent(pointIds->GetId(i), j));
+        char c = a
+          ? (unsignedCharRange
+                ? static_cast<char>(array->GetTypedComponent(pointIds->GetId(i), j))
+                : static_cast<char>(array->GetTypedComponent(pointIds->GetId(i), j) / 256.0))
+          : static_cast<char>(array->GetTypedComponent(pointIds->GetId(i), j));
+        rgba[j] = c;
       }
-      out.write(&rgba[0], numberOfComponents);
+      out.write(rgba.data(), numberOfComponents);
     }
   }
 };
 
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCesiumPointCloudWriter);
 
 vtkCesiumPointCloudWriter::vtkCesiumPointCloudWriter()
@@ -221,7 +234,7 @@ void vtkCesiumPointCloudWriter::WriteData()
     double pointd[3];
     float pointf[3];
     pointSet->GetPoints()->GetPoint(this->PointIds->GetId(i), pointd);
-    vtkMath::Subtract(pointd, &origin[0], pointd);
+    vtkMath::Subtract(pointd, origin.data(), pointd);
     for (int j = 0; j < 3; ++j)
     {
       pointf[j] = pointd[j];
@@ -260,3 +273,4 @@ int vtkCesiumPointCloudWriter::FillInputPortInformation(int, vtkInformation* inf
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkPointSet");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

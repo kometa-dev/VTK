@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMultiCorrelativeStatistics.h"
 #include "vtkMultiCorrelativeStatisticsAssessFunctor.h"
 
@@ -29,6 +31,7 @@
 #define VTK_MULTICORRELATIVE_AVERAGECOL "Mean"
 #define VTK_MULTICORRELATIVE_COLUMNAMES "Column"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMultiCorrelativeStatistics);
 
 namespace
@@ -144,7 +147,7 @@ static void vtkMultiCorrelativeInvertCholesky(std::vector<double*>& chol, std::v
 static void vtkMultiCorrelativeTransposeTriangular(std::vector<double>& a, vtkIdType m)
 {
   std::vector<double> b(a.begin(), a.end());
-  double* bp = &b[0];
+  double* bp = b.data();
   vtkIdType i, j;
   a.clear();
   double* v;
@@ -176,9 +179,9 @@ void vtkMultiCorrelativeAssessFunctor::operator()(vtkDoubleArray* result, vtkIdT
   vtkIdType m = static_cast<vtkIdType>(this->Columns.size());
   vtkIdType i, j;
   this->Tuple = this->EmptyTuple; // initialize Tuple to 0.0
-  double* x = &this->Tuple[0];
+  double* x = this->Tuple.data();
   double* y;
-  double* ci = &this->Factor[0];
+  double* ci = this->Factor.data();
   double v;
   for (i = 0; i < m; ++i)
   {
@@ -368,10 +371,10 @@ void vtkMultiCorrelativeStatistics::Learn(
 
   std::set<std::set<vtkStdString>>::const_iterator reqIt;
   std::set<vtkStdString>::const_iterator colIt;
-  std::set<std::pair<vtkStdString, vtkDataArray*>> allColumns;
+  std::set<std::pair<std::string, vtkDataArray*>> allColumns;
   std::map<std::pair<vtkIdType, vtkIdType>, vtkIdType> colPairs;
   std::map<std::pair<vtkIdType, vtkIdType>, vtkIdType>::iterator cpIt;
-  std::map<vtkStdString, vtkIdType> colNameToIdx;
+  std::map<std::string, vtkIdType> colNameToIdx;
   std::vector<vtkDataArray*> colPtrs;
 
   // Populate a vector with pointers to columns of interest (i.e., columns from the input dataset
@@ -386,7 +389,7 @@ void vtkMultiCorrelativeStatistics::Learn(
       vtkUnsignedCharArray* ghosts = inData->GetRowData()->GetGhostArray();
       if (arr && (!ghosts || vtkArrayDownCast<vtkUnsignedCharArray>(arr) != ghosts))
       {
-        allColumns.insert(std::pair<vtkStdString, vtkDataArray*>(*colIt, arr));
+        allColumns.insert(std::pair<std::string, vtkDataArray*>(*colIt, arr));
       }
     }
   }
@@ -394,8 +397,8 @@ void vtkMultiCorrelativeStatistics::Learn(
   // Now make a map from input column name to output column index (colNameToIdx):
   vtkIdType i = 0;
   vtkIdType m = static_cast<vtkIdType>(allColumns.size());
-  std::set<std::pair<vtkStdString, vtkDataArray*>>::const_iterator acIt;
-  vtkStdString empty;
+  std::set<std::pair<std::string, vtkDataArray*>>::const_iterator acIt;
+  std::string empty;
   col1->InsertNextValue("Cardinality");
   col2->InsertNextValue(empty);
   for (acIt = allColumns.begin(); acIt != allColumns.end(); ++acIt)
@@ -418,12 +421,12 @@ void vtkMultiCorrelativeStatistics::Learn(
     // For each column in the request:
     for (colIt = reqIt->begin(); colIt != reqIt->end(); ++colIt)
     {
-      std::map<vtkStdString, vtkIdType>::iterator idxIt = colNameToIdx.find(*colIt);
+      std::map<std::string, vtkIdType>::iterator idxIt = colNameToIdx.find(*colIt);
       // Ignore invalid column names
       if (idxIt != colNameToIdx.end())
       {
         vtkIdType colA = idxIt->second;
-        vtkStdString colAName = idxIt->first;
+        std::string colAName = idxIt->first;
         std::set<vtkStdString>::const_iterator colIt2;
         for (colIt2 = colIt; colIt2 != reqIt->end(); ++colIt2)
         {
@@ -621,7 +624,7 @@ void vtkMultiCorrelativeStatistics::Derive(vtkMultiBlockDataSet* outMeta)
   std::set<std::set<vtkStdString>>::const_iterator reqIt;
   std::set<vtkStdString>::const_iterator colIt;
   std::map<std::pair<vtkIdType, vtkIdType>, vtkIdType> colPairs;
-  std::map<vtkStdString, vtkIdType> colNameToIdx;
+  std::map<std::string, vtkIdType> colNameToIdx;
   // Reconstruct information about the computed sums from the raw data.
   // The first entry is always the sample size
   double n = col3->GetValue(0);
@@ -665,7 +668,7 @@ void vtkMultiCorrelativeStatistics::Derive(vtkMultiBlockDataSet* outMeta)
     // For each column in the request:
     for (colIt = reqIt->begin(); colIt != reqIt->end(); ++colIt)
     {
-      std::map<vtkStdString, vtkIdType>::iterator idxIt = colNameToIdx.find(*colIt);
+      std::map<std::string, vtkIdType>::iterator idxIt = colNameToIdx.find(*colIt);
       // Ignore invalid column names
       if (idxIt != colNameToIdx.end())
       {
@@ -788,7 +791,7 @@ void vtkMultiCorrelativeStatistics::Assess(
 
     // Create the outData columns
     int nv = this->AssessNames->GetNumberOfValues();
-    std::vector<vtkStdString> names(nv);
+    std::vector<std::string> names(nv);
     for (int v = 0; v < nv; ++v)
     {
       std::ostringstream assessColName;
@@ -805,14 +808,13 @@ void vtkMultiCorrelativeStatistics::Assess(
 
       // Storing names to be able to use SetValueByName which is faster than SetValue
       vtkDoubleArray* assessValues = vtkDoubleArray::New();
-      names[v] = assessColName.str().c_str();
-      assessValues->SetName(names[v]);
+      names[v] = assessColName.str();
+      assessValues->SetName(names[v].c_str());
       assessValues->SetNumberOfTuples(nRow);
       outData->AddColumn(assessValues);
       assessValues->Delete();
     }
 
-    vtkIdType count = 0;
     // Assess each entry of the column
     vtkDoubleArray* assessResult = vtkDoubleArray::New();
     for (vtkIdType r = 0; r < nRow; ++r)
@@ -824,9 +826,8 @@ void vtkMultiCorrelativeStatistics::Assess(
       (*dfunc)(assessResult, r);
       for (int v = 0; v < nv; ++v)
       {
-        outData->SetValueByName(r, names[v], assessResult->GetValue(v));
+        outData->SetValueByName(r, names[v].c_str(), assessResult->GetValue(v));
       }
-      ++count;
     }
 
     assessResult->Delete();
@@ -905,12 +906,11 @@ bool vtkMultiCorrelativeAssessFunctor::Initialize(
   vtkIdType i;
   for (i = 0; i < m; ++i)
   {
-    vtkStdString colname(name->GetValue(i));
+    std::string colname(name->GetValue(i));
     vtkDataArray* arr = vtkArrayDownCast<vtkDataArray>(inData->GetColumnByName(colname.c_str()));
     if (!arr)
     {
-      vtkGenericWarningMacro(
-        "Multicorrelative input data needs a \"" << colname.c_str() << "\" column");
+      vtkGenericWarningMacro("Multicorrelative input data needs a \"" << colname << "\" column");
       return false;
     }
     cols.push_back(arr);
@@ -918,8 +918,7 @@ bool vtkMultiCorrelativeAssessFunctor::Initialize(
       vtkArrayDownCast<vtkDoubleArray>(reqModel->GetColumnByName(colname.c_str()));
     if (!dar)
     {
-      vtkGenericWarningMacro(
-        "Multicorrelative request needs a \"" << colname.c_str() << "\" column");
+      vtkGenericWarningMacro("Multicorrelative request needs a \"" << colname << "\" column");
       return false;
     }
     chol.push_back(dar->GetPointer(1));
@@ -979,3 +978,4 @@ void vtkMultiCorrelativeStatistics::SelectAssessFunctor(vtkTable* inData, vtkDat
   }
   dfunc = mcfunc;
 }
+VTK_ABI_NAMESPACE_END

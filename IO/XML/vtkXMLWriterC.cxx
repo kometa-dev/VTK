@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLWriterC.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLWriterC.h"
 
 #include "vtkCellArray.h"
@@ -64,7 +52,7 @@ extern "C"
   };
 
   //----------------------------------------------------------------------------
-  vtkXMLWriterC* vtkXMLWriterC_New(void)
+  vtkXMLWriterC* vtkXMLWriterC_New()
   {
     if (vtkXMLWriterC* self = new vtkXMLWriterC)
     {
@@ -109,31 +97,31 @@ extern "C"
         {
           self->DataObject = vtkSmartPointer<vtkPolyData>::New();
           self->Writer = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
-        };
+        }
         break;
         case VTK_UNSTRUCTURED_GRID:
         {
           self->DataObject = vtkSmartPointer<vtkUnstructuredGrid>::New();
           self->Writer = vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
-        };
+        }
         break;
         case VTK_STRUCTURED_GRID:
         {
           self->DataObject = vtkSmartPointer<vtkStructuredGrid>::New();
           self->Writer = vtkSmartPointer<vtkXMLStructuredGridWriter>::New();
-        };
+        }
         break;
         case VTK_RECTILINEAR_GRID:
         {
           self->DataObject = vtkSmartPointer<vtkRectilinearGrid>::New();
           self->Writer = vtkSmartPointer<vtkXMLRectilinearGridWriter>::New();
-        };
+        }
         break;
         case VTK_IMAGE_DATA:
         {
           self->DataObject = vtkSmartPointer<vtkImageData>::New();
           self->Writer = vtkSmartPointer<vtkXMLImageDataWriter>::New();
-        };
+        }
         break;
       }
 

@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIncrementalOctreeNode.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkIncrementalOctreeNode.h"
 #include "vtkIdList.h"
@@ -22,6 +7,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPoints.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkIncrementalOctreeNode);
 
 vtkCxxSetObjectMacro(vtkIncrementalOctreeNode, PointIdSet, vtkIdList);
@@ -457,19 +443,6 @@ int vtkIncrementalOctreeNode::CreateChildNodes(vtkPoints* points, vtkIdList* pnt
 }
 
 //------------------------------------------------------------------------------
-int vtkIncrementalOctreeNode::InsertPoint(
-  vtkPoints* points, const double newPnt[3], int maxPts, vtkIdType* pntId, int ptMode)
-{
-  VTK_LEGACY_REPLACED_BODY(vtkIncrementalOctreeNode::InsertPoint(vtkPoints * points,
-                             const double newPnt[3], int maxPts, vtkIdType* pntId, int ptMode),
-    "VTK 9.1",
-    vtkIncrementalOctreeNode::InsertPoint(vtkPoints * points, const double newPnt[3], int maxPts,
-      vtkIdType* pntId, int ptMode, int& numberOfNodes));
-  int numberOfNodes = 0;
-  return InsertPoint(points, newPnt, maxPts, pntId, ptMode, numberOfNodes);
-}
-
-//------------------------------------------------------------------------------
 int vtkIncrementalOctreeNode::InsertPoint(vtkPoints* points, const double newPnt[3], int maxPts,
   vtkIdType* pntId, int ptMode, int& numberOfNodes)
 {
@@ -848,3 +821,4 @@ int vtkIncrementalOctreeNode::GetNumberOfLevels() const
     return 1;
   }
 }
+VTK_ABI_NAMESPACE_END

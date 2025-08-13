@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLODProp3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLODProp3D
  * @brief   level of detail 3D prop
@@ -33,6 +21,7 @@
 #include "vtkProp3D.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderer;
 class vtkMapper;
 class vtkAbstractVolumeMapper;
@@ -234,7 +223,7 @@ public:
   /**
    * Get the ID of the appropriate pick LOD index
    */
-  int GetPickLODID(void);
+  int GetPickLODID();
 
   ///@{
   /**
@@ -317,7 +306,7 @@ protected:
   vtkLODProp3D();
   ~vtkLODProp3D() override;
 
-  int GetAutomaticPickPropIndex(void);
+  int GetAutomaticPickPropIndex();
 
   // Assumes that SelectedLODIndex has already been validated:
   void UpdateKeysForSelectedProp();
@@ -342,4 +331,5 @@ private:
   void operator=(const vtkLODProp3D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkActor.h"
 #include "vtkCamera.h"
@@ -81,7 +70,7 @@ int TestSetZBuffer(int argc, char* argv[])
   renderer->SetPreserveDepthBuffer(1);
   for (int i = 0; i < 4; i++)
   {
-    renderWindow->SetZbufferData(0, 0, 299, 299, &(depth[0]));
+    renderWindow->SetZbufferData(0, 0, 299, 299, depth.data());
     renderWindow->Render();
   }
   renderer->SetPreserveColorBuffer(1);

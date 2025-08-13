@@ -1,23 +1,11 @@
-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiBlockPLOT3DReaderInternals.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMultiBlockPLOT3DReaderInternals.h"
 
 #include "vtkMultiProcessController.h"
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 int vtkMultiBlockPLOT3DReaderInternals::ReadInts(FILE* fp, int n, int* val)
 {
   int retVal = static_cast<int>(fread(val, sizeof(int), n, fp));
@@ -386,6 +374,14 @@ size_t vtkMultiBlockPLOT3DReaderInternals::CalculateFileSizeForBlock(int precisi
   return size;
 }
 
+#ifdef _WIN64
+#define vtk_fseek _fseeki64
+#define vtk_ftell _ftelli64
+#else
+#define vtk_fseek fseek
+#define vtk_ftell ftell
+#endif
+
 //------------------------------------------------------------------------------
 bool vtkMultiBlockPLOT3DReaderRecord::Initialize(FILE* fp, vtkTypeUInt64 offset,
   const vtkMultiBlockPLOT3DReaderInternals::InternalSettings& settings,
@@ -466,7 +462,8 @@ bool vtkMultiBlockPLOT3DReaderRecord::Initialize(FILE* fp, vtkTypeUInt64 offset,
     controller->Broadcast(&count, 1, 0);
     if (count > 0)
     {
-      controller->Broadcast(reinterpret_cast<vtkTypeUInt64*>(&this->SubRecords[0]), count * 2, 0);
+      controller->Broadcast(
+        reinterpret_cast<vtkTypeUInt64*>(this->SubRecords.data()), count * 2, 0);
     }
   }
   else
@@ -476,7 +473,8 @@ bool vtkMultiBlockPLOT3DReaderRecord::Initialize(FILE* fp, vtkTypeUInt64 offset,
     this->SubRecords.resize(count);
     if (count > 0)
     {
-      controller->Broadcast(reinterpret_cast<vtkTypeUInt64*>(&this->SubRecords[0]), count * 2, 0);
+      controller->Broadcast(
+        reinterpret_cast<vtkTypeUInt64*>(this->SubRecords.data()), count * 2, 0);
     }
   }
   return true;
@@ -546,3 +544,4 @@ vtkTypeUInt64 vtkMultiBlockPLOT3DReaderRecord::GetLengthWithSeparators(
     vtkMultiBlockPLOT3DReaderRecord::SubRecordSeparatorWidth +
     length;
 }
+VTK_ABI_NAMESPACE_END

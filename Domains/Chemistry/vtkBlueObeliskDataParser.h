@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBlueObeliskDataParser.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBlueObeliskDataParser
  * @brief   Fill a vtkBlueObeliskData
@@ -41,10 +29,10 @@
 
 #include "vtkSmartPointer.h" // For vtkSmartPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkBlueObeliskData;
 class vtkFloatArray;
-class vtkStdString;
 class vtkStringArray;
 class vtkUnsignedShortArray;
 
@@ -125,11 +113,11 @@ protected:
   } CurrentValueType;
 
   int CurrentAtomicNumber;
-  vtkStdString* CurrentSymbol;
-  vtkStdString* CurrentName;
-  vtkStdString* CurrentPeriodicTableBlock;
-  vtkStdString* CurrentElectronicConfiguration;
-  vtkStdString* CurrentFamily;
+  std::string* CurrentSymbol;
+  std::string* CurrentName;
+  std::string* CurrentPeriodicTableBlock;
+  std::string* CurrentElectronicConfiguration;
+  std::string* CurrentFamily;
   float CurrentMass;
   float CurrentExactMass;
   float CurrentIonizationEnergy;
@@ -152,7 +140,7 @@ private:
    * Resize array if needed and set the entry at ind to val.
    */
   static void ResizeArrayIfNeeded(vtkAbstractArray* arr, vtkIdType ind);
-  static void ResizeAndSetValue(vtkStdString* val, vtkStringArray* arr, vtkIdType ind);
+  static void ResizeAndSetValue(std::string* val, vtkStringArray* arr, vtkIdType ind);
   static void ResizeAndSetValue(float val, vtkFloatArray* arr, vtkIdType ind);
   static void ResizeAndSetValue(unsigned short val, vtkUnsignedShortArray* arr, vtkIdType ind);
   ///@}
@@ -172,8 +160,9 @@ private:
    * Convert a string to lower case. This will modify the input string
    * and return the input pointer.
    */
-  static vtkStdString* ToLower(vtkStdString*);
+  static std::string* ToLower(std::string*);
   ///@}
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

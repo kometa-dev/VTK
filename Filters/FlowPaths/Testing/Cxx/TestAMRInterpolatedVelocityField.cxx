@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestvtkAMRInterpolatedVelocityField.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkUniformGrid.h"
 #include <vtkAMRGaussianPulseSource.h>
 #include <vtkAMRInterpolatedVelocityField.h>
@@ -21,11 +9,14 @@
 #include <vtkNew.h>
 #include <vtkOverlappingAMR.h>
 #define RETURNONFALSE(b)                                                                           \
-  if (!(b))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    vtkAlgorithm::SetDefaultExecutivePrototype(nullptr);                                           \
-    return EXIT_FAILURE;                                                                           \
-  }
+    if (!(b))                                                                                      \
+    {                                                                                              \
+      vtkAlgorithm::SetDefaultExecutivePrototype(nullptr);                                         \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  } while (false)
 
 int TestAMRInterpolatedVelocityField(int, char*[])
 {
@@ -77,15 +68,15 @@ int TestAMRInterpolatedVelocityField(int, char*[])
   res = func->FunctionValues(Points[1], v) != 0;
   RETURNONFALSE(res);
   func->GetLastDataSetLocation(level, id);
-  RETURNONFALSE(level == 1)
+  RETURNONFALSE(level == 1);
   res = func->FunctionValues(Points[2], v) != 0;
   RETURNONFALSE(res);
   func->GetLastDataSetLocation(level, id);
-  RETURNONFALSE(level == 0)
+  RETURNONFALSE(level == 0);
   res = func->FunctionValues(Points[3], v) != 0;
   RETURNONFALSE(res);
   func->GetLastDataSetLocation(level, id);
-  RETURNONFALSE(level == 1)
+  RETURNONFALSE(level == 1);
 
   vtkAlgorithm::SetDefaultExecutivePrototype(nullptr);
   return EXIT_SUCCESS;

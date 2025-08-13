@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetSurfaceFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataSetSurfaceFilter
  * @brief   Extracts outer surface (as vtkPolyData) of any dataset
@@ -92,10 +80,10 @@
 #include "vtkGeometryFilter.h"        // To facilitate delegation
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 template <typename ArrayType>
 class vtkSmartPointer;
 
-class vtkCellIterator;
 class vtkPointData;
 class vtkPoints;
 class vtkIdTypeArray;
@@ -124,24 +112,6 @@ public:
   static vtkDataSetSurfaceFilter* New();
   vtkTypeMacro(vtkDataSetSurfaceFilter, vtkPolyDataAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
-
-  ///@{
-  /**
-   * Triangle strip support was dropped in 9.1. Please use vtkStripper to
-   * generate triangle strips, if needed.
-   */
-  VTK_DEPRECATED_IN_9_1_0("no longer supported")
-  vtkTypeBool GetUseStrips();
-
-  VTK_DEPRECATED_IN_9_1_0("no longer supported")
-  void SetUseStrips(vtkTypeBool);
-
-  VTK_DEPRECATED_IN_9_1_0("no longer supported")
-  void UseStripsOn();
-
-  VTK_DEPRECATED_IN_9_1_0("no longer supported")
-  void UseStripsOff();
-  ///@}
 
   ///@{
   /**
@@ -340,11 +310,6 @@ protected:
   class vtkEdgeInterpolationMap;
 
   vtkEdgeInterpolationMap* EdgeMap;
-  VTK_DEPRECATED_IN_9_1_0(
-    "Use GetInterpolatedPointId(vtkIdType edgePtA, vtkIdType edgePtB, vtkDataSet* input, vtkCell* "
-    "cell, double pcoords[3], double* weights, vtkPoints* outPts, vtkPointData* outPD) instead")
-  vtkIdType GetInterpolatedPointId(vtkIdType edgePtA, vtkIdType edgePtB, vtkDataSet* input,
-    vtkCell* cell, double pcoords[3], vtkPoints* outPts, vtkPointData* outPD);
   vtkIdType GetInterpolatedPointId(vtkIdType edgePtA, vtkIdType edgePtB, vtkDataSet* input,
     vtkCell* cell, double pcoords[3], double* weights, vtkPoints* outPts, vtkPointData* outPD);
   vtkIdType GetInterpolatedPointId(vtkDataSet* input, vtkCell* cell, double pcoords[3],
@@ -382,8 +347,8 @@ protected:
 
 private:
   int UnstructuredGridBaseExecute(vtkDataSet* input, vtkPolyData* output);
-  int UnstructuredGridExecuteInternal(vtkUnstructuredGridBase* input, vtkPolyData* output,
-    bool handleSubdivision, vtkSmartPointer<vtkCellIterator> cellIter);
+  int UnstructuredGridExecuteInternal(
+    vtkUnstructuredGridBase* input, vtkPolyData* output, bool handleSubdivision);
 
   int StructuredExecuteNoBlanking(
     vtkDataSet* input, vtkPolyData* output, vtkIdType* ext, vtkIdType* wholeExt);
@@ -392,4 +357,5 @@ private:
   void operator=(const vtkDataSetSurfaceFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

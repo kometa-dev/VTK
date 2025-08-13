@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPMultiCorrelativeStatistics.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2011 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-  -------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkPMultiCorrelativeStatistics.h"
 
@@ -34,6 +18,7 @@
 
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPMultiCorrelativeStatistics);
 vtkCxxSetObjectMacro(vtkPMultiCorrelativeStatistics, Controller, vtkMultiProcessController);
 //------------------------------------------------------------------------------
@@ -120,7 +105,7 @@ void vtkPMultiCorrelativeStatistics::GatherStatistics(
   double* M_l = new double[nM];
 
   // First, load all means and create a name-to-index lookup table
-  std::map<vtkStdString, vtkIdType> meanIndex;
+  std::map<std::string, vtkIdType> meanIndex;
   for (vtkIdType r = 1; r < nRow; ++r)
   {
     if (sparseCov->GetValueByName(r, "Column2").ToString().empty())
@@ -136,7 +121,7 @@ void vtkPMultiCorrelativeStatistics::GatherStatistics(
   std::map<vtkIdType, std::pair<vtkIdType, vtkIdType>> covToMeans;
   for (vtkIdType r = 1; r < nRow; ++r)
   {
-    vtkStdString col2 = sparseCov->GetValueByName(r, "Column2").ToString();
+    std::string col2 = sparseCov->GetValueByName(r, "Column2").ToString();
     if (!col2.empty())
     {
       covToMeans[r - 1] = std::pair<vtkIdType, vtkIdType>(
@@ -221,3 +206,4 @@ vtkOrderStatistics* vtkPMultiCorrelativeStatistics::CreateOrderStatisticsInstanc
 {
   return vtkPOrderStatistics::New();
 }
+VTK_ABI_NAMESPACE_END

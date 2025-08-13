@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageMagnitude.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageMagnitude.h"
 
 #include "vtkDataArray.h"
@@ -25,6 +13,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageMagnitude);
 
 //------------------------------------------------------------------------------
@@ -57,7 +46,7 @@ void vtkImageMagnitudeExecute(
 {
   vtkImageIterator<T> inIt(inData, outExt);
   vtkImageProgressIterator<T> outIt(outData, outExt, self, id);
-  float sum;
+  double sum;
 
   // find the region to loop over
   int maxC = inData->GetNumberOfScalarComponents();
@@ -75,7 +64,7 @@ void vtkImageMagnitudeExecute(
       sum = 0.0;
       for (idxC = 0; idxC < maxC; idxC++)
       {
-        sum += static_cast<float>(*inSI * *inSI);
+        sum += static_cast<double>(*inSI) * static_cast<double>(*inSI);
         ++inSI;
       }
       *outSI = static_cast<T>(sqrt(sum));
@@ -118,3 +107,4 @@ void vtkImageMagnitude::ThreadedExecute(
       return;
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHardwareSelector.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /*
  * @class   vtkHardwareSelector
  * @brief   manager for OpenGL-based selection.
@@ -114,6 +102,7 @@
 
 #include <string> // for std::string
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderer;
 class vtkRenderWindow;
 class vtkSelection;
@@ -147,7 +136,6 @@ public:
   };
   ///@}
 
-public:
   static vtkHardwareSelector* New();
   vtkTypeMacro(vtkHardwareSelector, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
@@ -223,7 +211,7 @@ public:
     unsigned int temp[2];
     return this->GetPixelInformation(display_position, maxDist, temp);
   }
-  PixelInformation GetPixelInformation(
+  virtual PixelInformation GetPixelInformation(
     const unsigned int display_position[2], int maxDist, unsigned int selected_position[2]);
   void ClearBuffers() { this->ReleasePixBuffers(); }
   // raw is before processing
@@ -527,4 +515,5 @@ private:
   vtkInternals* Internals;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

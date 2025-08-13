@@ -1,17 +1,5 @@
-/*==============================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestDataArrayAPI.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-==============================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDataArray.h"
 
@@ -58,7 +46,7 @@
 // This test has three main components:
 // - Entry point: TestDataArrayAPI_[ARRAYNAME]()
 // - Unit test caller: ExerciseDataArray(). Templated on value and array types.
-//   Calls individual unit test functions to excercise the array methods.
+//   Calls individual unit test functions to exercise the array methods.
 //   Add new unit test calls here. Note that the ExerciseGetRange runner has
 //   been split out to fix compilation on less robust compilers that struggle
 //   with the heavy templating (known issue on llvm-gcc 4.2.1).

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPixelExtentIO.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPixelExtentIO
  *
@@ -27,6 +15,7 @@
 #include "vtkPixelExtent.h"    // for pixel extent
 #include <deque>               // for std::deque
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkUnstructuredGrid;
 
 class VTKIOLEGACY_EXPORT vtkPixelExtentIO
@@ -36,7 +25,7 @@ public:
    * Writes deque of extents for each MPI rank to disk
    * as an unstructured grid. Each extent is converted to
    * a QUAD cell. Rank is encoded in a cell data array.
-   * It's aassumed that the data is duplicated on all
+   * It's assumed that the data is duplicated on all
    * ranks thus only rank 0 writes the data to disk.
    */
   static void Write(int commRank, VTK_FILEPATH const char* fileName,
@@ -47,7 +36,7 @@ public:
    * unstructured grid. It's expected that the index into
    * the deque identifies the rank. Each extent is converted
    * to a QUAD cell. Rank is encoded in a cell data array.
-   * It's aassumed that the data is duplicated on all
+   * It's assumed that the data is duplicated on all
    * ranks thus only rank 0 writes the data to disk.
    */
   static void Write(
@@ -69,5 +58,6 @@ public:
 VTKIOLEGACY_EXPORT
 vtkUnstructuredGrid& operator<<(vtkUnstructuredGrid& data, const vtkPixelExtent& ext);
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkPixelExtentIO.h

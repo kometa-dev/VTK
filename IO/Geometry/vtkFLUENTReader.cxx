@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFLUENTReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Thanks to Brian W. Dotson & Terry E. Jordan (Department of Energy, National
 // Energy Technology Laboratory) & Douglas McCorkle (Iowa State University)
 // who developed this class.
@@ -60,6 +48,7 @@
 #include <cctype>
 #include <sys/stat.h>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFLUENTReader);
 
 #define VTK_FILE_BYTE_ORDER_BIG_ENDIAN 0
@@ -263,7 +252,6 @@ int vtkFLUENTReader::RequestData(vtkInformation* vtkNotUsed(request),
     size_t location = std::find(this->CellZones->value.begin(), this->CellZones->value.end(),
                         this->Cells->value[i].zone) -
       this->CellZones->value.begin();
-    ;
     if (this->Cells->value[i].type == 1)
     {
       for (int j = 0; j < 3; j++)
@@ -4202,3 +4190,4 @@ void vtkFLUENTReader::GetSpeciesVariableNames()
     }
   }
 }
+VTK_ABI_NAMESPACE_END

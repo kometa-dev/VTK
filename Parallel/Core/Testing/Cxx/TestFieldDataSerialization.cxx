@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestFieldDataSerialization.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME TestFieldDataSerialization.cxx -- Test for vtkFieldDataSerializer
 //
 // .SECTION Description
@@ -321,7 +309,7 @@ int TestFieldDataMetaData()
   for (int i = 0; i < NumberOfArrays; ++i)
   {
     vtkDataArray* dataArray = field->GetArray(i);
-    if (strcmp(dataArray->GetName(), names[i].c_str()) != 0)
+    if (dataArray->GetName() != names[i])
     {
       rc++;
       cerr << "ERROR: Array name mismatch!\n";

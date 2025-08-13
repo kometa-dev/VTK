@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointInterpolator2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPointInterpolator2D.h"
 
 #include "vtkAbstractPointLocator.h"
@@ -37,6 +25,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkVoronoiKernel.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPointInterpolator2D);
 
 //------------------------------------------------------------------------------
@@ -238,7 +227,7 @@ void vtkPointInterpolator2D::Probe(vtkDataSet* input, vtkDataSet* source, vtkDat
   if (this->InterpolateZ)
   {
     zScalars = vtkDoubleArray::New();
-    zScalars->SetName(this->GetZArrayName());
+    zScalars->SetName(this->GetZArrayName().c_str());
     zScalars->SetNumberOfTuples(numSourcePts);
     ProjectPointsWithScalars project(source, static_cast<double*>(projPoints->GetVoidPointer(0)),
       static_cast<double*>(zScalars->GetVoidPointer(0)));
@@ -286,7 +275,7 @@ void vtkPointInterpolator2D::Probe(vtkDataSet* input, vtkDataSet* source, vtkDat
   projSource->Delete();
   if (mask)
   {
-    this->ValidPointsMask->SetName(this->ValidPointsMaskArrayName);
+    this->ValidPointsMask->SetName(this->ValidPointsMaskArrayName.c_str());
     outPD->AddArray(this->ValidPointsMask);
     this->ValidPointsMask->Delete();
   }
@@ -299,3 +288,4 @@ void vtkPointInterpolator2D::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Interpolate Z: " << (this->InterpolateZ ? "On" : " Off") << "\n";
 }
+VTK_ABI_NAMESPACE_END

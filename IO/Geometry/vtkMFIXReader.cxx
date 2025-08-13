@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMFIXReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Thanks to Phil Nicoletti, Terry Jordan and Brian Dotson at the
 // National Energy Technology Laboratory who developed this class.
 // Please address all comments to Terry Jordan (terry.jordan@netl.doe.gov)
@@ -39,6 +27,7 @@
 #include "vtksys/FStream.hxx"
 #include <string>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMFIXReader);
 
 //------------------------------------------------------------------------------
@@ -560,7 +549,7 @@ void vtkMFIXReader::MakeMesh(vtkUnstructuredGrid* output)
     for (int j = 0; j <= this->VariableNames->GetMaxId(); j++)
     {
       this->CellDataArray[j] = vtkFloatArray::New();
-      this->CellDataArray[j]->SetName(this->VariableNames->GetValue(j));
+      this->CellDataArray[j]->SetName(this->VariableNames->GetValue(j).c_str());
       this->CellDataArray[j]->SetNumberOfComponents(this->VariableComponents->GetValue(j));
     }
 
@@ -629,7 +618,7 @@ int vtkMFIXReader::RequestInformation(vtkInformation* vtkNotUsed(request),
 
     for (int j = 0; j <= this->VariableNames->GetMaxId(); j++)
     {
-      this->CellDataArraySelection->AddArray(this->VariableNames->GetValue(j));
+      this->CellDataArraySelection->AddArray(this->VariableNames->GetValue(j).c_str());
     }
 
     this->NumberOfPoints = (this->IMaximum2 + 1) * (this->JMaximum2 + 1) * (this->KMaximum2 + 1);
@@ -2070,16 +2059,13 @@ void vtkMFIXReader::GetVariableAtTimestep(int vari, int tstep, vtkFloatArray* v)
   // <10 scalars and <10 ReactionRates (need to change this)
 
   char variableName[256];
-  strcpy(variableName, this->VariableNames->GetValue(vari));
+  strncpy(variableName, this->VariableNames->GetValue(vari).c_str(), sizeof(variableName));
+  variableName[sizeof(variableName) - 1] = '\0'; // guarantee a NUL terminator
   int spx = this->VariableIndexToSPX->GetValue(vari);
   char fileName[VTK_MAXPATH];
 
-  for (int k = 0; k < (int)sizeof(fileName); k++)
-  {
-    fileName[k] = 0;
-  }
-
   strncpy(fileName, this->FileName, sizeof(fileName) - 1);
+  fileName[sizeof(fileName) - 1] = '\0'; // guarantee a NUL terminator
   size_t fileNameLength = strlen(fileName);
   if (fileNameLength >= 4)
   {
@@ -2367,3 +2353,4 @@ void vtkMFIXReader::GetAllTimes(vtkInformationVector* outputVector)
   tfile.close();
   delete[] steps;
 }
+VTK_ABI_NAMESPACE_END

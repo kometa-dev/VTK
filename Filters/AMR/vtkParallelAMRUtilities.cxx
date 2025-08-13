@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRUtilities.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParallelAMRUtilities.h"
 #include "vtkAMRBox.h"
 #include "vtkAMRInformation.h"
@@ -25,6 +13,7 @@
 #include <limits>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 void vtkParallelAMRUtilities::PrintSelf(std::ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -64,7 +53,7 @@ void vtkParallelAMRUtilities::DistributeProcessInformation(
   numBlocks[myRank] = myNumBlocks;
 
   // gather the active process counts
-  controller->AllGather(&myNumBlocks, &numBlocks[0], 1);
+  controller->AllGather(&myNumBlocks, numBlocks.data(), 1);
 
   // gather the blocks each process owns into one array
   std::vector<vtkIdType> offsets(numProcs, 0);
@@ -78,8 +67,8 @@ void vtkParallelAMRUtilities::DistributeProcessInformation(
        << "total # of active blocks: " << currentOffset << " out of total "
        << amrInfo->GetTotalNumberOfBlocks() << endl;
   std::vector<int> allBlocks(currentOffset, -1);
-  controller->AllGatherV(
-    &myBlocks[0], &allBlocks[0], (vtkIdType)myBlocks.size(), &numBlocks[0], &offsets[0]);
+  controller->AllGatherV(myBlocks.data(), allBlocks.data(), (vtkIdType)myBlocks.size(),
+    numBlocks.data(), offsets.data());
 
 #ifdef DEBUG
   if (myRank == 0)
@@ -144,3 +133,4 @@ void vtkParallelAMRUtilities::BlankCells(
     vtkAMRUtilities::BlankGridsAtLevel(amr, i, info->GetChildrenAtLevel(i), processorMap);
   }
 }
+VTK_ABI_NAMESPACE_END

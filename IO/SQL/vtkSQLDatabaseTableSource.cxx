@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSQLDatabaseTableSource.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSQLDatabaseTableSource.h"
 
@@ -32,6 +17,7 @@
 #include "vtkTable.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSQLDatabaseTableSource::implementation
 {
 public:
@@ -54,9 +40,9 @@ public:
       this->Database->Delete();
   }
 
-  vtkStdString URL;
-  vtkStdString Password;
-  vtkStdString QueryString;
+  std::string URL;
+  std::string Password;
+  std::string QueryString;
 
   vtkSQLDatabase* Database;
   vtkSQLQuery* Query;
@@ -179,19 +165,20 @@ int vtkSQLDatabaseTableSource::RequestData(
 
   if (!this->Implementation->Database)
   {
-    this->Implementation->Database = vtkSQLDatabase::CreateFromURL(this->Implementation->URL);
+    this->Implementation->Database =
+      vtkSQLDatabase::CreateFromURL(this->Implementation->URL.c_str());
     if (!this->Implementation->Database)
     {
-      vtkErrorMacro(<< "Error creating database using URL: " << this->Implementation->URL.c_str());
+      vtkErrorMacro(<< "Error creating database using URL: " << this->Implementation->URL);
       return 0;
     }
 
-    if (!this->Implementation->Database->Open(this->Implementation->Password))
+    if (!this->Implementation->Database->Open(this->Implementation->Password.c_str()))
     {
       this->Implementation->Database->Delete();
       this->Implementation->Database = nullptr;
 
-      vtkErrorMacro(<< "Error opening database: " << this->Implementation->URL.c_str());
+      vtkErrorMacro(<< "Error opening database: " << this->Implementation->URL);
       return 0;
     }
   }
@@ -215,7 +202,7 @@ int vtkSQLDatabaseTableSource::RequestData(
   this->Implementation->Query->SetQuery(this->Implementation->QueryString.c_str());
   if (!this->Implementation->Query->Execute())
   {
-    vtkErrorMacro(<< "Error executing query: " << this->Implementation->QueryString.c_str());
+    vtkErrorMacro(<< "Error executing query: " << this->Implementation->QueryString);
     return 0;
   }
 
@@ -275,3 +262,4 @@ int vtkSQLDatabaseTableSource::RequestData(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

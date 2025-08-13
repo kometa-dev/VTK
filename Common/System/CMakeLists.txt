@@ -8,10 +8,7 @@ set(classes
   vtkServerSocket
   vtkSocket
   vtkSocketCollection
-  vtkTimerLog
-
-  # This class is deprecated.
-  vtkThreadMessager)
+  vtkTimerLog)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/vtkTestSocketFeatures.cmake")
 
@@ -36,3 +33,4 @@ vtk_module_link(VTK::CommonSystem
   PRIVATE
     $<$<PLATFORM_ID:WIN32>:wsock32>
     Threads::Threads)
+vtk_add_test_mangling(VTK::CommonSystem)

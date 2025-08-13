@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkXMLUniformGridAMRReader.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLUniformGridAMRReader.h"
 
 #include "vtkAMRBox.h"
@@ -32,6 +21,7 @@
 #include <cassert>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // Data type used to store a 3-tuple of doubles.
@@ -239,7 +229,7 @@ int vtkXMLUniformGridAMRReader::ReadPrimaryElement(vtkXMLDataElement* ePrimary)
   {
     // initialize vtkAMRInformation.
     this->Metadata->Initialize(
-      static_cast<int>(blocks_per_level.size()), reinterpret_cast<int*>(&blocks_per_level[0]));
+      static_cast<int>(blocks_per_level.size()), reinterpret_cast<int*>(blocks_per_level.data()));
 
     double origin[3] = { 0, 0, 0 };
     if (!ePrimary->GetVectorAttribute("origin", 3, origin))
@@ -397,7 +387,7 @@ void vtkXMLUniformGridAMRReader::ReadComposite(vtkXMLDataElement* element,
     std::vector<unsigned int> blocks_per_level;
     vtkReadMetaData(element, blocks_per_level);
     noamr->Initialize(
-      static_cast<int>(blocks_per_level.size()), reinterpret_cast<int*>(&blocks_per_level[0]));
+      static_cast<int>(blocks_per_level.size()), reinterpret_cast<int*>(blocks_per_level.data()));
   }
 
   // Now, simply scan the xml for dataset elements and read them as needed.
@@ -484,3 +474,4 @@ vtkDataSet* vtkXMLUniformGridAMRReader::ReadDataset(
   }
   return ds;
 }
+VTK_ABI_NAMESPACE_END

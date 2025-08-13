@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkThreadedCompositeDataPipeline.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkThreadedCompositeDataPipeline.h"
 
@@ -44,6 +32,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkThreadedCompositeDataPipeline);
 
 //------------------------------------------------------------------------------
@@ -124,7 +113,7 @@ public:
     , InObjs(inObjs)
   {
     int numInputPorts = this->Exec->GetNumberOfInputPorts();
-    this->OutObjs = &outObjs[0];
+    this->OutObjs = outObjs.data();
     this->InfoPrototype = vtkSmartPointer<ProcessBlockData>::New();
     this->InfoPrototype->Construct(this->InInfoVec, numInputPorts, this->OutInfoVec);
   }
@@ -287,3 +276,4 @@ int vtkThreadedCompositeDataPipeline::CallAlgorithm(vtkInformation* request, int
 
   return result;
 }
+VTK_ABI_NAMESPACE_END

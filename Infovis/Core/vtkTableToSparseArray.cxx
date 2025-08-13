@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTableToSparseArray.cxx
-
--------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkTableToSparseArray.h"
 #include "vtkArrayData.h"
@@ -29,17 +12,17 @@
 #include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
 #include "vtkSparseArray.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 
 #include <algorithm>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTableToSparseArray::implementation
 {
 public:
-  std::vector<vtkStdString> Coordinates;
-  vtkStdString Values;
+  std::vector<std::string> Coordinates;
+  std::string Values;
   vtkArrayExtents OutputExtents;
   bool ExplicitOutputExtents;
 };
@@ -154,8 +137,7 @@ int vtkTableToSparseArray::RequestData(
     coordinates[i] = table->GetColumnByName(this->Implementation->Coordinates[i].c_str());
     if (!coordinates[i])
     {
-      vtkErrorMacro(<< "missing coordinate array: "
-                    << this->Implementation->Coordinates[i].c_str());
+      vtkErrorMacro(<< "missing coordinate array: " << this->Implementation->Coordinates[i]);
     }
   }
   // See http://developers.sun.com/solaris/articles/cmp_stlport_libCstd.html
@@ -175,7 +157,7 @@ int vtkTableToSparseArray::RequestData(
   vtkAbstractArray* const values = table->GetColumnByName(this->Implementation->Values.c_str());
   if (!values)
   {
-    vtkErrorMacro(<< "missing value array: " << this->Implementation->Values.c_str());
+    vtkErrorMacro(<< "missing value array: " << this->Implementation->Values);
     return 0;
   }
 
@@ -217,3 +199,4 @@ int vtkTableToSparseArray::RequestData(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

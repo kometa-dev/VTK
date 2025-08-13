@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSelectionNode.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSelectionNode
  * @brief a node in a vtkSelection the defines the selection criteria.
@@ -152,8 +140,15 @@
  *
  * * `vtkSelectionNode::CONNECTED_LAYERS()`: a qualifier used to expand the
  *   definition of selected elements to connected elements for the specified
- *   number of layers. Layers can be positive or negative to grow or shrink the
- *   selection respectively.
+ *   number of layers. Layers can only be positive to grow the selection.
+ *
+ * * `vtkSelectionNode::CONNECTED_LAYERS_REMOVE_SEED()`: this qualifier indicates
+ *   that when using a number of CONNECTED_LAYERS >= 1, the initial selection will
+ *   not be kept.
+ *
+ * * `vtkSelectionNode::CONNECTED_LAYERS_REMOVE_INTERMEDIATE_LAYERS()`: this qualifier
+ *   indicates that when using a number of CONNECTED_LAYERS >= 2, the intermediate layers
+ *   will not be kept.
  *
  * * `vtkSelectionNode::INVERSE()`: a qualifier that causes the selection to be
  *   inverted i.e. all elements not chosen by the criteria are to be treated
@@ -214,9 +209,9 @@
 #define vtkSelectionNode_h
 
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // for deprecation
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkDataSetAttributes;
 class vtkInformation;
@@ -407,6 +402,18 @@ public:
   static vtkInformationIntegerKey* CONNECTED_LAYERS();
 
   /**
+   * When specified and also using CONNECTED_LAYERS(), this indicates
+   * if the initial selection should be kept or not.
+   */
+  static vtkInformationIntegerKey* CONNECTED_LAYERS_REMOVE_SEED();
+
+  /**
+   * When specified and also using CONNECTED_LAYERS(), this indicates
+   * if the intermediate layers should be kept or not.
+   */
+  static vtkInformationIntegerKey* CONNECTED_LAYERS_REMOVE_INTERMEDIATE_LAYERS();
+
+  /**
    * When ContentType==THRESHOLDS  or ContentType==VALUES
    * i.e. threshold and value based selections, it is
    * possible pick the component number using this key. If none is specified,
@@ -481,12 +488,6 @@ public:
   ///@}
 
   /**
-   * @deprecated no longer relevant.
-   */
-  VTK_DEPRECATED_IN_9_1_0("no longer relevant")
-  static vtkInformationIntegerKey* INDEXED_VERTICES();
-
-  /**
    * Merges the selection list between self and the other. Assumes that both has
    * identical properties.
    */
@@ -523,4 +524,5 @@ private:
   void operator=(const vtkSelectionNode&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

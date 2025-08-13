@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractSubsetWithSeed.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkExtractSubsetWithSeed.h"
 
@@ -60,6 +45,7 @@
 #include <functional>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T, int Size>
 bool operator<(const vtkVector<T, Size>& lhs, const vtkVector<T, Size>& rhs)
 {
@@ -476,7 +462,7 @@ int vtkExtractSubsetWithSeed::RequestData(
       {
         const auto dest = rp.out_link().target(i);
         rp.enqueue(dest, bds, 6);
-      };
+      }
     }
     else
     {
@@ -590,7 +576,7 @@ int vtkExtractSubsetWithSeed::RequestData(
         for (const auto& neighbor : cp.link()->neighbors())
         {
           vtkLogF(
-            TRACE, "r=%d: enqueing %d --> (%d, %d)", round, cp.gid(), neighbor.gid, neighbor.proc);
+            TRACE, "r=%d: enqueuing %d --> (%d, %d)", round, cp.gid(), neighbor.gid, neighbor.proc);
           cp.enqueue(neighbor, next_seeds);
         }
       }
@@ -712,7 +698,7 @@ int vtkExtractSubsetWithSeed::RequestData(
 
     // now, put the pieces in output_blocks in the output MB.
     // we use a trick, copy into to output and then replace
-    outputMB->ShallowCopy(inputMB);
+    outputMB->CompositeShallowCopy(inputMB);
 
     std::function<vtkDataObject*(vtkDataObject*)> replaceLeaves;
     replaceLeaves = [&replaceLeaves, &input_dataset_map, &output_blocks](
@@ -788,3 +774,4 @@ int vtkExtractSubsetWithSeed::RequestInformation(
   info->Remove(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
   return 1;
 }
+VTK_ABI_NAMESPACE_END

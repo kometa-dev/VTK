@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLagrangianBasicIntegrationModel.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLagrangianBasicIntegrationModel
  * @brief   vtkFunctionSet abstract implementation to be used
@@ -60,6 +48,7 @@
 #include <mutex> // for mutexes
 #include <queue> // for new particles
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkAbstractCellLocator;
 class vtkCell;
@@ -224,7 +213,7 @@ public:
 
   ///@{
   /**
-   * Convienience methods to call FindInLocators with less arguments
+   * Convenience methods to call FindInLocators with less arguments
    * THESE METHODS ARE NOT THREAD-SAFE
    */
   virtual bool FindInLocators(
@@ -416,49 +405,49 @@ public:
   /**
    * Method used by the LPT to initialize data insertion in the provided
    * vtkFieldData. It initializes Id, ParentID, SeedID and Termination.
-   * Reimplement as needed in acccordance with InsertPathData.
+   * Reimplement as needed in accordance with InsertPathData.
    */
   virtual void InitializePathData(vtkFieldData* data);
 
   /**
    * Method used by the LPT to initialize data insertion in the provided
    * vtkFieldData. It initializes Interaction.
-   * Reimplement as needed in acccordance with InsertInteractionData.
+   * Reimplement as needed in accordance with InsertInteractionData.
    */
   virtual void InitializeInteractionData(vtkFieldData* data);
 
   /**
    * Method used by the LPT to initialize data insertion in the provided
    * vtkFieldData. It initializes StepNumber, ParticleVelocity, IntegrationTime.
-   * Reimplement as needed in acccordance with InsertParticleData.
+   * Reimplement as needed in accordance with InsertParticleData.
    */
   virtual void InitializeParticleData(vtkFieldData* particleData, int maxTuples = 0);
 
   /**
-   * Method used by the LPT to insert data from the partice into
+   * Method used by the LPT to insert data from the particle into
    * the provided vtkFieldData. It inserts Id, ParentID, SeedID and Termination.
-   * Reimplement as needed in acccordance with InitializePathData.
+   * Reimplement as needed in accordance with InitializePathData.
    */
   virtual void InsertPathData(vtkLagrangianParticle* particle, vtkFieldData* data);
 
   /**
-   * Method used by the LPT to insert data from the partice into
+   * Method used by the LPT to insert data from the particle into
    * the provided vtkFieldData. It inserts Interaction.
-   * Reimplement as needed in acccordance with InitializeInteractionData.
+   * Reimplement as needed in accordance with InitializeInteractionData.
    */
   virtual void InsertInteractionData(vtkLagrangianParticle* particle, vtkFieldData* data);
 
   /**
-   * Method used by the LPT to insert data from the partice into
+   * Method used by the LPT to insert data from the particle into
    * the provided vtkFieldData. It inserts StepNumber, ParticleVelocity, IntegrationTime.
    * stepEnum enables to select which data to insert, Prev, Current or Next.
-   * Reimplement as needed in acccordance with InitializeParticleData.
+   * Reimplement as needed in accordance with InitializeParticleData.
    */
   virtual void InsertParticleData(
     vtkLagrangianParticle* particle, vtkFieldData* data, int stepEnum);
 
   /**
-   * Method used by the LPT to insert data from the partice into
+   * Method used by the LPT to insert data from the particle into
    * the provided vtkFieldData. It inserts all arrays from the original SeedData.
    * Reimplement as needed.
    */
@@ -601,7 +590,7 @@ protected:
    * Method used by ParaView surface helper to get default
    * values for each leaf of each dataset of surface
    * nComponents could be retrieved with arrayName but is
-   * given for simplication purposes.
+   * given for simplification purposes.
    * it is your responsibility to initialize all components of
    * defaultValues[nComponent]
    */
@@ -655,4 +644,5 @@ private:
   void operator=(const vtkLagrangianBasicIntegrationModel&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

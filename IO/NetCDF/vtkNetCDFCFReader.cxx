@@ -1,24 +1,6 @@
-// -*- c++ -*-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkNetCDFCFReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-LANL-California-USGov
 
 #include "vtkNetCDFCFReader.h"
 
@@ -36,7 +18,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkPoints.h"
 #include "vtkRectilinearGrid.h"
-#include "vtkStdString.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 #include "vtkStructuredGrid.h"
@@ -54,6 +35,7 @@
 #include "vtk_netcdf.h"
 
 #define CALL_NETCDF_GENERIC(call, on_error)                                                        \
+  do                                                                                               \
   {                                                                                                \
     int errorcode = call;                                                                          \
     if (errorcode != NC_NOERR)                                                                     \
@@ -61,13 +43,13 @@
       const char* errorstring = nc_strerror(errorcode);                                            \
       on_error;                                                                                    \
     }                                                                                              \
-  }
+  } while (false)
 
 #define CALL_NETCDF(call)                                                                          \
-  CALL_NETCDF_GENERIC(call, vtkErrorMacro(<< "netCDF Error: " << errorstring); return 0;)
+  CALL_NETCDF_GENERIC(call, vtkErrorMacro(<< "netCDF Error: " << errorstring); return 0)
 
 #define CALL_NETCDF_GW(call)                                                                       \
-  CALL_NETCDF_GENERIC(call, vtkGenericWarningMacro(<< "netCDF Error: " << errorstring); return 0;)
+  CALL_NETCDF_GENERIC(call, vtkGenericWarningMacro(<< "netCDF Error: " << errorstring); return 0)
 
 #include <algorithm>
 
@@ -76,7 +58,8 @@
 //=============================================================================
 // Convenience function for getting the text attribute on a variable.  Returns
 // true if the attribute exists, false otherwise.
-static bool ReadTextAttribute(int ncFD, int varId, const char* name, vtkStdString& result)
+VTK_ABI_NAMESPACE_BEGIN
+static bool ReadTextAttribute(int ncFD, int varId, const char* name, std::string& result)
 {
   size_t length;
   if (nc_inq_attlen(ncFD, varId, name, &length) != NC_NOERR)
@@ -99,12 +82,13 @@ static bool ReadTextAttribute(int ncFD, int varId, const char* name, vtkStdStrin
 
   // The line below seems weird, but it is here for a good reason.  In general,
   // text attributes are not null terminated, so you have to add your own (which
-  // the vtkStdString will do for us).  However, sometimes a null terminating
+  // the std::string will do for us).  However, sometimes a null terminating
   // character is written in the attribute anyway.  In a C string this is no big
-  // deal.  But it means that the vtkStdString has a null character in it and it
+  // deal.  But it means that the std::string has a null character in it and it
   // is technically different than its own C string.  This line corrects that
   // regardless of whether the null string was written we will get the right
   // string.
+  // NOLINTNEXTLINE(readability-redundant-string-cstr)
   result = result.c_str();
 
   return true;
@@ -196,7 +180,7 @@ int vtkNetCDFCFReader::vtkDimensionInfo::LoadMetaData(int ncFD)
     }
 
     // Check units.
-    vtkStdString units;
+    std::string units;
     if (ReadTextAttribute(ncFD, varId, "units", units))
     {
       units = vtksys::SystemTools::LowerCase(units);
@@ -204,8 +188,8 @@ int vtkNetCDFCFReader::vtkDimensionInfo::LoadMetaData(int ncFD)
       // correspond to strings formatted with the Unidata udunits package.  I'm
       // not sure if these checks are complete, but they matches all of the
       // examples I have seen.
-      if ((units.find(" since ") != vtkStdString::npos) ||
-        (units.find(" after ") != vtkStdString::npos) || (units == "second") ||
+      if ((units.find(" since ") != std::string::npos) ||
+        (units.find(" after ") != std::string::npos) || (units == "second") ||
         (units == "seconds") || (units == "day") || (units == "days") || (units == "hour") ||
         (units == "hours") || (units == "minute") || (units == "minutes") || (units == "s") ||
         (units == "sec") || (units == "secs") || (units == "shake") || (units == "shakes") ||
@@ -238,7 +222,7 @@ int vtkNetCDFCFReader::vtkDimensionInfo::LoadMetaData(int ncFD)
     }
 
     // Check axis.
-    vtkStdString axis;
+    std::string axis;
     if (ReadTextAttribute(ncFD, varId, "axis", axis))
     {
       // The axis attribute is an alternate way of defining the coordinate type.
@@ -263,11 +247,11 @@ int vtkNetCDFCFReader::vtkDimensionInfo::LoadMetaData(int ncFD)
     }
 
     // Check positive.
-    vtkStdString positive;
+    std::string positive;
     if (ReadTextAttribute(ncFD, varId, "positive", positive))
     {
       positive = vtksys::SystemTools::LowerCase(positive);
-      if (positive.find("down") != vtkStdString::npos)
+      if (positive.find("down") != std::string::npos)
       {
         // Flip the values of the coordinates.
         for (vtkIdType i = 0; i < this->Coordinates->GetNumberOfTuples(); i++)
@@ -285,7 +269,7 @@ int vtkNetCDFCFReader::vtkDimensionInfo::LoadMetaData(int ncFD)
     // variable that is of dimensions of size dimLen X 2.  There are no checks
     // for this (other than the existence of the attribute), so if this is not
     // the case then the code could fail.
-    vtkStdString boundsName;
+    std::string boundsName;
     if (ReadTextAttribute(ncFD, varId, "bounds", boundsName))
     {
       this->SpecialVariables->InsertNextValue(boundsName);
@@ -415,7 +399,7 @@ int vtkNetCDFCFReader::vtkDependentDimensionInfo::LoadMetaData(
   // happens for multi-dimensional coordinate variables with p-sided cells.
   // These are unstructured collections of polygons.
 
-  vtkStdString coordinates;
+  std::string coordinates;
   if (!ReadTextAttribute(ncFD, varId, "coordinates", coordinates))
     return 0;
 
@@ -459,7 +443,7 @@ int vtkNetCDFCFReader::vtkDependentDimensionInfo::LoadMetaData(
 
     // The variable is no use to me unless it is identified as either longitude
     // or latitude.
-    vtkStdString units;
+    std::string units;
     if (!ReadTextAttribute(ncFD, auxCoordVarId, "units", units))
       continue;
     units = vtksys::SystemTools::LowerCase(units);
@@ -516,7 +500,7 @@ int vtkNetCDFCFReader::vtkDependentDimensionInfo::LoadMetaData(
     return 0;
   }
 
-  vtkStdString bounds;
+  std::string bounds;
   if (ReadTextAttribute(ncFD, longitudeCoordVarId, "bounds", bounds))
   {
     // The bounds is supposed to point to an array with numAuxCoordDims+1
@@ -1813,7 +1797,7 @@ int vtkNetCDFCFReader::ReadMetaData(int ncFD)
   CALL_NETCDF(nc_inq_ndims(ncFD, &numDimensions));
   this->DimensionInfo->v.resize(numDimensions);
 
-  std::set<vtkStdString> specialVariables;
+  std::set<std::string> specialVariables;
 
   for (int i = 0; i < numDimensions; i++)
   {
@@ -1854,7 +1838,7 @@ int vtkNetCDFCFReader::ReadMetaData(int ncFD)
   // Look at all variables and record them so that the user can select which
   // ones he wants.  This oddness of adding and removing from
   // VariableArraySelection is to preserve any current settings for variables.
-  typedef std::set<vtkStdString> stringSet;
+  typedef std::set<std::string> stringSet;
   stringSet variablesToAdd;
   stringSet variablesToRemove;
 
@@ -1914,7 +1898,7 @@ vtkSmartPointer<vtkDoubleArray> vtkNetCDFCFReader::GetTimeValues(int vtkNotUsed(
 }
 
 //------------------------------------------------------------------------------
-inline vtkNetCDFCFReader::vtkDimensionInfo* vtkNetCDFCFReader::GetDimensionInfo(int dimension)
+vtkNetCDFCFReader::vtkDimensionInfo* vtkNetCDFCFReader::GetDimensionInfo(int dimension)
 {
   return &(this->DimensionInfo->v.at(dimension));
 }
@@ -2069,3 +2053,4 @@ bool vtkNetCDFCFReader::DimensionsAreForPointData(vtkIntArray* dimensions)
       return true;
   }
 }
+VTK_ABI_NAMESPACE_END

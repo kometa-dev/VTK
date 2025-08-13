@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestNIFTIReaderWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /*
 Test NIFTI support in VTK by reading a file, writing it, and
 then re-reading it to ensure that the contents are identical.
@@ -364,7 +352,7 @@ int TestNIFTIReaderWriter(int argc, char* argv[])
     double err = TestReadWriteRead(infile, infile2, outpath.c_str(), planarRGB);
     if (err != 0.0)
     {
-      cerr << "Input " << infile << " differs from output " << outpath.c_str() << "\n";
+      cerr << "Input " << infile << " differs from output " << outpath << "\n";
       return 1;
     }
     delete[] infile;

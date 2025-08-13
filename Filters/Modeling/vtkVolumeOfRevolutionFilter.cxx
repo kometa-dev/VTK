@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVolumeOfRevolutionFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVolumeOfRevolutionFilter.h"
 
 #include "vtkCellArray.h"
@@ -32,6 +20,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVolumeOfRevolutionFilter);
 
 namespace
@@ -79,7 +68,7 @@ void RevolvePoints(vtkDataSet* pts, vtkPoints* newPts, AxisOfRevolution* axis, d
       pts->GetPoint(id, p2d);
       RevolvePoint(p2d, axis, i * angleInRadians, p3d);
       newPts->SetPoint(counter, p3d);
-      outPd->CopyData(pts->GetPointData(), i, counter);
+      outPd->CopyData(pts->GetPointData(), id, counter);
       counter++;
     }
   }
@@ -335,7 +324,7 @@ void Revolve<VTK_POLYGON>(vtkIdList* pointIds, vtkIdType n2DPoints, int resoluti
       newFacePtIds[j + 2][2] = newFacePtIds[1][(2 * nPoly - 2 - j) % nPoly];
       newFacePtIds[j + 2][3] = newFacePtIds[1][nPoly - 1 - j];
     }
-    newCellId = connectivity->InsertNextCell(7 * nPoly + 3, &newPtIds[0]);
+    newCellId = connectivity->InsertNextCell(7 * nPoly + 3, newPtIds.data());
     types->InsertNextValue(VTK_POLYHEDRON);
     outCd->CopyData(inCd, cellId, newCellId);
     for (vtkIdType j = 0; j < nPoly; j++)
@@ -473,6 +462,10 @@ int vtkVolumeOfRevolutionFilter::RequestData(vtkInformation* vtkNotUsed(request)
   it = input->NewCellIterator();
   for (it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (RevolveCell(it->GetCellType(), it->GetPointIds(), input->GetNumberOfPoints(),
           this->Resolution, outCells, outTypes, inCd, it->GetCellId(), outCd, partialSweep) == 1)
     {
@@ -508,3 +501,4 @@ void vtkVolumeOfRevolutionFilter::PrintSelf(ostream& os, vtkIndent indent)
      << "," << this->AxisDirection[2] << ")\n";
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

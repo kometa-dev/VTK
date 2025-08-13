@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCollectionRange.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkCollectionRange_h
 #define vtkCollectionRange_h
@@ -27,6 +15,7 @@ namespace vtk
 {
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 template <typename CollectionType>
 struct CollectionRange;
@@ -98,23 +87,18 @@ public:
 // vtkObjects consts makes them unusable.
 template <typename CollectionType>
 struct CollectionIterator
-  : public std::iterator<std::forward_iterator_tag,
-      typename GetCollectionItemType<CollectionType>::Type*, int,
-      typename GetCollectionItemType<CollectionType>::Type*,
-      typename GetCollectionItemType<CollectionType>::Type*>
 {
   static_assert(IsCollection<CollectionType>::value, "Invalid vtkCollection subclass.");
 
 private:
   using ItemType = typename GetCollectionItemType<CollectionType>::Type;
-  using Superclass = std::iterator<std::forward_iterator_tag, ItemType*, int, ItemType*, ItemType*>;
 
 public:
-  using iterator_category = typename Superclass::iterator_category;
-  using value_type = typename Superclass::value_type;
-  using difference_type = typename Superclass::difference_type;
-  using pointer = typename Superclass::pointer;
-  using reference = typename Superclass::reference;
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = typename GetCollectionItemType<CollectionType>::Type*;
+  using difference_type = int;
+  using pointer = typename GetCollectionItemType<CollectionType>::Type*;
+  using reference = typename GetCollectionItemType<CollectionType>::Type*;
 
   CollectionIterator() noexcept
     : Element(nullptr)
@@ -232,6 +216,7 @@ private:
   vtkSmartPointer<CollectionType> Collection;
 };
 
+VTK_ABI_NAMESPACE_END
 }
 } // end namespace vtk::detail
 

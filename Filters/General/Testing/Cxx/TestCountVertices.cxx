@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCountVertices.h"
 
@@ -113,6 +102,7 @@ int TestCountVertices(int, char*[])
   }
 
 #define TEST_VERTICES(idx, expected)                                                               \
+  do                                                                                               \
   {                                                                                                \
     vtkIdType numVerts = verts->GetTypedComponent(idx, 0);                                         \
     if (numVerts != (expected))                                                                    \
@@ -121,7 +111,7 @@ int TestCountVertices(int, char*[])
                 << " vertices, but found " << numVerts << "\n";                                    \
       return EXIT_FAILURE;                                                                         \
     }                                                                                              \
-  }
+  } while (false)
 
   int idx = 0;
   // VTK_VERTEX = 1

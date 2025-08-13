@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestPointSetToMoleculeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
@@ -25,12 +13,15 @@
 #include "vtkUnsignedShortArray.h"
 
 #define CheckNumbers(name, first, second)                                                          \
-  if (first != second)                                                                             \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "Error : wrong number of " << #name << ". Got " << first << " but expects " << second  \
-         << endl;                                                                                  \
-    return EXIT_FAILURE;                                                                           \
-  }
+    if (first != second)                                                                           \
+    {                                                                                              \
+      cerr << "Error : wrong number of " << #name << ". Got " << first << " but expects "          \
+           << second << endl;                                                                      \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  } while (false)
 
 int TestPointSetToMoleculeFilter(int, char*[])
 {
@@ -106,9 +97,9 @@ int TestPointSetToMoleculeFilter(int, char*[])
     cerr << "Error: No atomic numbers array was found." << endl;
     return EXIT_FAILURE;
   }
-  CheckNumbers("atomic number value", atomicNumbers->GetTuple1(0), firstAtomicNb)
+  CheckNumbers("atomic number value", atomicNumbers->GetTuple1(0), firstAtomicNb);
 
-    filter->ConvertLinesIntoBondsOff();
+  filter->ConvertLinesIntoBondsOff();
   filter->Update();
   molecule = filter->GetOutput();
 

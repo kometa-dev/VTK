@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFreeTypeLabelRenderStrategy.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkFreeTypeLabelRenderStrategy.h"
 
@@ -25,6 +13,7 @@
 #include "vtkTimerLog.h"
 #include "vtkWindow.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFreeTypeLabelRenderStrategy);
 
 //------------------------------------------------------------------------------
@@ -154,7 +143,7 @@ void vtkFreeTypeLabelRenderStrategy::RenderLabel(
     tprop = this->DefaultTextProperty;
   }
   this->Mapper->SetTextProperty(tprop);
-  this->Mapper->SetInput(label);
+  this->Mapper->SetInput(label.c_str());
   this->Actor->GetPositionCoordinate()->SetCoordinateSystemToDisplay();
   this->Actor->GetPositionCoordinate()->SetValue(x[0], x[1], 0.0);
   this->Mapper->RenderOverlay(this->Renderer, this->Actor);
@@ -172,3 +161,4 @@ void vtkFreeTypeLabelRenderStrategy::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

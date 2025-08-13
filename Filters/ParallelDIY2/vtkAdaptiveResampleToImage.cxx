@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAdaptiveResampleToImage.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAdaptiveResampleToImage.h"
 
@@ -49,6 +34,7 @@
 
 namespace impl
 {
+VTK_ABI_NAMESPACE_BEGIN
 vtkUnsignedCharArray* get_mask_array(vtkDataSetAttributes* dsa)
 {
   return vtkUnsignedCharArray::SafeDownCast(dsa->GetArray(vtkDataSetAttributes::GhostArrayName()));
@@ -164,8 +150,10 @@ bool merge(vtkImageData* target, std::vector<vtkSmartPointer<vtkImageData>>& sou
   }
   return true;
 }
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAdaptiveResampleToImage);
 vtkCxxSetObjectMacro(vtkAdaptiveResampleToImage, Controller, vtkMultiProcessController);
 //------------------------------------------------------------------------------
@@ -283,7 +271,7 @@ int vtkAdaptiveResampleToImage::RequestData(
           // vtkLogF(TRACE, "dequeue from %d", source.gid);
           auto img = vtkImageData::SafeDownCast(ptr);
           assert(img);
-          resamples[rp.gid()].push_back(img);
+          resamples[rp.gid()].emplace_back(img);
           ptr->Delete();
         }
       }
@@ -318,3 +306,4 @@ void vtkAdaptiveResampleToImage::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "SamplingDimensions: " << this->SamplingDimensions[0] << ", "
      << this->SamplingDimensions[1] << ", " << this->SamplingDimensions[2] << endl;
 }
+VTK_ABI_NAMESPACE_END

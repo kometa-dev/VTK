@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestTemporalSupport.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAbstractArray.h"
 #include "vtkAlgorithm.h"
@@ -28,11 +16,14 @@
 #include <cassert>
 
 #define CHECK(b, errors)                                                                           \
-  if (!(b))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    errors++;                                                                                      \
-    cerr << "Error on Line " << __LINE__ << ":" << endl;                                           \
-  }
+    if (!(b))                                                                                      \
+    {                                                                                              \
+      errors++;                                                                                    \
+      cerr << "Error on Line " << __LINE__ << ":" << endl;                                         \
+    }                                                                                              \
+  } while (false)
 
 class TestAlgorithm : public vtkAlgorithm
 {
@@ -154,7 +145,7 @@ public:
     vtkInformation* outInfo = outputVector->GetInformationObject(0);
     double range[2] = { 0, 9 };
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), range, 2);
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &TimeSteps[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), TimeSteps.data(),
       static_cast<int>(TimeSteps.size()));
     if (this->HasTimeDependentData)
     {

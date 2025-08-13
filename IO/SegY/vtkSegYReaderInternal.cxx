@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSegYReaderInternal.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSegYReaderInternal.h"
 
@@ -33,6 +21,7 @@
 #include <map>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 const int FIRST_TRACE_START_POS = 3600; // this->Traces start after 3200 + 400 file header
@@ -302,7 +291,7 @@ void vtkSegYReaderInternal::ExportData(
   imageData->SetOrigin(origin);
   imageData->SetSpacing(
     vtkMath::Norm(spacing[0]), vtkMath::Norm(spacing[1]), vtkMath::Norm(spacing[2]));
-  int* dims = imageData->GetDimensions();
+  const int* dims = imageData->GetDimensions();
 
   vtkNew<vtkFloatArray> scalars;
   scalars->SetNumberOfComponents(1);
@@ -336,7 +325,8 @@ void vtkSegYReaderInternal::ExportData(
     return;
   }
   grid->SetExtent(extent);
-  int* dims = grid->GetDimensions();
+  int dims[3];
+  grid->GetDimensions(dims);
   vtkNew<vtkPoints> points;
 
   vtkNew<vtkFloatArray> scalars;
@@ -377,3 +367,4 @@ void vtkSegYReaderInternal::ExportData(
   grid->SetPoints(points);
   grid->GetPointData()->SetScalars(scalars);
 }
+VTK_ABI_NAMESPACE_END

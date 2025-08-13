@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLagrangianParticleTracker.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLagrangianParticleTracker.h"
 
 #include "vtkAppendPolyData.h"
@@ -50,8 +38,9 @@
 #include <limits>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkLagrangianParticleTracker);
-vtkCxxSetObjectMacro(vtkLagrangianParticleTracker, Integrator, vtkInitialValueProblemSolver);
+vtkCxxSetSmartPointerMacro(vtkLagrangianParticleTracker, Integrator, vtkInitialValueProblemSolver);
 
 struct IntegratingFunctor
 {
@@ -108,8 +97,17 @@ struct IntegratingFunctor
 
   void operator()(vtkIdType partId, vtkIdType endPartId)
   {
+    bool isFirst = vtkSMPTools::GetSingleThread();
     for (vtkIdType id = partId; id < endPartId; id++)
     {
+      if (isFirst)
+      {
+        this->Tracker->CheckAbort();
+      }
+      if (this->Tracker->GetAbortOutput())
+      {
+        break;
+      }
       vtkLagrangianParticle* particle = this->ParticlesVec[id];
       vtkLagrangianThreadedData* localData = this->LocalData.Local();
 
@@ -222,7 +220,7 @@ static constexpr double MAX_REINTEGRATION_FACTOR = 1.0e10;
 //------------------------------------------------------------------------------
 vtkLagrangianParticleTracker::vtkLagrangianParticleTracker()
   : IntegrationModel(vtkSmartPointer<vtkLagrangianMatidaIntegrationModel>::New())
-  , Integrator(vtkRungeKutta2::New())
+  , Integrator(vtkSmartPointer<vtkRungeKutta2>::New())
   , CellLengthComputationMode(STEP_CUR_CELL_LENGTH)
   , StepFactor(1.0)
   , StepFactorMin(0.5)
@@ -247,10 +245,7 @@ vtkLagrangianParticleTracker::vtkLagrangianParticleTracker()
 }
 
 //------------------------------------------------------------------------------
-vtkLagrangianParticleTracker::~vtkLagrangianParticleTracker()
-{
-  this->SetIntegrator(nullptr);
-}
+vtkLagrangianParticleTracker::~vtkLagrangianParticleTracker() = default;
 
 //------------------------------------------------------------------------------
 void vtkLagrangianParticleTracker::PrintSelf(ostream& os, vtkIndent indent)
@@ -332,6 +327,18 @@ void vtkLagrangianParticleTracker::SetIntegrationModel(vtkLagrangianBasicIntegra
     this->FlowCacheInvalid = true;
     this->Modified();
   }
+}
+
+//------------------------------------------------------------------------------
+vtkLagrangianBasicIntegrationModel* vtkLagrangianParticleTracker::GetIntegrationModel()
+{
+  return this->IntegrationModel;
+}
+
+//------------------------------------------------------------------------------
+vtkInitialValueProblemSolver* vtkLagrangianParticleTracker::GetIntegrator()
+{
+  return this->Integrator;
 }
 
 //------------------------------------------------------------------------------
@@ -525,7 +532,7 @@ int vtkLagrangianParticleTracker::RequestData(vtkInformation* vtkNotUsed(request
   this->IntegrationModel->PreIntegrate(particlesQueue);
 
   std::vector<vtkLagrangianParticle*> particlesVec;
-  while (!this->GetAbortExecute())
+  while (!this->CheckAbort())
   {
     // Check for particle feed
     this->GetParticleFeed(particlesQueue);
@@ -555,7 +562,7 @@ int vtkLagrangianParticleTracker::RequestData(vtkInformation* vtkNotUsed(request
   this->IntegrationModel->FinalizeThreadedData(this->SerialThreadedData);
 
   // Abort if necessary
-  if (this->GetAbortExecute())
+  if (this->CheckAbort())
   {
     // delete all remaining particle
     while (!particlesQueue.empty())
@@ -1375,3 +1382,4 @@ void vtkLagrangianParticleTracker::DeleteParticle(vtkLagrangianParticle* particl
   this->IntegrationModel->ParticleAboutToBeDeleted(particle);
   delete particle;
 }
+VTK_ABI_NAMESPACE_END

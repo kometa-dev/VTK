@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConvertSelectionDomain.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkConvertSelectionDomain.h"
 
 #include "vtkAbstractArray.h"
@@ -41,6 +25,7 @@
 
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkConvertSelectionDomain);
 //------------------------------------------------------------------------------
 vtkConvertSelectionDomain::vtkConvertSelectionDomain()
@@ -54,7 +39,7 @@ vtkConvertSelectionDomain::~vtkConvertSelectionDomain() = default;
 
 //------------------------------------------------------------------------------
 static void vtkConvertSelectionDomainFindDomains(
-  vtkDataSetAttributes* dsa, std::set<vtkStdString>& domains)
+  vtkDataSetAttributes* dsa, std::set<std::string>& domains)
 {
   if (dsa->GetAbstractArray("domain"))
   {
@@ -66,7 +51,7 @@ static void vtkConvertSelectionDomainFindDomains(
     vtkIdType numTuples = domainArr->GetNumberOfTuples();
     for (vtkIdType i = 0; i < numTuples; ++i)
     {
-      vtkStdString d = domainArr->GetValue(i);
+      std::string d = domainArr->GetValue(i);
       if (domains.count(d) == 0)
       {
         domains.insert(d);
@@ -80,7 +65,7 @@ static void vtkConvertSelectionDomainFindDomains(
 }
 
 static void vtkConvertSelectionDomainConvertAnnotationDomain(vtkAnnotation* annIn,
-  vtkAnnotation* annOut, std::set<vtkStdString>& domains1, std::set<vtkStdString>& domains2,
+  vtkAnnotation* annOut, std::set<std::string>& domains1, std::set<std::string>& domains2,
   vtkDataSetAttributes* dsa1, vtkDataSetAttributes* dsa2, int fieldType1, int fieldType2,
   vtkMultiBlockDataSet* maps)
 {
@@ -130,7 +115,7 @@ static void vtkConvertSelectionDomainConvertAnnotationDomain(vtkAnnotation* annI
       if (table)
       {
         fromArr = table->GetColumnByName(inArr->GetName());
-        std::set<vtkStdString>::iterator it, itEnd;
+        std::set<std::string>::iterator it, itEnd;
         if (dsa1)
         {
           it = domains1.begin();
@@ -274,8 +259,8 @@ int vtkConvertSelectionDomain::RequestData(vtkInformation* vtkNotUsed(request),
     fieldType1 = vtkSelectionNode::ROW;
   }
 
-  std::set<vtkStdString> domains1;
-  std::set<vtkStdString> domains2;
+  std::set<std::string> domains1;
+  std::set<std::string> domains2;
   if (dsa1)
   {
     vtkConvertSelectionDomainFindDomains(dsa1, domains1);
@@ -359,3 +344,4 @@ void vtkConvertSelectionDomain::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

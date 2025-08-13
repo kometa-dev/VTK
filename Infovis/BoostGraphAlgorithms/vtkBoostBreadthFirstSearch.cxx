@@ -1,27 +1,7 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBoostBreadthFirstSearch.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
-/*
- * Copyright (C) 2008 The Trustees of Indiana University.
- * Use, modification and distribution is subject to the Boost Software
- * License, Version 1.0. (See http://www.boost.org/LICENSE_1_0.txt)
- */
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-FileCopyrightText: Copyright (C) 2008 The Trustees of Indiana University
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov AND BSL-1.0
 #include "vtkBoostBreadthFirstSearch.h"
 
 #include "vtkCellArray.h"
@@ -52,6 +32,7 @@
 
 using namespace boost;
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBoostBreadthFirstSearch);
 
 // Redefine the bfs visitor, the only visitor we
@@ -138,7 +119,7 @@ void vtkBoostBreadthFirstSearch::SetOriginVertex(vtkIdType index)
 // know the specific index of the vertex.
 void vtkBoostBreadthFirstSearch::SetOriginVertex(vtkStdString arrayName, vtkVariant value)
 {
-  this->SetInputArrayName(arrayName);
+  this->SetInputArrayName(arrayName.c_str());
   this->OriginValue = value;
   this->Modified();
 }
@@ -167,7 +148,7 @@ vtkIdType vtkBoostBreadthFirstSearch::GetVertexIndex(vtkAbstractArray* abstract,
   else
   {
     vtkStringArray* stringArray = vtkArrayDownCast<vtkStringArray>(abstract);
-    vtkStdString stringValue(value.ToString());
+    std::string stringValue(value.ToString());
     for (int i = 0; i < stringArray->GetNumberOfTuples(); ++i)
     {
       if (stringValue == stringArray->GetValue(i))
@@ -361,3 +342,4 @@ int vtkBoostBreadthFirstSearch::FillOutputPortInformation(int port, vtkInformati
   }
   return 1;
 }
+VTK_ABI_NAMESPACE_END

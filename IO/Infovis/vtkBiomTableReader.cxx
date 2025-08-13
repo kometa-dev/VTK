@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBiomTableReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkBiomTableReader.h"
 
 #include "vtkByteSwap.h"
@@ -32,6 +20,7 @@
 #include <algorithm>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBiomTableReader);
 
 #ifdef read
@@ -229,15 +218,15 @@ void vtkBiomTableReader::ParseDataType()
 
   // element type lies between these quotes
   std::string data_type = this->FileContents.substr(pos3 + 1, pos4 - pos3 - 1);
-  if (strcmp(data_type.c_str(), "int") == 0)
+  if (data_type == "int")
   {
     this->DataType = VTK_INT;
   }
-  else if (strcmp(data_type.c_str(), "float") == 0)
+  else if (data_type == "float")
   {
     this->DataType = VTK_FLOAT;
   }
-  else if (strcmp(data_type.c_str(), "unicode") == 0)
+  else if (data_type == "unicode")
   {
     this->DataType = VTK_STRING;
   }
@@ -393,7 +382,7 @@ void vtkBiomTableReader::ParseSparseData()
     this->InsertValue(row, column, value);
 
     pos_start = pos4 + 1;
-    if (strcmp(this->FileContents.substr(pos_start, 1).c_str(), ",") != 0)
+    if (this->FileContents.substr(pos_start, 1) != ",")
     {
       return;
     }
@@ -635,3 +624,4 @@ void vtkBiomTableReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

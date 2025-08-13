@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRIBExporter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRIBExporter.h"
 
 #include "vtkAssemblyNode.h"
@@ -44,6 +32,7 @@
 
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRIBExporter);
 
 typedef double RtColor[3];
@@ -135,7 +124,7 @@ void vtkRIBExporter::WriteData()
     if (anActor->GetVisibility())
     {
       aTexture = anActor->GetTexture();
-      if (aTexture && textures->IsItemPresent(aTexture) == 0)
+      if (aTexture && textures->IndexOfFirstOccurence(aTexture) < 0)
       {
         this->WriteTexture(aTexture);
         textures->AddItem(aTexture);
@@ -219,7 +208,7 @@ void vtkRIBExporter::WriteData()
 void vtkRIBExporter::WriteHeader(vtkRenderer* aRen)
 {
 
-  // create a FileName to hold the renderered image
+  // create a FileName to hold the rendered image
   size_t length = strlen(this->FilePrefix) + strlen(".tif") + 1;
   char* imageFileName = new char[length];
   snprintf(imageFileName, length, "%s%s", this->FilePrefix, ".tif");
@@ -274,7 +263,7 @@ void vtkRIBExporter::WriteProperty(vtkProperty* aProperty, vtkTexture* aTexture)
   //
   // if there is a texture map we need to declare it
   //
-  mapName = (char*)nullptr;
+  mapName = nullptr;
   if (aTexture)
   {
     mapName = this->GetTextureName(aTexture);
@@ -1367,3 +1356,4 @@ void vtkRIBExporter::ModifyArrayName(char* newname, const char* name)
   }
   newname[cc] = 0;
 }
+VTK_ABI_NAMESPACE_END

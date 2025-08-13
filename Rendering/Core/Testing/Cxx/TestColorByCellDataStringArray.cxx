@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestColorByCellDataStringArray.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkRegressionTestImage.h"
 #include "vtkTestUtilities.h"
@@ -26,7 +14,6 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkRenderer.h>
 #include <vtkSphereSource.h>
-#include <vtkStdString.h>
 #include <vtkStringArray.h>
 
 int TestColorByCellDataStringArray(int argc, char* argv[])
@@ -69,15 +56,15 @@ int TestColorByCellDataStringArray(int argc, char* argv[])
   tfer->SetIndexedColor(3, 1.0, 1.0, 0.0);
   tfer->SetIndexedColor(4, 0.0, 1.0, 1.0);
 
-  vtkStdString red("red");
+  std::string red("red");
   tfer->SetAnnotation(red, red);
-  vtkStdString blue("blue");
+  std::string blue("blue");
   tfer->SetAnnotation(blue, blue);
-  vtkStdString green("green");
+  std::string green("green");
   tfer->SetAnnotation(green, green);
-  vtkStdString yellow("yellow");
+  std::string yellow("yellow");
   tfer->SetAnnotation(yellow, yellow);
-  vtkStdString cyan("cyan");
+  std::string cyan("cyan");
   tfer->SetAnnotation(cyan, cyan);
 
   vtkNew<vtkPolyDataMapper> mapper;

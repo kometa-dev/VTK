@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkIncrementalOctreeNode.h"
 #include "vtkIncrementalOctreePointLocator.h"
 #include "vtkNew.h"
@@ -19,10 +21,10 @@ int TestSimpleIncrementalOctreePointLocator(int, char** const)
   vtkNew<vtkIncrementalOctreePointLocator> octree;
   // that is the minimum
   octree->SetMaxPointsPerLeaf(16);
-  octree->InitPointInsertion(points, &bb[0]);
+  octree->InitPointInsertion(points, bb.data());
   for (auto point : pointsInput)
   {
-    octree->InsertNextPoint(&point[0]);
+    octree->InsertNextPoint(point.data());
   }
   // we expect the same number points
   if (static_cast<size_t>(points->GetNumberOfPoints()) != pointsInput.size())

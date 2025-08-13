@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPlot3DMetaReader.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPlot3DMetaReader.h"
 
 #include "vtkInformation.h"
@@ -33,6 +22,7 @@
 
 #define CALL_MEMBER_FN(object, ptrToMember) ((object).*(ptrToMember))
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPlot3DMetaReader);
 
 typedef void (vtkPlot3DMetaReader::*Plot3DFunction)(Json::Value* val);
@@ -133,7 +123,7 @@ void vtkPlot3DMetaReader::SetByteOrder(Json::Value* val)
   }
   else
   {
-    vtkErrorMacro("Unrecognized byte order: " << value.c_str()
+    vtkErrorMacro("Unrecognized byte order: " << value
                                               << ". Valid options are \"little\" and \"big\"."
                                                  " Setting to little endian");
     this->Reader->SetByteOrderToLittleEndian();
@@ -154,7 +144,7 @@ void vtkPlot3DMetaReader::SetLanguage(Json::Value* val)
   }
   else
   {
-    vtkErrorMacro("Unrecognized language: " << value.c_str()
+    vtkErrorMacro("Unrecognized language: " << value
                                             << ". Valid options are \"fortran\" and \"C\"."
                                                " Setting to little fortran");
     this->Reader->HasByteCountOn();
@@ -210,7 +200,7 @@ void vtkPlot3DMetaReader::SetFormat(Json::Value* val)
   }
   else
   {
-    vtkErrorMacro("Unrecognized file type: " << value.c_str()
+    vtkErrorMacro("Unrecognized file type: " << value
                                              << ". Valid options are \"binary\" and \"ascii\"."
                                                 " Setting to binary");
     this->Reader->BinaryFileOn();
@@ -376,8 +366,7 @@ int vtkPlot3DMetaReader::RequestInformation(vtkInformation* vtkNotUsed(request),
     }
     else
     {
-      vtkErrorMacro(
-        "Syntax error in file. Option \"" << memberIterator->c_str() << "\" is not valid.");
+      vtkErrorMacro("Syntax error in file. Option \"" << *memberIterator << "\" is not valid.");
     }
   }
 
@@ -391,7 +380,7 @@ int vtkPlot3DMetaReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   size_t numSteps = timeValues.size();
   if (numSteps > 0)
   {
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &timeValues[0], (int)numSteps);
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), timeValues.data(), (int)numSteps);
 
     double timeRange[2];
     timeRange[0] = timeValues[0];
@@ -467,8 +456,8 @@ int vtkPlot3DMetaReader::RequestData(
     this->Reader->UpdatePiece(outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER()),
       outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES()),
       outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS()));
-    vtkDataObject* ioutput = this->Reader->GetOutput();
-    output->ShallowCopy(ioutput);
+    vtkMultiBlockDataSet* ioutput = this->Reader->GetOutput();
+    output->CompositeShallowCopy(ioutput);
     output->GetInformation()->Set(vtkDataObject::DATA_NUMBER_OF_GHOST_LEVELS(),
       ioutput->GetInformation()->Get(vtkDataObject::DATA_NUMBER_OF_GHOST_LEVELS()));
   }
@@ -486,3 +475,4 @@ void vtkPlot3DMetaReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

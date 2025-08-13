@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContextArea.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkContextArea
@@ -47,6 +35,7 @@
 #include "vtkNew.h"              // For vtkNew
 #include "vtkRect.h"             // For vtkRect/vtkVector/vtkTuple
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContextClip;
 class vtkContextTransform;
 class vtkPlotGrid;
@@ -299,4 +288,5 @@ private:
   void operator=(const vtkContextArea&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkContextArea_h

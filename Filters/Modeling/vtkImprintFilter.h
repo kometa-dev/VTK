@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImprintFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImprintFilter
  * @brief   Imprint the contact surface of one object onto another surface
@@ -25,7 +13,7 @@
  * are segregated into two subsets: those that may intersect the imprint
  * surface (the candidate cells determined by bounding box checks), and those
  * that do not. 2) The non-candidates are sent to the output, the candidate
- * intersection cells are further proceesed - eventually they will be
+ * intersection cells are further processed - eventually they will be
  * triangulated as a result of contact with the imprint, with the result of
  * the triangulation appended to the output. 3) The imprint points are projected
  * onto the candidate cells, determining a classification (on a target point,
@@ -96,6 +84,7 @@
 #include "vtkFiltersModelingModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkStaticCellLocator;
 
 class VTKFILTERSMODELING_EXPORT vtkImprintFilter : public vtkPolyDataAlgorithm
@@ -292,9 +281,9 @@ public:
   vtkSetMacro(TriangulateOutput, bool);
   vtkGetMacro(TriangulateOutput, bool);
   vtkBooleanMacro(TriangulateOutput, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * The following methods support debugging. By default, NO_DEBUG_OUTPUT is
    * produced and the second output of this filter is empty. If TRIANGULATION_INPUT
@@ -348,4 +337,5 @@ private:
   void operator=(const vtkImprintFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

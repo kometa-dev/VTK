@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkChartLegend.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkChartLegend.h"
 
@@ -23,7 +11,6 @@
 #include "vtkPen.h"
 #include "vtkPlot.h"
 #include "vtkSmartPointer.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkTextProperty.h"
 #include "vtkVector.h"
@@ -35,6 +22,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkChartLegend::Private
 {
 public:
@@ -157,7 +145,7 @@ bool vtkChartLegend::Paint(vtkContext2D* painter)
       // base line until better support is in the text rendering code...
       // There are still several one pixel glitches, but it looks better than
       // using the default vertical alignment. FIXME!
-      vtkStdString testString = labels->GetValue(l);
+      std::string testString = labels->GetValue(l);
       testString += "T";
       painter->ComputeStringBounds(testString, stringBounds->GetData());
       painter->DrawString(
@@ -347,3 +335,4 @@ void vtkChartLegend::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTransformPolyDataFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTransformPolyDataFilter.h"
 
 #include "vtkAbstractTransform.h"
@@ -25,6 +13,7 @@
 #include "vtkPolyData.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTransformPolyDataFilter);
 vtkCxxSetObjectMacro(vtkTransformPolyDataFilter, Transform, vtkAbstractTransform);
 
@@ -198,6 +187,8 @@ int vtkTransformPolyDataFilter::RequestData(vtkInformation* vtkNotUsed(request),
   outPD->PassData(pd);
   outCD->PassData(cd);
 
+  this->CheckAbort();
+
   return 1;
 }
 
@@ -224,3 +215,4 @@ void vtkTransformPolyDataFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Transform: " << this->Transform << "\n";
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

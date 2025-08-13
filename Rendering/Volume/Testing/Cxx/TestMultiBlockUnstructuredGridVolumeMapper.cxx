@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestMultiBlockUnstructuredGridVolumeMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkProjectedTetrahedraMapper.h"
 
@@ -41,11 +29,11 @@ int TestMultiBlockUnstructuredGridVolumeMapper(int argc, char* argv[])
 
   // Create the reader for the data.
   // This is the data that will be volume rendered.
-  vtkLog(INFO, "Loading " << filename.c_str());
+  vtkLog(INFO, "Loading " << filename);
   vtkNew<vtkExodusIIReader> reader;
   if (!reader->CanReadFile(filename.c_str()))
   {
-    vtkLog(ERROR, "Error: cannot open file " << filename.c_str());
+    vtkLog(ERROR, "Error: cannot open file " << filename);
     return EXIT_FAILURE;
   }
   reader->SetFileName(filename.c_str());

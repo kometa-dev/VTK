@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMREnzoParticlesReader.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMREnzoParticlesReader.h"
 #include "vtkCellArray.h"
 #include "vtkDataArray.h"
@@ -39,7 +27,8 @@
 // Description:
 // Finds the block index (blockIndx) within the HDF5 file associated with
 // the given file index.
-static bool FindBlockIndex(hid_t fileIndx, const int blockIdx, hid_t& rootIndx)
+VTK_ABI_NAMESPACE_BEGIN
+static bool FindBlockIndex(hid_t fileIndx, int blockIdx, hid_t& rootIndx)
 {
   // retrieve the contents of the root directory to look for a group
   // corresponding to the target block, if available, open that group
@@ -107,7 +96,7 @@ static void GetDoubleArrayByName(const hid_t rootIdx, const char* name, std::vec
   int numbPnts = dimValus[0];
 
   array.resize(numbPnts);
-  H5Dread(arrayIdx, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &array[0]);
+  H5Dread(arrayIdx, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.data());
 
   //  H5Dclose( spaceIdx );
   //  H5Dclose( arrayIdx );
@@ -191,7 +180,7 @@ void vtkAMREnzoParticlesReader::ReadMetaData()
 }
 
 //------------------------------------------------------------------------------
-vtkDataArray* vtkAMREnzoParticlesReader::GetParticlesTypeArray(const int blockIdx)
+vtkDataArray* vtkAMREnzoParticlesReader::GetParticlesTypeArray(int blockIdx)
 {
 
   vtkIntArray* array = vtkIntArray::New();
@@ -204,7 +193,7 @@ vtkDataArray* vtkAMREnzoParticlesReader::GetParticlesTypeArray(const int blockId
 }
 
 //------------------------------------------------------------------------------
-bool vtkAMREnzoParticlesReader::CheckParticleType(const int idx, vtkIntArray* ptypes)
+bool vtkAMREnzoParticlesReader::CheckParticleType(int idx, vtkIntArray* ptypes)
 {
   assert("pre: particles type array should not be nullptr" && (ptypes != nullptr));
 
@@ -221,7 +210,7 @@ bool vtkAMREnzoParticlesReader::CheckParticleType(const int idx, vtkIntArray* pt
 }
 
 //------------------------------------------------------------------------------
-vtkPolyData* vtkAMREnzoParticlesReader::GetParticles(const char* file, const int blockIdx)
+vtkPolyData* vtkAMREnzoParticlesReader::GetParticles(const char* file, int blockIdx)
 {
   vtkPolyData* particles = vtkPolyData::New();
   vtkPoints* positions = vtkPoints::New();
@@ -347,7 +336,7 @@ vtkPolyData* vtkAMREnzoParticlesReader::GetParticles(const char* file, const int
 //------------------------------------------------------------------------------
 void vtkAMREnzoParticlesReader::SetupParticleDataSelections()
 {
-  assert("pre: Intenal reader is nullptr" && (this->Internal != nullptr));
+  assert("pre: Internal reader is nullptr" && (this->Internal != nullptr));
 
   unsigned int N = static_cast<unsigned int>(this->Internal->ParticleAttributeNames.size());
   for (unsigned int i = 0; i < N; ++i)
@@ -376,7 +365,7 @@ int vtkAMREnzoParticlesReader::GetTotalNumberOfParticles()
 }
 
 //------------------------------------------------------------------------------
-vtkPolyData* vtkAMREnzoParticlesReader::ReadParticles(const int blkidx)
+vtkPolyData* vtkAMREnzoParticlesReader::ReadParticles(int blkidx)
 {
   // this->Internal->Blocks includes a pseudo block -- the roo as block #0
   int iBlockIdx = blkidx + 1;
@@ -399,3 +388,4 @@ vtkPolyData* vtkAMREnzoParticlesReader::ReadParticles(const int blkidx)
   vtkPolyData* particles = this->GetParticles(pfile.c_str(), blkidx);
   return (particles);
 }
+VTK_ABI_NAMESPACE_END

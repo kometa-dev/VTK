@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapText.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapText.h"
 #include "vtkWrap.h"
@@ -938,7 +926,7 @@ const char* vtkWrapText_PythonSignature(FunctionInfo* currentFunction)
     {
       /* PEP 484 recommends underscores for position-only arguments */
       char argname[4];
-      sprintf(argname, "__%c", 'a' + (i % 26));
+      snprintf(argname, sizeof(argname), "__%c", 'a' + (i % 26));
       vtkWPString_Append(result, argname);
     }
 
@@ -1043,7 +1031,7 @@ static void vtkWrapText_PythonTypeSignature(
   }
   else if (vtkWrap_IsArray(arg))
   {
-    sprintf(text, "%d", arg->Count);
+    snprintf(text, sizeof(text), "%d", arg->Count);
     dimension = text;
     vtkWrapText_PythonArraySignature(result, classname, braces, 1, &dimension);
   }

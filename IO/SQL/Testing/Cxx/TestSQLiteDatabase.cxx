@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestSQLiteDatabase.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 // .SECTION Thanks
 // Thanks to Andrew Wilson from Sandia National Laboratories for implementing
 // this test.
@@ -27,7 +11,6 @@
 #include "vtkSQLQuery.h"
 #include "vtkSQLiteDatabase.h"
 #include "vtkSmartPointer.h"
-#include "vtkStdString.h"
 #include "vtkTable.h"
 #include "vtkVariant.h"
 #include "vtkVariantArray.h"
@@ -151,7 +134,7 @@ int TestSQLiteDatabase(int /*argc*/, char* /*argv*/[])
 
   vtkSQLQuery* query = db->GetQueryInstance();
 
-  vtkStdString createQuery(
+  std::string createQuery(
     "CREATE TABLE IF NOT EXISTS people (name TEXT, age INTEGER, weight FLOAT)");
   cout << createQuery << endl;
   query->SetQuery(createQuery.c_str());
@@ -227,7 +210,7 @@ int TestSQLiteDatabase(int /*argc*/, char* /*argv*/[])
       {
         cerr << ", ";
       }
-      cerr << query->DataValue(field).ToString().c_str();
+      cerr << query->DataValue(field).ToString();
     }
     cerr << endl;
   }
@@ -256,7 +239,7 @@ int TestSQLiteDatabase(int /*argc*/, char* /*argv*/[])
       {
         cerr << ", ";
       }
-      cerr << va->GetValue(field).ToString().c_str();
+      cerr << va->GetValue(field).ToString();
     }
     cerr << endl;
   }
@@ -325,12 +308,12 @@ int TestSQLiteDatabase(int /*argc*/, char* /*argv*/[])
     return 1;
   }
 
-  std::vector<vtkStdString> tables;
+  std::vector<std::string> tables;
   int tblHandle = 0;
   for (; query->NextRow(); ++tblHandle)
   {
-    vtkStdString tblNameSch(schema->GetTableNameFromHandle(tblHandle));
-    vtkStdString tblNameDB(query->DataValue(0).ToString());
+    std::string tblNameSch(schema->GetTableNameFromHandle(tblHandle));
+    std::string tblNameDB(query->DataValue(0).ToString());
     cerr << "     " << tblNameDB << "\n";
 
     if (tblNameDB != tblNameSch)
@@ -354,9 +337,9 @@ int TestSQLiteDatabase(int /*argc*/, char* /*argv*/[])
   // 4. Test EscapeString.
   cerr << "@@ Escaping a naughty string...";
 
-  vtkStdString queryStr = "INSERT INTO atable (somename,somenmbr) VALUES ( " +
+  std::string queryStr = "INSERT INTO atable (somename,somenmbr) VALUES ( " +
     query->EscapeString(vtkStdString("Str\"ang'eS\ntring"), true) + ", 2 )";
-  query->SetQuery(queryStr);
+  query->SetQuery(queryStr.c_str());
   if (!query->Execute())
   {
     cerr << "Query failed" << endl;
@@ -371,7 +354,7 @@ int TestSQLiteDatabase(int /*argc*/, char* /*argv*/[])
   cerr << "@@ Reading it back... <";
 
   queryStr = "SELECT somename FROM atable WHERE somenmbr=2";
-  query->SetQuery(queryStr);
+  query->SetQuery(queryStr.c_str());
   if (!query->Execute())
   {
     cerr << "Query failed" << endl;
@@ -388,17 +371,17 @@ int TestSQLiteDatabase(int /*argc*/, char* /*argv*/[])
     return 1;
   }
 
-  cerr << query->DataValue(0).ToString().c_str() << "> ";
+  cerr << query->DataValue(0).ToString() << "> ";
   cerr << " done." << endl;
 
   // 6. Drop tables
   cerr << "@@ Dropping these tables...";
 
-  for (std::vector<vtkStdString>::iterator it = tables.begin(); it != tables.end(); ++it)
+  for (std::vector<std::string>::iterator it = tables.begin(); it != tables.end(); ++it)
   {
     queryStr = "DROP TABLE ";
     queryStr += *it;
-    query->SetQuery(queryStr);
+    query->SetQuery(queryStr.c_str());
 
     if (!query->Execute())
     {

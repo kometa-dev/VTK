@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLogger.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLogger.h"
 
 #include "vtkObjectFactory.h"
@@ -29,6 +17,7 @@
 #include <vector>
 
 //=============================================================================
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLogger::LogScopeRAII::LSInternals
 {
 public:
@@ -70,9 +59,11 @@ vtkLogger::LogScopeRAII::~LogScopeRAII()
   delete this->Internals;
 }
 //=============================================================================
+VTK_ABI_NAMESPACE_END
 
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 #if VTK_MODULE_ENABLE_VTK_loguru
 using scope_pair = std::pair<std::string, std::shared_ptr<loguru::LogScopeRAII>>;
 static std::mutex g_mutex;
@@ -106,11 +97,13 @@ static void pop_scope(const char* id)
     LOG_F(ERROR, "Mismatched scope! expected (%s), got (%s)", vector.back().first.c_str(), id);
   }
 }
+VTK_THREAD_LOCAL char ThreadName[128] = {};
 #endif
 
-static VTK_THREAD_LOCAL std::string ThreadName;
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 //=============================================================================
 bool vtkLogger::EnableUnsafeSignalHandler = true;
 vtkLogger::Verbosity vtkLogger::InternalVerbosityLevel = vtkLogger::VERBOSITY_1;
@@ -144,10 +137,10 @@ void vtkLogger::Init(int& argc, char* argv[], const char* verbosity_flag /*= "-v
   }
   loguru::Options options;
   options.verbosity_flag = verbosity_flag;
-  options.unsafe_signal_handler = vtkLogger::EnableUnsafeSignalHandler;
-  if (!detail::ThreadName.empty())
+  options.signal_options.unsafe_signal_handler = vtkLogger::EnableUnsafeSignalHandler;
+  if (strlen(detail::ThreadName) > 0)
   {
-    options.main_thread_name = detail::ThreadName.c_str();
+    options.main_thread_name = detail::ThreadName;
   }
   loguru::init(argc, argv, options);
   loguru::g_stderr_verbosity = current_stderr_verbosity;
@@ -219,7 +212,7 @@ void vtkLogger::SetThreadName(const std::string& name)
   loguru::set_thread_name(name.c_str());
   // Save threadname so if this is called before `Init`, we can pass the thread
   // name to loguru::init().
-  detail::ThreadName = name;
+  strncpy(detail::ThreadName, name.c_str(), sizeof(detail::ThreadName) - 1);
 #else
   (void)name;
 #endif
@@ -237,16 +230,72 @@ std::string vtkLogger::GetThreadName()
 #endif
 }
 
+namespace
+{
+#if VTK_MODULE_ENABLE_VTK_loguru
+struct CallbackBridgeData
+{
+  vtkLogger::LogHandlerCallbackT handler;
+  vtkLogger::CloseHandlerCallbackT close;
+  vtkLogger::FlushHandlerCallbackT flush;
+  void* inner_data;
+};
+
+void loguru_callback_bridge_handler(void* user_data, const loguru::Message& message)
+{
+  auto* data = reinterpret_cast<CallbackBridgeData*>(user_data);
+
+  auto vtk_message = vtkLogger::Message{
+    static_cast<vtkLogger::Verbosity>(message.verbosity),
+    message.filename,
+    message.line,
+    message.preamble,
+    message.indentation,
+    message.prefix,
+    message.message,
+  };
+
+  data->handler(data->inner_data, vtk_message);
+}
+
+void loguru_callback_bridge_close(void* user_data)
+{
+  auto* data = reinterpret_cast<CallbackBridgeData*>(user_data);
+
+  if (data->close)
+  {
+    data->close(data->inner_data);
+    data->inner_data = nullptr;
+  }
+
+  delete data;
+}
+
+void loguru_callback_bridge_flush(void* user_data)
+{
+  auto* data = reinterpret_cast<CallbackBridgeData*>(user_data);
+
+  if (data->flush)
+  {
+    data->flush(data->inner_data);
+  }
+}
+#endif
+}
+
 //------------------------------------------------------------------------------
 void vtkLogger::AddCallback(const char* id, vtkLogger::LogHandlerCallbackT callback,
   void* user_data, vtkLogger::Verbosity verbosity, vtkLogger::CloseHandlerCallbackT on_close,
   vtkLogger::FlushHandlerCallbackT on_flush)
 {
 #if VTK_MODULE_ENABLE_VTK_loguru
-  loguru::add_callback(id, reinterpret_cast<loguru::log_handler_t>(callback), user_data,
-    static_cast<loguru::Verbosity>(verbosity), reinterpret_cast<loguru::close_handler_t>(on_close),
-    reinterpret_cast<loguru::flush_handler_t>(on_flush));
+  auto* callback_data = new CallbackBridgeData{ callback, on_close, on_flush, user_data };
+  loguru::add_callback(id, loguru_callback_bridge_handler, callback_data,
+    static_cast<loguru::Verbosity>(verbosity), loguru_callback_bridge_close,
+    loguru_callback_bridge_flush);
 #else
+  // FIXME: Should we call the `close` callback with `user_data` to free any
+  // resources expected to be passed in here?
   (void)id;
   (void)callback;
   (void)user_data;
@@ -446,3 +495,4 @@ vtkLogger::Verbosity vtkLogger::ConvertToVerbosity(const char* text)
   }
   return vtkLogger::VERBOSITY_INVALID;
 }
+VTK_ABI_NAMESPACE_END

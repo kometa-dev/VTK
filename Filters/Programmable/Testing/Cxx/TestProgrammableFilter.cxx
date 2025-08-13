@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestProgrammableFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <vtkDirectedGraph.h>
 #include <vtkHyperTreeGrid.h>
@@ -54,6 +42,7 @@ EXECUTE_METHOD(Table);
 EXECUTE_METHOD(HyperTreeGrid);
 
 #define TEST_PROGRAMMABLE_FILTER_B(_intype, _type)                                                 \
+  do                                                                                               \
   {                                                                                                \
     vtkNew<vtk##_intype> inData;                                                                   \
     vtkNew<vtkProgrammableFilter> ps;                                                              \
@@ -66,7 +55,7 @@ EXECUTE_METHOD(HyperTreeGrid);
       std::cerr << "Filter output type is not of type " #_type "!" << std::endl;                   \
       return EXIT_FAILURE;                                                                         \
     }                                                                                              \
-  }
+  } while (false)
 
 #define TEST_PROGRAMMABLE_FILTER_A(_type) TEST_PROGRAMMABLE_FILTER_B(_type, _type)
 

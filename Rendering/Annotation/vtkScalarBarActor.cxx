@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkScalarBarActor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkScalarBarActor.h"
 #include "vtkScalarBarActorInternal.h"
 
@@ -50,6 +38,7 @@
 
 #undef VTK_DBG_LAYOUT
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkScalarBarActor);
 
 vtkCxxSetObjectMacro(vtkScalarBarActor, LookupTable, vtkScalarsToColors);
@@ -1234,7 +1223,7 @@ void vtkScalarBarActor::LayoutTicks()
   this->P->TextActorAnchors.resize(this->NumberOfLabelsBuilt);
 
   // Does this map have its scale set to log?
-  int isLogTable = this->LookupTable->UsingLogScale();
+  vtkTypeBool isLogTable = this->LookupTable->UsingLogScale();
   if (isLogTable)
   {
     offset = log10(range[0]);
@@ -1848,8 +1837,7 @@ void vtkScalarBarActor::ConfigureAnnotations()
   this->P->AnnotationAnchors.resize(numNotes);
   this->P->AnnotationColors.resize(numNotes);
   int i = 0;
-  std::map<double, vtkStdString>::iterator it;
-  for (it = this->P->Labels.begin(); it != this->P->Labels.end(); ++it, ++i)
+  for (auto it = this->P->Labels.begin(); it != this->P->Labels.end(); ++it, ++i)
   {
     this->P->AnnotationAnchors[i] = it->first;
     this->P->AnnotationColors[i] = this->P->LabelColors[it->first];
@@ -2090,7 +2078,7 @@ int vtkScalarBarActor::MapAnnotationLabels(
   {
     for (int i = 0; i < numNotes; ++i)
     {
-      vtkStdString label = lkup->GetAnnotation(i);
+      std::string label = lkup->GetAnnotation(i);
       lkup->GetAnnotationColor(lkup->GetAnnotatedValue(i), fltCol.GetData());
       double x;
       bool canPositionLabel = !label.empty();
@@ -2194,25 +2182,28 @@ int vtkScalarBarActor::PlaceAnnotationsVertically(double barX, double barY,
   }
 
 #define VTK_ANN_VLAYOUT(j, dir, delt)                                                              \
-  ctr = this->P->AnnotationAnchors[j];                                                             \
-  ll[0] = lpts->InsertNextPoint(xl0, ctr, 0.);                                                     \
-  this->P->AnnotationLabels[j]->GetSize(this->P->Viewport, tsz);                                   \
-  hh = (tsz[1] + pad) / 2.; /* label half-height, incl. padding */                                 \
-  if (((dir) < 0 && ctr + hh > dnCum) || ((dir) > 0 && ctr - hh < upCum))                          \
-    ctr = (delt) + (dir)*hh;                                                                       \
-  this->P->AnnotationLabels[j]->GetTextProperty()->SetJustification(                               \
-    this->TextPosition == PrecedeScalarBar ? VTK_TEXT_LEFT : VTK_TEXT_RIGHT);                      \
-  this->P->AnnotationLabels[j]->GetTextProperty()->SetVerticalJustificationToCentered();           \
-  this->P->AnnotationLabels[j]->SetPosition(barX +                                                 \
-      (this->TextPosition == PrecedeScalarBar ? 1 : -1) * (pad + this->AnnotationLeaderPadding),   \
-    ctr);                                                                                          \
-  ll[1] = lpts->InsertNextPoint(xl1, ctr, 0.);                                                     \
-  llines->InsertNextCell(2, ll);                                                                   \
-  llcolors->InsertNextTypedTuple(this->P->AnnotationColors[j].GetData());                          \
-  if (upCum < ctr + hh)                                                                            \
-    upCum = ctr + hh;                                                                              \
-  if (dnCum > ctr - hh)                                                                            \
-    dnCum = ctr - hh;
+  do                                                                                               \
+  {                                                                                                \
+    ctr = this->P->AnnotationAnchors[j];                                                           \
+    ll[0] = lpts->InsertNextPoint(xl0, ctr, 0.);                                                   \
+    this->P->AnnotationLabels[j]->GetSize(this->P->Viewport, tsz);                                 \
+    hh = (tsz[1] + pad) / 2.; /* label half-height, incl. padding */                               \
+    if (((dir) < 0 && ctr + hh > dnCum) || ((dir) > 0 && ctr - hh < upCum))                        \
+      ctr = (delt) + (dir)*hh;                                                                     \
+    this->P->AnnotationLabels[j]->GetTextProperty()->SetJustification(                             \
+      this->TextPosition == PrecedeScalarBar ? VTK_TEXT_LEFT : VTK_TEXT_RIGHT);                    \
+    this->P->AnnotationLabels[j]->GetTextProperty()->SetVerticalJustificationToCentered();         \
+    this->P->AnnotationLabels[j]->SetPosition(barX +                                               \
+        (this->TextPosition == PrecedeScalarBar ? 1 : -1) * (pad + this->AnnotationLeaderPadding), \
+      ctr);                                                                                        \
+    ll[1] = lpts->InsertNextPoint(xl1, ctr, 0.);                                                   \
+    llines->InsertNextCell(2, ll);                                                                 \
+    llcolors->InsertNextTypedTuple(this->P->AnnotationColors[j].GetData());                        \
+    if (upCum < ctr + hh)                                                                          \
+      upCum = ctr + hh;                                                                            \
+    if (dnCum > ctr - hh)                                                                          \
+      dnCum = ctr - hh;                                                                            \
+  } while (false)
 
   int numNotes = static_cast<int>(this->P->AnnotationLabels.size());
   vtkPoints* lpts = vtkPoints::New();
@@ -2551,12 +2542,15 @@ int vtkScalarBarActor::PlaceAnnotationsHorizontally(
   }
 
 #define VTK_ANN_HLAYOUT(j, placer)                                                                 \
-  this->P->AnnotationLabels[j]->GetTextProperty()->SetJustification(                               \
-    (placer).Places[j].Justification);                                                             \
-  this->P->AnnotationLabels[j]->GetTextProperty()->SetVerticalJustification(                       \
-    (placer).Dir > 0 ? VTK_TEXT_BOTTOM : VTK_TEXT_TOP);                                            \
-  this->P->AnnotationLabels[j]->SetPosition((placer).Places[j].Anchor);                            \
-  (placer).AddBrokenLeader(j, lpts, llines, llcolors, this->P->AnnotationColors[j]);
+  do                                                                                               \
+  {                                                                                                \
+    this->P->AnnotationLabels[j]->GetTextProperty()->SetJustification(                             \
+      (placer).Places[j].Justification);                                                           \
+    this->P->AnnotationLabels[j]->GetTextProperty()->SetVerticalJustification(                     \
+      (placer).Dir > 0 ? VTK_TEXT_BOTTOM : VTK_TEXT_TOP);                                          \
+    this->P->AnnotationLabels[j]->SetPosition((placer).Places[j].Anchor);                          \
+    (placer).AddBrokenLeader(j, lpts, llines, llcolors, this->P->AnnotationColors[j]);             \
+  } while (false)
 
   int numNotes = static_cast<int>(this->P->AnnotationLabels.size());
   bool precede = this->TextPosition == vtkScalarBarActor::PrecedeScalarBar;
@@ -2617,3 +2611,4 @@ int vtkScalarBarActor::PlaceAnnotationsHorizontally(
   llcolors->Delete();
   return numNotes;
 }
+VTK_ABI_NAMESPACE_END

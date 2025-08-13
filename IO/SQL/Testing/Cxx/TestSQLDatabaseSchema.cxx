@@ -1,29 +1,12 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    TestSQLDatabaseSchema.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 // .SECTION Thanks
 // Thanks to Philippe Pebay and David Thompson from Sandia National Laboratories
 // for implementing this test.
 
 #include "DatabaseSchemaWith2Tables.h"
 #include "vtkSQLDatabaseSchema.h"
-#include "vtkStdString.h"
 
 #include <set>
 
@@ -37,14 +20,14 @@ int TestSQLDatabaseSchema(int /*argc*/, char* /*argv*/[])
   // 2. Check the schema
 
   // Define the correct (reference) columns and types
-  std::set<vtkStdString> preNames;
-  preNames.insert(vtkStdString("dropplpgsql"));
-  preNames.insert(vtkStdString("loadplpgsql"));
-  preNames.insert(vtkStdString("createsomefunction"));
-  std::multiset<vtkStdString> preBackends;
-  preBackends.insert(vtkStdString(VTK_SQL_POSTGRESQL));
-  preBackends.insert(vtkStdString(VTK_SQL_POSTGRESQL));
-  preBackends.insert(vtkStdString(VTK_SQL_POSTGRESQL));
+  std::set<std::string> preNames;
+  preNames.insert(std::string("dropplpgsql"));
+  preNames.insert(std::string("loadplpgsql"));
+  preNames.insert(std::string("createsomefunction"));
+  std::multiset<std::string> preBackends;
+  preBackends.insert(std::string(VTK_SQL_POSTGRESQL));
+  preBackends.insert(std::string(VTK_SQL_POSTGRESQL));
+  preBackends.insert(std::string(VTK_SQL_POSTGRESQL));
 
   // Loop over all preambles
   int numPre = schema->GetNumberOfPreambles();
@@ -56,10 +39,10 @@ int TestSQLDatabaseSchema(int /*argc*/, char* /*argv*/[])
 
   for (int preHandle = 0; preHandle < numPre; ++preHandle)
   {
-    vtkStdString preName = schema->GetPreambleNameFromHandle(preHandle);
+    std::string preName = schema->GetPreambleNameFromHandle(preHandle);
     cerr << "Preamble name: " << preName << "\n";
 
-    std::set<vtkStdString>::iterator sit = preNames.find(preName);
+    std::set<std::string>::iterator sit = preNames.find(preName);
     if (sit != preNames.end())
     {
       preNames.erase(sit);
@@ -70,10 +53,10 @@ int TestSQLDatabaseSchema(int /*argc*/, char* /*argv*/[])
       status = false;
     }
 
-    vtkStdString preBackend = schema->GetPreambleBackendFromHandle(preHandle);
+    std::string preBackend = schema->GetPreambleBackendFromHandle(preHandle);
     cerr << "Preamble backend: " << preBackend << "\n";
 
-    std::multiset<vtkStdString>::iterator mit = preBackends.find(preBackend);
+    std::multiset<std::string>::iterator mit = preBackends.find(preBackend);
     if (mit != preBackends.end())
     {
       preBackends.erase(mit);
@@ -86,10 +69,10 @@ int TestSQLDatabaseSchema(int /*argc*/, char* /*argv*/[])
   }
 
   // Define the correct (reference) columns and types
-  std::set<vtkStdString> colNames;
-  colNames.insert(vtkStdString("somenmbr"));
-  colNames.insert(vtkStdString("somename"));
-  colNames.insert(vtkStdString("tablekey"));
+  std::set<std::string> colNames;
+  colNames.insert(std::string("somenmbr"));
+  colNames.insert(std::string("somename"));
+  colNames.insert(std::string("tablekey"));
   std::set<int> colTypes;
   colTypes.insert(static_cast<int>(vtkSQLDatabaseSchema::BIGINT));
   colTypes.insert(static_cast<int>(vtkSQLDatabaseSchema::SERIAL));
@@ -106,10 +89,10 @@ int TestSQLDatabaseSchema(int /*argc*/, char* /*argv*/[])
 
   for (int colHandle = 0; colHandle < numCol; ++colHandle)
   {
-    vtkStdString colName = schema->GetColumnNameFromHandle(tblHandle, colHandle);
+    std::string colName = schema->GetColumnNameFromHandle(tblHandle, colHandle);
     cerr << "Column name: " << colName << "\n";
 
-    std::set<vtkStdString>::iterator sit = colNames.find(colName);
+    std::set<std::string>::iterator sit = colNames.find(colName);
     if (sit != colNames.end())
     {
       colNames.erase(sit);
@@ -136,9 +119,9 @@ int TestSQLDatabaseSchema(int /*argc*/, char* /*argv*/[])
   }
 
   // Define the correct (reference) indices and types
-  std::set<vtkStdString> idxNames;
-  idxNames.insert(vtkStdString("bigkey"));
-  idxNames.insert(vtkStdString("reverselookup"));
+  std::set<std::string> idxNames;
+  idxNames.insert(std::string("bigkey"));
+  idxNames.insert(std::string("reverselookup"));
   std::set<int> idxTypes;
   idxTypes.insert(static_cast<int>(vtkSQLDatabaseSchema::PRIMARY_KEY));
   idxTypes.insert(static_cast<int>(vtkSQLDatabaseSchema::UNIQUE));
@@ -153,10 +136,10 @@ int TestSQLDatabaseSchema(int /*argc*/, char* /*argv*/[])
 
   for (int idxHandle = 0; idxHandle < numIdx; ++idxHandle)
   {
-    vtkStdString idxName = schema->GetIndexNameFromHandle(tblHandle, idxHandle);
+    std::string idxName = schema->GetIndexNameFromHandle(tblHandle, idxHandle);
     cerr << "Index name: " << idxName << "\n";
 
-    std::set<vtkStdString>::iterator sit = idxNames.find(idxName);
+    std::set<std::string>::iterator sit = idxNames.find(idxName);
     if (sit != idxNames.end())
     {
       idxNames.erase(sit);
@@ -183,25 +166,25 @@ int TestSQLDatabaseSchema(int /*argc*/, char* /*argv*/[])
   }
 
   // Define the correct (reference) triggers and types
-  std::multiset<vtkStdString> trgNames;
-  trgNames.insert(vtkStdString("inserttrigger"));
-  trgNames.insert(vtkStdString("inserttrigger"));
-  trgNames.insert(vtkStdString("inserttrigger"));
+  std::multiset<std::string> trgNames;
+  trgNames.insert(std::string("inserttrigger"));
+  trgNames.insert(std::string("inserttrigger"));
+  trgNames.insert(std::string("inserttrigger"));
 
   std::multiset<int> trgTypes;
   trgTypes.insert(static_cast<int>(vtkSQLDatabaseSchema::AFTER_INSERT));
   trgTypes.insert(static_cast<int>(vtkSQLDatabaseSchema::AFTER_INSERT));
   trgTypes.insert(static_cast<int>(vtkSQLDatabaseSchema::AFTER_INSERT));
 
-  std::multiset<vtkStdString> trgActions;
-  trgActions.insert(vtkStdString("DO NOTHING"));
-  trgActions.insert(vtkStdString("FOR EACH ROW INSERT INTO btable SET somevalue = NEW.somenmbr"));
-  trgActions.insert(vtkStdString("FOR EACH ROW EXECUTE PROCEDURE somefunction ()"));
+  std::multiset<std::string> trgActions;
+  trgActions.insert(std::string("DO NOTHING"));
+  trgActions.insert(std::string("FOR EACH ROW INSERT INTO btable SET somevalue = NEW.somenmbr"));
+  trgActions.insert(std::string("FOR EACH ROW EXECUTE PROCEDURE somefunction ()"));
 
-  std::multiset<vtkStdString> trgBackends;
-  trgBackends.insert(vtkStdString(VTK_SQL_MYSQL));
-  trgBackends.insert(vtkStdString(VTK_SQL_SQLITE));
-  trgBackends.insert(vtkStdString(VTK_SQL_POSTGRESQL));
+  std::multiset<std::string> trgBackends;
+  trgBackends.insert(std::string(VTK_SQL_MYSQL));
+  trgBackends.insert(std::string(VTK_SQL_SQLITE));
+  trgBackends.insert(std::string(VTK_SQL_POSTGRESQL));
 
   // Loop over all triggers of the previously created table
   int numTrg = schema->GetNumberOfTriggersInTable(tblHandle);
@@ -213,10 +196,10 @@ int TestSQLDatabaseSchema(int /*argc*/, char* /*argv*/[])
 
   for (int trgHandle = 0; trgHandle < numTrg; ++trgHandle)
   {
-    vtkStdString trgName = schema->GetTriggerNameFromHandle(tblHandle, trgHandle);
+    std::string trgName = schema->GetTriggerNameFromHandle(tblHandle, trgHandle);
     cerr << "Trigger name: " << trgName << "\n";
 
-    std::multiset<vtkStdString>::iterator sit = trgNames.find(trgName);
+    std::multiset<std::string>::iterator sit = trgNames.find(trgName);
     if (sit != trgNames.end())
     {
       trgNames.erase(sit);
@@ -241,7 +224,7 @@ int TestSQLDatabaseSchema(int /*argc*/, char* /*argv*/[])
       status = false;
     }
 
-    vtkStdString trgAction = schema->GetTriggerActionFromHandle(tblHandle, trgHandle);
+    std::string trgAction = schema->GetTriggerActionFromHandle(tblHandle, trgHandle);
     cerr << "Trigger action: " << trgAction << "\n";
 
     sit = trgActions.find(trgAction);
@@ -255,7 +238,7 @@ int TestSQLDatabaseSchema(int /*argc*/, char* /*argv*/[])
       status = false;
     }
 
-    vtkStdString trgBackend = schema->GetTriggerBackendFromHandle(tblHandle, trgHandle);
+    std::string trgBackend = schema->GetTriggerBackendFromHandle(tblHandle, trgHandle);
     cerr << "Trigger backend: " << trgBackend << "\n";
 
     sit = trgBackends.find(trgBackend);

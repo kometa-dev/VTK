@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include <vtkColorTransferFunction.h>
 #include <vtkContourValues.h>
 #include <vtkDataArray.h>
@@ -25,7 +27,6 @@ int TestGPURayCastIsosurface(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   data->Update();
   std::cout << "range: " << data->GetOutput()->GetPointData()->GetScalars()->GetRange()[0] << ", "
             << data->GetOutput()->GetPointData()->GetScalars()->GetRange()[1] << std::endl;
-  ;
   vtkNew<vtkOpenGLGPUVolumeRayCastMapper> mapper;
   mapper->SetInputConnection(data->GetOutputPort());
   mapper->AutoAdjustSampleDistancesOff();

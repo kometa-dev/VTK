@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include "vtkMPIController.h"
 #else
@@ -13,7 +15,6 @@
 #include <vtkNew.h>
 #include <vtkPointData.h>
 #include <vtkPoints.h>
-#include <vtkStdString.h>
 #include <vtkStringArray.h>
 #include <vtkTestUtilities.h>
 #include <vtkUnstructuredGrid.h>
@@ -292,7 +293,7 @@ int TestParallelUnstructuredGridIO(int argc, char* argv[])
   if (!CompareGrids(ug.GetPointer(), read))
     return EXIT_FAILURE;
 
-  // now read the .pvtu file with the paralle reader
+  // now read the .pvtu file with the parallel reader
   vtkNew<vtkXMLPUnstructuredGridReader> pr;
   pr->SetFileName(fn.c_str());
   // this will give a SIGSEGV on vtkXMLPUnstructuredGridReader::ReadPieceData()

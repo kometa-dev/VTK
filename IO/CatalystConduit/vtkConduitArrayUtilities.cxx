@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConduitArrayUtilities.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkConduitArrayUtilities.h"
 
 #include "vtkArrayDispatch.h"
@@ -37,6 +25,7 @@
 
 namespace internals
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 using AOSArrays = vtkTypeList::Unique<
   vtkTypeList::Create<vtkAOSDataArrayTemplate<vtkTypeInt8>, vtkAOSDataArrayTemplate<vtkTypeInt16>,
@@ -201,7 +190,10 @@ conduit_cpp::DataType::Id GetTypeId(conduit_cpp::DataType::Id type, bool force_s
   }
 }
 
+VTK_ABI_NAMESPACE_END
 } // internals
+
+VTK_ABI_NAMESPACE_BEGIN
 
 vtkStandardNewMacro(vtkConduitArrayUtilities);
 //----------------------------------------------------------------------------
@@ -459,8 +451,11 @@ vtkSmartPointer<vtkCellArray> vtkConduitArrayUtilities::MCArrayToVTKCellArray(
   return cellArray;
 }
 
+VTK_ABI_NAMESPACE_END
+
 namespace
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 struct O2MRelationToVTKCellArrayWorker
 {
@@ -495,7 +490,11 @@ struct O2MRelationToVTKCellArrayWorker
     }
   }
 };
+VTK_ABI_NAMESPACE_END
 }
+
+VTK_ABI_NAMESPACE_BEGIN
+
 //----------------------------------------------------------------------------
 vtkSmartPointer<vtkCellArray> vtkConduitArrayUtilities::O2MRelationToVTKCellArray(
   const conduit_node* c_o2mrelation, const std::string& leafname)
@@ -542,3 +541,4 @@ void vtkConduitArrayUtilities::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

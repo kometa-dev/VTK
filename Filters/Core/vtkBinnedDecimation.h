@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBinnedDecimation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBinnedDecimation
  * @brief   reduce the number of triangles in a vtkPolyData mesh
@@ -92,6 +80,7 @@
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSCORE_EXPORT vtkBinnedDecimation : public vtkPolyDataAlgorithm
 {
 public:
@@ -195,7 +184,7 @@ public:
    * point data (on by default). If the ProducePointData is set to
    * INPUT_POINTS, point data is simply passed from input to output (since
    * the points don't change). If the point generation mode is set to
-   * BIN_AVERAGES, then the average of all point data values withing a bin
+   * BIN_AVERAGES, then the average of all point data values within a bin
    * are associated with the point generated in the bin. If the point
    * generation mode is either BIN_POINTS or BIN_CENTERS, then the point
    * data values from one of the points falling into the bin is used.
@@ -258,4 +247,5 @@ private:
   void operator=(const vtkBinnedDecimation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

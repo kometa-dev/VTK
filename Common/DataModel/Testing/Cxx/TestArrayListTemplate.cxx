@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestArrayListTemplate.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAbstractArray.h"
 #include "vtkArrayListTemplate.h"
@@ -21,7 +9,6 @@
 #include "vtkLogger.h"
 #include "vtkNew.h"
 #include "vtkRTAnalyticSource.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 
 int TestArrayListTemplate(int, char*[])
@@ -34,7 +21,7 @@ int TestArrayListTemplate(int, char*[])
 
   vtkNew<vtkStringArray> strings;
   strings->SetNumberOfTuples(1);
-  strings->SetValue(0, vtkStdString("foo"));
+  strings->SetValue(0, "foo");
   strings->SetName("Strings");
 
   vtkImageData* wavelet = vtkImageData::SafeDownCast(waveletSource->GetOutputDataObject(0));

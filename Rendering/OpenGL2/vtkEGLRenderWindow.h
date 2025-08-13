@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEGLRenderWindow.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkEGLRenderWindow
  * @brief   OpenGL rendering window
@@ -35,6 +23,7 @@
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 
 class VTKRENDERINGOPENGL2_EXPORT vtkEGLRenderWindow : public vtkOpenGLRenderWindow
@@ -47,7 +36,7 @@ public:
   /**
    * End the rendering process and display the image.
    */
-  void Frame(void) override;
+  void Frame() override;
 
   // override as some EGL systems cannot show the window
   void SetShowWindow(bool) override;
@@ -55,7 +44,7 @@ public:
   /**
    * Initialize the window for rendering.
    */
-  virtual void WindowInitialize(void);
+  virtual void WindowInitialize();
 
   /**
    * Initialize the rendering window.  This will setup all system-specific
@@ -63,14 +52,14 @@ public:
    * should be possible to call them multiple times, even changing WindowId
    * in-between.  This is what WindowRemap does.
    */
-  void Initialize(void) override;
+  void Initialize() override;
 
   /**
    * "Deinitialize" the rendering window.  This will shutdown all system-specific
    * resources.  After having called this, it should be possible to destroy
    * a window that was used for a SetWindowId() call without any ill effects.
    */
-  void Finalize(void) override;
+  void Finalize() override;
 
   /**
    * Change the window to fill the entire screen.
@@ -80,12 +69,12 @@ public:
   /**
    * Resize the window.
    */
-  void WindowRemap(void) override;
+  void WindowRemap() override;
 
   /**
    * Set the preferred window size to full screen.
    */
-  virtual void PrefFullScreen(void);
+  virtual void PrefFullScreen();
 
   /**
    * Set the size (width and height) of the rendering window in
@@ -238,4 +227,5 @@ private:
   bool DeviceExtensionsPresent;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

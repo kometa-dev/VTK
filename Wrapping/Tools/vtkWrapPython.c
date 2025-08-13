@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPython.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapPythonClass.h"
 #include "vtkWrapPythonConstant.h"
@@ -103,6 +91,8 @@ static void vtkWrapPython_GenerateSpecialHeaders(
   const char* ownincfile = "";
   ClassInfo* data;
   ValueInfo* val;
+  const char** includedHeaders = NULL;
+  size_t nIncludedHeaders = 0;
 
   types = (const char**)malloc(1000 * sizeof(const char*));
 
@@ -191,6 +181,8 @@ static void vtkWrapPython_GenerateSpecialHeaders(
     ownincfile = vtkWrapPython_ClassHeader(hinfo, data->Name);
   }
 
+  includedHeaders = (const char**)malloc(numTypes * sizeof(const char*));
+
   /* for each unique type found in the file */
   for (i = 0; i < numTypes; i++)
   {
@@ -199,6 +191,26 @@ static void vtkWrapPython_GenerateSpecialHeaders(
 
     if (incfile)
     {
+      /* make sure it hasn't been included before. */
+      size_t nHeader;
+      int uniqueInclude = 1;
+      for (nHeader = 0; nHeader < nIncludedHeaders; ++nHeader)
+      {
+        if (!strcmp(incfile, includedHeaders[nHeader]))
+        {
+          uniqueInclude = 0;
+        }
+      }
+
+      /* ignore duplicate includes. */
+      if (!uniqueInclude)
+      {
+        continue;
+      }
+
+      includedHeaders[nIncludedHeaders] = incfile;
+      ++nIncludedHeaders;
+
       /* make sure it doesn't share our header file */
       if (ownincfile == 0 || strcmp(incfile, ownincfile) != 0)
       {
@@ -206,6 +218,9 @@ static void vtkWrapPython_GenerateSpecialHeaders(
       }
     }
   }
+
+  free((char**)includedHeaders);
+  includedHeaders = NULL;
 
   /* special case for the way vtkGenericDataArray template is used */
   if (data && strcmp(data->Name, "vtkGenericDataArray") == 0)
@@ -225,12 +240,10 @@ static void vtkWrapPython_GenerateSpecialHeaders(
 /* This is the main entry point for the python wrappers.  When called,
  * it will print the vtkXXPython.c file contents to "fp".  */
 
-#define MAX_WRAPPED_CLASSES 256
-
 int VTK_PARSE_MAIN(int argc, char* argv[])
 {
-  ClassInfo* wrappedClasses[MAX_WRAPPED_CLASSES];
-  unsigned char wrapAsVTKObject[MAX_WRAPPED_CLASSES];
+  ClassInfo** wrappedClasses;
+  unsigned char* wrapAsVTKObject;
   ClassInfo* data = NULL;
   NamespaceInfo* contents;
   OptionInfo* options;
@@ -411,6 +424,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   }
 
   /* Check for all special classes before any classes are wrapped */
+  wrapAsVTKObject = (unsigned char*)malloc(sizeof(unsigned char) * contents->NumberOfClasses);
   for (i = 0; i < contents->NumberOfClasses; i++)
   {
     data = contents->Classes[i];
@@ -442,6 +456,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   }
 
   /* Wrap all of the classes in the file */
+  wrappedClasses = (ClassInfo**)malloc(sizeof(ClassInfo*) * contents->NumberOfClasses);
   for (i = 0; i < contents->NumberOfClasses; i++)
   {
     data = contents->Classes[i];
@@ -508,20 +523,15 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
       fprintf(fp,
         "  if (o)\n"
         "  {\n"
-        "#ifdef VTK_PY3K\n"
-        "    const char *methodname = \"values\";\n"
-        "#else\n"
-        "    char methodname[] = \"values\";\n"
-        "#endif\n"
-        "    PyObject *l = PyObject_CallMethod(o, methodname, nullptr);\n"
-        "    Py_ssize_t n = PyList_GET_SIZE(l);\n"
+        "    PyObject *l = PyObject_CallMethod(o, \"values\", nullptr);\n"
+        "    Py_ssize_t n = PyList_Size(l);\n"
         "    for (Py_ssize_t i = 0; i < n; i++)\n"
         "    {\n"
-        "      PyObject *ot = PyList_GET_ITEM(l, i);\n"
+        "      PyObject *ot = PyList_GetItem(l, i);\n"
         "      const char *nt = nullptr;\n"
         "      if (PyType_Check(ot))\n"
         "      {\n"
-        "        nt = ((PyTypeObject *)ot)->tp_name;\n"
+        "        nt = vtkPythonUtil::GetTypeName((PyTypeObject *)ot);\n"
         "      }\n"
         "      if (nt)\n"
         "      {\n"
@@ -571,6 +581,13 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   fclose(fp);
 
   free(name_from_file);
+  free(wrapAsVTKObject);
+  free(wrappedClasses);
+
+  if (hinfo)
+  {
+    vtkParseHierarchy_Free(hinfo);
+  }
 
   vtkParse_Free(file_info);
 

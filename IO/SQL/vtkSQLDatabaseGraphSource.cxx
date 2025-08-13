@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSQLDatabaseGraphSource.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSQLDatabaseGraphSource.h"
 
@@ -35,6 +20,7 @@
 #include "vtkUndirectedGraph.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSQLDatabaseGraphSource::implementation
 {
 public:
@@ -64,10 +50,10 @@ public:
       this->Database->Delete();
   }
 
-  vtkStdString URL;
-  vtkStdString Password;
-  vtkStdString EdgeQueryString;
-  vtkStdString VertexQueryString;
+  std::string URL;
+  std::string Password;
+  std::string EdgeQueryString;
+  std::string VertexQueryString;
 
   vtkSQLDatabase* Database;
   vtkSQLQuery* EdgeQuery;
@@ -273,7 +259,7 @@ int vtkSQLDatabaseGraphSource::RequestData(
     this->Implementation->Database = vtkSQLDatabase::CreateFromURL(this->Implementation->URL);
     if (!this->Implementation->Database)
     {
-      vtkErrorMacro(<< "Error creating database using URL: " << this->Implementation->URL.c_str());
+      vtkErrorMacro(<< "Error creating database using URL: " << this->Implementation->URL);
       return 0;
     }
 
@@ -282,7 +268,7 @@ int vtkSQLDatabaseGraphSource::RequestData(
       this->Implementation->Database->Delete();
       this->Implementation->Database = 0;
 
-      vtkErrorMacro(<< "Error opening database: " << this->Implementation->URL.c_str());
+      vtkErrorMacro(<< "Error opening database: " << this->Implementation->URL);
       return 0;
     }
   }
@@ -304,8 +290,7 @@ int vtkSQLDatabaseGraphSource::RequestData(
   this->Implementation->EdgeQuery->SetQuery(this->Implementation->EdgeQueryString.c_str());
   if (!this->Implementation->EdgeQuery->Execute())
   {
-    vtkErrorMacro(<< "Error executing edge query: "
-                  << this->Implementation->EdgeQueryString.c_str());
+    vtkErrorMacro(<< "Error executing edge query: " << this->Implementation->EdgeQueryString);
     return 0;
   }
 
@@ -337,8 +322,7 @@ int vtkSQLDatabaseGraphSource::RequestData(
     this->Implementation->VertexQuery->SetQuery(this->Implementation->VertexQueryString.c_str());
     if (!this->Implementation->VertexQuery->Execute())
     {
-      vtkErrorMacro(<< "Error executing vertex query: "
-                    << this->Implementation->VertexQueryString.c_str());
+      vtkErrorMacro(<< "Error executing vertex query: " << this->Implementation->VertexQueryString);
       return 0;
     }
 
@@ -401,3 +385,4 @@ int vtkSQLDatabaseGraphSource::RequestData(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

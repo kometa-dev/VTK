@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLWriter.h"
 
 #include "vtkAOSDataArrayTemplate.h"
@@ -64,6 +52,7 @@
 #include <memory>
 
 #include <cassert>
+#include <cmath>
 #include <sstream>
 #include <string>
 
@@ -75,6 +64,8 @@
 
 #include <cctype> // for isalnum
 #include <locale> // C++ locale
+
+VTK_ABI_NAMESPACE_BEGIN
 
 //*****************************************************************************
 // Friend class to enable access for template functions to the protected
@@ -236,14 +227,14 @@ struct WriteBinaryDataBlockWorker
     while (this->Result && (wordsLeft >= blockWords))
     {
       // Copy data to contiguous buffer:
-      ValueType* bufferIter = reinterpret_cast<ValueType*>(&buffer[0]);
+      ValueType* bufferIter = reinterpret_cast<ValueType*>(buffer.data());
       for (size_t i = 0; i < blockWords; ++i, ++valueIdx)
       {
         *bufferIter++ = array->GetValue(valueIdx);
       }
 
       if (!vtkXMLWriterHelper::WriteBinaryDataBlock(
-            this->Writer, &buffer[0], blockWords, this->WordType))
+            this->Writer, buffer.data(), blockWords, this->WordType))
       {
         this->Result = false;
       }
@@ -255,14 +246,14 @@ struct WriteBinaryDataBlockWorker
     // Do the last partial block if any.
     if (this->Result && (wordsLeft > 0))
     {
-      ValueType* bufferIter = reinterpret_cast<ValueType*>(&buffer[0]);
+      ValueType* bufferIter = reinterpret_cast<ValueType*>(buffer.data());
       for (size_t i = 0; i < wordsLeft; ++i, ++valueIdx)
       {
         *bufferIter++ = array->GetValue(valueIdx);
       }
 
       if (!vtkXMLWriterHelper::WriteBinaryDataBlock(
-            this->Writer, &buffer[0], wordsLeft, this->WordType))
+            this->Writer, buffer.data(), wordsLeft, this->WordType))
       {
         this->Result = false;
       }
@@ -280,8 +271,6 @@ struct WriteBinaryDataBlockWorker
 
 }; // End WriteBinaryDataBlockWorker
 
-namespace
-{
 //------------------------------------------------------------------------------
 // Specialize for vtkDataArrays, which implicitly cast everything to double:
 template <class ValueType>
@@ -310,7 +299,7 @@ void WriteDataArrayFallback(ValueType*, vtkDataArray* array, WriteBinaryDataBloc
   while (worker.Result && (wordsLeft >= blockWords))
   {
     // Copy data to contiguous buffer:
-    ValueType* bufferIter = reinterpret_cast<ValueType*>(&buffer[0]);
+    ValueType* bufferIter = reinterpret_cast<ValueType*>(buffer.data());
     for (size_t i = 0; i < blockWords; ++i, ++valueIdx)
     {
       *bufferIter++ =
@@ -318,7 +307,7 @@ void WriteDataArrayFallback(ValueType*, vtkDataArray* array, WriteBinaryDataBloc
     }
 
     if (!vtkXMLWriterHelper::WriteBinaryDataBlock(
-          worker.Writer, &buffer[0], blockWords, worker.WordType))
+          worker.Writer, buffer.data(), blockWords, worker.WordType))
     {
       worker.Result = false;
     }
@@ -330,7 +319,7 @@ void WriteDataArrayFallback(ValueType*, vtkDataArray* array, WriteBinaryDataBloc
   // Do the last partial block if any.
   if (worker.Result && (wordsLeft > 0))
   {
-    ValueType* bufferIter = reinterpret_cast<ValueType*>(&buffer[0]);
+    ValueType* bufferIter = reinterpret_cast<ValueType*>(buffer.data());
     for (size_t i = 0; i < wordsLeft; ++i, ++valueIdx)
     {
       *bufferIter++ =
@@ -338,15 +327,13 @@ void WriteDataArrayFallback(ValueType*, vtkDataArray* array, WriteBinaryDataBloc
     }
 
     if (!vtkXMLWriterHelper::WriteBinaryDataBlock(
-          worker.Writer, &buffer[0], wordsLeft, worker.WordType))
+          worker.Writer, buffer.data(), wordsLeft, worker.WordType))
     {
       worker.Result = false;
     }
   }
 
   vtkXMLWriterHelper::SetProgressPartial(worker.Writer, 1);
-}
-
 }
 
 //------------------------------------------------------------------------------
@@ -1152,8 +1139,8 @@ int vtkXMLWriter::WriteBinaryDataInternal(vtkAbstractArray* a)
   else if (vtkDataArray* da = vtkArrayDownCast<vtkDataArray>(a))
   {
     // Create a dispatcher that also handles vtkBitArray:
-    using vtkArrayDispatch::Arrays;
-    using XMLArrays = vtkTypeList::Append<Arrays, vtkBitArray>::Result;
+    using vtkArrayDispatch::AllArrays;
+    using XMLArrays = vtkTypeList::Append<AllArrays, vtkBitArray>::Result;
     using Dispatcher = vtkArrayDispatch::DispatchByArray<XMLArrays>;
 
     WriteBinaryDataBlockWorker worker(this, wordType, memWordSize, outWordSize, numValues);
@@ -1591,14 +1578,14 @@ const char* vtkXMLWriter::GetWordTypeName(int dataType)
 template <class T>
 int vtkXMLWriterWriteVectorAttribute(ostream& os, const char* name, int length, T* data)
 {
-  vtkNumberToString convert;
+  vtkNumberToString converter;
   os << " " << name << "=\"";
   if (length)
   {
-    os << convert(data[0]);
+    os << converter.Convert(data[0]);
     for (int i = 1; i < length; ++i)
     {
-      os << " " << convert(data[i]);
+      os << " " << converter.Convert(data[i]);
     }
   }
   os << "\"";
@@ -1894,8 +1881,8 @@ bool vtkXMLWriter::WriteInformation(vtkInformation* info, vtkIndent indent)
 template <class T>
 inline ostream& vtkXMLWriteAsciiValue(ostream& os, const T& value)
 {
-  vtkNumberToString convert;
-  os << convert(value);
+  vtkNumberToString converter;
+  os << converter.Convert(value);
   return os;
 }
 
@@ -3052,7 +3039,7 @@ void vtkXMLWriter::UpdateProgressDiscrete(float progress)
   if (!this->AbortExecute)
   {
     // Round progress to nearest 100th.
-    float rounded = static_cast<float>(static_cast<int>((progress * 100) + 0.5f)) / 100.f;
+    float rounded = std::round(progress * 100) / 100.f;
     if (this->GetProgress() != rounded)
     {
       this->UpdateProgress(rounded);
@@ -3075,7 +3062,7 @@ void vtkXMLWriter::WritePrimaryElementAttributes(ostream& os, vtkIndent indent)
     for (int i = 0; i < this->NumberOfTimeSteps; i++)
     {
       this->NumberOfTimeValues[i] = os.tellp();
-      os << blankline.c_str() << "\n";
+      os << blankline << "\n";
     }
     os << "\"";
   }
@@ -3145,3 +3132,5 @@ void vtkXMLWriter::WriteNextTime(double time)
     os.seekp(returnPos);
   }
 }
+
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHandleRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHandleRepresentation
  * @brief   abstract class for representing widget handles
@@ -47,8 +35,10 @@
 
 #include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
+#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkWidgetRepresentation.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCoordinate;
 class vtkRenderer;
 class vtkPointPlacer;
@@ -216,12 +206,24 @@ public:
   void SetXTranslationAxisOn() { this->TranslationAxis = Axis::XAxis; }
   void SetYTranslationAxisOn() { this->TranslationAxis = Axis::YAxis; }
   void SetZTranslationAxisOn() { this->TranslationAxis = Axis::ZAxis; }
+  void SetCustomTranslationAxisOn() { this->TranslationAxis = Axis::Custom; }
   void SetTranslationAxisOff() { this->TranslationAxis = Axis::NONE; }
   ///@}
 
   ///@{
   /**
-   * Returns true if ContrainedAxis
+   * Get/Set the translation axis used when vtkHandleRepresentation::TranslationAxis
+   * is set to Axis::Custom.
+   *
+   * @see SetCustomTranslationAxisOn
+   */
+  vtkGetVector3Macro(CustomTranslationAxis, double);
+  vtkSetVector3Macro(CustomTranslationAxis, double);
+  ///@}
+
+  ///@{
+  /**
+   * Returns true if ConstrainedAxis
    **/
   bool IsTranslationConstrained() { return this->TranslationAxis != Axis::NONE; }
   ///@}
@@ -230,16 +232,16 @@ protected:
   vtkHandleRepresentation();
   ~vtkHandleRepresentation() override;
 
-  int Tolerance;
-  vtkTypeBool ActiveRepresentation;
-  vtkTypeBool Constrained;
+  int Tolerance = 15;
+  vtkTypeBool ActiveRepresentation = false;
+  vtkTypeBool Constrained = false;
 
   // Two vtkCoordinates are available to subclasses, one in display
   // coordinates and the other in world coordinates. These facilitate
   // the conversion between these two systems. Note that the WorldPosition
   // is the ultimate maintainer of position.
-  vtkCoordinate* DisplayPosition;
-  vtkCoordinate* WorldPosition;
+  vtkNew<vtkCoordinate> DisplayPosition;
+  vtkNew<vtkCoordinate> WorldPosition;
 
   // Keep track of when coordinates were changed
   vtkTimeStamp DisplayPositionTime;
@@ -249,11 +251,13 @@ protected:
   vtkPointPlacer* PointPlacer;
 
   // Constraint axis translation
-  int TranslationAxis;
+  int TranslationAxis = Axis::NONE;
+  double CustomTranslationAxis[3] = { 1.0, 0.0, 0.0 };
 
 private:
   vtkHandleRepresentation(const vtkHandleRepresentation&) = delete;
   void operator=(const vtkHandleRepresentation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

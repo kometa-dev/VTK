@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    QVTKOpenGLStereoWidget.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef QVTKOpenGLStereoWidget_h
 #define QVTKOpenGLStereoWidget_h
 
@@ -25,6 +13,7 @@
 class QSurfaceFormat;
 class QOpenGLContext;
 
+VTK_ABI_NAMESPACE_BEGIN
 // class QVTKInteractor;
 class QVTKInteractorAdapter;
 class QVTKOpenGLWindow;
@@ -153,6 +142,15 @@ public:
   const QCursor& defaultCursor() const { return this->VTKOpenGLWindow->defaultCursor(); }
   ///@}
 
+  ///@{
+  /**
+   * Set/get the cursor to use for this widget.
+   * Internally calls QWindow::setCursor / QWindow::cursor on the embedded window.
+   */
+  void setCursorCustom(const QCursor& cursor) { this->VTKOpenGLWindow->setCursor(cursor); };
+  QCursor cursorCustom() const { return this->VTKOpenGLWindow->cursor(); }
+  ///@}
+
   /**
    * Returns true if the internal QOpenGLWindow's is valid, i.e. if OpenGL
    * resources, like the context, have been successfully initialized.
@@ -194,4 +192,5 @@ private:
   QPointer<QVTKOpenGLWindow> VTKOpenGLWindow;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

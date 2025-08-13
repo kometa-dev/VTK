@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBalloonWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkBalloonWidget.h"
 #include "vtkAssemblyPath.h"
 #include "vtkBalloonRepresentation.h"
@@ -32,12 +20,13 @@
 #include <cassert>
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBalloonWidget);
 
 //-- Define the PIMPLd array of vtkProp and vtkString --
 struct vtkBalloon
 {
-  vtkStdString Text;
+  std::string Text;
   vtkImageData* Image;
 
   vtkBalloon()
@@ -53,7 +42,7 @@ struct vtkBalloon
       this->Image->Register(nullptr);
     }
   }
-  vtkBalloon(vtkStdString* str, vtkImageData* img)
+  vtkBalloon(std::string* str, vtkImageData* img)
   {
     this->Text = *str;
     this->Image = img;
@@ -64,7 +53,7 @@ struct vtkBalloon
   }
   vtkBalloon(const char* str, vtkImageData* img)
   {
-    this->Text = vtkStdString(str);
+    this->Text = str;
     this->Image = img;
     if (this->Image)
     {
@@ -321,7 +310,7 @@ int vtkBalloonWidget::SubclassHoverAction()
       this->CurrentProp = (*iter).first;
       this->CurrentProp->Register(this);
       reinterpret_cast<vtkBalloonRepresentation*>(this->WidgetRep)
-        ->SetBalloonText((*iter).second.Text);
+        ->SetBalloonText((*iter).second.Text.c_str());
       reinterpret_cast<vtkBalloonRepresentation*>(this->WidgetRep)
         ->SetBalloonImage((*iter).second.Image);
       this->WidgetRep->StartWidgetInteraction(e);
@@ -361,3 +350,4 @@ void vtkBalloonWidget::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Picker: " << this->Picker << "\n";
 }
+VTK_ABI_NAMESPACE_END

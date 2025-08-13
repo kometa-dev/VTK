@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeZPass.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCompositeZPass.h"
 #include "vtkObjectFactory.h"
@@ -35,7 +23,6 @@
 #include "vtkPNGWriter.h"
 #include "vtkPixelBufferObject.h"
 #include "vtkPointData.h"
-#include "vtkStdString.h"
 #include "vtkTimerLog.h"
 #include <sstream>
 
@@ -52,6 +39,7 @@
 #include "vtkTextureObjectVS.h"
 #include "vtk_glew.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCompositeZPass);
 vtkCxxSetObjectMacro(vtkCompositeZPass, Controller, vtkMultiProcessController);
 
@@ -276,12 +264,8 @@ void vtkCompositeZPass::Render(const vtkRenderState* s)
     timer->StopTimer();
     ostxx << "root0_" << vtkTimerLog::GetUniversalTime() << "_.png";
 
-    vtkStdString* sssxx = new vtkStdString;
-    (*sssxx) = ostxx.str();
-
     writer = vtkPNGWriter::New();
-    writer->SetFileName(*sssxx);
-    delete sssxx;
+    writer->SetFileName(ostxx.str().c_str());
     writer->SetInputConnection(converter->GetOutputPort());
     importer->Delete();
     //    rgbaToRgb->Delete();
@@ -325,11 +309,7 @@ void vtkCompositeZPass::Render(const vtkRenderState* s)
       ost.precision(5);
       ost << "root1_proc_" << proc << "_" << vtkTimerLog::GetUniversalTime() << "_.png";
 
-      vtkStdString* sss = new vtkStdString;
-      (*sss) = ost.str();
-
-      writer->SetFileName(*sss);
-      delete sss;
+      writer->SetFileName(ost.str().c_str());
       writer->SetInputConnection(converter->GetOutputPort());
       importer->Delete();
       //    rgbaToRgb->Delete();
@@ -490,12 +470,8 @@ void vtkCompositeZPass::Render(const vtkRenderState* s)
 
     ost3 << "root2_" << vtkTimerLog::GetUniversalTime() << "_.png";
 
-    vtkStdString* sss3 = new vtkStdString;
-    (*sss3) = ost3.str();
-
     writer = vtkPNGWriter::New();
-    writer->SetFileName(*sss3);
-    delete sss3;
+    writer->SetFileName(ost3.str().c_str());
     writer->SetInputConnection(converter->GetOutputPort());
     importer->Delete();
     //    rgbaToRgb->Delete();
@@ -559,12 +535,8 @@ void vtkCompositeZPass::Render(const vtkRenderState* s)
     timer->StopTimer();
     ost << "satellite1_" << vtkTimerLog::GetUniversalTime() << "_.png";
 
-    vtkStdString* sss = new vtkStdString;
-    (*sss) = ost.str();
-
     writer = vtkPNGWriter::New();
-    writer->SetFileName(*sss);
-    delete sss;
+    writer->SetFileName(ost.str().c_str());
     writer->SetInputConnection(converter->GetOutputPort());
     importer->Delete();
     //    rgbaToRgb->Delete();
@@ -607,12 +579,8 @@ void vtkCompositeZPass::Render(const vtkRenderState* s)
 
     ost2 << "satellite2_" << vtkTimerLog::GetUniversalTime() << "_.png";
 
-    vtkStdString* sss2 = new vtkStdString;
-    (*sss2) = ost2.str();
-
     writer = vtkPNGWriter::New();
-    writer->SetFileName(*sss2);
-    delete sss2;
+    writer->SetFileName(ost2.str().c_str());
     writer->SetInputConnection(converter->GetOutputPort());
     importer->Delete();
     //    rgbaToRgb->Delete();
@@ -695,3 +663,4 @@ void vtkCompositeZPass::ReleaseGraphicsResources(vtkWindow* w)
     this->Program->ReleaseGraphicsResources(w);
   }
 }
+VTK_ABI_NAMESPACE_END

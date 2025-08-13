@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDIYUtilities.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkDIYUtilities
  * @brief collection of helper functions for working with DIY
@@ -22,7 +10,6 @@
 #ifndef vtkDIYUtilities_h
 #define vtkDIYUtilities_h
 
-#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_1_0
 #include "vtkObject.h"
 #include "vtkParallelDIYModule.h" // for export macros
 #include "vtkSmartPointer.h"      // needed for vtkSmartPointer
@@ -39,6 +26,7 @@
 #include VTK_DIY2(diy/types.hpp)
 // clang-format on
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkBoundingBox;
 class vtkDataObject;
@@ -127,16 +115,6 @@ public:
   static void Broadcast(
     diy::mpi::communicator& comm, std::vector<vtkBoundingBox>& boxes, int source);
 
-  /**
-   * Extract datasets from the given data object. This method returns a vector
-   * of DataSetT* from the `dobj`. If dobj is a DataSetT, the returned
-   * vector will have just 1 DataSetT. If dobj is a vtkCompositeDataSet, then
-   * we iterate over it and add all non-null leaf nodes to the returned vector.
-   */
-  template <class DataSetT = vtkDataSet>
-  VTK_DEPRECATED_IN_9_1_0("Use vtkCompositeDataSet::GetDataSets instead")
-  static std::vector<DataSetT*> GetDataSets(vtkDataObject* dobj);
-
   ///@{
   /**
    * Extracts points from the input. If input is not a vtkPointSet, it will use
@@ -176,6 +154,7 @@ private:
   vtkDIYUtilities(const vtkDIYUtilities&) = delete;
   void operator=(const vtkDIYUtilities&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 namespace diy
 {
@@ -201,6 +180,7 @@ struct Serialization<vtkFieldData*>
 };
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 // Implementation detail for Schwarz counter idiom.
 class VTKPARALLELDIY_EXPORT vtkDIYUtilitiesCleanup
 {
@@ -214,6 +194,7 @@ private:
 };
 static vtkDIYUtilitiesCleanup vtkDIYUtilitiesCleanupInstance;
 
+VTK_ABI_NAMESPACE_END
 #include "vtkDIYUtilities.txx" // for template implementations
 
 #endif

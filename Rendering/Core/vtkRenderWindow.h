@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRenderWindow.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRenderWindow
  * @brief   create a window for renderers to draw into
@@ -41,13 +29,13 @@
 #ifndef vtkRenderWindow_h
 #define vtkRenderWindow_h
 
-#include "vtkDeprecation.h"         // For VTK_DEPRECATED_IN_9_1_0
 #include "vtkEventData.h"           // for enums
 #include "vtkNew.h"                 // For vtkNew
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkSmartPointer.h"        // For vtkSmartPointer
 #include "vtkWindow.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFloatArray;
 class vtkProp;
 class vtkCollection;
@@ -111,7 +99,7 @@ public:
   /**
    * Query if a renderer is in the list of renderers.
    */
-  int HasRenderer(vtkRenderer*);
+  vtkTypeBool HasRenderer(vtkRenderer*);
 
   /**
    * What rendering library has the user requested
@@ -645,16 +633,6 @@ public:
   virtual bool IsCurrent() { return false; }
 
   /**
-   * Test if the window has a valid drawable. This is
-   * currently only an issue on Mac OS X Cocoa where rendering
-   * to an invalid drawable results in all OpenGL calls to fail
-   * with "invalid framebuffer operation".
-   */
-  VTK_DEPRECATED_IN_9_1_0(
-    "Deprecated in 9.1 because no one knows what it's for and nothing uses it")
-  virtual bool IsDrawable();
-
-  /**
    * If called, allow MakeCurrent() to skip cache-check when called.
    * MakeCurrent() reverts to original behavior of cache-checking
    * on the next render.
@@ -801,4 +779,5 @@ private:
   vtkNew<vtkStereoCompositor> StereoCompositor;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

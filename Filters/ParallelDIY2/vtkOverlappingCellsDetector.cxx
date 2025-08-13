@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOverlappingCellsDetector.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOverlappingCellsDetector.h"
 
@@ -67,6 +52,7 @@
 #include VTK_DIY2(diy/assigner.hpp)
 // clang-format on
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 constexpr char SPHERE_RADIUS_ARRAY_NAME[21] = "SphereRadius";
@@ -265,7 +251,7 @@ std::map<int, vtkSmartPointer<vtkUnstructuredGrid>> ExtractOverlappingCellCandid
 struct Block : public diy::Serialization<vtkPointSet*>
 {
   /**
-   * Bouding boxes of all spatial neighbor blocks
+   * Bounding boxes of all spatial neighbor blocks
    */
   std::map<int, vtkBoundingBox> BoundingBoxes;
 
@@ -475,7 +461,7 @@ int vtkOverlappingCellsDetector::ExposeOverlappingCellsAmongBlocks(
             const auto dest = rp.out_link().target(i);
             rp.enqueue(dest, &connected, 1);
           }
-        };
+        }
       }
       else
       {
@@ -504,7 +490,7 @@ int vtkOverlappingCellsDetector::ExposeOverlappingCellsAmongBlocks(
   vtkLogEndScope("relink master");
 
   // We share overlapping candidates with neighbor blocks.
-  vtkLogStartScope(TRACE, "send cell candidates accross ranks");
+  vtkLogStartScope(TRACE, "send cell candidates across ranks");
   master.foreach ([&master, &overlappingCellCandidatesDataSetsArray](
                     void*, const diy::Master::ProxyWithLink& cp) {
     int myBlockId = cp.gid();
@@ -533,7 +519,7 @@ int vtkOverlappingCellsDetector::ExposeOverlappingCellsAmongBlocks(
       }
     }
   });
-  vtkLogEndScope("send cell candidates accross ranks");
+  vtkLogEndScope("send cell candidates across ranks");
 
   std::vector<std::map<int, std::unordered_map<vtkIdType, std::set<vtkIdType>>>>
     collisionListMapListArray(outputs.size());
@@ -790,7 +776,7 @@ bool vtkOverlappingCellsDetector::DetectOverlappingCells(vtkDataSet* queryCellDa
                 !collisionListMapHandle->second.count(neighborId)))))
       {
         // Same procedure as for currentCell.
-        // We have a bank of cells to aleviate dynamic allocating when possible.
+        // We have a bank of cells to alleviate dynamic allocating when possible.
         int neighborCellType = cellDataSet->GetCellType(neighborId);
         auto neighborCellBankHandle = neighborCellBank.find(neighborCellType);
         vtkCell* neighborCell;
@@ -838,3 +824,4 @@ void vtkOverlappingCellsDetector::PrintSelf(ostream& os, vtkIndent indent)
      << std::endl;
   os << indent << "Tolerance: " << this->Tolerance << std::endl;
 }
+VTK_ABI_NAMESPACE_END

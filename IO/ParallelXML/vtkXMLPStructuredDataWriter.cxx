@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLPStructuredDataWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLPStructuredDataWriter.h"
 #include "vtkCommunicator.h"
 #include "vtkDataSet.h"
@@ -24,6 +12,7 @@
 #include "vtkXMLStructuredDataWriter.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkXMLPStructuredDataWriter::vtkXMLPStructuredDataWriter() = default;
 
 //------------------------------------------------------------------------------
@@ -60,7 +49,7 @@ void vtkXMLPStructuredDataWriter::WritePPieceAttributes(int index)
 {
   if (this->Extents.find(index) != this->Extents.end())
   {
-    this->WriteVectorAttribute("Extent", 6, &this->Extents[index][0]);
+    this->WriteVectorAttribute("Extent", 6, this->Extents[index].data());
     if (this->ErrorCode == vtkErrorCode::OutOfDiskSpaceError)
     {
       return;
@@ -128,7 +117,7 @@ void vtkXMLPStructuredDataWriter::PrepareSummaryFile()
       for (int count = 0; iter != this->Extents.end(); ++iter, ++count)
       {
         sendBuffer[count * 7] = iter->first;
-        memcpy(&sendBuffer[count * 7 + 1], &iter->second[0], 6 * sizeof(int));
+        memcpy(&sendBuffer[count * 7 + 1], iter->second.data(), 6 * sizeof(int));
       }
     }
     int* recvBuffer = nullptr;
@@ -174,3 +163,4 @@ int vtkXMLPStructuredDataWriter::WritePiece(int index)
   }
   return result;
 }
+VTK_ABI_NAMESPACE_END

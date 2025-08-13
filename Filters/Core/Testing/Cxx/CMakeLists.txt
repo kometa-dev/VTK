@@ -9,6 +9,8 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestArrayCalculator.cxx,NO_VALID
   TestArrayRename.cxx,NO_VALID
   TestAssignAttribute.cxx,NO_VALID
+  TestAttributeDataToTableFilter.cxx,NO_VALID
+  TestAttributeDataToTableHyperTreeGrid.cxx,NO_VALID
   TestBinCellDataFilter.cxx,NO_VALID
   TestCategoricalPointDataToCellData.cxx,NO_VALID
   TestCategoricalResampleWithDataSet.cxx,NO_VALID
@@ -18,6 +20,7 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestCleanPolyData.cxx,NO_VALID
   TestCleanPolyData2.cxx,NO_VALID
   TestClipPolyData.cxx,NO_VALID
+  TestCompositeDataProbeFilterWithHyperTreeGrid.cxx
   TestConnectivityFilter.cxx,NO_VALID
   TestCutter.cxx,NO_VALID
   TestDataObjectToPartitionedDataSetCollection.cxx,NO_VALID
@@ -32,12 +35,16 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestExplicitStructuredGridCrop.cxx
   TestExplicitStructuredGridToUnstructuredGrid.cxx
   TestExecutionTimer.cxx,NO_VALID
+  TestExtractCells.cxx,NO_VALID
   TestExtractCellsAlongPolyLine.cxx,NO_VALID
   TestFeatureEdges.cxx,NO_VALID
+  TestFieldDataToDataSetAttribute.cxx,NO_VALID
   TestFlyingEdges.cxx
   TestGlyph3D.cxx
   TestGlyph3DFollowCamera.cxx,NO_VALID
   TestHedgeHog.cxx,NO_VALID
+  TestHyperTreeGridProbeFilter.cxx
+  TestResampleHyperTreeGridWithDataSet.cxx
   TestImageDataToExplicitStructuredGrid.cxx
   TestImplicitPolyDataDistance.cxx
   TestImplicitProjectOnPlaneDistance.cxx
@@ -52,6 +59,8 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestProbeFilter.cxx,NO_VALID
   TestProbeFilterImageInput.cxx
   TestProbeFilterOutputAttributes.cxx,NO_VALID
+  TestQuadricDecimationRegularization.cxx
+  TestQuadricDecimationMapPointData.cxx
   TestResampleToImage.cxx,NO_VALID
   TestResampleToImage2D.cxx,NO_VALID
   TestResampleWithDataSet.cxx,
@@ -76,6 +85,7 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestVaryRadiusTubeFilter.cxx
   UnitTestMaskPoints.cxx,NO_VALID
   UnitTestMergeFilter.cxx,NO_VALID
+  TestContourImplicitArrays.cxx
   )
 
 vtk_test_cxx_executable(vtkFiltersCoreCxxTests tests)

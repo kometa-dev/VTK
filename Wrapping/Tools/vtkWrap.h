@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrap.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * vtkWrap provides useful functions for generating wrapping code.
@@ -42,6 +30,7 @@ extern "C"
    * Check for common types.
    * IsPODPointer is for unsized arrays of POD types.
    * IsZeroCopyPointer is for buffers that shouldn't be copied.
+   * IsArrayRef is for references to arrays.
    */
   /*@{*/
   VTKWRAPPINGTOOLS_EXPORT int vtkWrap_IsVoid(ValueInfo* val);
@@ -50,6 +39,7 @@ extern "C"
   VTKWRAPPINGTOOLS_EXPORT int vtkWrap_IsCharPointer(ValueInfo* val);
   VTKWRAPPINGTOOLS_EXPORT int vtkWrap_IsPODPointer(ValueInfo* val);
   VTKWRAPPINGTOOLS_EXPORT int vtkWrap_IsZeroCopyPointer(ValueInfo* val);
+  VTKWRAPPINGTOOLS_EXPORT int vtkWrap_IsArrayRef(ValueInfo* val);
   VTKWRAPPINGTOOLS_EXPORT int vtkWrap_IsStdVector(ValueInfo* val);
   VTKWRAPPINGTOOLS_EXPORT int vtkWrap_IsVTKObject(ValueInfo* val);
   VTKWRAPPINGTOOLS_EXPORT int vtkWrap_IsVTKSmartPointer(ValueInfo* val);

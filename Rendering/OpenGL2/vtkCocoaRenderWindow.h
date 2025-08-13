@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkCocoaRenderWindow.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCocoaRenderWindow
  * @brief   Cocoa OpenGL rendering window
@@ -46,6 +34,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include <stack>                       // for ivar
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGOPENGL2_EXPORT vtkCocoaRenderWindow : public vtkOpenGLRenderWindow
 {
 public:
@@ -226,16 +215,6 @@ public:
   bool IsCurrent() override;
 
   /**
-   * Test if the window has a valid drawable. This is
-   * currently only an issue on Mac OS X Cocoa where rendering
-   * to an invalid drawable results in all OpenGL calls to fail
-   * with "invalid framebuffer operation".
-   */
-  VTK_DEPRECATED_IN_9_1_0(
-    "Deprecated in 9.1 because no one knows what it's for and nothing uses it")
-  bool IsDrawable() override;
-
-  /**
    * Update this window's OpenGL context, e.g. when the window is resized.
    */
   void UpdateContext();
@@ -407,6 +386,8 @@ public:
   void PopContext() override;
   ///@}
 
+  void Render() override;
+
 protected:
   vtkCocoaRenderWindow();
   ~vtkCocoaRenderWindow() override;
@@ -456,4 +437,5 @@ private:
   int DisplayIndex = 0;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

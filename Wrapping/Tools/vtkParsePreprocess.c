@@ -1,24 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParsePreprocess.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright (c) 2010 David Gobbi.
-
-  Contributed to the VisualizationToolkit by the author in June 2010
-  under the terms of the Visualization Toolkit 2008 copyright.
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2010 David Gobbi
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParsePreprocess.h"
 #include "vtkParseSystem.h"
 
@@ -35,25 +17,25 @@
 #define PREPROC_DEBUG 0
 
 /** Block size for reading files */
-#define FILE_BUFFER_SIZE 8192
+const size_t FILE_BUFFER_SIZE = 8192;
 
 /** Size of hash table must be a power of two */
-#define PREPROC_HASH_TABLE_SIZE 1024u
+const unsigned int PREPROC_HASH_TABLE_SIZE = 1 << 10;
 
 /** Hashes for preprocessor keywords */
-#define HASH_IFDEF 0x0fa4b283u
-#define HASH_IFNDEF 0x04407ab1u
-#define HASH_IF 0x00597834u
-#define HASH_ELIF 0x7c964b25u
-#define HASH_ELSE 0x7c964c6eu
-#define HASH_ENDIF 0x0f60b40bu
-#define HASH_DEFINED 0x088998d4u
-#define HASH_DEFINE 0xf8804a70u
-#define HASH_UNDEF 0x10823b97u
-#define HASH_INCLUDE 0x9e36af89u
-#define HASH_ERROR 0x0f6321efu
-#define HASH_LINE 0x7c9a15adu
-#define HASH_PRAGMA 0x1566a9fdu
+const unsigned int HASH_IFDEF = 0x0fa4b283u;
+const unsigned int HASH_IFNDEF = 0x04407ab1u;
+const unsigned int HASH_IF = 0x00597834u;
+const unsigned int HASH_ELIF = 0x7c964b25u;
+const unsigned int HASH_ELSE = 0x7c964c6eu;
+const unsigned int HASH_ENDIF = 0x0f60b40bu;
+const unsigned int HASH_DEFINED = 0x088998d4u;
+const unsigned int HASH_DEFINE = 0xf8804a70u;
+const unsigned int HASH_UNDEF = 0x10823b97u;
+const unsigned int HASH_INCLUDE = 0x9e36af89u;
+const unsigned int HASH_ERROR = 0x0f6321efu;
+const unsigned int HASH_LINE = 0x7c9a15adu;
+const unsigned int HASH_PRAGMA = 0x1566a9fdu;
 
 /** Extend dynamic arrays in a progression of powers of two.
  * Whenever "n" reaches a power of two, then the array size is
@@ -1737,9 +1719,11 @@ const char* preproc_find_include_file(
 
     info->IncludeFiles = (const char**)preproc_array_check(
       (char**)info->IncludeFiles, sizeof(char*), info->NumberOfIncludeFiles);
-    info->IncludeFiles[info->NumberOfIncludeFiles++] = output;
+    info->IncludeFiles[info->NumberOfIncludeFiles++] =
+      vtkParse_CacheString(info->Strings, output, strlen(output));
+    free(output);
 
-    return output;
+    return info->IncludeFiles[info->NumberOfIncludeFiles - 1];
   }
 
   /* Make sure the current filename is already added */

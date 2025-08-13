@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPostgreSQLDatabase.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-  -------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkPostgreSQLDatabase.h"
 #include "vtkPostgreSQLDatabasePrivate.h"
 #include "vtkPostgreSQLQuery.h"
@@ -37,6 +21,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPostgreSQLDatabase);
 
 //------------------------------------------------------------------------------
@@ -109,7 +94,7 @@ vtkStdString vtkPostgreSQLDatabase::GetColumnSpecification(
 
   // Figure out column type
   int colType = schema->GetColumnTypeFromHandle(tblHandle, colHandle);
-  vtkStdString colTypeStr;
+  std::string colTypeStr;
   switch (static_cast<vtkSQLDatabaseSchema::DatabaseColumnType>(colType))
   {
     case vtkSQLDatabaseSchema::SERIAL:
@@ -157,7 +142,7 @@ vtkStdString vtkPostgreSQLDatabase::GetColumnSpecification(
   else // if ( !colTypeStr.empty() )
   {
     vtkGenericWarningMacro("Unable to get column specification: unsupported data type " << colType);
-    return vtkStdString();
+    return {};
   }
 
   // Decide whether size is allowed, required, or unused
@@ -222,7 +207,7 @@ vtkStdString vtkPostgreSQLDatabase::GetColumnSpecification(
     }
   }
 
-  vtkStdString attStr = schema->GetColumnAttributesFromHandle(tblHandle, colHandle);
+  std::string attStr = schema->GetColumnAttributesFromHandle(tblHandle, colHandle);
   if (!attStr.empty())
   {
     queryStr << " " << attStr;
@@ -385,7 +370,7 @@ bool vtkPostgreSQLDatabase::ParseURL(const char* URL)
   if (!vtksys::SystemTools::ParseURL(
         urlstr, protocol, username, password, hostname, dataport, database))
   {
-    vtkErrorMacro("Invalid URL: \"" << urlstr.c_str() << "\"");
+    vtkErrorMacro("Invalid URL: \"" << urlstr << "\"");
     return false;
   }
 
@@ -445,11 +430,11 @@ vtkStringArray* vtkPostgreSQLDatabase::GetRecord(const char* table)
   // currently in the query below are probably over the top. But there's
   // just so much peanut-buttery goodness in the table, I couldn't resist.
   vtkSQLQuery* query = this->GetQueryInstance();
-  vtkStdString text("SELECT "
-                    "column_name,column_default,data_type,is_nullable,character_maximum_length,"
-                    "numeric_precision,datetime_precision"
-                    "  FROM information_schema.columns"
-                    "  WHERE table_name='");
+  std::string text("SELECT "
+                   "column_name,column_default,data_type,is_nullable,character_maximum_length,"
+                   "numeric_precision,datetime_precision"
+                   "  FROM information_schema.columns"
+                   "  WHERE table_name='");
   text += table;
   text += "' ORDER BY ordinal_position";
 
@@ -712,7 +697,7 @@ void vtkPostgreSQLDatabase::UpdateDataTypeMap()
     while (typeQuery->NextRow())
     {
       Oid oid;
-      vtkStdString name;
+      std::string name;
       int len;
 
       // Caution: this assumes that the Postgres OID type is a 32-bit
@@ -761,3 +746,4 @@ void vtkPostgreSQLDatabase::UpdateDataTypeMap()
   }   // done with "query is successful"
   typeQuery->Delete();
 }
+VTK_ABI_NAMESPACE_END

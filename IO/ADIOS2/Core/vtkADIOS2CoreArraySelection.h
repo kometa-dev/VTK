@@ -1,18 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmf3ArraySelection.h
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkADIOS2ArraySelection
  * @brief   helper to identify requested arrays with
@@ -36,6 +23,7 @@
 #pragma warning(push)           // save
 #pragma warning(disable : 4251) // needs to have dll-interface to be used by clients of class
 #endif
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOADIOS2_EXPORT vtkADIOS2ArraySelection : public std::map<std::string, bool>
 {
 public:
@@ -76,5 +64,6 @@ public:
 #pragma warning(pop) // restore
 #endif
 
+VTK_ABI_NAMESPACE_END
 #endif //# vtkADIOS2CoreArraySelection_h
 // VTK-HeaderTest-Exclude: vtkADIOS2CoreArraySelection.h

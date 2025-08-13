@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAbstractArray.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAbstractArray.h"
 
@@ -58,17 +46,21 @@
 #include <iterator>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkInformationKeyMacro(vtkAbstractArray, GUI_HIDE, Integer);
 vtkInformationKeyMacro(vtkAbstractArray, PER_COMPONENT, InformationVector);
 vtkInformationKeyMacro(vtkAbstractArray, PER_FINITE_COMPONENT, InformationVector);
 vtkInformationKeyMacro(vtkAbstractArray, DISCRETE_VALUES, VariantVector);
 vtkInformationKeyRestrictedMacro(
   vtkAbstractArray, DISCRETE_VALUE_SAMPLE_PARAMETERS, DoubleVector, 2);
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
-typedef std::vector<vtkStdString*> vtkInternalComponentNameBase;
+typedef std::vector<std::string*> vtkInternalComponentNameBase;
 }
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray::vtkInternalComponentNames : public vtkInternalComponentNameBase
 {
 };
@@ -123,7 +115,7 @@ void vtkAbstractArray::SetComponentName(vtkIdType component, const char* name)
   if (index == this->ComponentNames->size())
   {
     // the array isn't large enough, so we will resize
-    this->ComponentNames->push_back(new vtkStdString(name));
+    this->ComponentNames->push_back(new std::string(name));
     return;
   }
   else if (index > this->ComponentNames->size())
@@ -132,10 +124,10 @@ void vtkAbstractArray::SetComponentName(vtkIdType component, const char* name)
   }
 
   // replace an existing element
-  vtkStdString* compName = this->ComponentNames->at(index);
+  std::string* compName = this->ComponentNames->at(index);
   if (!compName)
   {
-    compName = new vtkStdString(name);
+    compName = new std::string(name);
     this->ComponentNames->at(index) = compName;
   }
   else
@@ -154,7 +146,7 @@ const char* vtkAbstractArray::GetComponentName(vtkIdType component) const
     return nullptr;
   }
 
-  vtkStdString* compName = this->ComponentNames->at(index);
+  std::string* compName = this->ComponentNames->at(index);
   return (compName) ? compName->c_str() : nullptr;
 }
 
@@ -307,7 +299,7 @@ void vtkAbstractArray::ExportToVoidPointer(void* dest)
 }
 
 //------------------------------------------------------------------------------
-int vtkAbstractArray::CopyInformation(vtkInformation* infoFrom, int deep)
+int vtkAbstractArray::CopyInformation(vtkInformation* infoFrom, vtkTypeBool deep)
 {
   // Copy all keys. NOTE: subclasses rely on this.
   vtkInformation* myInfo = this->GetInformation();
@@ -546,6 +538,8 @@ const char* vtkAbstractArray::GetArrayTypeAsString() const
       return "MappedDataArray";
     case ScaleSoADataArrayTemplate:
       return "ScaleSoADataArrayTemplate";
+    case ImplicitArray:
+      return "ImplicitArray";
   }
   return "Unknown";
 }
@@ -623,6 +617,7 @@ void vtkAbstractArray::GetProminentComponentValues(
     }
   }
 }
+VTK_ABI_NAMESPACE_END
 
 //------------------------------------------------------------------------------
 namespace
@@ -758,6 +753,7 @@ void SampleProminentValues(std::vector<std::vector<vtkVariant>>& uniques, vtkIdT
 }
 } // End anonymous namespace.
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimumProminence)
 {
@@ -776,7 +772,6 @@ void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimum
   constexpr int sampleFactor = 5;
 
   // I. Determine the granularity at which the array should be sampled.
-  int numberOfComponentsWithProminentValues = 0;
   int nc = this->NumberOfComponents;
   int blockSize = cacheLineSize / (this->GetDataTypeSize() * nc);
   if (!blockSize)
@@ -830,7 +825,6 @@ void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimum
   {
     if (!uniques[c].empty() && uniques[c].size() <= this->MaxDiscreteValues)
     {
-      ++numberOfComponentsWithProminentValues;
       iv = this->GetInformation()->Get(PER_COMPONENT());
       if (!iv)
       {
@@ -840,7 +834,7 @@ void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimum
         iv = this->GetInformation()->Get(PER_COMPONENT());
       }
       iv->GetInformationObject(c)->Set(
-        DISCRETE_VALUES(), &uniques[c][0], static_cast<int>(uniques[c].size()));
+        DISCRETE_VALUES(), uniques[c].data(), static_cast<int>(uniques[c].size()));
     }
     else
     {
@@ -853,9 +847,8 @@ void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimum
   }
   if (nc > 1 && uniques[nc].size() <= this->MaxDiscreteValues * nc)
   {
-    ++numberOfComponentsWithProminentValues;
     this->GetInformation()->Set(
-      DISCRETE_VALUES(), &uniques[nc][0], static_cast<int>(uniques[nc].size()));
+      DISCRETE_VALUES(), uniques[nc].data(), static_cast<int>(uniques[nc].size()));
   }
   else
   { // Remove the key
@@ -869,3 +862,4 @@ void vtkAbstractArray::UpdateDiscreteValueSet(double uncertainty, double minimum
   params[1] = minimumProminence;
   this->GetInformation()->Set(DISCRETE_VALUE_SAMPLE_PARAMETERS(), params, 2);
 }
+VTK_ABI_NAMESPACE_END

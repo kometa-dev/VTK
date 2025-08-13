@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkHyperTreeGridSource.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridSource.h"
 
 #include "vtkBitArray.h"
@@ -33,6 +21,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <cassert>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperTreeGridSource);
 vtkCxxSetObjectMacro(vtkHyperTreeGridSource, DescriptorBits, vtkBitArray);
 vtkCxxSetObjectMacro(vtkHyperTreeGridSource, MaskBits, vtkBitArray);
@@ -768,9 +757,9 @@ int vtkHyperTreeGridSource::InitializeFromStringDescriptor()
           // Verify that level descriptor cardinality matches expected value
           if (descriptor.str().size() != nNextLevel)
           {
-            vtkErrorMacro(<< "String level descriptor " << descriptor.str().c_str()
-                          << " has cardinality " << descriptor.str().size()
-                          << " which is not expected value of " << nNextLevel);
+            vtkErrorMacro(<< "String level descriptor " << descriptor.str() << " has cardinality "
+                          << descriptor.str().size() << " which is not expected value of "
+                          << nNextLevel);
 
             return 0;
           }
@@ -829,7 +818,7 @@ int vtkHyperTreeGridSource::InitializeFromStringDescriptor()
   // Verify and append last level string
   if (descriptor.str().size() != nNextLevel)
   {
-    vtkErrorMacro(<< "String level descriptor " << descriptor.str().c_str() << " has cardinality "
+    vtkErrorMacro(<< "String level descriptor " << descriptor.str() << " has cardinality "
                   << descriptor.str().size() << " which is not expected value of " << nNextLevel);
 
     return 0;
@@ -850,7 +839,7 @@ int vtkHyperTreeGridSource::InitializeFromStringDescriptor()
     nNextLevel = nRefined * this->BlockSize;
     if (nRefined > 0)
     {
-      this->LevelDescriptors.emplace_back(std::string(nNextLevel, '.'));
+      this->LevelDescriptors.emplace_back(nNextLevel, '.');
     }
   }
 
@@ -1535,3 +1524,4 @@ vtkBitArray* vtkHyperTreeGridSource::ConvertMaskStringToBitArray(const std::stri
 {
   return ConvertDescriptorStringToBitArray(str);
 }
+VTK_ABI_NAMESPACE_END

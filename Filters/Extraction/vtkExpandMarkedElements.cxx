@@ -1,23 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExpandMarkedElements.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkExpandMarkedElements.h"
 
+#include "vtkAbstractPointLocator.h"
 #include "vtkBoundingBox.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataSet.h"
@@ -32,9 +18,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointSet.h"
 #include "vtkSignedCharArray.h"
-#include "vtkStaticPointLocator.h"
-#include "vtkVector.h"
-#include "vtkVectorOperators.h"
 
 // clang-format off
 #include "vtk_diy2.h"
@@ -51,6 +34,7 @@
 #include <algorithm>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 void ShallowCopy(vtkDataObject* input, vtkDataObject* output)
@@ -79,7 +63,8 @@ void ShallowCopy(vtkDataObject* input, vtkDataObject* output)
 struct BlockT
 {
   vtkDataSet* Dataset = nullptr;
-  vtkSmartPointer<vtkStaticPointLocator> Locator;
+  vtkAbstractPointLocator* Locator = nullptr;
+  vtkNew<vtkSignedCharArray> SeedMarkedArray;
   vtkNew<vtkSignedCharArray> MarkedArray;
   vtkNew<vtkIntArray> UpdateFlags;
   std::vector<std::pair<diy::BlockID, vtkBoundingBox>> Neighbors;
@@ -87,6 +72,7 @@ struct BlockT
   void BuildLocator();
   void EnqueueAndExpand(int assoc, int round, const diy::Master::ProxyWithLink& cp);
   void DequeueAndExpand(int assoc, int round, const diy::Master::ProxyWithLink& cp);
+  void RemoveExcedentLayers(bool removeSeed, bool removeIntermediateLayers, int finalRound);
 
 private:
   void Expand(int assoc, int round, const std::set<vtkIdType>& ptids);
@@ -96,12 +82,11 @@ private:
 
 void BlockT::BuildLocator()
 {
-  if (vtkPointSet::SafeDownCast(this->Dataset))
+  if (auto pointSet = vtkPointSet::SafeDownCast(this->Dataset))
   {
-    this->Locator = vtkSmartPointer<vtkStaticPointLocator>::New();
-    this->Locator->SetTolerance(0.0);
-    this->Locator->SetDataSet(this->Dataset);
-    this->Locator->BuildLocator();
+    // build internal cell locator to avoid rebuilding it
+    pointSet->BuildPointLocator();
+    this->Locator = pointSet->GetPointLocator();
   }
 }
 
@@ -111,15 +96,17 @@ void BlockT::EnqueueAndExpand(int assoc, int round, const diy::Master::ProxyWith
   std::set<vtkIdType> chosen_ptids;
   if (assoc == vtkDataObject::FIELD_ASSOCIATION_CELLS)
   {
+    vtkIdType numCellPts, cc;
+    const vtkIdType* cellPts;
     for (vtkIdType cellid = 0, max = this->Dataset->GetNumberOfCells(); cellid < max; ++cellid)
     {
       if (this->MarkedArray->GetTypedComponent(cellid, 0) &&
         (this->UpdateFlags->GetTypedComponent(cellid, 0) == rminusone))
       {
-        this->Dataset->GetCellPoints(cellid, this->PtIds);
-        for (const vtkIdType& ptid : *this->PtIds)
+        this->Dataset->GetCellPoints(cellid, numCellPts, cellPts, this->PtIds);
+        for (cc = 0; cc < numCellPts; ++cc)
         {
-          chosen_ptids.insert(ptid);
+          chosen_ptids.insert(cellPts[cc]);
         }
       }
     }
@@ -206,18 +193,47 @@ void BlockT::Expand(int assoc, int round, const std::set<vtkIdType>& ptids)
 
       // get adjacent cells for the startptid.
       this->Dataset->GetPointCells(startptid, this->CellIds);
+      vtkIdType numCellPts, cc;
+      const vtkIdType* cellPts;
       for (const auto& cellid : *this->CellIds)
       {
-        this->Dataset->GetCellPoints(cellid, this->PtIds);
-        for (const vtkIdType& ptid : *this->PtIds)
+        this->Dataset->GetCellPoints(cellid, numCellPts, cellPts, this->PtIds);
+        for (cc = 0; cc < numCellPts; ++cc)
         {
-          if (this->MarkedArray->GetTypedComponent(ptid, 0) == 0)
+          if (this->MarkedArray->GetTypedComponent(cellPts[cc], 0) == 0)
           {
-            this->MarkedArray->SetTypedComponent(ptid, 0, 1);
-            this->UpdateFlags->SetTypedComponent(ptid, 0, round);
+            this->MarkedArray->SetTypedComponent(cellPts[cc], 0, 1);
+            this->UpdateFlags->SetTypedComponent(cellPts[cc], 0, round);
           }
         }
       }
+    }
+  }
+}
+
+void BlockT::RemoveExcedentLayers(bool removeSeed, bool removeIntermediateLayers, int finalRound)
+{
+  for (vtkIdType i = 0; i < this->MarkedArray->GetNumberOfValues(); i++)
+  {
+    bool remove = false;
+    if (removeSeed)
+    {
+      if (this->SeedMarkedArray->GetTypedComponent(i, 0) != 0)
+      {
+        remove = true;
+      }
+    }
+    if (!remove && removeIntermediateLayers)
+    {
+      int updateRound = this->UpdateFlags->GetTypedComponent(i, 0);
+      if (updateRound != finalRound && updateRound != -1)
+      {
+        remove = true;
+      }
+    }
+    if (remove)
+    {
+      this->MarkedArray->SetTypedComponent(i, 0, 0);
     }
   }
 }
@@ -289,6 +305,7 @@ int vtkExpandMarkedElements::RequestData(
       block->MarkedArray->SetNumberOfTuples(numElems);
       block->MarkedArray->FillValue(0);
     }
+    block->SeedMarkedArray->DeepCopy(block->MarkedArray);
     assert(block->MarkedArray->GetNumberOfTuples() == numElems);
     block->UpdateFlags->SetNumberOfTuples(numElems);
     block->UpdateFlags->FillValue(-1);
@@ -311,7 +328,7 @@ int vtkExpandMarkedElements::RequestData(
       {
         const auto dest = rp.out_link().target(i);
         rp.enqueue(dest, bds, 6);
-      };
+      }
     }
     else
     {
@@ -346,6 +363,7 @@ int vtkExpandMarkedElements::RequestData(
   }
   vtkLogEndScope("populate block neighbours");
 
+  // Expand the selection
   for (int round = 0; round < this->NumberOfLayers; ++round)
   {
     master.foreach ([&assoc, &round](BlockT* b, const diy::Master::ProxyWithLink& cp) {
@@ -357,6 +375,12 @@ int vtkExpandMarkedElements::RequestData(
     });
   }
 
+  // Remove unwanted layers
+  master.foreach ([this](BlockT* b, const diy::Master::ProxyWithLink&) {
+    b->RemoveExcedentLayers(
+      this->RemoveSeed, this->RemoveIntermediateLayers, this->NumberOfLayers - 1);
+  });
+
   if (arrayname.empty())
   {
     arrayname = "MarkedElements";
@@ -365,6 +389,9 @@ int vtkExpandMarkedElements::RequestData(
     b->MarkedArray->SetName(arrayname.c_str());
     b->Dataset->GetAttributes(assoc)->AddArray(b->MarkedArray);
   });
+
+  comm.barrier();
+  this->CheckAbort();
   return 1;
 }
 
@@ -375,3 +402,4 @@ void vtkExpandMarkedElements::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Controller: " << this->Controller << endl;
   os << indent << "NumberOfLayers: " << this->NumberOfLayers << endl;
 }
+VTK_ABI_NAMESPACE_END

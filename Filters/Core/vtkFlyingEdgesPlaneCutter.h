@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFlyingEdgesPlaneCutter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkFlyingEdgesPlaneCutter
  * @brief   cut a volume with a plane and generate a
@@ -33,6 +21,10 @@
  * A High-Performance Scalable Isocontouring Algorithm" by Schroeder,
  * Maynard, Geveci. Proc. of LDAV 2015. Chicago, IL.
  *
+ * The filter interpolates the input scalar field across the vtkPlane provided.
+ * If additional point and cell attribute data is to be interpolated, enable
+ * InterpolateAttributes.
+ *
  * @warning
  * This filter is specialized to 3D volumes. This implementation can produce
  * degenerate triangles (i.e., zero-area triangles).
@@ -52,6 +44,7 @@
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageData;
 class vtkPlane;
 
@@ -94,9 +87,9 @@ public:
 
   ///@{
   /**
-   * Indicate whether to interpolate other attribute data besides the input
-   * scalars (which are required). That is, as the isosurface is generated,
-   * interpolate all other point attribute data across intersected edges.
+   * Indicate whether to interpolate additional point data (beyond the point
+   * scalars which are always interpolated) and cell attribute data. By
+   * default this is disabled (for reasons of performance).
    */
   vtkSetMacro(InterpolateAttributes, vtkTypeBool);
   vtkGetMacro(InterpolateAttributes, vtkTypeBool);
@@ -105,7 +98,7 @@ public:
 
   ///@{
   /**
-   * Set/get which component of the scalar array to contour on; defaults to 0.
+   * Set/get which component of the point data scalar array to contour on; defaults to 0.
    */
   vtkSetMacro(ArrayComponent, int);
   vtkGetMacro(ArrayComponent, int);
@@ -129,4 +122,5 @@ private:
   void operator=(const vtkFlyingEdgesPlaneCutter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIncrementalOctreeNode.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkIncrementalOctreeNode
  * @brief   Octree node constituting incremental
@@ -60,9 +48,9 @@
 #define vtkIncrementalOctreeNode_h
 
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_1_0
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
 class vtkIdList;
 
@@ -167,7 +155,7 @@ public:
    */
   vtkTypeBool ContainsPointByData(const double pnt[3]);
 
-  //@{
+  ///@{
   /**
    * This function is called after a successful point-insertion check and
    * only applies to a leaf node. Prior to a call to this function, the
@@ -185,12 +173,9 @@ public:
    * application specific information with each node. It is updated if new nodes
    * are added to the tree.
    */
-  VTK_DEPRECATED_IN_9_1_0("Use the version with numberOfNodes parameter instead.")
-  int InsertPoint(
-    vtkPoints* points, const double newPnt[3], int maxPts, vtkIdType* pntId, int ptMode);
   int InsertPoint(vtkPoints* points, const double newPnt[3], int maxPts, vtkIdType* pntId,
     int ptMode, int& numberOfNodes);
-  //@}
+  ///@}
 
   /**
    * Given a point inside this node, get the minimum squared distance to all
@@ -228,7 +213,7 @@ public:
    * are added to vtkIdList by vtkIdList::SetId().
    */
   void ExportAllPointIdsByDirectSet(vtkIdType* pntIdx, vtkIdList* idList);
-  //@}
+
   /**
    * Computes and returns the maximum level of the tree. If a tree has
    * one node it returns 1 else it returns the maximum level of its
@@ -473,4 +458,5 @@ inline int vtkIncrementalOctreeNode::UpdateCounterAndDataBoundsRecursively(
       ? updated
       : this->Parent->UpdateCounterAndDataBoundsRecursively(point, nHits, updated, endNode));
 }
+VTK_ABI_NAMESPACE_END
 #endif

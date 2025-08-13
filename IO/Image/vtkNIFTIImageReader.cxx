@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkNIFTIImageReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkNIFTIImageReader.h"
 #include "vtkByteSwap.h"
@@ -44,6 +32,7 @@
 #include <cstring>
 #include <string>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkNIFTIImageReader);
 
 //------------------------------------------------------------------------------
@@ -432,7 +421,7 @@ int vtkNIFTIImageReader::RequestInformation(vtkInformation* vtkNotUsed(request),
     int headers = 0;
     for (vtkIdType i = 0; i < n; i++)
     {
-      filename = this->FileNames->GetValue(i);
+      filename = this->FileNames->GetValue(i).c_str();
       // this checks for .hdr and .hdr.gz, case insensitive
       if (vtkNIFTIImageReader::CheckExtension(filename, ".hdr"))
       {
@@ -789,7 +778,7 @@ int vtkNIFTIImageReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   //    offset when R is the identity matrix.
   //
   // 3) If there is a qform and qfac is -1, then the situation is more
-  //    compilcated.  We have three choices, each of which is a compromise:
+  //    complicated.  We have three choices, each of which is a compromise:
   //    a) we can use Spacing[2] = qfac*pixdim[3], i.e. use a negative
   //       slice spacing, which might cause some VTK algorithms to
   //       misbehave (the VTK tests only use images with positive spacing).
@@ -1059,7 +1048,7 @@ int vtkNIFTIImageReader::RequestData(vtkInformation* request,
     int headers = 0;
     for (vtkIdType i = 0; i < n; i++)
     {
-      filename = this->FileNames->GetValue(i);
+      filename = this->FileNames->GetValue(i).c_str();
       // this checks for .hdr and .hdr.gz, case insensitive
       if (vtkNIFTIImageReader::CheckExtension(filename, ".hdr"))
       {
@@ -1344,3 +1333,4 @@ int vtkNIFTIImageReader::RequestData(vtkInformation* request,
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTreeHeatmapItem.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTreeHeatmapItem.h"
 #include "vtkDendrogramItem.h"
 #include "vtkHeatmapItem.h"
@@ -25,6 +13,7 @@
 
 #include <algorithm>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTreeHeatmapItem);
 
 //------------------------------------------------------------------------------
@@ -250,7 +239,7 @@ void vtkTreeHeatmapItem::ReorderTable()
     }
 
     // find the row in the table that corresponds to this vertex
-    std::string vertexName = vertexNames->GetValue(vertex);
+    vtkStdString vertexName = vertexNames->GetValue(vertex);
     vtkIdType tableRow = rowNames->LookupValue(vertexName);
     if (tableRow < 0)
     {
@@ -431,7 +420,7 @@ void vtkTreeHeatmapItem::CollapseHeatmapRows()
 
   for (vtkIdType row = 0; row < this->GetTable()->GetNumberOfRows(); ++row)
   {
-    std::string name = rowNames->GetValue(row);
+    vtkStdString name = rowNames->GetValue(row);
     // if we can't find this name in the layout tree, then the corresponding
     // row in the heatmap should be marked as collapsed.
     if (vertexNames->LookupValue(name) == -1)
@@ -456,7 +445,7 @@ void vtkTreeHeatmapItem::CollapseHeatmapColumns()
 
   for (vtkIdType col = 1; col < this->GetTable()->GetNumberOfColumns(); ++col)
   {
-    std::string name = this->GetTable()->GetColumn(col)->GetName();
+    vtkStdString name = this->GetTable()->GetColumn(col)->GetName();
 
     // if we can't find this name in the layout tree, then the corresponding
     // column in the heatmap should be marked as collapsed.
@@ -614,3 +603,4 @@ void vtkTreeHeatmapItem::PrintSelf(ostream& os, vtkIndent indent)
   this->Dendrogram->PrintSelf(os, indent);
   this->Heatmap->PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

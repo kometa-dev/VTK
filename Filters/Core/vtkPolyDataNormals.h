@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataNormals.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyDataNormals
  * @brief   compute normals for polygonal mesh
@@ -47,6 +35,11 @@
  * Triangle strips are broken up into triangle polygons. You may want to
  * restrip the triangles.
  *
+ * @warning
+ * This class has been threaded with vtkSMPTools. Using TBB or other
+ * non-sequential type (set in the CMake variable
+ * VTK_SMP_IMPLEMENTATION_TYPE) may improve performance significantly.
+ *
  * @sa
  * For high-performance rendering, you could use vtkTriangleMeshPointNormals
  * if you know that you have a triangle mesh which does not require splitting
@@ -60,6 +53,7 @@
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFloatArray;
 class vtkIdList;
 class vtkPolyData;
@@ -188,34 +182,29 @@ protected:
   vtkTypeBool NonManifoldTraversal;
   vtkTypeBool ComputePointNormals;
   vtkTypeBool ComputeCellNormals;
-  int NumFlips;
+  vtkIdType NumFlips;
   int OutputPointsPrecision;
 
 private:
-  vtkIdList* Wave;
-  vtkIdList* Wave2;
-  vtkIdList* CellIds;
-  vtkIdList* CellPoints;
-  vtkIdList* NeighborPoints;
-  vtkIdList* Map;
-  vtkPolyData* OldMesh;
-  vtkPolyData* NewMesh;
-  int* Visited;
-  vtkFloatArray* PolyNormals;
   double CosAngle;
+
+  struct MarkAndSplitFunctor;
 
   // Uses the list of cell ids (this->Wave) to propagate a wave of
   // checked and properly ordered polygons.
-  void TraverseAndOrder(void);
+  void TraverseAndOrder(vtkPolyData* oldMesh, vtkPolyData* newMesh, vtkIdList* wave,
+    vtkIdList* wave2, vtkIdList* cellPointIds, vtkIdList* cellIds, vtkIdList* neighborPointIds,
+    std::vector<char>& visited, vtkIdType& numFlips);
 
-  // Check the point id give to see whether it lies on a feature
+  // check all the points whether they lie on a feature
   // edge. If so, split the point (i.e., duplicate it) to topologically
   // separate the mesh.
-  void MarkAndSplit(vtkIdType ptId);
+  void ExecuteMarkAndSplit(vtkPolyData* oldMesh, vtkPolyData* newMesh, vtkFloatArray* cellNormals,
+    vtkIdList* map, vtkIdType numPoints, vtkIdType numPolys, double cosAngle);
 
-private:
   vtkPolyDataNormals(const vtkPolyDataNormals&) = delete;
   void operator=(const vtkPolyDataNormals&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

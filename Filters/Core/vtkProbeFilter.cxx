@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProbeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkProbeFilter.h"
 
 #include "vtkAbstractCellLocator.h"
@@ -20,6 +8,7 @@
 #include "vtkCellData.h"
 #include "vtkCellLocatorStrategy.h"
 #include "vtkCharArray.h"
+#include "vtkClosestPointStrategy.h"
 #include "vtkFindCellStrategy.h"
 #include "vtkGenericCell.h"
 #include "vtkIdTypeArray.h"
@@ -30,34 +19,39 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkPointSet.h"
+#include "vtkPolyData.h"
 #include "vtkSMPThreadLocal.h"
 #include "vtkSMPThreadLocalObject.h"
 #include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkUnstructuredGrid.h"
 
 #include <algorithm>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkProbeFilter);
 vtkCxxSetObjectMacro(vtkProbeFilter, CellLocatorPrototype, vtkAbstractCellLocator);
 vtkCxxSetObjectMacro(vtkProbeFilter, FindCellStrategy, vtkFindCellStrategy);
 
-#define CELL_TOLERANCE_FACTOR_SQR 1e-6
+namespace
+{
+constexpr double CELL_TOLERANCE_FACTOR_SQR = 1e-6;
 
-static inline bool IsBlankedCell(vtkUnsignedCharArray* gcells, vtkIdType cellId)
+constexpr unsigned char CELL_GHOST_MASK =
+  vtkDataSetAttributes::HIDDENCELL | vtkDataSetAttributes::DUPLICATECELL;
+
+inline bool IsBlankedCell(vtkUnsignedCharArray* gcells, vtkIdType cellId)
 {
   if (gcells)
   {
     const auto flag = gcells->GetTypedComponent(cellId, 0);
-    return (flag & (vtkDataSetAttributes::HIDDENCELL | vtkDataSetAttributes::DUPLICATECELL)) != 0;
+    return (flag & CELL_GHOST_MASK) != 0;
   }
   return false;
 }
-
-class vtkProbeFilter::vtkVectorOfArrays : public std::vector<vtkDataArray*>
-{
-};
+}
 
 //------------------------------------------------------------------------------
 vtkProbeFilter::vtkProbeFilter()
@@ -69,7 +63,6 @@ vtkProbeFilter::vtkProbeFilter()
   this->SetNumberOfInputPorts(2);
   this->ValidPointMaskArrayName = nullptr;
   this->SetValidPointMaskArrayName("vtkValidPointMask");
-  this->CellArrays = new vtkVectorOfArrays();
 
   this->CellLocatorPrototype = nullptr;
   this->FindCellStrategy = nullptr;
@@ -82,6 +75,7 @@ vtkProbeFilter::vtkProbeFilter()
   this->PassFieldArrays = 1;
   this->Tolerance = 1.0;
   this->ComputeTolerance = true;
+  this->SnapToCellWithClosestPoint = false;
 }
 
 //------------------------------------------------------------------------------
@@ -97,7 +91,6 @@ vtkProbeFilter::~vtkProbeFilter()
   this->SetCellLocatorPrototype(nullptr);
   this->SetFindCellStrategy(nullptr);
 
-  delete this->CellArrays;
   delete this->PointList;
   delete this->CellList;
 }
@@ -199,6 +192,9 @@ int vtkProbeFilter::RequestData(vtkInformation* vtkNotUsed(request),
 void vtkProbeFilter::PassAttributeData(
   vtkDataSet* input, vtkDataObject* vtkNotUsed(source), vtkDataSet* output)
 {
+  // Please see vtkHyperTreeGridProbeFilter implementation of this method for a condensed version
+  // using vtkFieldData::PassData
+
   // copy point data arrays
   if (this->PassPointArrays)
   {
@@ -302,15 +298,15 @@ void vtkProbeFilter::InitializeForProbing(vtkDataSet* input, vtkDataSet* output)
   // All input PD is passed to output as PD. Those arrays in input CD that are
   // not present in output PD will be passed as output PD.
   vtkPointData* outPD = output->GetPointData();
-  outPD->InterpolateAllocate((*this->PointList), numPts, numPts);
+  outPD->InterpolateAllocate(*this->PointList, numPts, numPts);
 
   vtkCellData* tempCellData = vtkCellData::New();
   // We're okay with copying global ids for cells. we just don't flag them as
   // such.
   tempCellData->CopyAllOn(vtkDataSetAttributes::COPYTUPLE);
-  tempCellData->CopyAllocate((*this->CellList), numPts, numPts);
+  tempCellData->CopyAllocate(*this->CellList, numPts, numPts);
 
-  this->CellArrays->clear();
+  this->InputCellArrays.clear();
   int numCellArrays = tempCellData->GetNumberOfArrays();
   for (int cc = 0; cc < numCellArrays; cc++)
   {
@@ -318,13 +314,31 @@ void vtkProbeFilter::InitializeForProbing(vtkDataSet* input, vtkDataSet* output)
     if (inArray && inArray->GetName() && !outPD->GetArray(inArray->GetName()))
     {
       outPD->AddArray(inArray);
-      this->CellArrays->push_back(inArray);
+      this->InputCellArrays.push_back(inArray);
     }
   }
   tempCellData->Delete();
 
   this->InitializeOutputArrays(outPD, numPts);
   outPD->AddArray(this->MaskPoints);
+}
+
+//------------------------------------------------------------------------------
+void vtkProbeFilter::InitializeSourceArrays(vtkDataSet* source)
+{
+  if (!this->PointList || !this->CellList)
+  {
+    vtkErrorMacro("BuildFieldList() must be called before calling this method.");
+    return;
+  }
+
+  this->SourceCellArrays.clear();
+  auto cd = source->GetCellData();
+  for (auto& cellArray : this->InputCellArrays)
+  {
+    vtkDataArray* inArray = cd->GetArray(cellArray->GetName());
+    this->SourceCellArrays.push_back(inArray);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -352,16 +366,14 @@ void vtkProbeFilter::DoProbing(
     return;
   }
 
-  if (vtkImageData::SafeDownCast(source))
+  if (auto sourceImage = vtkImageData::SafeDownCast(source))
   {
-    vtkImageData* sourceImage = vtkImageData::SafeDownCast(source);
     this->ProbeImageDataPoints(input, srcIdx, sourceImage, output);
   }
-  else if (vtkImageData::SafeDownCast(input))
+  else if (auto inputImage = vtkImageData::SafeDownCast(input))
   {
-    vtkImageData* inImage = vtkImageData::SafeDownCast(input);
-    vtkImageData* outImage = vtkImageData::SafeDownCast(output);
-    this->ProbePointsImageData(inImage, srcIdx, source, outImage);
+    vtkImageData* outputImage = vtkImageData::SafeDownCast(output);
+    this->ProbePointsImageData(inputImage, srcIdx, source, outputImage);
   }
   else
   {
@@ -374,44 +386,289 @@ void vtkProbeFilter::Probe(vtkDataSet* input, vtkDataSet* source, vtkDataSet* ou
 {
   this->BuildFieldList(source);
   this->InitializeForProbing(input, output);
+  this->InitializeSourceArrays(source);
   this->DoProbing(input, 0, source, output);
 }
+
+//------------------------------------------------------------------------------
+class vtkProbeFilter::ProbeEmptyPointsWorklet
+{
+  vtkProbeFilter* ProbeFilter;
+  int SourceIdx;
+  vtkDataSet* Input;
+  vtkDataSet* Source;
+  vtkPointData* SourcePD;
+  vtkCellData* SourceCD;
+  vtkPointData* OutputPD;
+  vtkFindCellStrategy* Strategy;
+  vtkUnsignedCharArray* SourceGhostFlags;
+  vtkCharArray* MaskArray;
+  double Tol2;
+  int MaxCellSize;
+
+  struct LocalData
+  {
+    vtkSmartPointer<vtkFindCellStrategy> Strategy;
+    vtkCellLocatorStrategy* CellLocatorStrategy;
+    vtkClosestPointStrategy* ClosestPointStrategy;
+    vtkSmartPointer<vtkGenericCell> CurrentCell;
+    vtkSmartPointer<vtkGenericCell> LastCell;
+    std::vector<double> Weights;
+    double LastPCoords[3];
+    int LastSubId;
+    double LastClosestPoint[3];
+    vtkBoundingBox LastBBox;
+    double LastLength2;
+    vtkIdType LastCellId;
+  };
+  vtkSMPThreadLocal<LocalData> TLData;
+
+public:
+  ProbeEmptyPointsWorklet(vtkProbeFilter* probeFilter, int sourceIndex, vtkDataSet* input,
+    vtkDataSet* source, vtkPointData* outputPD, vtkFindCellStrategy* strategy,
+    vtkUnsignedCharArray* sourceGhostFlags, vtkCharArray* maskArray, double tol2, int maxCellSize)
+    : ProbeFilter(probeFilter)
+    , SourceIdx(sourceIndex)
+    , Input(input)
+    , Source(source)
+    , SourcePD(source->GetPointData())
+    , SourceCD(source->GetCellData())
+    , OutputPD(outputPD)
+    , Strategy(strategy)
+    , SourceGhostFlags(sourceGhostFlags)
+    , MaskArray(maskArray)
+    , Tol2(tol2)
+    , MaxCellSize(maxCellSize)
+  {
+    // instantiate the cell map for polydata
+    vtkNew<vtkGenericCell> cell;
+    this->Source->GetCell(0, cell);
+  }
+
+  void Initialize()
+  {
+    auto& tlData = this->TLData.Local();
+    if (this->Strategy)
+    {
+      tlData.Strategy = vtk::TakeSmartPointer(this->Strategy->NewInstance());
+      tlData.Strategy->CopyParameters(this->Strategy);
+      tlData.Strategy->Initialize(vtkPointSet::SafeDownCast(this->Source));
+      tlData.CellLocatorStrategy = vtkCellLocatorStrategy::SafeDownCast(tlData.Strategy);
+      tlData.ClosestPointStrategy = vtkClosestPointStrategy::SafeDownCast(tlData.Strategy);
+    }
+    else
+    {
+      tlData.Strategy = nullptr;
+      tlData.CellLocatorStrategy = nullptr;
+      tlData.ClosestPointStrategy = nullptr;
+    }
+    tlData.CurrentCell = vtkSmartPointer<vtkGenericCell>::New();
+    tlData.LastCell = vtkSmartPointer<vtkGenericCell>::New();
+    tlData.Weights.resize(static_cast<size_t>(this->MaxCellSize));
+    tlData.LastCellId = -1;
+  }
+
+  void operator()(vtkIdType beginPointId, vtkIdType endPointId)
+  {
+    // global data
+    auto maskArray = this->MaskArray->GetPointer(0);
+    // thread local data
+    auto& tlData = this->TLData.Local();
+    auto& strategy = tlData.Strategy;
+    auto& cellLocatorStrategy = tlData.CellLocatorStrategy;
+    auto& closestPointStrategy = tlData.ClosestPointStrategy;
+    auto& currentCell = tlData.CurrentCell;
+    auto& lastCell = tlData.LastCell;
+    auto weights = tlData.Weights.data();
+    auto& lastPCoords = tlData.LastPCoords;
+    auto& lastSubId = tlData.LastSubId;
+    auto& lastClosestPoint = tlData.LastClosestPoint;
+    auto& lastBBox = tlData.LastBBox;
+    auto& lastLength2 = tlData.LastLength2;
+    auto& lastCellId = tlData.LastCellId;
+    // local data
+    double x[3], dist2;
+    vtkIdType closestPointFound;
+    int inside;
+    bool foundInCache, insideCellBounds;
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endPointId - beginPointId) / 10 + 1, (vtkIdType)1000);
+
+    for (vtkIdType pointId = beginPointId; pointId < endPointId; ++pointId)
+    {
+      if (pointId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->ProbeFilter->CheckAbort();
+        }
+        if (this->ProbeFilter->GetAbortOutput())
+        {
+          break;
+        }
+      }
+
+      if (maskArray[pointId] == static_cast<char>(1))
+      {
+        // skip points which have already been probed with success.
+        // This is helpful for multiblock dataset probing.
+        continue;
+      }
+
+      // Get the xyz coordinate of the point in the input dataset
+      this->Input->GetPoint(pointId, x);
+
+      foundInCache = false;
+      if (lastCellId != -1)
+      {
+        // check if it's inside cell bounds
+        insideCellBounds = lastBBox.ContainsPoint(x);
+        if (insideCellBounds)
+        {
+          // Use cache cell only if point is inside
+          inside = currentCell->EvaluatePosition(
+            x, lastClosestPoint, lastSubId, lastPCoords, dist2, weights);
+          if (inside == 1)
+          {
+            foundInCache = true;
+          }
+        }
+      }
+      if (!foundInCache)
+      {
+        // strategies are used for subclasses of vtkPointSet
+        if (strategy)
+        {
+          if (cellLocatorStrategy)
+          {
+            // this location strategy uses a cell locator
+            lastCellId = cellLocatorStrategy->FindCell(x, nullptr, currentCell, -1,
+              this->Tol2 /*not used*/, lastSubId, lastPCoords, weights);
+            // this strategy once it finds a cell where the given point is inside it stops
+            // immediately, so currentCell contains the cell we want
+          }
+          else // vtkClosestPointStrategy
+          {
+            // this location strategy will first look at the neighbor cells of the cached cell (if
+            // any) and if that fails it will use jump and walk technique
+            if (lastCellId != -1)
+            {
+              // Use cache cell only if point is inside
+              this->Source->GetCell(lastCellId, lastCell);
+              lastCellId = closestPointStrategy->FindCell(
+                x, lastCell, currentCell, lastCellId, this->Tol2, lastSubId, lastPCoords, weights);
+              foundInCache = lastCellId != -1;
+            }
+            else
+            {
+              lastCellId = closestPointStrategy->FindCell(
+                x, nullptr, currentCell, -1, this->Tol2, lastSubId, lastPCoords, weights);
+            }
+            // this strategy once it finds a cell where the given point is inside it stops
+            // immediately, so currentCell contains the cell we want
+          }
+        }
+        else
+        {
+          // the classes that do not use a strategy are vtkImageData, vtkRectilinearGrid
+          lastCellId = this->Source->FindCell(
+            x, nullptr, currentCell, -1, this->Tol2, lastSubId, lastPCoords, weights);
+          // these classes don't use currentCell, so we will need to extract it if we found anything
+        }
+        if (lastCellId != -1)
+        {
+          // extract the cell that we found if we didn't use a strategy
+          if (!strategy)
+          {
+            this->Source->GetCell(lastCellId, currentCell);
+          }
+          // pcoords, weights and subid are all valid, so we can compute the closest point
+          // using EvaluateLocation
+          currentCell->EvaluateLocation(lastSubId, lastPCoords, lastClosestPoint, weights);
+          // copy bounds
+          lastBBox.SetBounds(currentCell->GetBounds());
+          // compute lastLength2
+          lastLength2 = lastBBox.GetDiagonalLength2();
+        }
+        else
+        {
+          if (this->ProbeFilter->SnapToCellWithClosestPoint && strategy)
+          {
+            // Find the closest point and the cell that it belong to
+            constexpr double snappingRadius = std::numeric_limits<double>::infinity();
+            closestPointFound = strategy->FindClosestPointWithinRadius(x, snappingRadius,
+              lastClosestPoint, currentCell, lastCellId, lastSubId, dist2, inside);
+            if (closestPointFound)
+            {
+              // pcoords, weights and subid are all valid, so we can compute the closest point
+              // using EvaluateLocation
+              this->Source->GetCell(lastCellId, currentCell);
+              // we don't need to calculate the closest point, but we do need to calculate the
+              // weights
+              currentCell->EvaluateLocation(lastSubId, lastPCoords, lastClosestPoint, weights);
+              // copy bounds
+              lastBBox.SetBounds(currentCell->GetBounds());
+              // compute lastLength2
+              lastLength2 = lastBBox.GetDiagonalLength2();
+            }
+            else
+            {
+              lastCellId = -1;
+            }
+          }
+        }
+      }
+
+      if (lastCellId >= 0 && !::IsBlankedCell(this->SourceGhostFlags, lastCellId))
+      {
+        if (this->ProbeFilter->ComputeTolerance)
+        {
+          // If ComputeTolerance is set, compute a tolerance proportional to the
+          // cell length.
+          dist2 = vtkMath::Distance2BetweenPoints(x, lastClosestPoint);
+          if (dist2 > (lastLength2 * CELL_TOLERANCE_FACTOR_SQR))
+          {
+            continue;
+          }
+        }
+
+        // Interpolate the point data
+        this->OutputPD->InterpolatePoint(*this->ProbeFilter->PointList, this->SourcePD,
+          this->SourceIdx, pointId, currentCell->PointIds, weights);
+        for (size_t i = 0, numArrays = this->ProbeFilter->InputCellArrays.size(); i < numArrays;
+             ++i)
+        {
+          auto inputArray = this->ProbeFilter->InputCellArrays[i];
+          auto sourceArray = this->ProbeFilter->SourceCellArrays[i];
+          if (sourceArray)
+          {
+            inputArray->SetTuple(pointId, lastCellId, sourceArray);
+          }
+        }
+        maskArray[pointId] = static_cast<char>(1);
+      }
+    }
+  }
+
+  void Reduce() {}
+};
 
 //------------------------------------------------------------------------------
 void vtkProbeFilter::ProbeEmptyPoints(
   vtkDataSet* input, int srcIdx, vtkDataSet* source, vtkDataSet* output)
 {
-  vtkIdType ptId, numPts;
-  double x[3], tol2;
-  vtkPointData *pd, *outPD;
-  vtkCellData* cd;
-  int subId;
-  double pcoords[3], *weights;
-  double fastweights[256];
+  double tol2;
+  vtkPointData* outPD;
 
   vtkDebugMacro(<< "Probing data");
 
-  pd = source->GetPointData();
-  cd = source->GetCellData();
-
-  auto sourceGhostFlags =
-    vtkUnsignedCharArray::SafeDownCast(cd->GetArray(vtkDataSetAttributes::GhostArrayName()));
+  auto sourceGhostFlags = vtkUnsignedCharArray::SafeDownCast(
+    source->GetCellData()->GetArray(vtkDataSetAttributes::GhostArrayName()));
 
   // lets use a stack allocated array if possible for performance reasons
-  int mcs = source->GetMaxCellSize();
-  if (mcs <= 256)
-  {
-    weights = fastweights;
-  }
-  else
-  {
-    weights = new double[mcs];
-  }
+  int maxCellSize = source->GetMaxCellSize();
 
-  numPts = input->GetNumberOfPoints();
   outPD = output->GetPointData();
-
-  char* maskArray = this->MaskPoints->GetPointer(0);
 
   if (this->ComputeTolerance)
   {
@@ -447,8 +704,8 @@ void vtkProbeFilter::ProbeEmptyPoints(
   // vtkDataSet::FindCell() is used to accelerate the search.
   vtkFindCellStrategy* strategy = nullptr;
   vtkNew<vtkCellLocatorStrategy> cellLocStrategy;
-  vtkPointSet* ps;
-  if ((ps = vtkPointSet::SafeDownCast(source)) != nullptr)
+  vtkNew<vtkClosestPointStrategy> closestPointStrategy;
+  if (auto ps = vtkPointSet::SafeDownCast(source))
   {
     if (this->FindCellStrategy != nullptr)
     {
@@ -457,91 +714,44 @@ void vtkProbeFilter::ProbeEmptyPoints(
     }
     else if (this->CellLocatorPrototype != nullptr)
     {
-      cellLocStrategy->SetCellLocator(this->CellLocatorPrototype->NewInstance());
-      cellLocStrategy->GetCellLocator()->SetDataSet(source);
-      cellLocStrategy->GetCellLocator()->Update();
-      strategy = static_cast<vtkFindCellStrategy*>(cellLocStrategy.GetPointer());
-      cellLocStrategy->GetCellLocator()->UnRegister(this); // strategy took ownership
-    }
-  }
-
-  // Find the cell that contains xyz and get it
-  if (strategy == nullptr)
-  {
-    vtkDebugMacro(<< "Using vtkDataSet::FindCell()");
-  }
-  else
-  {
-    vtkDebugMacro(<< "Using strategy: " << strategy->GetClassName());
-  }
-
-  // Loop over all input points, interpolating source data
-  //
-  vtkNew<vtkGenericCell> gcell;
-  int abort = 0;
-  vtkIdType progressInterval = numPts / 20 + 1;
-  for (ptId = 0; ptId < numPts && !abort; ptId++)
-  {
-    if (!(ptId % progressInterval))
-    {
-      this->UpdateProgress(static_cast<double>(ptId) / numPts);
-      abort = GetAbortExecute();
-    }
-
-    if (maskArray[ptId] == static_cast<char>(1))
-    {
-      // skip points which have already been probed with success.
-      // This is helpful for multiblock dataset probing.
-      continue;
-    }
-
-    // Get the xyz coordinate of the point in the input dataset
-    input->GetPoint(ptId, x);
-
-    vtkIdType cellId = (strategy != nullptr)
-      ? strategy->FindCell(x, nullptr, gcell.GetPointer(), -1, tol2, subId, pcoords, weights)
-      : source->FindCell(x, nullptr, -1, tol2, subId, pcoords, weights);
-
-    vtkCell* cell = nullptr;
-    if (cellId >= 0 && !::IsBlankedCell(sourceGhostFlags, cellId))
-    {
-      cell = source->GetCell(cellId);
-      if (this->ComputeTolerance)
+      // if the existing locator is not the same type, set the locator of dataset instead of the
+      // strategy to allow other filters to reuse the locator.
+      auto existingLocator = ps->GetCellLocator();
+      bool sameLocatorType =
+        existingLocator ? this->CellLocatorPrototype->IsA(existingLocator->GetClassName()) : false;
+      if (!sameLocatorType)
       {
-        // If ComputeTolerance is set, compute a tolerance proportional to the
-        // cell length.
-        double dist2;
-        double closestPoint[3];
-        cell->EvaluatePosition(x, closestPoint, subId, pcoords, dist2, weights);
-        if (dist2 > (cell->GetLength2() * CELL_TOLERANCE_FACTOR_SQR))
-        {
-          continue;
-        }
+        auto cellLocator = vtk::TakeSmartPointer(this->CellLocatorPrototype->NewInstance());
+        ps->SetCellLocator(cellLocator);
+        cellLocator->SetDataSet(ps);
+        cellLocator->BuildLocator();
+      }
+      cellLocStrategy->Initialize(ps);
+      strategy = cellLocStrategy;
+    }
+    else // if no strategy or cell locator is specified, use the default strategy
+    {
+      closestPointStrategy->Initialize(ps);
+      strategy = closestPointStrategy;
+    }
+    if (vtkClosestPointStrategy::SafeDownCast(strategy))
+    {
+      if (auto polyData = vtkPolyData::SafeDownCast(ps))
+      {
+        polyData->BuildLinks();
+      }
+      else if (auto unstructuredGrid = vtkUnstructuredGrid::SafeDownCast(ps))
+      {
+        unstructuredGrid->BuildLinks();
       }
     }
-
-    if (cell)
-    {
-      // Interpolate the point data
-      outPD->InterpolatePoint((*this->PointList), pd, srcIdx, ptId, cell->PointIds, weights);
-      vtkVectorOfArrays::iterator iter;
-      for (iter = this->CellArrays->begin(); iter != this->CellArrays->end(); ++iter)
-      {
-        vtkDataArray* inArray = cd->GetArray((*iter)->GetName());
-        if (inArray)
-        {
-          outPD->CopyTuple(inArray, *iter, cellId, ptId);
-        }
-      }
-      maskArray[ptId] = static_cast<char>(1);
-    }
   }
+
+  ProbeEmptyPointsWorklet worker(this, srcIdx, input, source, outPD, strategy, sourceGhostFlags,
+    this->MaskPoints, tol2, maxCellSize);
+  vtkSMPTools::For(0, input->GetNumberOfPoints(), worker);
 
   this->MaskPoints->Modified();
-  if (mcs > 256)
-  {
-    delete[] weights;
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -568,16 +778,15 @@ static void GetPointIdsInRange(double rangeMin, double rangeMax, double start, d
 }
 
 //------------------------------------------------------------------------------
-void vtkProbeFilter::ProbeImagePointsInCell(vtkCell* cell, vtkIdType cellId, vtkDataSet* source,
-  int srcBlockId, const double start[3], const double spacing[3], const int dim[3],
-  vtkPointData* outPD, char* maskArray, double* wtsBuff)
+void vtkProbeFilter::ProbeImagePointsInCell(vtkGenericCell* cell, vtkIdType cellId,
+  vtkDataSet* source, int srcBlockId, const double start[3], const double spacing[3],
+  const int dim[3], vtkPointData* outPD, char* maskArray, double* wtsBuff)
 {
   vtkPointData* pd = source->GetPointData();
-  vtkCellData* cd = source->GetCellData();
 
   // get coordinates of sampling grids
   double cellBounds[6];
-  cell->GetBounds(cellBounds);
+  source->GetCellBounds(cellId, cellBounds);
 
   int idxBounds[6];
   GetPointIdsInRange(
@@ -593,16 +802,30 @@ void vtkProbeFilter::ProbeImagePointsInCell(vtkCell* cell, vtkIdType cellId, vtk
     return;
   }
 
+  source->GetCell(cellId, cell);
+
   double cpbuf[3];
   double dist2 = 0;
   double* closestPoint = cpbuf;
-  if (cell->IsA("vtkCell3D"))
+  const bool is3D = cell->GetCellDimension() == 3;
+  if (is3D)
   {
     // we only care about closest point and its distance for 2D cells
     closestPoint = nullptr;
   }
 
-  double userTol2 = this->Tolerance * this->Tolerance;
+  // If ComputeTolerance is set, compute a tolerance proportional to the
+  // cell length. Otherwise, use the user specified absolute tolerance.
+  double tol2;
+  if (this->ComputeTolerance)
+  {
+    const vtkBoundingBox bbox(cellBounds);
+    tol2 = CELL_TOLERANCE_FACTOR_SQR * bbox.GetDiagonalLength2();
+  }
+  else
+  {
+    tol2 = this->Tolerance * this->Tolerance;
+  }
   for (int iz = idxBounds[4]; iz <= idxBounds[5]; iz++)
   {
     double p[3];
@@ -612,34 +835,32 @@ void vtkProbeFilter::ProbeImagePointsInCell(vtkCell* cell, vtkIdType cellId, vtk
       p[1] = start[1] + iy * spacing[1];
       for (int ix = idxBounds[0]; ix <= idxBounds[1]; ix++)
       {
+        // skip processed points
+        const vtkIdType ptId = ix + dim[0] * (iy + dim[1] * iz);
+        if (maskArray[ptId] == 1)
+        {
+          continue;
+        }
         // For each grid point within the cell bound, interpolate values
         p[0] = start[0] + ix * spacing[0];
 
         double pcoords[3];
         int subId;
-        int inside = cell->EvaluatePosition(p, closestPoint, subId, pcoords, dist2, wtsBuff);
+        const int inside = cell->EvaluatePosition(p, closestPoint, subId, pcoords, dist2, wtsBuff);
 
-        // If ComputeTolerance is set, compute a tolerance proportional to the
-        // cell length. Otherwise, use the user specified absolute tolerance.
-        double tol2 =
-          this->ComputeTolerance ? (CELL_TOLERANCE_FACTOR_SQR * cell->GetLength2()) : userTol2;
-
-        if ((inside == 1) && (dist2 <= tol2))
+        if (inside == 1 && dist2 <= tol2)
         {
-          vtkIdType ptId = ix + dim[0] * (iy + dim[1] * iz);
-
           // Interpolate the point data
-          outPD->InterpolatePoint(
-            (*this->PointList), pd, srcBlockId, ptId, cell->PointIds, wtsBuff);
+          outPD->InterpolatePoint(*this->PointList, pd, srcBlockId, ptId, cell->PointIds, wtsBuff);
 
           // Assign cell data
-          vtkVectorOfArrays::iterator iter;
-          for (iter = this->CellArrays->begin(); iter != this->CellArrays->end(); ++iter)
+          for (size_t i = 0, numArrays = this->InputCellArrays.size(); i < numArrays; ++i)
           {
-            vtkDataArray* inArray = cd->GetArray((*iter)->GetName());
-            if (inArray)
+            auto inputArray = this->InputCellArrays[i];
+            auto sourceArray = this->SourceCellArrays[i];
+            if (sourceArray)
             {
-              outPD->CopyTuple(inArray, *iter, cellId, ptId);
+              inputArray->SetTuple(ptId, cellId, sourceArray);
             }
           }
 
@@ -669,40 +890,45 @@ public:
   {
     // make source API threadsafe by calling it once in a single thread.
     source->GetCellType(0);
-    source->GetCell(0, this->GenericCell.Local());
+    source->GetCell(0, this->TLGenericCell.Local());
   }
+
+  void Initialize() { this->TLWeights.Local().resize(this->MaxCellSize); }
 
   void operator()(vtkIdType cellBegin, vtkIdType cellEnd)
   {
-    double fastweights[256];
-    double* weights;
-    if (this->MaxCellSize <= 256)
-    {
-      weights = fastweights;
-    }
-    else
-    {
-      std::vector<double>& dynamicweights = this->WeightsBuffer.Local();
-      dynamicweights.resize(this->MaxCellSize);
-      weights = &dynamicweights[0];
-    }
+    double* weights = this->TLWeights.Local().data();
 
     auto sourceGhostFlags = vtkUnsignedCharArray::SafeDownCast(
       this->Source->GetCellData()->GetArray(vtkDataSetAttributes::GhostArrayName()));
 
-    auto& cell = this->GenericCell.Local();
+    auto& cell = this->TLGenericCell.Local();
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((cellEnd - cellBegin) / 10 + 1, (vtkIdType)1000);
     for (vtkIdType cellId = cellBegin; cellId < cellEnd; ++cellId)
     {
+      if (cellId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->ProbeFilter->CheckAbort();
+        }
+        if (this->ProbeFilter->GetAbortOutput())
+        {
+          break;
+        }
+      }
       if (IsBlankedCell(sourceGhostFlags, cellId))
       {
         continue;
       }
 
-      this->Source->GetCell(cellId, cell);
       this->ProbeFilter->ProbeImagePointsInCell(cell, cellId, this->Source, this->SrcBlockId,
         this->Start, this->Spacing, this->Dim, this->OutPointData, this->MaskArray, weights);
     }
   }
+
+  void Reduce() {}
 
 private:
   vtkProbeFilter* ProbeFilter;
@@ -715,8 +941,8 @@ private:
   char* MaskArray;
   int MaxCellSize;
 
-  vtkSMPThreadLocal<std::vector<double>> WeightsBuffer;
-  vtkSMPThreadLocalObject<vtkGenericCell> GenericCell;
+  vtkSMPThreadLocal<std::vector<double>> TLWeights;
+  vtkSMPThreadLocalObject<vtkGenericCell> TLGenericCell;
 };
 
 //------------------------------------------------------------------------------
@@ -868,13 +1094,17 @@ void vtkProbeFilter::ProbeImageDataPointsSMP(vtkDataSet* input, vtkImageData* so
 
   // Loop over all input points, interpolating source data
   vtkIdType progressInterval = endId / 20 + 1;
-  for (vtkIdType ptId = startId; ptId < endId && !GetAbortExecute(); ptId++)
+  for (vtkIdType ptId = startId; ptId < endId; ptId++)
   {
     if (baseThread && !(ptId % progressInterval))
     {
       // This is not ideal, because if the base thread executes more than one piece,
       // then the progress will repeat its 0.0 to 1.0 progression for each piece.
       this->UpdateProgress(static_cast<double>(ptId) / endId);
+      if (this->CheckAbort())
+      {
+        break;
+      }
     }
 
     if (maskArray[ptId] == static_cast<char>(1))
@@ -897,14 +1127,14 @@ void vtkProbeFilter::ProbeImageDataPointsSMP(vtkDataSet* input, vtkImageData* so
       source->GetCellPoints(cellId, pointIds);
 
       // Interpolate the point data
-      outPD->InterpolatePoint((*this->PointList), pd, srcIdx, ptId, pointIds, weights);
-      vtkVectorOfArrays::iterator iter;
-      for (iter = this->CellArrays->begin(); iter != this->CellArrays->end(); ++iter)
+      outPD->InterpolatePoint(*this->PointList, pd, srcIdx, ptId, pointIds, weights);
+      for (size_t i = 0, numArrays = this->InputCellArrays.size(); i < numArrays; ++i)
       {
-        vtkDataArray* inArray = cd->GetArray((*iter)->GetName());
-        if (inArray)
+        auto inputArray = this->InputCellArrays[i];
+        auto sourceArray = this->SourceCellArrays[i];
+        if (sourceArray)
         {
-          outPD->CopyTuple(inArray, *iter, cellId, ptId);
+          inputArray->SetTuple(ptId, cellId, sourceArray);
         }
       }
       maskArray[ptId] = static_cast<char>(1);
@@ -1020,6 +1250,9 @@ int vtkProbeFilter::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
   // extent of the output to divide up the source.
   if (this->SpatialMatch == 2)
   {
+    vtkErrorMacro("SpatialMatch should be boolean, don't pass other than 0 or 1.");
+
+#if !VTK_USE_FUTURE_BOOL
     inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER(), 0);
     inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES(), 1);
     inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(), 0);
@@ -1029,6 +1262,7 @@ int vtkProbeFilter::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
       outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_PIECES()));
     sourceInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS(),
       outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS()));
+#endif
   }
   return 1;
 }
@@ -1051,3 +1285,4 @@ void vtkProbeFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "CellLocatorPrototype: "
      << (this->CellLocatorPrototype ? this->CellLocatorPrototype->GetClassName() : "NULL") << "\n";
 }
+VTK_ABI_NAMESPACE_END

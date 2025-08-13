@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestExodusIgnoreFileTime.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkExecutive.h"
 #include "vtkExodusIIReader.h"
@@ -54,7 +39,7 @@ int TestExodusIgnoreFileTime(int argc, char* argv[])
     ? outInfo->Length(vtkStreamingDemandDrivenPipeline::TIME_STEPS())
     : 0;
   std::vector<double> times(numSteps);
-  outInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &times[0]);
+  outInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), times.data());
   if (fabs(times[1] - 0.000100074) > 1e-6)
   {
     std::cerr << "With IgnoreFileTime off, times[1] was " << times[1]
@@ -65,7 +50,7 @@ int TestExodusIgnoreFileTime(int argc, char* argv[])
   reader->SetIgnoreFileTime(true);
   reader->UpdateInformation();
 
-  outInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &times[0]);
+  outInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), times.data());
   if (fabs(times[1] - 1) > 1e-6)
   {
     std::cerr << "With IgnoreFileTime on, times[1] was " << times[1] << " but 1 was expected."

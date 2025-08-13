@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLabelHierarchy.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkLabelHierarchy.h"
 
@@ -72,6 +56,7 @@
 // in the VTK code base, this is one way to do it. Feel free to change it
 // if you have a better solution. But make sure it works on Borland 5.5...
 //
+VTK_ABI_NAMESPACE_BEGIN
 vtkLabelHierarchy* vtkLabelHierarchy::Implementation::Current;
 
 //------------------------------------------------------------------------------
@@ -438,7 +423,8 @@ void vtkLabelHierarchyFrustumIterator::Next()
           if (this->Level)
           {
             this->Path.resize(this->Level);
-            vtkLabelHierarchy::GetPathForNodalCoordinates(&this->Path[0], this->IjkG, this->Level);
+            vtkLabelHierarchy::GetPathForNodalCoordinates(
+              this->Path.data(), this->IjkG, this->Level);
           }
           else
           {
@@ -604,7 +590,9 @@ void vtkLabelHierarchyFullSortIterator::Begin(vtkIdTypeArray* vtkNotUsed(lastPla
   s.push_back(root);
   int numNodes = 0;
   int numLeaf = 0;
+#ifndef NDEBUG
   int totalLeafDepth = 0;
+#endif
   size_t numLabels = 0;
   int maxLabels = 10000;
   while (!s.empty())
@@ -676,12 +664,16 @@ void vtkLabelHierarchyFullSortIterator::Begin(vtkIdTypeArray* vtkNotUsed(lastPla
     else
     {
       ++numLeaf;
+#ifndef NDEBUG
       totalLeafDepth += level;
+#endif
     }
   }
   vtkDebugMacro("max level is " << maxLevel);
   vtkDebugMacro("num nodes " << numNodes);
+  (void)numNodes;
   vtkDebugMacro("avg leaf depth " << static_cast<double>(totalLeafDepth) / numLeaf);
+  (void)numLeaf;
 
   this->NodesTraversed = 0;
   this->NodeIterator = this->NodeSet.begin();
@@ -1639,7 +1631,7 @@ void vtkLabelHierarchy3DepthFirstIterator::Next()
         {
           this->Order.back().push_back(i);
         }
-        this->ReorderChildrenForView(&(this->Order.back()[0]));
+        this->ReorderChildrenForView(this->Order.back().data());
         this->Cursor.down(this->Order.back()[0]);
         this->Path.push_back(0);
         if (this->IsNodeInFrustum())
@@ -2607,3 +2599,4 @@ void vtkLabelHierarchy::GetAnchorFrustumPlanes(
   frustumPlanes[22] = 1.0;
   frustumPlanes[23] = VTK_DOUBLE_MAX;
 }
+VTK_ABI_NAMESPACE_END

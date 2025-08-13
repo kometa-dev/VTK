@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestComputeBoundingSphere.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <vtkMath.h>
 #include <vtkSmartPointer.h>
@@ -167,10 +155,10 @@ int TestComputeBoundingSphere(int, char*[])
     std::vector<float*> floatSpheres(floatPoints.size());
     for (size_t i = 0; i < floatSpheres.size(); ++i)
     {
-      floatSpheres[i] = &(floatPoints[i][0]);
+      floatSpheres[i] = floatPoints[i].data();
     }
     float sphere[4];
-    vtkSphere::ComputeBoundingSphere(&floatSpheres[0], 1, sphere, nullptr);
+    vtkSphere::ComputeBoundingSphere(floatSpheres.data(), 1, sphere, nullptr);
     if (sphere[0] == floatPoints[0][0] && sphere[1] == floatPoints[0][1] &&
       sphere[2] == floatPoints[0][2] && sphere[3] == floatPoints[0][3])
     {
@@ -198,14 +186,14 @@ int TestComputeBoundingSphere(int, char*[])
     std::vector<float*> floatSpheres(floatPoints.size());
     for (size_t i = 0; i < floatSpheres.size(); ++i)
     {
-      floatSpheres[i] = &(floatPoints[i][0]);
+      floatSpheres[i] = floatPoints[i].data();
     }
     vtkIdType hint[2];
     hint[0] = 0;
     hint[1] = 1;
 
     float sphere[4];
-    vtkSphere::ComputeBoundingSphere(&floatSpheres[0], numberOfSpheres, sphere, hint);
+    vtkSphere::ComputeBoundingSphere(floatSpheres.data(), numberOfSpheres, sphere, hint);
     std::cout << "sphere: " << sphere[0] << ", " << sphere[1] << ", " << sphere[2] << ": "
               << sphere[3] << " ";
     std::cout << "Passed" << std::endl;
@@ -238,10 +226,10 @@ int TestComputeBoundingSphere(int, char*[])
     std::vector<double*> doubleSpheres(doublePoints.size());
     for (size_t i = 0; i < doubleSpheres.size(); ++i)
     {
-      doubleSpheres[i] = &(doublePoints[i][0]);
+      doubleSpheres[i] = doublePoints[i].data();
     }
     double sphere[4];
-    vtkSphere::ComputeBoundingSphere(&doubleSpheres[0], numberOfSpheres, sphere, nullptr);
+    vtkSphere::ComputeBoundingSphere(doubleSpheres.data(), numberOfSpheres, sphere, nullptr);
     std::cout << "sphere: " << sphere[0] << ", " << sphere[1] << ", " << sphere[2] << ": "
               << sphere[3] << " ";
     std::cout << "Passed" << std::endl;

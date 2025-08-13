@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStatisticsAlgorithm.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2011 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkStatisticsAlgorithm.h"
 
@@ -36,6 +20,7 @@
 #include <sstream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkStatisticsAlgorithm, AssessNames, vtkStringArray);
 
 //------------------------------------------------------------------------------
@@ -312,13 +297,13 @@ void vtkStatisticsAlgorithm::Assess(
          v < numVariables && it != rit->end(); ++v, ++it)
     {
       // Try to retrieve column with corresponding name in input data
-      vtkStdString varName = *it;
+      std::string const& varName = *it;
 
       // If requested column does not exist in input, ignore request
-      if (!inData->GetColumnByName(varName))
+      if (!inData->GetColumnByName(varName.c_str()))
       {
-        vtkWarningMacro("InData table does not have a column "
-          << varName.c_str() << ". Ignoring request containing it.");
+        vtkWarningMacro(
+          "InData table does not have a column " << varName << ". Ignoring request containing it.");
 
         invalidRequest = true;
         break;
@@ -343,7 +328,7 @@ void vtkStatisticsAlgorithm::Assess(
 
     // Store names to be able to use SetValueByName, and create the outData columns
     vtkIdType nAssessments = this->AssessNames->GetNumberOfValues();
-    std::vector<vtkStdString> names(nAssessments);
+    std::vector<std::string> names(nAssessments);
     vtkIdType nRowData = inData->GetNumberOfRows();
     for (vtkIdType a = 0; a < nAssessments; ++a)
     {
@@ -361,11 +346,11 @@ void vtkStatisticsAlgorithm::Assess(
       }
       assessColName << ")";
 
-      names[a] = assessColName.str().c_str();
+      names[a] = assessColName.str();
 
       // Create assessment columns with names <AssessmentName>(var1,...,varN)
       vtkDoubleArray* assessColumn = vtkDoubleArray::New();
-      assessColumn->SetName(names[a]);
+      assessColumn->SetName(names[a].c_str());
       assessColumn->SetNumberOfTuples(nRowData);
       outData->AddColumn(assessColumn);
       assessColumn->Delete();
@@ -386,7 +371,7 @@ void vtkStatisticsAlgorithm::Assess(
         for (vtkIdType a = 0; a < nAssessments; ++a)
         {
           // Store each assessment value in corresponding assessment column
-          outData->SetValueByName(r, names[a], assessResult->GetValue(a));
+          outData->SetValueByName(r, names[a].c_str(), assessResult->GetValue(a));
         }
       }
 
@@ -396,3 +381,4 @@ void vtkStatisticsAlgorithm::Assess(
     delete dfunc;
   }
 }
+VTK_ABI_NAMESPACE_END

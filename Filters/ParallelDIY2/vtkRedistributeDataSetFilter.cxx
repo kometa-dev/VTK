@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRedistributeDataSetFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkRedistributeDataSetFilter.h"
 
@@ -67,6 +52,7 @@ constexpr double BOUNDING_BOX_INFLATION_RATIO = 0.01;
 
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 vtkBoundingBox GetBounds(vtkDataObject* dobj, diy::mpi::communicator& comm)
 {
   auto lbounds = vtkDIYUtilities::GetLocalBounds(dobj);
@@ -160,7 +146,7 @@ std::vector<std::vector<int>> GenerateCellRegions(
           dataset->GetCell(cellId, gcell);
           double pcenter[3], center[3];
           int subId = gcell->GetParametricCenter(pcenter);
-          gcell->EvaluateLocation(subId, pcenter, center, &weights[0]);
+          gcell->EvaluateLocation(subId, pcenter, center, weights.data());
           for (int cutId = 0; cutId < static_cast<int>(cuts.size()); ++cutId)
           {
             const auto& bbox = cuts[cutId];
@@ -243,8 +229,10 @@ void SetPartitionCount(vtkPartitionedDataSet* pdc, unsigned int target)
   pdc->SetNumberOfPartitions(target);
 }
 
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRedistributeDataSetFilter);
 vtkCxxSetObjectMacro(vtkRedistributeDataSetFilter, Controller, vtkMultiProcessController);
 //------------------------------------------------------------------------------
@@ -499,25 +487,30 @@ int vtkRedistributeDataSetFilter::RequestData(
   // ******************************************************
   // Now, package the result into the output.
   // ******************************************************
-  if (vtkPartitionedDataSetCollection::SafeDownCast(outputDO))
+  vtkPartitionedDataSetCollection* outputPDSC =
+    vtkPartitionedDataSetCollection::SafeDownCast(outputDO);
+  vtkPartitionedDataSet* outputPDS = vtkPartitionedDataSet::SafeDownCast(outputDO);
+  vtkMultiBlockDataSet* outputMB = vtkMultiBlockDataSet::SafeDownCast(outputDO);
+
+  if (outputPDSC)
   {
-    outputDO->ShallowCopy(result);
+    outputPDSC->CompositeShallowCopy(result);
   }
-  else if (vtkPartitionedDataSet::SafeDownCast(outputDO))
+  else if (outputPDS)
   {
     assert(result->GetNumberOfPartitionedDataSets() <= 1);
     if (result->GetNumberOfPartitionedDataSets() == 1)
     {
-      outputDO->ShallowCopy(result->GetPartitionedDataSet(0));
+      outputPDS->CompositeShallowCopy(result->GetPartitionedDataSet(0));
     }
   }
-  else if (vtkMultiBlockDataSet::SafeDownCast(outputDO))
+  else if (outputMB)
   {
     // convert result (vtkPartitionedDataSetCollection) to vtkMultiBlockDataSet.
     if (auto mbresult = vtkDataAssemblyUtilities::GenerateCompositeDataSetFromHierarchy(
           result, result->GetDataAssembly()))
     {
-      outputDO->ShallowCopy(mbresult);
+      outputMB->CompositeShallowCopy(mbresult);
     }
     else
     {
@@ -734,7 +727,7 @@ bool vtkRedistributeDataSetFilter::Redistribute(vtkPartitionedDataSet* inputPDS,
       if (this->GenerateGlobalCellIds)
       {
         auto result = this->AssignGlobalCellIds(outputPDS, mb_offset);
-        outputPDS->ShallowCopy(result);
+        outputPDS->CompositeShallowCopy(result);
       }
       break;
 
@@ -784,7 +777,7 @@ bool vtkRedistributeDataSetFilter::RedistributeDataSet(
 
   auto pieces = vtkDIYKdTreeUtilities::Exchange(parts, this->GetController(), this->Assigner);
   assert(pieces->GetNumberOfPartitions() == parts->GetNumberOfPartitions());
-  outputPDS->ShallowCopy(pieces);
+  outputPDS->CompositeShallowCopy(pieces);
   return true;
 }
 
@@ -906,13 +899,14 @@ vtkSmartPointer<vtkPartitionedDataSet> vtkRedistributeDataSetFilter::SplitDataSe
 
   vtkNew<vtkExtractCells> extractor;
   extractor->SetInputDataObject(clone);
+  extractor->SetOutputPointsPrecision(vtkAlgorithm::DOUBLE_PRECISION);
 
   for (size_t region_idx = 0; region_idx < region_cell_ids.size(); ++region_idx)
   {
     const auto& cell_ids = region_cell_ids[region_idx];
     if (!cell_ids.empty())
     {
-      extractor->SetCellIds(&cell_ids[0], static_cast<vtkIdType>(cell_ids.size()));
+      extractor->SetCellIds(cell_ids.data(), static_cast<vtkIdType>(cell_ids.size()));
       extractor->Update();
 
       vtkNew<vtkUnstructuredGrid> ug;
@@ -1139,3 +1133,4 @@ void vtkRedistributeDataSetFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "EnableDebugging: " << this->EnableDebugging << endl;
   os << indent << "LoadBalanceAcrossAllBlocks: " << this->LoadBalanceAcrossAllBlocks << endl;
 }
+VTK_ABI_NAMESPACE_END

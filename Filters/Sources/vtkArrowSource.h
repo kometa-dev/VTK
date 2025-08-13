@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrowSource.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkArrowSource
  * @brief   Appends a cylinder to a cone to form an arrow.
@@ -31,6 +19,7 @@
 #include "vtkFiltersSourcesModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSSOURCES_EXPORT vtkArrowSource : public vtkPolyDataAlgorithm
 {
 public:
@@ -55,7 +44,7 @@ public:
   ///@{
   /**
    * Set the resolution of the tip.  The tip behaves the same as a cone.
-   * Resoultion 1 gives a single triangle, 2 gives two crossed triangles.
+   * Resolution 1 gives a single triangle, 2 gives two crossed triangles.
    */
   vtkSetClampMacro(TipResolution, int, 1, 128);
   vtkGetMacro(TipResolution, int);
@@ -128,4 +117,5 @@ private:
   void operator=(const vtkArrowSource&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestDataAssemblyUtilities.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataAssembly.h"
 #include "vtkDataAssemblyUtilities.h"
 #include "vtkInformation.h"
@@ -173,11 +161,11 @@ bool TestMultiBlockDataSet(int numPieces)
   vtkLogScopeF(INFO, "TestMultiBlockDataSet(%d)", numPieces);
 
   // this intentionally looks like an Exodus II reader output.
+  // with one empty node name for better testing
   std::map<std::string, std::vector<std::string>> map = {
     { "Root", { "Element Blocks", "Face Blocks", "Side Sets", "Node Sets" } },
     { "Element Blocks", { "Unnamed block ID: 1", "Unnamed block ID: 2" } }, { "Face Sets", {} },
-    { "Side Sets", { "Unnamed set ID: 4" } },
-    { "Node Sets", { "Unnamed set ID: 1", "Unnamed set ID: 100" } }
+    { "Side Sets", { "Unnamed set ID: 4" } }, { "Node Sets", { "Unnamed set ID: 1", "" } }
   };
   auto mb = CreateMultiBlock(map, numPieces);
 

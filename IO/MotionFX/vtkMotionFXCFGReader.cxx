@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMotionFXCFGReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMotionFXCFGReader.h"
 
 #include "vtkArrayDispatch.h"
@@ -39,15 +27,18 @@
 // Set to 1 to generate debugging trace if grammar match fails.
 #include "vtkMotionFXCFGGrammar.h" // grammar
 
+#include <cassert>
 #include <cctype>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 //=============================================================================
 namespace impl
 {
+VTK_ABI_NAMESPACE_BEGIN
 struct Motion;
 
 using MapOfVectorOfMotions =
@@ -172,7 +163,6 @@ protected:
     {
       // s = u*tA + 0.5 * a * (tA)^2
       const double tA = std::min(time - this->tstart_prescribe, this->t_damping);
-      ;
       assert(tA >= 0.0);
       const double tA2 = tA * tA;
       s = s + (init_velocity * tA + acceleration * (tA2 / 2.0));
@@ -362,7 +352,7 @@ struct RotateAxisMotion : public Motion
     if (theta != 0.0)
     {
       // theta is in radians.
-      // convert to degress
+      // convert to degrees
       theta = vtkMath::DegreesFromRadians(theta);
 
       vtkNew<vtkTransform> transform;
@@ -550,7 +540,7 @@ struct PlanetaryMotion : public Motion
       transform->Translate(-this->orbit_cntr[0], -this->orbit_cntr[1], -this->orbit_cntr[2]);
 
       // day_theta is in radians.
-      // convert to degress
+      // convert to degrees
       day_theta = vtkMath::DegreesFromRadians(day_theta);
 
       transform->Translate(this->initial_centerOfDayRotation.GetData());
@@ -934,6 +924,7 @@ std::shared_ptr<const Motion> CreateMotion(const MapType& params)
 
   return nullptr;
 }
+VTK_ABI_NAMESPACE_END
 }
 
 //=============================================================================
@@ -946,6 +937,7 @@ using namespace tao::pegtl;
 // OrientationsPositionFile::Grammar
 namespace PositionFile
 {
+VTK_ABI_NAMESPACE_BEGIN
 template <typename Rule>
 struct action : nothing<Rule>
 {
@@ -1000,12 +992,14 @@ struct action<MotionFX::OrientationsPositionFile::Row>
     active_numbers.clear();
   }
 };
+VTK_ABI_NAMESPACE_END
 } // namespace PositionFile
 
 //-----------------------------------------------------------------------------
 // actions when parsing UniversalTransformRow::Grammar
 namespace UniversalTransformFile
 {
+VTK_ABI_NAMESPACE_BEGIN
 template <typename Rule>
 struct action : nothing<Rule>
 {
@@ -1040,12 +1034,14 @@ struct action<MotionFX::UniversalTransformRow::Row>
     active_numbers.clear();
   }
 };
+VTK_ABI_NAMESPACE_END
 } // namespace UniversalTransformSpace
 
 //-----------------------------------------------------------------------------
 // actions when parsing CFG::Grammar
 namespace CFG
 {
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // When parsing CFG, we need to accumulate values and keep track of them.
 // Value and ActiveState help us do that.
@@ -1186,12 +1182,14 @@ struct action<MotionFX::CFG::Grammar>
   }
 };
 
+VTK_ABI_NAMESPACE_END
 } // namespace CFG
 
 } // namespace Actions
 
 namespace impl
 {
+VTK_ABI_NAMESPACE_BEGIN
 bool PositionFileMotion::read_position_file(const std::string& rootDir) const
 {
   // read positionFile.
@@ -1238,8 +1236,10 @@ bool UniversalTransformMotion::read_universaltransform_file(const std::string& r
   }
   return false;
 }
+VTK_ABI_NAMESPACE_END
 } // impl
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMotionFXCFGReader::vtkInternals
 {
 public:
@@ -1428,7 +1428,7 @@ int vtkMotionFXCFGReader::RequestInformation(
     timesteps.back() = trange[1];
 
     outInfo->Set(
-      vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &timesteps[0], this->TimeResolution);
+      vtkStreamingDemandDrivenPipeline::TIME_STEPS(), timesteps.data(), this->TimeResolution);
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), trange.GetData(), 2);
   }
   else
@@ -1510,3 +1510,4 @@ void vtkMotionFXCFGReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "FileName: " << this->FileName << endl;
   os << indent << "TimeResolution: " << this->TimeResolution << endl;
 }
+VTK_ABI_NAMESPACE_END

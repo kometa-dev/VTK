@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkOpenGLBufferObject_h
 #define vtkOpenGLBufferObject_h
 
@@ -19,6 +8,7 @@
 #include <string>                      // used for std::string
 #include <vector>                      // used for method args
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
 class vtkDataArray;
 class vtkPoints;
@@ -136,4 +126,5 @@ inline bool vtkOpenGLBufferObject::Upload(
   return this->UploadInternal(array, numElements * sizeof(T), objectType);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

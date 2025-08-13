@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHardwarePicker.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHardwarePicker.h"
 
 #include "vtkAbstractMapper3D.h"
@@ -44,11 +32,12 @@
 
 #include <limits>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 constexpr double DEFAULT_VALUE = std::numeric_limits<double>::quiet_NaN();
 constexpr double IntersectionTolerance = 0.0000000001;
-constexpr double PI_2 = vtkMath::Pi() / 2.0f;
+constexpr double PI_2 = vtkMath::Pi() / 2.0;
 }
 
 //------------------------------------------------------------------------------
@@ -258,8 +247,8 @@ int vtkHardwarePicker::ComputeSurfaceNormal(vtkDataSet* data, vtkCell* cell, dou
       }
       else // cell->GetCellType() == VTK_TRIANGLE_STRIP
       {
-        static int idx[2][3] = { { 0, 1, 2 }, { 1, 0, 2 } };
-        int* order = idx[this->SubId & 1];
+        constexpr int idx[2][3] = { { 0, 1, 2 }, { 1, 0, 2 } };
+        const int* order = idx[this->SubId & 1];
         vtkIdType pointIds[3];
         double points[3][3];
 
@@ -588,3 +577,4 @@ void vtkHardwarePicker::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "PCoords: (" << this->PCoords[0] << ", " << this->PCoords[1] << ", "
      << this->PCoords[2] << ")" << endl;
 }
+VTK_ABI_NAMESPACE_END

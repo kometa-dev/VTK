@@ -1,11 +1,6 @@
-/*
- * Copyright 2008 Sandia Corporation.
- * Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
- * license for use of this work by or on behalf of the
- * U.S. Government. Redistribution and use in source and binary forms, with
- * or without modification, are permitted provided that this Notice and any
- * statement of authorship are reproduced on all copies.
- */
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 // .SECTION Thanks
 // Thanks to Philippe Pebay from Sandia National Laboratories
 // for implementing this test.
@@ -183,7 +178,7 @@ int TestOrderStatistics(int, char*[])
   datasetTable->AddColumn(ghostArray);
 
   int nMetrics = 3;
-  vtkStdString columns[] = { "Metric 1", "Metric 2", "Metric 0" };
+  std::string columns[] = { "Metric 1", "Metric 2", "Metric 0" };
 
   // Set order statistics algorithm and its input data port
   vtkOrderStatistics* os = vtkOrderStatistics::New();
@@ -201,7 +196,7 @@ int TestOrderStatistics(int, char*[])
   os->AddColumn("Metric 3"); // Include invalid Metric 3
   for (int i = 0; i < nMetrics; ++i)
   { // Try to add all valid indices once more
-    os->AddColumn(columns[i]);
+    os->AddColumn(columns[i].c_str());
   }
 
   // Test Learn, Derive, and Test operations
@@ -234,7 +229,7 @@ int TestOrderStatistics(int, char*[])
   outputQuantiles->Dump();
   for (vtkIdType c = 1; c < outputQuantiles->GetNumberOfColumns(); ++c)
   {
-    vtkStdString colName = outputQuantiles->GetColumnName(c);
+    std::string colName = outputQuantiles->GetColumnName(c);
     cout << "   Variable=" << colName << "\n";
 
     // Check some results of the Derive operation
@@ -251,8 +246,8 @@ int TestOrderStatistics(int, char*[])
     }
 
     // Check some results of the Assess operation
-    vtkStdString quantColName = "Quantile(" + colName + ")";
-    vtkAbstractArray* absQuantArr = outputData->GetColumnByName(quantColName);
+    std::string quantColName = "Quantile(" + colName + ")";
+    vtkAbstractArray* absQuantArr = outputData->GetColumnByName(quantColName.c_str());
     if (!absQuantArr)
     {
       vtkGenericWarningMacro("Cannot retrieve quartile array for variable: " << colName << ".");
@@ -299,7 +294,7 @@ int TestOrderStatistics(int, char*[])
   cout << "## Calculated the following histograms:\n";
   for (unsigned b = 0; b < outputModelDS->GetNumberOfBlocks() - 2; ++b)
   {
-    vtkStdString varName = outputModelDS->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
+    std::string varName = outputModelDS->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
     cout << "   Variable=" << varName << "\n";
 
     vtkTable* histoTab = vtkTable::SafeDownCast(outputModelDS->GetBlock(b));
@@ -346,7 +341,7 @@ int TestOrderStatistics(int, char*[])
   os->ResetRequests();
   for (int i = 0; i < nMetrics; ++i)
   { // Try to add all valid indices once more
-    os->AddColumn(columns[i]);
+    os->AddColumn(columns[i].c_str());
   }
 
   // Test Learn, Derive, and Test operations with InverseCDF quantile definition
@@ -434,7 +429,7 @@ int TestOrderStatistics(int, char*[])
   os->Delete();
 
   // Test Learn operation for quartiles with non-numeric ordinal data
-  vtkStdString text(
+  std::string text(
     "an ordinal scale defines a total preorder of objects the scale values themselves have a total "
     "order names may be used like bad medium good if numbers are used they are only relevant up to "
     "strictly monotonically increasing transformations also known as order isomorphisms");
@@ -446,7 +441,7 @@ int TestOrderStatistics(int, char*[])
 
   for (std::vector<int>::size_type i = 0; i < textLength; ++i)
   {
-    vtkStdString s("");
+    std::string s;
     s += text.at(i);
     textArr->InsertNextValue(s);
   }
@@ -485,7 +480,7 @@ int TestOrderStatistics(int, char*[])
   cout << "\n## Calculated the following histogram:\n";
   for (unsigned b = 0; b < outputModelDS2->GetNumberOfBlocks() - 2; ++b)
   {
-    vtkStdString varName = outputModelDS2->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
+    std::string varName = outputModelDS2->GetMetaData(b)->Get(vtkCompositeDataSet::NAME());
     cout << "   Variable=" << varName << "\n";
 
     vtkTable* histoTab = vtkTable::SafeDownCast(outputModelDS2->GetBlock(b));

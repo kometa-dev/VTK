@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestPartitionBalancer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPartitionBalancer.h"
 
@@ -132,7 +121,8 @@ bool TestExpandPDS1(vtkPartitionedDataSet* outPDS1, int rank)
   {
     if (!outDS100)
     {
-      vtkLog(ERROR, "Output partitioned data set r0 - PD1 has a nullptr partition.") retVal = false;
+      vtkLog(ERROR, "Output partitioned data set r0 - PD1 has a nullptr partition.");
+      retVal = false;
     }
     else if (!outDS100->GetFieldData()->GetAbstractArray(names[0][3]))
     {
@@ -143,8 +133,8 @@ bool TestExpandPDS1(vtkPartitionedDataSet* outPDS1, int rank)
   {
     if (outDS100)
     {
-      vtkLog(ERROR, "Output partitioned data set r1 - PD1 should have a nullptr partition.")
-        retVal = false;
+      vtkLog(ERROR, "Output partitioned data set r1 - PD1 should have a nullptr partition.");
+      retVal = false;
     }
   }
 
@@ -239,7 +229,8 @@ bool TestSquashPDS1(vtkPartitionedDataSet* outPDS1, int rank)
   {
     if (!outDS100)
     {
-      vtkLog(ERROR, "Output partitioned data set r0 - PD1 has a nullptr partition.") retVal = false;
+      vtkLog(ERROR, "Output partitioned data set r0 - PD1 has a nullptr partition.");
+      retVal = false;
     }
     else if (!outDS100->GetFieldData()->GetAbstractArray(names[0][3]))
     {
@@ -250,8 +241,8 @@ bool TestSquashPDS1(vtkPartitionedDataSet* outPDS1, int rank)
   {
     if (outDS100)
     {
-      vtkLog(ERROR, "Output partitioned data set r1 - PD1 should have a nullptr partition.")
-        retVal = false;
+      vtkLog(ERROR, "Output partitioned data set r1 - PD1 should have a nullptr partition.");
+      retVal = false;
     }
   }
 

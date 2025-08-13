@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContour3DLinearGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkContour3DLinearGrid
  * @brief   fast generation of isosurface from 3D linear cells
@@ -50,8 +38,8 @@
  * @warning
  * When the input is of type vtkCompositeDataSet the filter will process the
  * unstructured grid(s) contained in the composite data set. As a result the
- * output of this filter is then a vtkMultiBlockDataSet containing multiple
- * vtkPolyData. When a vtkUnstructuredGrid is provided as input the
+ * output of this filter is then a composite data set (same as input) containing
+ * multiple vtkPolyData. When a vtkUnstructuredGrid is provided as input the
  * output is a single vtkPolyData.
  *
  * @warning
@@ -117,6 +105,7 @@
 #include "vtkDataObjectAlgorithm.h"
 #include "vtkFiltersCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPolyData;
 class vtkUnstructuredGrid;
 class vtkScalarTree;
@@ -180,7 +169,7 @@ public:
   vtkBooleanMacro(ComputeNormals, vtkTypeBool);
   ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get flag to compute scalars. When enabled, and when the
     InterpolateAttributes option is on, vtkContour3DLinearGrid will add an
@@ -190,7 +179,7 @@ public:
   vtkSetMacro(ComputeScalars, vtkTypeBool);
   vtkGetMacro(ComputeScalars, vtkTypeBool);
   vtkBooleanMacro(ComputeScalars, vtkTypeBool);
-  //@}
+  ///@}
 
   ///@{
   /**
@@ -198,8 +187,8 @@ public:
    * for the vtkAlgorithm::Precision enum for an explanation of the available
    * precision settings.
    */
-  void SetOutputPointsPrecision(int precision);
-  int GetOutputPointsPrecision() const;
+  vtkSetMacro(OutputPointsPrecision, int);
+  vtkGetMacro(OutputPointsPrecision, int);
   ///@}
 
   /**
@@ -372,4 +361,5 @@ inline void vtkContour3DLinearGrid::GenerateValues(
   this->ContourValues->GenerateValues(numContours, rangeStart, rangeEnd);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAbstractArray.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 //
 /**
  * @class   vtkAbstractArray
@@ -69,6 +57,7 @@
 #include "vtkObject.h"
 #include "vtkVariant.h" // for variant arguments
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkArrayIterator;
 class vtkDataArray;
 class vtkIdList;
@@ -404,7 +393,7 @@ public:
   /**
    * Get the name of a data type as a string.
    */
-  virtual const char* GetDataTypeAsString(void) const
+  virtual const char* GetDataTypeAsString() const
   {
     return vtkImageScalarTypeNameMacro(this->GetDataType());
   }
@@ -578,7 +567,7 @@ public:
    * keys they do not wish to be copied. The subclass will not need to
    * explicitly copy the keys as it's handled here.
    */
-  virtual int CopyInformation(vtkInformation* infoFrom, int deep = 1);
+  virtual int CopyInformation(vtkInformation* infoFrom, vtkTypeBool deep = 1);
 
   /**
    * This key is a hint to end user interface that this array
@@ -659,6 +648,7 @@ public:
     TypedDataArray,
     MappedDataArray,
     ScaleSoADataArrayTemplate,
+    ImplicitArray,
 
     DataArrayTemplate = AoSDataArrayTemplate //! Legacy
   };
@@ -748,7 +738,7 @@ struct vtkArrayDownCast_impl
  * it, while others will fallback to the slower SafeDownCast.
 
  * A more detailed description of this class and related tools can be found
- * \ref VTK-7-1-ArrayDispatch "here".
+ * [here](https://docs.vtk.org/en/latest/design_documents/array_dispatch.html).
  */
 template <typename ArrayT>
 ArrayT* vtkArrayDownCast(vtkAbstractArray* array)
@@ -757,6 +747,8 @@ ArrayT* vtkArrayDownCast(vtkAbstractArray* array)
   // specialized for arrays that support FastDownCast.
   return vtkArrayDownCast_impl<ArrayT>()(array);
 }
+
+VTK_ABI_NAMESPACE_END
 
 ///@{
 /**
@@ -788,5 +780,4 @@ ArrayT* vtkArrayDownCast(vtkAbstractArray* array)
     }                                                                                              \
   }
 ///@}
-
 #endif

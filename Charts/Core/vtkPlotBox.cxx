@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotBox.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPlotBox.h"
 
@@ -42,6 +30,7 @@
 #include <algorithm>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPlotBox::Private : public std::vector<std::vector<double>>
 {
 public:
@@ -105,7 +94,7 @@ bool vtkPlotBox::Paint(vtkContext2D* painter)
   int nbCols = static_cast<int>(this->Storage->size());
   for (int i = 0; i < nbCols; i++)
   {
-    vtkStdString colName = parent->GetVisibleColumns()->GetValue(i);
+    std::string colName = parent->GetVisibleColumns()->GetValue(i);
     int index = this->GetInput()->GetColumnIndex(colName.c_str());
     double rgb[4];
     this->LookupTable->GetIndexedColor(index, rgb);
@@ -144,7 +133,7 @@ void vtkPlotBox::DrawBoxPlot(int i, unsigned char* rgba, double x, vtkContext2D*
   double hBoxW = this->BoxWidth * 0.25;
 
   // Fetch the quartiles and median
-  double* q = &colQuartiles[0];
+  double* q = colQuartiles.data();
 
   // Draw the box
   painter->DrawQuad(xpos, q[1], xneg, q[1], xneg, q[3], xpos, q[3]);
@@ -197,7 +186,7 @@ bool vtkPlotBox::PaintLegend(vtkContext2D* painter, const vtkRectf& rec, int)
   int nbCols = static_cast<int>(this->Storage->size());
   for (int i = 0; i < nbCols; i++)
   {
-    vtkStdString colName = parent->GetVisibleColumns()->GetValue(i);
+    std::string colName = parent->GetVisibleColumns()->GetValue(i);
     if (this->GetLabels() && this->GetLabels()->GetNumberOfValues() > i)
     {
       colName = this->GetLabels()->GetValue(parent->GetColumnId(colName));
@@ -308,7 +297,7 @@ bool vtkPlotBox::UpdateCache()
     std::vector<double>& col = this->Storage->at(i);
     col.resize(rows);
     vtkSmartPointer<vtkDataArray> data =
-      vtkArrayDownCast<vtkDataArray>(table->GetColumnByName(cols->GetValue(i)));
+      vtkArrayDownCast<vtkDataArray>(table->GetColumnByName(cols->GetValue(i).c_str()));
     if (!data)
     {
       continue;
@@ -401,3 +390,4 @@ void vtkPlotBox::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    QVTKOpenGLNativeWidget.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class QVTKOpenGLNativeWidget
  * @brief QOpenGLWidget subclass to house a vtkGenericOpenGLRenderWindow in a Qt
@@ -116,6 +104,7 @@
 #include "vtkNew.h"                // needed for vtkNew
 #include "vtkSmartPointer.h"       // needed for vtkSmartPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class QVTKInteractor;
 class QVTKInteractorAdapter;
 class QVTKRenderWindowAdapter;
@@ -205,6 +194,15 @@ public:
   const QCursor& defaultCursor() const { return this->DefaultCursor; }
   ///@}
 
+  ///@{
+  /**
+   * Convenience method by symmetry with QVTKOpenGLStereoWidget.
+   * Internally just calls QWidget::setCursor / QWidget::cursor.
+   */
+  void setCursorCustom(const QCursor& cursor) { this->setCursor(cursor); }
+  QCursor cursorCustom() const { return this->cursor(); }
+  ///@}
+
 protected Q_SLOTS:
   /**
    * Called as a response to `QOpenGLContext::aboutToBeDestroyed`. This may be
@@ -215,12 +213,11 @@ protected Q_SLOTS:
 
   void updateSize();
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   bool event(QEvent* evt) override;
   void initializeGL() override;
   void paintGL() override;
 
-protected:
   vtkSmartPointer<vtkGenericOpenGLRenderWindow> RenderWindow;
   QScopedPointer<QVTKRenderWindowAdapter> RenderWindowAdapter;
 
@@ -233,4 +230,5 @@ private:
   QCursor DefaultCursor;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

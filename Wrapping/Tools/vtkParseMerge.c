@@ -1,24 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseMerge.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright (c) 2010,2015 David Gobbi
-
-  Contributed to the VisualizationToolkit by the author in March 2015
-  under the terms of the Visualization Toolkit 2015 copyright.
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2010,2015 David Gobbi
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParseMerge.h"
 #include "vtkParse.h"
 #include "vtkParseData.h"
@@ -249,12 +231,12 @@ static void merge_function(FileInfo* finfo, FunctionInfo* merge, const FunctionI
               if (name)
               {
                 /* change it to the new parameter name */
-                l += sprintf(&text[l], "%s", name);
+                l += snprintf(&text[l], sizeof(text) - l, "%s", name);
               }
               else
               {
                 /* parameter has no name, use a number */
-                l += sprintf(&text[l], "(#%d)", j);
+                l += snprintf(&text[l], sizeof(text) - l, "(#%d)", j);
               }
               break;
             }
@@ -606,6 +588,11 @@ int vtkParseMerge_Merge(FileInfo* finfo, MergeInfo* info, ClassInfo* merge, Clas
     {
       super->Functions[j++] = super->Functions[i];
     }
+  }
+  if (n && !j)
+  {
+    free(super->Functions);
+    super->Functions = NULL;
   }
   super->NumberOfFunctions = j;
 

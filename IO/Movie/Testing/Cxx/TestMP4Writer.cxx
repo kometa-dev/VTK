@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestMP4Writer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkIOMovieConfigure.h"
 
@@ -95,12 +83,12 @@ int TestMP4Writer(int argc, char* argv[])
   if (!exists)
   {
     success = false;
-    vtkLog(ERROR, "Test failing because file '" << outputFile.c_str() << "' doesn't exist...");
+    vtkLog(ERROR, "Test failing because file '" << outputFile << "' doesn't exist...");
   }
   if (0 == length)
   {
     success = false;
-    vtkLog(ERROR, "Test failing because file '" << outputFile.c_str() << "' has zero length...");
+    vtkLog(ERROR, "Test failing because file '" << outputFile << "' has zero length...");
   }
 
   return success ? 0 : -1;

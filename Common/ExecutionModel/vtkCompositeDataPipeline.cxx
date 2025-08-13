@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkCompositeDataPipeline.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCompositeDataPipeline.h"
 
 #include "vtkAlgorithm.h"
@@ -41,6 +29,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkTrivialProducer.h"
 #include "vtkUniformGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCompositeDataPipeline);
 
 vtkInformationKeyMacro(vtkCompositeDataPipeline, LOAD_REQUESTED_BLOCKS, Integer);
@@ -220,6 +209,7 @@ bool vtkCompositeDataPipeline::ShouldIterateOverInput(
         if (strcmp(inputType, "vtkCompositeDataSet") == 0 ||
           strcmp(inputType, "vtkDataObjectTree") == 0 ||
           strcmp(inputType, "vtkHierarchicalBoxDataSet") == 0 ||
+          strcmp(inputType, "vtkUniformGridAMR") == 0 ||
           strcmp(inputType, "vtkOverlappingAMR") == 0 ||
           strcmp(inputType, "vtkNonOverlappingAMR") == 0 ||
           strcmp(inputType, "vtkMultiBlockDataSet") == 0 ||
@@ -284,6 +274,10 @@ void vtkCompositeDataPipeline::ExecuteEach(vtkCompositeDataIterator* iter,
   auto algo = this->GetAlgorithm();
   for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem(), ++block_index)
   {
+    if (algo->GetAbortOutput())
+    {
+      break;
+    }
     vtkDataObject* dobj = iter->GetCurrentDataObject();
     if (dobj)
     {
@@ -1122,3 +1116,4 @@ void vtkCompositeDataPipeline::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

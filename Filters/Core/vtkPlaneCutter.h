@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlaneCutter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPlaneCutter
  * @brief   cut any dataset with a plane and generate a
@@ -19,17 +7,14 @@
  *
  * vtkPlaneCutter is a specialization of the vtkCutter algorithm to cut a
  * dataset grid with a single plane. It is designed for performance and an
- * exploratory, fast workflow. It produces output polygons that result from
- * cutting the input dataset with the specified plane.
+ * exploratory, fast workflow. It produces output triangles/polygons that
+ * result from cutting the input dataset with the specified plane.
  *
  * This algorithm is fast because it is threaded, it may delegate to a
  * high-performance cutting algorithm, and/or it may build (in a
  * preprocessing step) a spatial search structure that accelerates the plane
  * cuts. The search structure, which is typically a sphere tree, is used to
- * quickly cull candidate cells.  As mentioned, certain types of input data
- * are delegated to other, internal classes--for example image data is
- * delegated to vtkFlyingEdgesPlaneCutter, and convex vtkPolyData is
- * delegated to vtkPolyDataPlaneCutter.
+ * quickly cull candidate cells.
  *
  * Because this filter may build an initial data structure during a
  * preprocessing step, the first execution of the filter may take longer than
@@ -40,26 +25,26 @@
  * filter typically works well.
  *
  * @warning
+ * Polygons can NOT be generated when the input is vtkPolyData/vtkUnstructuredGridBase.
+ *
+ * @warning
  * This filter chooses the output type based on the input type.
  * 1) if input is vtkDataSet, output is vtkPolyData.
  * 2) if input is vtkPartitionedDataSet, output is vtkPartitionedDataSet.
  * 3) if input is vtkPartitionedDataSetCollection, output is vtkPartitionedDataSetCollection.
- * 4) if input is vtkUniformGridAMR, output is vtkPartitionedDataSetCollection.
+ * 4) if input is vtkUniformGridAMR, output is vtkMultiBlockDataSet.
  * 5) if input is vtkMultiBlockDataSet, output is vtkMultiBlockDataSet.
  *
  * @warning
- * This filter produces may produce non-merged, potentially coincident points
- * for all input dataset types except 1) vtkImageData (which uses
- * vtkFlyingEdgesPlaneCutter under the hood - which does merge points); and
- * 2) vtkPolyData if all input cells are convex polygons.
+ * Delegations to other filters:
+ * 1) vtkImageData/vtkRectilinearGrid/vtkStructuredGrid delegates vtkStructuredDataPlaneCutter.
+ * 2) vtkPolyData with convex cells delegates to vtkPolyDataPlaneCutter.
+ * 3) vtkUnstructuredGrid with linear cells delegates to vtk3DLinearGridPlaneCutter.
  *
  * @warning
- * This filter delegates to vtkFlyingEdgesPlaneCutter to process image
- * data, but output and input have been standardized when possible.
- *
- * @warning
- * This filter delegates to vtkPolyDataPlaneCutter to process input
- * vtkPolyData if all the input cells are convex polygons.
+ * This filter can optionally produce output, using MergePoints=false, that has duplicate points.
+ * only for vtkUnstructuredGrid, and vtkPolyData that all of its input cells are NOT convex
+ * polygons. For all the other input types, the output has unique points.
  *
  * @warning
  * This class has been threaded with vtkSMPTools. Using TBB or other
@@ -67,8 +52,8 @@
  * VTK_SMP_IMPLEMENTATION_TYPE) may improve performance significantly.
  *
  * @sa
- * vtkFlyingEdgesPlaneCutter vtk3DLinearGridPlaneCutter vtkCutter vtkPlane
- * vtkPolyDataPlaneCutter
+ * vtkFlyingEdgesPlaneCutter vtkStructuredDataPlaneCutter vtkPolyDataPlaneCutter
+ * vtk3DLinearGridPlaneCutter vtkCutter vtkPlane
  */
 
 #ifndef vtkPlaneCutter_h
@@ -79,21 +64,11 @@
 #include "vtkSmartPointer.h"      // For SmartPointer
 #include <map>                    // For std::map
 
-class vtkCellArray;
-class vtkCellData;
-class vtkImageData;
-class vtkMultiBlockDataSet;
-class vtkMultiPieceDataSet;
-class vtkPartitionedDataSet;
-class vtkPartitionedDataSetCollection;
+VTK_ABI_NAMESPACE_BEGIN
+class vtkDataObjectTree;
 class vtkPlane;
-class vtkPointData;
-class vtkPoints;
 class vtkPolyData;
 class vtkSphereTree;
-class vtkStructuredGrid;
-class vtkUniformGridAMR;
-class vtkUnstructuredGrid;
 
 class VTKFILTERSCORE_EXPORT vtkPlaneCutter : public vtkDataObjectAlgorithm
 {
@@ -180,6 +155,30 @@ public:
   vtkBooleanMacro(BuildHierarchy, bool);
   ///@}
 
+  ///@{
+  /**
+   * Indicate whether to merge coincident points. Merging can take extra time
+   * and produces fewer output points, creating a "watertight" output
+   * surface. On the other hand, merging reduced output data size and may be
+   * just as fast. MergingPoints = off is meaningful only for vtkUnstructuredGrid,
+   * and vtkPolyData that all of its input cells are NOT convex polygons. For all the
+   * other input types, the output has unique points. Default is off.
+   */
+  vtkSetMacro(MergePoints, bool);
+  vtkGetMacro(MergePoints, bool);
+  vtkBooleanMacro(MergePoints, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Set/get the desired precision for the output types. See the documentation
+   * for the vtkAlgorithm::DesiredOutputPrecision enum for an explanation of
+   * the available precision settings.
+   */
+  vtkSetClampMacro(OutputPointsPrecision, int, SINGLE_PRECISION, DEFAULT_PRECISION);
+  vtkGetMacro(OutputPointsPrecision, int);
+  ///@}
+
 protected:
   vtkPlaneCutter();
   ~vtkPlaneCutter() override;
@@ -190,15 +189,14 @@ protected:
   bool GeneratePolygons;
   bool BuildTree;
   bool BuildHierarchy;
+  bool MergePoints;
+  int OutputPointsPrecision;
 
-  // Helpers
-  // Support delegation to vtkPolyDataPlaneCutter. Checking convexity can be
-  // time consuming.
+  // Support delegation to vtkPolyDataPlaneCutter/vtk3DLinearGridPlaneCutter.
   bool DataChanged;
-  bool IsPolyDataConvex;
 
-  vtkSphereTree* GetSphereTree(vtkDataSet*);
   std::map<vtkDataSet*, vtkSmartPointer<vtkSphereTree>> SphereTrees;
+  std::map<vtkDataSet*, bool> CanBeFullyProcessed;
   struct vtkInputInfo
   {
     vtkDataObject* Input;
@@ -224,13 +222,8 @@ protected:
   int FillInputPortInformation(int port, vtkInformation* info) override;
   int FillOutputPortInformation(int port, vtkInformation* info) override;
 
-  int ExecuteMultiBlockDataSet(vtkMultiBlockDataSet* input, vtkMultiBlockDataSet* output);
-  int ExecuteUniformGridAMR(vtkUniformGridAMR* input, vtkPartitionedDataSetCollection* output);
-  int ExecutePartitionedDataCollection(
-    vtkPartitionedDataSetCollection* input, vtkPartitionedDataSetCollection* output);
-  int ExecutePartitionedData(
-    vtkPartitionedDataSet* input, vtkPartitionedDataSet* output, bool copyStructure);
-  int ExecuteDataSet(vtkDataSet* input, vtkSphereTree* tree, vtkPolyData* output);
+  int ExecuteDataObjectTree(vtkDataObjectTree* input, vtkDataObjectTree* output);
+  int ExecuteDataSet(vtkDataSet* input, vtkPolyData* output);
 
   static void AddNormalArray(double* planeNormal, vtkPolyData* polyData);
 
@@ -239,4 +232,5 @@ private:
   void operator=(const vtkPlaneCutter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

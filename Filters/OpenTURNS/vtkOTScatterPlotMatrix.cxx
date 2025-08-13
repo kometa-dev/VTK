@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOTScatterPlotMatrix.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOTScatterPlotMatrix.h"
 
@@ -38,6 +26,7 @@
 #include <vector>
 
 // Static density values for now
+VTK_ABI_NAMESPACE_BEGIN
 static const int nDensityValues = 3;
 static const double densityValues[3] = { 0.1, 0.5, 0.9 };
 
@@ -111,8 +100,8 @@ void vtkOTScatterPlotMatrix::AddSupplementaryPlot(
     density->SetValue(0, 0.1);
     density->SetValue(1, 0.5);
     density->SetValue(2, 0.9);
-    density->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_ROWS, row);
-    density->SetInputArrayToProcess(1, 0, 0, vtkDataObject::FIELD_ASSOCIATION_ROWS, column);
+    density->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_ROWS, row.c_str());
+    density->SetInputArrayToProcess(1, 0, 0, vtkDataObject::FIELD_ASSOCIATION_ROWS, column.c_str());
     density->Update();
 
     // Iterate over multiblock output to drow the density maps
@@ -249,3 +238,4 @@ void vtkOTScatterPlotMatrix::SetTransferFunction(vtkScalarsToColors* stc)
     this->Modified();
   }
 }
+VTK_ABI_NAMESPACE_END

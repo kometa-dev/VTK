@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRecursiveSphereDirectionEncoder.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkRecursiveSphereDirectionEncoder
@@ -32,6 +20,7 @@
 #include "vtkDirectionEncoder.h"
 #include "vtkRenderingVolumeModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGVOLUME_EXPORT vtkRecursiveSphereDirectionEncoder : public vtkDirectionEncoder
 {
 public:
@@ -58,7 +47,7 @@ public:
   /**
    * Return the number of encoded directions
    */
-  int GetNumberOfEncodedDirections(void) override;
+  int GetNumberOfEncodedDirections() override;
 
   /**
    * Get the decoded gradient table. There are
@@ -66,7 +55,7 @@ public:
    * containing a normal (direction) vector. This is a flat structure -
    * 3 times the number of directions floats in an array.
    */
-  float* GetDecodedGradientTable(void) override;
+  float* GetDecodedGradientTable() override;
 
   ///@{
   /**
@@ -109,7 +98,7 @@ protected:
   // Method to initialize the index table and variable that
   // stored the recursion depth the last time the table was
   // built
-  void InitializeIndexTable(void);
+  void InitializeIndexTable();
   int IndexTableRecursionDepth;
 
   int OuterSize;
@@ -121,4 +110,5 @@ private:
   void operator=(const vtkRecursiveSphereDirectionEncoder&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

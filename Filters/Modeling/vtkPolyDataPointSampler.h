@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataPointSampler.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyDataPointSampler
  * @brief   generate points from vtkPolyData
@@ -65,7 +53,7 @@
  *
  * @warning
  * When sampling polygons of five sides or more, the polygon is triangulated.
- * This can result in variations in point density near tesselation boudaries.
+ * This can result in variations in point density near tessellation boundaries.
  *
  * @sa
  * vtkTriangleFilter vtkImplicitModeller
@@ -79,6 +67,7 @@
 #include "vtkNew.h"                   // for data members
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSMODELING_EXPORT vtkPolyDataPointSampler : public vtkPolyDataAlgorithm
 {
 public:
@@ -203,4 +192,5 @@ private:
   void operator=(const vtkPolyDataPointSampler&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

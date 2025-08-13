@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridGeometry.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridGeometry.h"
 
 #include "vtkBitArray.h"
@@ -43,6 +31,24 @@
 #include <set>
 #include <vector>
 
+namespace
+{
+
+bool PassCellId(vtkDataArray* cellIds, vtkIdType inId, vtkIdType outId)
+{
+  auto typedCellIds = vtkIdTypeArray::SafeDownCast(cellIds);
+  if (!typedCellIds)
+  {
+    vtkErrorWithObjectMacro(nullptr, "Pass cell ids array has wrong type.");
+    return false;
+  }
+  typedCellIds->InsertValue(outId, inId);
+  return true;
+}
+
+}
+
+VTK_ABI_NAMESPACE_BEGIN
 static constexpr unsigned int VonNeumannCursors3D[] = { 0, 1, 2, 4, 5, 6 };
 static constexpr unsigned int VonNeumannOrientations3D[] = { 2, 1, 0, 0, 1, 2 };
 static constexpr unsigned int VonNeumannOffsets3D[] = { 0, 0, 0, 1, 1, 1 };
@@ -291,6 +297,14 @@ int vtkHyperTreeGridGeometry::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObjec
   this->OutData = output->GetCellData();
   this->OutData->CopyAllocate(this->InData);
 
+  if (this->PassThroughCellIds)
+  {
+    vtkNew<vtkIdTypeArray> originalCellIds;
+    originalCellIds->SetName(this->OriginalCellIdArrayName.c_str());
+    originalCellIds->SetNumberOfComponents(1);
+    this->OutData->AddArray(originalCellIds);
+  }
+
   // Retrieve material mask
   this->Mask = input->HasMask() ? input->GetMask() : nullptr;
 
@@ -350,6 +364,10 @@ int vtkHyperTreeGridGeometry::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObjec
     vtkNew<vtkHyperTreeGridNonOrientedVonNeumannSuperCursor> cursor;
     while (it.GetNextTree(index))
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       // Initialize new cursor at root of current tree
       // In 3 dimensions, von Neumann neighborhood information is needed
       input->InitializeNonOrientedVonNeumannSuperCursor(cursor, index);
@@ -362,6 +380,10 @@ int vtkHyperTreeGridGeometry::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObjec
     vtkNew<vtkHyperTreeGridNonOrientedGeometryCursor> cursor;
     while (it.GetNextTree(index))
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       // Initialize new cursor at root of current tree
       // Otherwise, geometric properties of the cells suffice
       input->InitializeNonOrientedGeometryCursor(cursor, index);
@@ -437,6 +459,10 @@ void vtkHyperTreeGridGeometry::RecursivelyProcessTreeNot3D(
   unsigned int numChildren = cursor->GetNumberOfChildren();
   for (unsigned int ichild = 0; ichild < numChildren; ++ichild)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     cursor->ToChild(ichild);
     // Recurse
     this->RecursivelyProcessTreeNot3D(cursor);
@@ -482,6 +508,10 @@ void vtkHyperTreeGridGeometry::ProcessLeaf1D(vtkHyperTreeGridNonOrientedGeometry
 
   // Copy edge data from that of the cell from which it comes
   this->OutData->CopyData(this->InData, inId, outId);
+  if (this->PassThroughCellIds)
+  {
+    ::PassCellId(this->OutData->GetArray(this->OriginalCellIdArrayName.c_str()), inId, outId);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -583,6 +613,10 @@ void vtkHyperTreeGridGeometry::RecursivelyProcessTree3D(
     }   // f
     for (std::set<int>::iterator it = childList.begin(); it != childList.end(); ++it)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       cursor->ToChild(*it);
       this->RecursivelyProcessTree3D(cursor, workFaces[*it]);
       cursor->ToParent();
@@ -593,6 +627,10 @@ void vtkHyperTreeGridGeometry::RecursivelyProcessTree3D(
   unsigned int numChildren = cursor->GetNumberOfChildren();
   for (unsigned int ichild = 0; ichild < numChildren; ++ichild)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     cursor->ToChild(ichild);
     this->RecursivelyProcessTree3D(cursor, FULL_WORK_FACES);
     cursor->ToParent();
@@ -776,6 +814,10 @@ void vtkHyperTreeGridGeometry::ProcessLeaf3D(
 
       // Copy face data from that of the cell from which it comes
       this->OutData->CopyData(this->InData, inId, outId);
+      if (this->PassThroughCellIds)
+      {
+        ::PassCellId(this->OutData->GetArray(this->OriginalCellIdArrayName.c_str()), inId, outId);
+      }
     } // if ( nA > 0 )
 
     // Create face B when its vertices are present
@@ -819,6 +861,10 @@ void vtkHyperTreeGridGeometry::ProcessLeaf3D(
 
       // Copy face data from that of the cell from which it comes
       this->OutData->CopyData(this->InData, inId, outId);
+      if (this->PassThroughCellIds)
+      {
+        ::PassCellId(this->OutData->GetArray(this->OriginalCellIdArrayName.c_str()), inId, outId);
+      }
     } // if ( nB > 0 )
   }   // if ( this->HasInterface )
 }
@@ -921,6 +967,10 @@ void vtkHyperTreeGridGeometry::AddFace(vtkIdType useId, const double* origin, co
 
   // Copy face data from that of the cell from which it comes
   this->OutData->CopyData(this->InData, useId, outId);
+  if (this->PassThroughCellIds)
+  {
+    ::PassCellId(this->OutData->GetArray(this->OriginalCellIdArrayName.c_str()), useId, outId);
+  }
 }
 //------------------------------------------------------------------------------
 void vtkHyperTreeGridGeometry::AddFace2(vtkIdType inId, vtkIdType useId, const double* origin,
@@ -1033,7 +1083,7 @@ void vtkHyperTreeGridGeometry::AddFace2(vtkIdType inId, vtkIdType useId, const d
             else
             {
               pair[0] = i;
-            };
+            }
             ++indPair;
           } // if ( A * B < 0 )
         }   // p
@@ -1095,7 +1145,7 @@ void vtkHyperTreeGridGeometry::AddFace2(vtkIdType inId, vtkIdType useId, const d
             else
             {
               pairA[0] = i;
-            };
+            }
             ++indPairA;
           } // if ( A1 < 0. && A1 * B1 < 0. )
           if (A2 * B2 < 0.)
@@ -1121,7 +1171,7 @@ void vtkHyperTreeGridGeometry::AddFace2(vtkIdType inId, vtkIdType useId, const d
             else
             {
               pairB[0] = i;
-            };
+            }
             ++indPairB;
           } // if ( A2 * B2 < 0. )
           if (A1 > 0. && A1 * B1 < 0.)
@@ -1147,7 +1197,7 @@ void vtkHyperTreeGridGeometry::AddFace2(vtkIdType inId, vtkIdType useId, const d
             else
             {
               pairA[0] = i;
-            };
+            }
             ++indPairA;
           } // if ( A1 > 0. && A1 * B1 < 0. )
         }   // p
@@ -1206,7 +1256,7 @@ void vtkHyperTreeGridGeometry::AddFace2(vtkIdType inId, vtkIdType useId, const d
             else
             {
               pair[0] = i;
-            };
+            }
             ++indPair;
           } // if ( A * B < 0. )
         }   // p
@@ -1252,5 +1302,10 @@ void vtkHyperTreeGridGeometry::AddFace2(vtkIdType inId, vtkIdType useId, const d
 
     // Copy face data from that of the cell from which it comes
     this->OutData->CopyData(this->InData, useId, outId);
+    if (this->PassThroughCellIds)
+    {
+      ::PassCellId(this->OutData->GetArray(this->OriginalCellIdArrayName.c_str()), inId, outId);
+    }
   } // if ( create )
 }
+VTK_ABI_NAMESPACE_END

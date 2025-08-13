@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkVRRenderer.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVRRenderer
  * @brief   VR renderer
@@ -29,6 +17,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkOpenGLRenderer.h"
 #include "vtkRenderingVRModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 
 class VTKRENDERINGVR_EXPORT vtkVRRenderer : public vtkOpenGLRenderer
@@ -52,13 +41,13 @@ public:
 
   using vtkRenderer::ResetCameraClippingRange;
 
-  //@{
+  ///@{
   /**
    * Reset the camera clipping range based on a bounding box.
    */
   void ResetCameraClippingRange() override;
   void ResetCameraClippingRange(const double bounds[6]) override;
-  //@}
+  ///@}
 
   /**
    * Abstract function that creates a new Camera suitable for use with this type of Renderer.
@@ -75,12 +64,13 @@ public:
    */
   void DeviceRender() override;
 
+  ///@{
   /**
    * Show the floor of the VR world
    */
   virtual void SetShowFloor(bool);
   virtual bool GetShowFloor() { return this->ShowFloor; }
-  //@}
+  ///@}
 
 protected:
   vtkVRRenderer();
@@ -94,4 +84,5 @@ private:
   void operator=(const vtkVRRenderer&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEqualizerFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkEqualizerFilter_h
 #define vtkEqualizerFilter_h
 
@@ -28,6 +16,7 @@
  * depending on the frequency characteristics.
  */
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSGENERAL_EXPORT vtkEqualizerFilter : public vtkTableAlgorithm
 {
 public:
@@ -35,16 +24,16 @@ public:
   vtkTypeMacro(vtkEqualizerFilter, vtkTableAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set / Get the sampling frequency of the original signal in Hz
    * Default value is: 1000
    */
   vtkSetMacro(SamplingFrequency, int);
   vtkGetMacro(SamplingFrequency, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set / Get a flag to process all columns of the table.
    * If set to true, all columns of the table will be used. The "SetArray()" method will have no
@@ -53,15 +42,15 @@ public:
    */
   vtkSetMacro(AllColumns, bool);
   vtkGetMacro(AllColumns, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set / Get the name of the column from which the data array is taken
    */
   vtkSetStdStringFromCharMacro(Array);
   vtkGetCharFromStdStringMacro(Array);
-  //@}
+  ///@}
 
   /**
    * Set / Get anchor points in the following format
@@ -71,14 +60,14 @@ public:
   void SetPoints(const std::string& points);
   std::string GetPoints() const;
 
-  //@{
+  ///@{
   /**
    * Set / Get the spectrum gain in dB
    * Default value is: 0
    */
   vtkSetMacro(SpectrumGain, int);
   vtkGetMacro(SpectrumGain, int);
-  //@}
+  ///@}
 
 protected:
   vtkEqualizerFilter();
@@ -90,7 +79,6 @@ private:
   void ProcessColumn(
     vtkDataArray* array, vtkTable* spectrumTable, vtkTable* resultTable, vtkTable* normalizedTable);
 
-private:
   vtkEqualizerFilter(const vtkEqualizerFilter&) = delete;
   void operator=(const vtkEqualizerFilter&) = delete;
 
@@ -103,4 +91,5 @@ private:
   vtkInternal* Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

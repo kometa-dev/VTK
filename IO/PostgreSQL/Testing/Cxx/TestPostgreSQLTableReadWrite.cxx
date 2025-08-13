@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestPostgreSQLTableReadWrite.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME Test of vtkTableToPostgreSQLWriter and vtkPostgreSQLToTableReader
 // .SECTION Description
 //
@@ -45,7 +33,7 @@ int TestPostgreSQLTableReadWrite(int argc, char* argv[])
 
   vtkPostgreSQLDatabase* db =
     vtkPostgreSQLDatabase::SafeDownCast(vtkSQLDatabase::CreateFromURL(VTK_PSQL_TEST_URL));
-  vtkStdString realDatabase = db->GetDatabaseName();
+  std::string realDatabase = db->GetDatabaseName();
   db->SetDatabaseName("template1"); // This is guaranteed to exist
   bool status = db->Open();
   if (!status)
@@ -109,7 +97,7 @@ int TestPostgreSQLTableReadWrite(int argc, char* argv[])
 
   if (!db->DropDatabase(realDatabase.c_str()))
   {
-    cout << "Drop of \"" << realDatabase.c_str() << "\" failed.\n";
+    cout << "Drop of \"" << realDatabase << "\" failed.\n";
     cerr << "\"" << db->GetLastErrorText() << "\"" << endl;
   }
 

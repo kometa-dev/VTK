@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiBlockVolumeMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * \class vtkMultiBlockVolumeMapper
  * \brief Mapper to render volumes defined as vtkMultiBlockDataSet.
@@ -41,6 +29,7 @@
 #include "vtkRenderingVolumeOpenGL2Module.h" // For export macro
 #include "vtkVolumeMapper.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataObjectTree;
 class vtkDataSet;
 class vtkImageData;
@@ -154,12 +143,12 @@ public:
   void SetRequestedRenderMode(int);
   ///@}
 
-  //@{
+  ///@{
   /**
    * \sa vtkSmartVolumeMapper::SetTransfer2DYAxisArray
    */
   void SetTransfer2DYAxisArray(const char* a);
-  //@}
+  ///@}
 
 protected:
   vtkMultiBlockVolumeMapper();
@@ -244,4 +233,5 @@ private:
 
   char* Transfer2DYAxisArray;
 };
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkPNetCDFPOPReader.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPNetCDFPOPReader.h"
 #include "vtkCallbackCommand.h"
@@ -38,10 +26,12 @@ PURPOSE.  See the above copyright notice for more information.
 #error MPI_Comm is #define'd somewhere!  That's BAD!  (Try checking netcdf.h.)
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPNetCDFPOPReader);
 
 //============================================================================
-#define CALL_NETCDF(call)                                                                          \
+#define CALL_NETCDF_INT(call)                                                                      \
+  do                                                                                               \
   {                                                                                                \
     int errorcode = call;                                                                          \
     if (errorcode != NC_NOERR)                                                                     \
@@ -49,7 +39,7 @@ vtkStandardNewMacro(vtkPNetCDFPOPReader);
       vtkErrorMacro(<< "netCDF Error: " << nc_strerror(errorcode));                                \
       return 0;                                                                                    \
     }                                                                                              \
-  }
+  } while (false)
 //============================================================================
 
 class vtkPNetCDFPOPReaderInternal
@@ -76,8 +66,8 @@ public:
   // efficient to do an Allgather than to a bunch of individual Gathers.)
   int* AllExtents;
 
-  // MPI_Request identifiers for all the MPI_Isend() calls.
-  std::vector<MPI_Request> SendReqs;
+  // Request identifiers for all the send() calls.
+  std::vector<vtkMPICommunicator::Request> SendReqs;
 
   //////////////////////
 
@@ -202,19 +192,19 @@ int vtkPNetCDFPOPReader::RequestInformation(vtkInformation* vtkNotUsed(request),
     {
       this->Internals->VariableMap[i] = -1;
       // get number of dimensions
-      CALL_NETCDF(nc_inq_varndims(this->NCDFFD, i, &dataDimension));
+      CALL_NETCDF_INT(nc_inq_varndims(this->NCDFFD, i, &dataDimension));
       // Variable Dimension ID's containing x,y,z coords for the rectilinear
       // grid spacing
-      CALL_NETCDF(nc_inq_vardimid(this->NCDFFD, i, dimidsp));
+      CALL_NETCDF_INT(nc_inq_vardimid(this->NCDFFD, i, dimidsp));
       if (dataDimension == 3)
       {
         this->Internals->VariableMap[i] = actualVariableCounter++;
         // get variable name
-        CALL_NETCDF(nc_inq_varname(this->NCDFFD, i, variableName));
+        CALL_NETCDF_INT(nc_inq_varname(this->NCDFFD, i, variableName));
         this->Internals->VariableArraySelection->AddArray(variableName);
         for (int m = 0; m < dataDimension; m++)
         {
-          CALL_NETCDF(nc_inq_dimlen(this->NCDFFD, dimidsp[m], dimensions + m));
+          CALL_NETCDF_INT(nc_inq_dimlen(this->NCDFFD, dimidsp[m], dimensions + m));
           // acquire variable dimensions
         }
         extent[0] = extent[2] = extent[4] = 0; // set extent
@@ -243,7 +233,7 @@ int vtkPNetCDFPOPReader::RequestInformation(vtkInformation* vtkNotUsed(request),
     int numVariables = static_cast<int>(this->Internals->VariableMap.size());
     this->Controller->Broadcast(&numVariables, 1, this->Internals->ReaderRanks[0]);
     this->Controller->Broadcast(
-      &this->Internals->VariableMap[0], numVariables, this->Internals->ReaderRanks[0]);
+      this->Internals->VariableMap.data(), numVariables, this->Internals->ReaderRanks[0]);
 
     // send out the extents data
     this->Controller->Broadcast(extent, 6, this->Internals->ReaderRanks[0]);
@@ -265,7 +255,7 @@ int vtkPNetCDFPOPReader::RequestInformation(vtkInformation* vtkNotUsed(request),
     this->Controller->Broadcast(&numVariables, 1, this->Internals->ReaderRanks[0]);
     this->Internals->VariableMap.resize(numVariables, 0);
     this->Controller->Broadcast(
-      &this->Internals->VariableMap[0], numVariables, this->Internals->ReaderRanks[0]);
+      this->Internals->VariableMap.data(), numVariables, this->Internals->ReaderRanks[0]);
     // Receive the extents data
     this->Controller->Broadcast(extent, 6, this->Internals->ReaderRanks[0]);
   }
@@ -358,14 +348,15 @@ int vtkPNetCDFPOPReader::RequestData(vtkInformation* request,
         {
           int dimidsp[3];
           nc_inq_vardimid(this->NCDFFD, varidp, dimidsp);
-          nc_get_vars_float(this->NCDFFD, dimidsp[0], wholeStart, wholeCount, rStride, &buffer[0]);
+          nc_get_vars_float(
+            this->NCDFFD, dimidsp[0], wholeStart, wholeCount, rStride, buffer.data());
           nc_get_vars_float(this->NCDFFD, dimidsp[1], wholeStart + 1, wholeCount + 1, rStride + 1,
             &buffer[wholeCount[0]]);
           nc_get_vars_float(this->NCDFFD, dimidsp[2], wholeStart + 2, wholeCount + 2, rStride + 2,
             &buffer[wholeCount[0] + wholeCount[1]]);
         }
 
-        this->Controller->Broadcast(&buffer[0],
+        this->Controller->Broadcast(buffer.data(),
           static_cast<vtkIdType>(wholeCount[0] + wholeCount[1] + wholeCount[2]),
           this->Internals->ReaderRanks[0]);
 
@@ -409,28 +400,23 @@ int vtkPNetCDFPOPReader::RequestData(vtkInformation* request,
       this->Controller->AllGather(subext, this->Internals->AllExtents, 6);
 
       // First, post all the receive requests
-      std::vector<MPI_Request> recvReqs; // should be 1 recv for each depth
-
       // Number of values stored for each depth
       // unsigned long oneDepthSize = (subext[3]-subext[2]+1) * (subext[5]-subext[4]+1);
-      unsigned long oneDepthSize = static_cast<unsigned long>(
+      vtkTypeInt64 oneDepthSize = static_cast<vtkTypeInt64>(
         count[1] * count[2]); // should be the same value as the line above...
 
-      for (int curDepth = subext[4]; curDepth <= subext[5]; curDepth++)
+      std::vector<vtkMPICommunicator::Request> recvReqs; // should be 1 recv for each depth
+
+      for (int curDepth = subext[4], ii = 0; curDepth <= subext[5]; ++curDepth, ++ii)
       {
         float* depthStart =
           data + ((curDepth - subext[4]) * oneDepthSize); // Where this data should start
         int sourceRank = ReaderForDepth(curDepth);
         //      cerr << "Rank " << mpiRank << ": Expecting depth " << curDepth << " from rank " <<
         //      sourceRank << endl;
-        // We could probably use vtkMPIController::NoBlockReceive(), but but I'm not sure
-        // how it will behave since we're calling MPI_Isend() directly.  So, I'm going
-        // to call MPI_Irecv directly, too...
 
-        MPI_Comm* comm =
-          ((vtkMPICommunicator*)this->Controller->GetCommunicator())->GetMPIComm()->GetHandle();
-        MPI_Request recvReq;
-        MPI_Irecv(depthStart, oneDepthSize, MPI_FLOAT, sourceRank, curDepth, *comm, &recvReq);
+        vtkMPICommunicator::Request recvReq;
+        this->Controller->NoBlockReceive(depthStart, oneDepthSize, sourceRank, curDepth, recvReq);
         recvReqs.push_back(recvReq);
       }
 
@@ -445,8 +431,8 @@ int vtkPNetCDFPOPReader::RequestData(vtkInformation* request,
       // Wait for all the sends to complete
       if (!this->Internals->SendReqs.empty())
       {
-        MPI_Waitall(static_cast<int>(this->Internals->SendReqs.size()),
-          &this->Internals->SendReqs[0], MPI_STATUSES_IGNORE);
+        this->Controller->WaitAll(
+          static_cast<int>(this->Internals->SendReqs.size()), this->Internals->SendReqs.data());
 
         // Now that all the sends are complete, it's safe to free the buffers
         for (size_t j = 0; j < this->Internals->SendBufs.size(); j++)
@@ -457,7 +443,7 @@ int vtkPNetCDFPOPReader::RequestData(vtkInformation* request,
         this->Internals->SendReqs.clear();
       }
 
-      MPI_Waitall(static_cast<int>(recvReqs.size()), &recvReqs[0], MPI_STATUSES_IGNORE);
+      this->Controller->WaitAll(static_cast<int>(recvReqs.size()), recvReqs.data());
       recvReqs.clear();
 
       scalars->SetArray(data, numberOfTuples, 0, 1);
@@ -569,7 +555,7 @@ int vtkPNetCDFPOPReader::ReadAndSend(vtkInformation* outInfo, int varID)
       int ncErr = nc_get_vars_float(this->NCDFFD, varID, start, count, rStride, buffer);
       if (ncErr != NC_NOERR)
       {
-        cerr << "!!!nc_get_vars_float() returned error code " << ncErr << endl;
+        std::cerr << "!!!nc_get_vars_float() returned error code " << ncErr << endl;
       }
 
       // Create sub arrays and send to all processes
@@ -594,18 +580,16 @@ int vtkPNetCDFPOPReader::ReadAndSend(vtkInformation* outInfo, int varID)
             (destExtent[5] - destExtent[4] + 1) };
           int subarray_starts[2] = { destExtent[2], destExtent[4] };
           MPI_Datatype subArrayType;
-          MPI_Request sendReq;
+          vtkMPICommunicator::Request sendReq;
           MPI_Type_create_subarray(2, subarray_sizes, subarray_subsizes, subarray_starts,
             MPI_ORDER_C, MPI_FLOAT, &subArrayType);
           MPI_Type_commit(&subArrayType);
           // cerr << "Rank " << mpiRank << ": Sending depth " << curDepth << " to rank " << destRank
           // << endl;
 
-          // vtkMPICommunicator can't handle arbitrary types, so we'll have to do it ourselves
-          MPI_Comm* comm =
-            ((vtkMPICommunicator*)this->Controller->GetCommunicator())->GetMPIComm()->GetHandle();
-          MPI_Isend(buffer, 1, subArrayType, destRank, curDepth, *comm,
-            &sendReq); // using the depth value as the tag
+          // using the depth value as the tag
+          this->Controller->NoBlockSend(
+            buffer, (vtkTypeInt64)1, subArrayType, destRank, curDepth, sendReq);
           this->Internals->SendReqs.push_back(sendReq);
           MPI_Type_free(&subArrayType);
         }
@@ -617,14 +601,14 @@ int vtkPNetCDFPOPReader::ReadAndSend(vtkInformation* outInfo, int varID)
       {
         int foundOne = 1;
         int reqIndex = 0;
-        MPI_Status status; // we never actually use this, but MPI_Testany() requires it
 
-        // MPI_Testany() will deallocate the request, so we don't need to do anything
-        // except call it in a loop.
+        // Not sure this is doing what's intended - loops when it finds one?
+        // Should this be a WaitAny instead?
         do
         {
-          MPI_Testany(static_cast<int>(this->Internals->SendReqs.size()),
-            &this->Internals->SendReqs[0], &reqIndex, &foundOne, &status);
+          ((vtkMPICommunicator*)this->Controller->GetCommunicator())
+            ->TestAny(static_cast<int>(this->Internals->SendReqs.size()),
+              this->Internals->SendReqs.data(), reqIndex, foundOne);
         } while (foundOne && reqIndex != MPI_UNDEFINED);
       }
     }
@@ -744,3 +728,4 @@ void vtkPNetCDFPOPReader::SetController(vtkMPIController* controller)
     this->SetReaderRanks(nullptr);
   }
 }
+VTK_ABI_NAMESPACE_END

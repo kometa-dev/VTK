@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDataWriter.h"
 
@@ -70,6 +58,7 @@
 #include <cstdio>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDataWriter);
 
 //------------------------------------------------------------------------------
@@ -1339,14 +1328,14 @@ int vtkDataWriter::WriteArray(ostream* fp, int dataType, vtkAbstractArray* data,
         std::vector<vtkIdType> vals(numComp);
         for (vtkIdType jj = 0; jj < size; jj++)
         {
-          data2->GetTypedTuple(jj, &vals[0]);
+          data2->GetTypedTuple(jj, vals.data());
           for (i = 0; i < numComp; i++)
           {
             intArray[jj * numComp + i] = vals[i];
           }
         }
       }
-      vtkWriteDataArray(fp, &intArray[0], this->FileType, "%d ", num, numComp);
+      vtkWriteDataArray(fp, intArray.data(), this->FileType, "%d ", num, numComp);
     }
     break;
 
@@ -1356,7 +1345,7 @@ int vtkDataWriter::WriteArray(ostream* fp, int dataType, vtkAbstractArray* data,
       *fp << str;
       if (this->FileType == VTK_ASCII)
       {
-        vtkStdString s;
+        std::string s;
         for (j = 0; j < num; j++)
         {
           for (i = 0; i < numComp; i++)
@@ -1370,7 +1359,7 @@ int vtkDataWriter::WriteArray(ostream* fp, int dataType, vtkAbstractArray* data,
       }
       else
       {
-        vtkStdString s;
+        std::string s;
         for (j = 0; j < num; j++)
         {
           for (i = 0; i < numComp; i++)
@@ -2462,3 +2451,4 @@ int vtkDataWriter::WriteDataSetData(ostream* fp, vtkDataSet* ds)
   }
   return 1;
 }
+VTK_ABI_NAMESPACE_END

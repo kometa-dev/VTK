@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCPExodusInSituReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCPExodusIIInSituReader.h"
 
@@ -30,6 +18,7 @@
 
 #include "vtk_exodusII.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCPExodusIIInSituReader);
 
 //------------------------------------------------------------------------------
@@ -176,6 +165,7 @@ bool vtkCPExodusIIInSituReader::ExGetMetaData()
   int numElem, numNodeSets, numSideSets;
   std::string title(MAX_LINE_LENGTH + 1, '\0');
 
+  // NOLINTNEXTLINE(readability-container-data-pointer): needs C++17
   int error = ex_get_init(this->FileId, &title[0], &this->NumberOfDimensions, &this->NumberOfNodes,
     &numElem, &NumberOfElementBlocks, &numNodeSets, &numSideSets);
 
@@ -205,6 +195,7 @@ bool vtkCPExodusIIInSituReader::ExGetMetaData()
 
   for (int i = 0; i < numNodalVars; ++i)
   {
+    // NOLINTNEXTLINE(readability-container-data-pointer): needs C++17
     error = ex_get_var_name(this->FileId, "n", i + 1, &(this->NodalVariableNames[i][0]));
     if (error < 0)
     {
@@ -232,7 +223,8 @@ bool vtkCPExodusIIInSituReader::ExGetMetaData()
 
   for (int i = 0; i < numElemVars; ++i)
   {
-    error = ex_get_var_name(this->FileId, "e", i + 1, &(this->ElementVariableNames[i][0]));
+    // NOLINTNEXTLINE(readability-container-data-pointer): needs C++17
+    error = ex_get_var_name(this->FileId, "e", i + 1, &this->ElementVariableNames[i][0]);
     if (error < 0)
     {
       vtkErrorMacro("Error retrieving element variable name at index" << i);
@@ -245,7 +237,7 @@ bool vtkCPExodusIIInSituReader::ExGetMetaData()
   // Element block ids:
   this->ElementBlockIds.resize(this->NumberOfElementBlocks);
 
-  error = ex_get_elem_blk_ids(this->FileId, &(this->ElementBlockIds[0]));
+  error = ex_get_elem_blk_ids(this->FileId, (this->ElementBlockIds.data()));
 
   if (error < 0)
   {
@@ -269,7 +261,7 @@ bool vtkCPExodusIIInSituReader::ExGetMetaData()
 
   if (numTimeSteps > 0)
   {
-    error = ex_get_all_times(this->FileId, &(this->TimeSteps[0]));
+    error = ex_get_all_times(this->FileId, this->TimeSteps.data());
 
     if (error < 0)
     {
@@ -349,7 +341,8 @@ bool vtkCPExodusIIInSituReader::ExGetElemBlocks()
     int nodesPerElem;
     int numAttributes;
 
-    int error = ex_get_elem_block(this->FileId, this->ElementBlockIds[blockInd], &(elemType[0]),
+    // NOLINTNEXTLINE(readability-container-data-pointer): needs C++17
+    int error = ex_get_elem_block(this->FileId, this->ElementBlockIds[blockInd], &elemType[0],
       &numElem, &nodesPerElem, &numAttributes);
 
     // Trim excess null chars from the type string:
@@ -418,3 +411,4 @@ void vtkCPExodusIIInSituReader::ExClose()
   ex_close(this->FileId);
   this->FileId = -1;
 }
+VTK_ABI_NAMESPACE_END

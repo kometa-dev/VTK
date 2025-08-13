@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageRange3D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageRange3D.h"
 
 #include "vtkImageData.h"
@@ -21,6 +9,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageRange3D);
 
 //------------------------------------------------------------------------------
@@ -56,7 +45,7 @@ void vtkImageRange3D::PrintSelf(ostream& os, vtkIndent indent)
 
 //------------------------------------------------------------------------------
 // This method sets the size of the neighborhood.  It also sets the
-// default middle of the neighborhood and computes the eliptical foot print.
+// default middle of the neighborhood and computes the elliptical foot print.
 void vtkImageRange3D::SetKernelSize(int size0, int size1, int size2)
 {
   int modified = 0;
@@ -85,11 +74,10 @@ void vtkImageRange3D::SetKernelSize(int size0, int size1, int size2)
     this->Modified();
     this->Ellipse->SetWholeExtent(
       0, this->KernelSize[0] - 1, 0, this->KernelSize[1] - 1, 0, this->KernelSize[2] - 1);
-    this->Ellipse->SetCenter(static_cast<float>(this->KernelSize[0] - 1) * 0.5,
-      static_cast<float>(this->KernelSize[1] - 1) * 0.5,
-      static_cast<float>(this->KernelSize[2] - 1) * 0.5);
-    this->Ellipse->SetRadius(static_cast<float>(this->KernelSize[0]) * 0.5,
-      static_cast<float>(this->KernelSize[1]) * 0.5, static_cast<float>(this->KernelSize[2]) * 0.5);
+    this->Ellipse->SetCenter((this->KernelSize[0] - 1) * 0.5, (this->KernelSize[1] - 1) * 0.5,
+      (this->KernelSize[2] - 1) * 0.5);
+    this->Ellipse->SetRadius(
+      this->KernelSize[0] * 0.5, this->KernelSize[1] * 0.5, this->KernelSize[2] * 0.5);
     // make sure scalars have been allocated (needed if multithreaded is used)
     vtkInformation* ellipseOutInfo = this->Ellipse->GetExecutive()->GetOutputInformation(0);
     ellipseOutInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), 0,
@@ -317,3 +305,4 @@ int vtkImageRange3D::RequestData(
   this->Ellipse->Update();
   return this->Superclass::RequestData(request, inputVector, outputVector);
 }
+VTK_ABI_NAMESPACE_END

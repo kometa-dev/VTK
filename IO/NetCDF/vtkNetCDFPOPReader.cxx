@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkNetCDFPOPReader.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkNetCDFPOPReader.h"
 #include "vtkCallbackCommand.h"
@@ -29,10 +17,12 @@ PURPOSE.  See the above copyright notice for more information.
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkNetCDFPOPReader);
 
 //============================================================================
-#define CALL_NETCDF(call)                                                                          \
+#define CALL_NETCDF_INT(call)                                                                      \
+  do                                                                                               \
   {                                                                                                \
     int errorcode = call;                                                                          \
     if (errorcode != NC_NOERR)                                                                     \
@@ -40,7 +30,7 @@ vtkStandardNewMacro(vtkNetCDFPOPReader);
       vtkErrorMacro(<< "netCDF Error: " << nc_strerror(errorcode));                                \
       return 0;                                                                                    \
     }                                                                                              \
-  }
+  } while (false)
 //============================================================================
 
 class vtkNetCDFPOPReaderInternal
@@ -155,19 +145,19 @@ int vtkNetCDFPOPReader::RequestInformation(vtkInformation* vtkNotUsed(request),
   {
     this->Internals->VariableMap[i] = -1;
     // get number of dimensions
-    CALL_NETCDF(nc_inq_varndims(this->NCDFFD, i, &dataDimension));
+    CALL_NETCDF_INT(nc_inq_varndims(this->NCDFFD, i, &dataDimension));
     // Variable Dimension ID's containing x,y,z coords for the rectilinear
     // grid spacing
-    CALL_NETCDF(nc_inq_vardimid(this->NCDFFD, i, dimidsp));
+    CALL_NETCDF_INT(nc_inq_vardimid(this->NCDFFD, i, dimidsp));
     if (dataDimension == 3)
     {
       this->Internals->VariableMap[i] = actualVariableCounter++;
       // get variable name
-      CALL_NETCDF(nc_inq_varname(this->NCDFFD, i, variableName));
+      CALL_NETCDF_INT(nc_inq_varname(this->NCDFFD, i, variableName));
       this->Internals->VariableArraySelection->AddArray(variableName);
       for (int m = 0; m < dataDimension; m++)
       {
-        CALL_NETCDF(nc_inq_dimlen(this->NCDFFD, dimidsp[m], dimensions + m));
+        CALL_NETCDF_INT(nc_inq_dimlen(this->NCDFFD, dimidsp[m], dimensions + m));
         // acquire variable dimensions
       }
       extent[0] = extent[2] = extent[4] = 0; // set extent
@@ -357,3 +347,4 @@ void vtkNetCDFPOPReader::SetVariableArrayStatus(const char* name, int status)
     this->Modified();
   }
 }
+VTK_ABI_NAMESPACE_END

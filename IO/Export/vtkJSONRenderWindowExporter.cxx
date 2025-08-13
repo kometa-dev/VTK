@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVtkJSViewNodeFactory.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkJSONRenderWindowExporter.h"
 
 #include <vtkDataObject.h>
@@ -28,11 +16,12 @@
 #include <memory>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // When exporting a VTK render window, we must also write the datasets
 // associated with the render window into the same archive. To do this, we
-// construct an intermediate archiver that neither opens nore closes the
+// construct an intermediate archiver that neither opens nor closes the
 // archive and simply pipes its contents into a subdirectory of a parent
 // archive.
 class vtkJSONDataSetArchiver : public vtkArchiver
@@ -202,3 +191,4 @@ void vtkJSONRenderWindowExporter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

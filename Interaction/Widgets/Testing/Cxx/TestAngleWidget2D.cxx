@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestAngleWidget2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 //
 // This example tests the vtkAngleWidget.
 
@@ -23,6 +11,7 @@
 #include "vtkCommand.h"
 #include "vtkCoordinate.h"
 #include "vtkHandleWidget.h"
+#include "vtkLeaderActor2D.h"
 #include "vtkMath.h"
 #include "vtkPointHandleRepresentation2D.h"
 #include "vtkPolyDataMapper.h"
@@ -33,6 +22,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkSphereSource.h"
 #include "vtkTesting.h"
+#include "vtkTextProperty.h"
 
 namespace
 {
@@ -419,6 +409,11 @@ int TestAngleWidget2D(int argc, char* argv[])
   handle->GetProperty()->SetColor(1, 0, 0);
   vtkSmartPointer<vtkAngleRepresentation2D> rep = vtkSmartPointer<vtkAngleRepresentation2D>::New();
   rep->SetHandleRepresentation(handle);
+  rep->SetScale(vtkMath::Pi() / 180.0);
+  rep->SetLabelFormat("%-#6.3g rad");
+  rep->GetArc()->SetLabelFactor(2.0);
+  rep->GetArc()->GetProperty()->SetColor(1, 0, 0);
+  rep->GetArc()->GetLabelTextProperty()->SetColor(1, 0, 0);
 
   vtkSmartPointer<vtkAngleWidget> widget = vtkSmartPointer<vtkAngleWidget>::New();
   widget->SetInteractor(iren);

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestProgrammableSource.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <vtkMolecule.h>
 #include <vtkNew.h>
@@ -44,6 +32,7 @@ EXECUTE_METHOD(Molecule);
 EXECUTE_METHOD(Table);
 
 #define TEST_PROGRAMMABLE_SOURCE(_type)                                                            \
+  do                                                                                               \
   {                                                                                                \
     vtkNew<vtkProgrammableSource> ps;                                                              \
     ps->SetExecuteMethod(&_type##ExecuteMethod, ps.Get());                                         \
@@ -54,7 +43,7 @@ EXECUTE_METHOD(Table);
       std::cerr << "Source output type is not of type " #_type "!" << std::endl;                   \
       return EXIT_FAILURE;                                                                         \
     }                                                                                              \
-  }
+  } while (false)
 
 int TestProgrammableSource(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
 {

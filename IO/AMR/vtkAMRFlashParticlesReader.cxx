@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRFlashParticlesReader.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRFlashParticlesReader.h"
 #include "vtkCellArray.h"
 #include "vtkDataArraySelection.h"
@@ -35,6 +23,7 @@
 // Helper function that reads the particle coordinates
 // NOTE: it is assumed that H5DOpen has been called on the
 // internal file index this->FileIndex.
+VTK_ABI_NAMESPACE_BEGIN
 static void GetParticleCoordinates(hid_t& dataIdx, std::vector<double>& xcoords,
   std::vector<double>& ycoords, std::vector<double>& zcoords, vtkFlashReaderInternal* iReader,
   int NumParticles)
@@ -64,37 +53,37 @@ static void GetParticleCoordinates(hid_t& dataIdx, std::vector<double>& xcoords,
     case 1:
       if (iReader->FileFormatVersion < FLASH_READER_FLASH3_FFV8)
       {
-        H5Dread(dataIdx, theTypes[0], H5S_ALL, H5S_ALL, H5P_DEFAULT, &xcoords[0]);
+        H5Dread(dataIdx, theTypes[0], H5S_ALL, H5S_ALL, H5P_DEFAULT, xcoords.data());
       }
       else
       {
-        iReader->ReadParticlesComponent(dataIdx, "Particles/posx", &xcoords[0]);
+        iReader->ReadParticlesComponent(dataIdx, "Particles/posx", xcoords.data());
       }
       break;
     case 2:
       if (iReader->FileFormatVersion < FLASH_READER_FLASH3_FFV8)
       {
-        H5Dread(dataIdx, theTypes[0], H5S_ALL, H5S_ALL, H5P_DEFAULT, &xcoords[0]);
-        H5Dread(dataIdx, theTypes[1], H5S_ALL, H5S_ALL, H5P_DEFAULT, &ycoords[0]);
+        H5Dread(dataIdx, theTypes[0], H5S_ALL, H5S_ALL, H5P_DEFAULT, xcoords.data());
+        H5Dread(dataIdx, theTypes[1], H5S_ALL, H5S_ALL, H5P_DEFAULT, ycoords.data());
       }
       else
       {
-        iReader->ReadParticlesComponent(dataIdx, "Particles/posx", &xcoords[0]);
-        iReader->ReadParticlesComponent(dataIdx, "Particles/posy", &ycoords[0]);
+        iReader->ReadParticlesComponent(dataIdx, "Particles/posx", xcoords.data());
+        iReader->ReadParticlesComponent(dataIdx, "Particles/posy", ycoords.data());
       }
       break;
     case 3:
       if (iReader->FileFormatVersion < FLASH_READER_FLASH3_FFV8)
       {
-        H5Dread(dataIdx, theTypes[0], H5S_ALL, H5S_ALL, H5P_DEFAULT, &xcoords[0]);
-        H5Dread(dataIdx, theTypes[1], H5S_ALL, H5S_ALL, H5P_DEFAULT, &ycoords[0]);
-        H5Dread(dataIdx, theTypes[2], H5S_ALL, H5S_ALL, H5P_DEFAULT, &zcoords[0]);
+        H5Dread(dataIdx, theTypes[0], H5S_ALL, H5S_ALL, H5P_DEFAULT, xcoords.data());
+        H5Dread(dataIdx, theTypes[1], H5S_ALL, H5S_ALL, H5P_DEFAULT, ycoords.data());
+        H5Dread(dataIdx, theTypes[2], H5S_ALL, H5S_ALL, H5P_DEFAULT, zcoords.data());
       }
       else
       {
-        iReader->ReadParticlesComponent(dataIdx, "Particles/posx", &xcoords[0]);
-        iReader->ReadParticlesComponent(dataIdx, "Particles/posy", &ycoords[0]);
-        iReader->ReadParticlesComponent(dataIdx, "Particles/posz", &zcoords[0]);
+        iReader->ReadParticlesComponent(dataIdx, "Particles/posx", xcoords.data());
+        iReader->ReadParticlesComponent(dataIdx, "Particles/posy", ycoords.data());
+        iReader->ReadParticlesComponent(dataIdx, "Particles/posz", zcoords.data());
       }
       break;
     default:
@@ -161,8 +150,7 @@ int vtkAMRFlashParticlesReader::GetTotalNumberOfParticles()
 }
 
 //------------------------------------------------------------------------------
-vtkPolyData* vtkAMRFlashParticlesReader::GetParticles(
-  const char* file, const int vtkNotUsed(blkidx))
+vtkPolyData* vtkAMRFlashParticlesReader::GetParticles(const char* file, int vtkNotUsed(blkidx))
 {
   hid_t dataIdx = H5Dopen(this->Internal->FileIndex, file);
   if (dataIdx < 0)
@@ -303,7 +291,7 @@ vtkPolyData* vtkAMRFlashParticlesReader::GetParticles(
 }
 
 //------------------------------------------------------------------------------
-vtkPolyData* vtkAMRFlashParticlesReader::ReadParticles(const int blkidx)
+vtkPolyData* vtkAMRFlashParticlesReader::ReadParticles(int blkidx)
 {
   assert("pre: Internal reader is nullptr" && (this->Internal != nullptr));
   assert("pre: Not initialized " && (this->Initialized));
@@ -335,3 +323,4 @@ void vtkAMRFlashParticlesReader::SetupParticleDataSelections()
 
   this->InitializeParticleDataSelections();
 }
+VTK_ABI_NAMESPACE_END

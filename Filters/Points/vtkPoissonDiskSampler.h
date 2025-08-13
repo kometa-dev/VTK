@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPoissonDiskSampler.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 /**
  * @class   vtkPoissonDiskSampler
  * @brief   generate point normals using local tangent planes
@@ -25,7 +13,7 @@
  * proposed by <a
  * href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.476.9482&rep=rep1&type=pdf">
  * Dipp\'e and Wold in 1986</a>. Points are drawn randomly one by one and added
- * in the output. Points withing a range of `Radius` (input parameter) are discarded from the
+ * in the output. Points within a range of `Radius` (input parameter) are discarded from the
  * output. This process is repeated until there are no more points unprocessed.
  */
 
@@ -35,6 +23,7 @@
 #include "vtkFiltersPointsModule.h" // For export macro
 #include "vtkPointSetAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractPointLocator;
 class vtkIdList;
 
@@ -94,4 +83,5 @@ private:
   void operator=(const vtkPoissonDiskSampler&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

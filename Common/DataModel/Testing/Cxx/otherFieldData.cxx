@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    otherFieldData.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCellData.h"
 #include "vtkDataSetAttributes.h"
@@ -45,7 +33,8 @@ bool TestGhostAwareRange()
   }
 
   vtkNew<vtkCellData> cd;
-  if (cd->GetGhostsToSkip() != vtkDataSetAttributes::HIDDENCELL)
+  if (cd->GetGhostsToSkip() !=
+    (vtkDataSetAttributes::HIDDENCELL | vtkDataSetAttributes::REFINEDCELL))
   {
     vtkLog(ERROR, "GhostsToSkip has wrong default value in vtkCellData.");
     retVal = false;

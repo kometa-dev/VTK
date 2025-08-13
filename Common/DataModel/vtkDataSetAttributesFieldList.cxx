@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetAttributesFieldList.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataSetAttributesFieldList.h"
 
 #include "vtkDataArray.h"
@@ -32,12 +20,13 @@
 
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 /**
  * FieldInfo is used to store metadata about a field.
  */
 struct FieldInfo
 {
-  //@{
+  ///@{
   /**
    * These attributes are used to compare two fields. If they match,
    * then the fields can be treated as similar, hence can be merged.
@@ -45,9 +34,9 @@ struct FieldInfo
   std::string Name;
   int Type;
   int NumberOfComponents;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * These store metadata that may be present on any input field.
    * These are passed to the output in `CopyAllocate`
@@ -55,7 +44,7 @@ struct FieldInfo
   vtkSmartPointer<vtkLookupTable> LUT;
   vtkSmartPointer<vtkInformation> Information;
   std::vector<std::string> ComponentNames;
-  //@}
+  ///@}
 
   /**
    * An array where `AttributeTypes[j][i]==true` if this field is marked
@@ -203,7 +192,7 @@ struct FieldInfo
     }
   }
 
-  //@{
+  ///@{
   /**
    * These methods are used by `UnionFieldList` to pad a FieldInfo instance.
    * Calling these methods clears `AttributeTypes` since it indicates that this
@@ -227,7 +216,7 @@ struct FieldInfo
     std::fill(curattrs.begin(), curattrs.end(), false);
     this->AttributeTypes.insert(this->AttributeTypes.begin(), count, curattrs);
   }
-  //@}
+  ///@}
 };
 
 std::multimap<std::string, FieldInfo> GetFields(vtkDataSetAttributes* dsa)
@@ -301,7 +290,10 @@ void remove_if(Container& cont, ForwardIt first, ForwardIt second, UnaryPredicat
     }
   }
 }
+VTK_ABI_NAMESPACE_END
 } // namespace detail
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class vtkDataSetAttributesFieldList::vtkInternals
 {
@@ -827,3 +819,4 @@ void vtkDataSetAttributesFieldList::PrintSelf(ostream& os, vtkIndent indent)
     pair.second.PrintSelf(os, indent.GetNextIndent());
   }
 }
+VTK_ABI_NAMESPACE_END

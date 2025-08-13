@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExpandMarkedElements.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkExpandMarkedElements
  * @brief expands marked elements to including adjacent elements.
@@ -37,6 +25,7 @@
 #include "vtkFiltersExtractionModule.h" // For export macro
 #include "vtkPassInputTypeAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController;
 
 class VTKFILTERSEXTRACTION_EXPORT vtkExpandMarkedElements : public vtkPassInputTypeAlgorithm
@@ -58,10 +47,32 @@ public:
   ///@{
   /**
    * Get/Set the number of layers to expand by.
+   * Default is 2.
    */
   vtkSetClampMacro(NumberOfLayers, int, 1, VTK_INT_MAX);
   vtkGetMacro(NumberOfLayers, int);
   ///@}
+
+  ///@{
+  /**
+   * Get/Set the flag to remove seed of marked elements.
+   * Default is false.
+   */
+  vtkSetMacro(RemoveSeed, bool);
+  vtkGetMacro(RemoveSeed, bool);
+  vtkBooleanMacro(RemoveSeed, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Get/Set the flag to remove intermediate layers
+   * Default is false.
+   */
+  vtkSetMacro(RemoveIntermediateLayers, bool);
+  vtkGetMacro(RemoveIntermediateLayers, bool);
+  vtkBooleanMacro(RemoveIntermediateLayers, bool);
+  ///@}
+
 protected:
   vtkExpandMarkedElements();
   ~vtkExpandMarkedElements() override;
@@ -74,6 +85,9 @@ private:
 
   vtkMultiProcessController* Controller = nullptr;
   int NumberOfLayers = 2;
+  bool RemoveSeed = false;
+  bool RemoveIntermediateLayers = false;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

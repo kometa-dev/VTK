@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkWin32OpenGL2RenderWindow.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkWin32OpenGL2RenderWindow
  * @brief   OpenGL rendering window
@@ -30,6 +18,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include "vtkWindows.h" // For windows API
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 
 class VTKRENDERINGOPENGL2_EXPORT vtkWin32OpenGLRenderWindow : public vtkOpenGLRenderWindow
@@ -42,12 +31,12 @@ public:
   /**
    * End the rendering process and display the image.
    */
-  void Frame(void) override;
+  void Frame() override;
 
   /**
    * Create the window
    */
-  virtual void WindowInitialize(void);
+  virtual void WindowInitialize();
 
   /**
    * Initialize the rendering window.  This will setup all system-specific
@@ -55,14 +44,14 @@ public:
    * should be possible to call them multiple times, even changing WindowId
    * in-between.  This is what WindowRemap does.
    */
-  void Initialize(void) override;
+  void Initialize() override;
 
   /**
    * Finalize the rendering window.  This will shutdown all system-specific
    * resources.  After having called this, it should be possible to destroy
    * a window that was used for a SetWindowId() call without any ill effects.
    */
-  void Finalize(void) override;
+  void Finalize() override;
 
   /**
    * Change the window to fill the entire screen.
@@ -72,7 +61,7 @@ public:
   /**
    * Remap the window.
    */
-  void WindowRemap(void) override;
+  void WindowRemap() override;
 
   /**
    * Show or not Show the window
@@ -82,7 +71,7 @@ public:
   /**
    * Set the preferred window size to full screen.
    */
-  virtual void PrefFullScreen(void);
+  virtual void PrefFullScreen();
 
   ///@{
   /**
@@ -342,4 +331,5 @@ private:
   void operator=(const vtkWin32OpenGLRenderWindow&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

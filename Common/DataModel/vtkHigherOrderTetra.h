@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHigherOrderTetra.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHigherOrderTetra
  * @brief   A 3D cell that represents an arbitrary order HigherOrder tetrahedron
@@ -34,13 +22,13 @@
 #include <functional> //For std::function
 
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For deprecation macros
 #include "vtkNew.h"                   // For member variable.
 #include "vtkNonLinearCell.h"
 #include "vtkSmartPointer.h" // For member variable.
 
 #include <vector> //For caching
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTetra;
 class vtkHigherOrderCurve;
 class vtkHigherOrderTriangle;
@@ -95,18 +83,17 @@ public:
 
   vtkIdType GetOrder() const { return this->Order; }
   vtkIdType ComputeOrder();
-  static vtkIdType ComputeOrder(const vtkIdType nPoints);
+  static vtkIdType ComputeOrder(vtkIdType nPoints);
+  /// Return true if the number of points supports a cell of uniform
+  /// degree along each axis.
+  static bool PointCountSupportsUniformOrder(vtkIdType pointsPerCell);
 
   void ToBarycentricIndex(vtkIdType index, vtkIdType* bindex);
   vtkIdType ToIndex(const vtkIdType* bindex);
 
   static void BarycentricIndex(vtkIdType index, vtkIdType* bindex, vtkIdType order);
   static vtkIdType Index(const vtkIdType* bindex, vtkIdType order);
-  VTK_DEPRECATED_IN_9_1_0("renamed to GetEdgeCell")
-  virtual vtkHigherOrderCurve* getEdgeCell();
   virtual vtkHigherOrderCurve* GetEdgeCell() = 0;
-  VTK_DEPRECATED_IN_9_1_0("renamed to GetFaceCell")
-  virtual vtkHigherOrderTriangle* getFaceCell();
   virtual vtkHigherOrderTriangle* GetFaceCell() = 0;
 
 protected:
@@ -139,4 +126,5 @@ private:
   void operator=(const vtkHigherOrderTetra&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestGPURayCastMapperShadows.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <vtkActor.h>
 #include <vtkCamera.h>
@@ -42,14 +30,6 @@
 #include <vtkVertex.h>
 #include <vtkVolume.h>
 #include <vtkVolumeProperty.h>
-
-static inline void idxToCoords(int idx[3], double spacing[3], double origin[3], double res[3])
-{
-  for (int s = 0; s < 3; s++)
-  {
-    res[s] = origin[s] + spacing[s] * idx[s];
-  }
-}
 
 static inline void coordsToIdx(double coords[3], double spacing[3], double origin[3], int res[3])
 {
@@ -151,9 +131,9 @@ int TestGPURayCastMapperShadows(int argc, char* argv[])
 
   BoxList Boxes;
   // wall
-  Boxes.push_back(ImageDataAABox(0.05, 0.05, 0.05, 0.1, 0.95, 0.95, 1.0));
+  Boxes.emplace_back(0.05, 0.05, 0.05, 0.1, 0.95, 0.95, 1.0);
   // box
-  Boxes.push_back(ImageDataAABox(0.6, 0.35, 0.35, 0.9, 0.65, 0.65, 2.0));
+  Boxes.emplace_back(0.6, 0.35, 0.35, 0.9, 0.65, 0.65, 2.0);
 
   // Camera Parameters
   double camera_position[3] = { 1.85, -1.27, 0.97 };

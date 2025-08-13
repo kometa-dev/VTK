@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHierarchicalBinningFilter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkHierarchicalBinningFilter.h"
 
 #include "vtkDoubleArray.h"
@@ -27,6 +15,7 @@
 #include "vtkPoints.h"
 #include "vtkSMPTools.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHierarchicalBinningFilter);
 
 namespace
@@ -236,7 +225,6 @@ struct vtkBinTree
   {
     for (level = this->NumLevels - 1; globalBin < this->Tree[level]->LevelOffset; --level)
     {
-      ;
     }
     localBin = globalBin - this->Tree[level]->LevelOffset;
   }
@@ -387,7 +375,6 @@ struct BinTree : public vtkBinTree
 
         for (level = numLevels - 1; idx < this->Thresh[level]; --level)
         {
-          ;
         }
         t->Bin = this->Tree->Tree[level]->GetBinIndex(p);
       } // for all points in this batch
@@ -450,7 +437,7 @@ struct BinTree : public vtkBinTree
       {
         for (; curPt->Bin == prevPt->Bin && curPt <= endBatchPt; ++curPt)
         {
-          ; // advance
+          // advance
         }
         // Fill in any gaps in the offset array
         std::fill_n(offsets + prevPt->Bin + 1, curPt->Bin - prevPt->Bin, curPt - this->Tree->Map);
@@ -900,3 +887,4 @@ void vtkHierarchicalBinningFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Divisions: (" << this->Divisions[0] << "," << this->Divisions[1] << ","
      << this->Divisions[2] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEqualizerContextItem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkEqualizerContextItem_h
 #define vtkEqualizerContextItem_h
 
@@ -21,6 +9,7 @@
 
 #include <string> // for std::string
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBrush;
 class vtkPen;
 class vtkContextTransform;
@@ -94,7 +83,7 @@ public:
    */
   bool MouseButtonReleaseEvent(const vtkContextMouseEvent& mouse) override;
 
-  //@{
+  ///@{
   /**
    * Set / Get anchor points in the following format
    * "P1x,P1y;P2x,P2y; ... PNx,PNy;"
@@ -104,7 +93,7 @@ public:
    */
   void SetPoints(const std::string& points);
   std::string GetPoints() const;
-  //@}
+  ///@}
 
 protected:
   enum MouseStates
@@ -129,4 +118,5 @@ private:
   vtkInternal* Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

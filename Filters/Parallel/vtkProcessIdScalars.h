@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProcessIdScalars.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkProcessIdScalars
  * @brief   Sets cell or point scalars to the processor rank.
@@ -29,8 +17,10 @@
 #define vtkProcessIdScalars_h
 
 #include "vtkDataSetAlgorithm.h"
+#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkFiltersParallelModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFloatArray;
 class vtkIntArray;
 class vtkMultiProcessController;
@@ -38,6 +28,7 @@ class vtkMultiProcessController;
 class VTKFILTERSPARALLEL_EXPORT vtkProcessIdScalars : public vtkDataSetAlgorithm
 {
 public:
+  VTK_DEPRECATED_IN_9_3_0("Use `vtkGenerateProcessIds` instead")
   static vtkProcessIdScalars* New();
 
   vtkTypeMacro(vtkProcessIdScalars, vtkDataSetAlgorithm);
@@ -94,4 +85,5 @@ private:
   void operator=(const vtkProcessIdScalars&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtLabelRenderStrategy.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkQtLabelRenderStrategy.h"
 #include "vtkQtLabelRenderStrategyInternals.h"
 
@@ -47,6 +35,7 @@
 #include <QTextDocument>
 #include <QTextStream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkQtLabelRenderStrategy);
 
 bool operator<(const vtkQtLabelMapEntry& a, const vtkQtLabelMapEntry& other)
@@ -209,7 +198,7 @@ void vtkQtLabelRenderStrategy::ComputeLabelBounds(
     fontSpec.setStyleStrategy(QFont::NoAntialias);
   }
 
-  QString text = QString::fromUtf8(label);
+  QString text = QString::fromUtf8(label.c_str());
   QColor textColor =
     this->Implementation->TextPropertyToColor(tprop->GetColor(), tprop->GetOpacity());
   vtkQtLabelMapEntry key;
@@ -292,7 +281,7 @@ void vtkQtLabelRenderStrategy::RenderLabel(
   // timer->StartTimer();
 
   // Determine if we can render the label to fit the width
-  QString origText = QString::fromUtf8(label);
+  QString origText = QString::fromUtf8(label.c_str());
   QFont fontSpec = this->Implementation->TextPropertyToFont(tprop);
 
   // This is the recommended Qt way of controlling text antialiasing.
@@ -401,7 +390,7 @@ void vtkQtLabelRenderStrategy::RenderLabel(int x[2], vtkTextProperty* tprop, vtk
   // vtkTimerLog* timer = vtkTimerLog::New();
   // timer->StartTimer();
 
-  QString text = QString::fromUtf8(label);
+  QString text = QString::fromUtf8(label.c_str());
   QFont fontSpec = this->Implementation->TextPropertyToFont(tprop);
 
   // This is the recommended Qt way of controlling text antialiasing.
@@ -548,3 +537,4 @@ void vtkQtLabelRenderStrategy::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParallelopipedRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParallelopipedRepresentation.h"
 
 #include "vtkActor.h"
@@ -43,6 +31,7 @@
 // README : Uncomment the line that reads "PrintTopology(cout) to
 //          understand what the class does. The goal of the class is succintly
 //          described in that one line.
+VTK_ABI_NAMESPACE_BEGIN
 class vtkParallelopipedTopology
 {
 public:
@@ -81,7 +70,6 @@ public:
     for (std::set<vtkIdType>::const_iterator it = neighbors.begin(); it != neighbors.end();
          neighborPtIds[i++] = *it, ++it)
     {
-      ;
     }
   }
 
@@ -137,7 +125,6 @@ public:
 
     for (vtkIdType i = 0; i < 8; m_Topology.push_back(GetChairClique(i++, clique)))
     {
-      ;
     }
 
     // README : The goal of the class is succintly described by the line below
@@ -247,7 +234,6 @@ private:
       int i = 0;
       for (CellType::const_iterator cit = clit->begin(); cit != clit->end(); ids[i++] = *cit, ++cit)
       {
-        ;
       }
       cellArray->InsertNextCell(static_cast<vtkIdType>(clit->size()), ids);
       delete[] ids;
@@ -276,7 +262,6 @@ private:
   {
     for (CellType::const_iterator cit = cell.begin(); cit != cell.end(); os << *cit << " ", ++cit)
     {
-      ;
     }
   }
 
@@ -448,7 +433,6 @@ void vtkParallelopipedRepresentation ::SetHandleRepresentation(vtkHandleRepresen
       this->HandleRepresentations = new vtkHandleRepresentation*[8];
       for (int i = 0; i < 8; this->HandleRepresentations[i++] = nullptr)
       {
-        ;
       }
     }
   }
@@ -459,7 +443,6 @@ void vtkParallelopipedRepresentation ::SetHandleRepresentation(vtkHandleRepresen
     {
       for (int i = 0; i < 8; this->HandleRepresentations[i++]->Delete())
       {
-        ;
       }
       delete[] this->HandleRepresentations;
       this->HandleRepresentations = nullptr;
@@ -549,7 +532,7 @@ void vtkParallelopipedRepresentation::RemoveExistingChairs()
 
 //------------------------------------------------------------------------------
 // Node can be an integer within [0,7]. This will create a chair one one of
-// the handle corners. The '0 < scale < 1' value dicates the starting
+// the handle corners. The '0 < scale < 1' value dictates the starting
 // depth of the cavity.
 void vtkParallelopipedRepresentation::UpdateChairAtNode(int node)
 {
@@ -1091,7 +1074,6 @@ int vtkParallelopipedRepresentation ::ComputeInteractionState(int X, int Y, int 
       // Translate this face...
       for (vtkIdType i = 0; i < npts; this->TranslatePoint(cellPtIds[i++], handleTranslation))
       {
-        ;
       }
 
       // Cache the axis along which we resized the previous time, so we don't
@@ -1349,7 +1331,6 @@ void vtkParallelopipedRepresentation::HandlesOn()
 {
   for (int i = 0; i < 8; this->HandleRepresentations[i++]->SetVisibility(1))
   {
-    ;
   }
 }
 
@@ -1358,7 +1339,6 @@ void vtkParallelopipedRepresentation::HandlesOff()
 {
   for (int i = 0; i < 8; this->HandleRepresentations[i++]->SetVisibility(0))
   {
-    ;
   }
 }
 
@@ -1512,7 +1492,6 @@ void vtkParallelopipedRepresentation::PlaceWidget(double corners[8][3])
   {
     for (int i = 0; i < 8; center[j] += corners[i][j], i++)
     {
-      ;
     }
     center[j] /= 8.0;
 
@@ -1631,3 +1610,4 @@ void vtkParallelopipedRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   // this->InteractionState is printed in superclass
   // this is commented to avoid PrintSelf errors
 }
+VTK_ABI_NAMESPACE_END

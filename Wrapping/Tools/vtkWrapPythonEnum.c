@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPythonEnum.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapPythonEnum.h"
 
@@ -177,13 +165,13 @@ void vtkWrapPython_GenerateEnumType(
   if (classname)
   {
     /* join with "_" for identifier, and with "." for type name */
-    sprintf(enumname, "%.200s_%.200s", classname, data->Name);
-    sprintf(tpname, "%.200s.%.200s", classname, data->Name);
+    snprintf(enumname, sizeof(enumname), "%.200s_%.200s", classname, data->Name);
+    snprintf(tpname, sizeof(tpname), "%.200s.%.200s", classname, data->Name);
   }
   else
   {
-    sprintf(enumname, "%.200s", data->Name);
-    sprintf(tpname, "%.200s", data->Name);
+    snprintf(enumname, sizeof(enumname), "%.200s", data->Name);
+    snprintf(tpname, sizeof(tpname), "%.200s", data->Name);
   }
 
   /* generate all functions and protocols needed for the type */
@@ -197,7 +185,7 @@ void vtkWrapPython_GenerateEnumType(
     "static PyTypeObject Py%s_Type = {\n"
     "  PyVarObject_HEAD_INIT(&PyType_Type, 0)\n"
     "  PYTHON_PACKAGE_SCOPE \"%s.%s\", // tp_name\n"
-    "  sizeof(PyIntObject), // tp_basicsize\n"
+    "  sizeof(PyLongObject), // tp_basicsize\n"
     "  0, // tp_itemsize\n"
     "  nullptr, // tp_dealloc\n"
     "#if PY_VERSION_HEX >= 0x03080000\n"
@@ -221,7 +209,11 @@ void vtkWrapPython_GenerateEnumType(
     "  nullptr, // tp_getattro\n"
     "  nullptr, // tp_setattro\n"
     "  nullptr, // tp_as_buffer\n"
-    "  Py_TPFLAGS_DEFAULT, // tp_flags\n"
+    "  Py_TPFLAGS_DEFAULT\n"
+    "#if PY_VERSION_HEX >= 0x030A0000\n"
+    "    | Py_TPFLAGS_DISALLOW_INSTANTIATION\n"
+    "#endif\n"
+    "  , // tp_flags\n"
     "  nullptr, // tp_doc\n"
     "  nullptr, // tp_traverse\n"
     "  nullptr, // tp_clear\n"
@@ -234,7 +226,7 @@ void vtkWrapPython_GenerateEnumType(
     "  nullptr, // tp_methods\n"
     "  nullptr, // tp_members\n"
     "  nullptr, // tp_getset\n"
-    "  &PyInt_Type, // tp_base\n"
+    "  &PyLong_Type, // tp_base\n"
     "  nullptr, // tp_dict\n"
     "  nullptr, // tp_descr_get\n"
     "  nullptr, // tp_descr_set\n"

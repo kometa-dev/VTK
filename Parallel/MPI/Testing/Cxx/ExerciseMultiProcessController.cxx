@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    ExerciseMultiProcessController.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "ExerciseMultiProcessController.h"
 
@@ -35,6 +23,7 @@
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
 #include "vtkProcessGroup.h"
+#include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
 #include "vtkSphereSource.h"
 #include "vtkTypeTraits.h"
@@ -46,7 +35,11 @@
 #include <vector>
 
 // Update progress only on root node.
-#define COUT(msg) vtkLogIf(INFO, controller->GetLocalProcessId() == 0, "" msg);
+#define COUT(msg)                                                                                  \
+  do                                                                                               \
+  {                                                                                                \
+    vtkLogIf(INFO, controller->GetLocalProcessId() == 0, "" msg);                                  \
+  } while (false)
 
 //=============================================================================
 // A simple structure for passing data in and out of the parallel function.
@@ -395,9 +388,10 @@ void ExerciseType(vtkMultiProcessController* controller)
     char name[80];
     snprintf(name, sizeof(name), "%lf", vtkMath::Random());
     sourceArrays[i]->SetName(name);
+    double min = std::is_unsigned<baseType>() ? 0.0 : -16.0;
     for (int j = 0; j < arraySize; j++)
     {
-      sourceArrays[i]->SetValue(j, static_cast<baseType>(vtkMath::Random(-16.0, 16.0)));
+      sourceArrays[i]->SetValue(j, static_cast<baseType>(vtkMath::Random(min, 16.0)));
     }
   }
   COUT("Source Arrays:");
@@ -463,7 +457,7 @@ void ExerciseType(vtkMultiProcessController* controller)
       {
         if (sourceArrays[i]->GetValue(j) != buffer->GetValue(i * arraySize + j))
         {
-          vtkGenericWarningMacro("Gathered array from " << i << " incorrect.");
+          vtkGenericWarningMacro("Gathered array from " << i << " incorrect at " << j << ".");
           result = 0;
           break;
         }
@@ -485,7 +479,7 @@ void ExerciseType(vtkMultiProcessController* controller)
     {
       if (sourceArrays[i]->GetValue(j) != buffer->GetValue(i * arraySize + j))
       {
-        vtkGenericWarningMacro("Gathered array from " << i << " incorrect.");
+        vtkGenericWarningMacro("Gathered array from " << i << " incorrect at " << j << ".");
         result = 0;
         break;
       }
@@ -508,7 +502,7 @@ void ExerciseType(vtkMultiProcessController* controller)
   if (rank == destProcessId)
   {
     controller->GatherV(sourceArrays[rank]->GetPointer(0), buffer->GetPointer(0), lengths[rank],
-      &lengths[0], &offsets[0], destProcessId);
+      lengths.data(), offsets.data(), destProcessId);
     for (i = 0; i < numProc; i++)
     {
       for (int j = 0; j < lengths[i]; j++)
@@ -539,16 +533,17 @@ void ExerciseType(vtkMultiProcessController* controller)
     lengths[i] = static_cast<vtkIdType>(vtkMath::Random(0.0, arraySize + 0.99));
   }
   buffer->SetNumberOfTuples(offsets[numProc - 1] + lengths[numProc - 1]);
+  buffer->Fill(0.);
   result = 1;
   controller->AllGatherV(sourceArrays[rank]->GetPointer(0), buffer->GetPointer(0), lengths[rank],
-    &lengths[0], &offsets[0]);
+    lengths.data(), offsets.data());
   for (i = 0; i < numProc; i++)
   {
     for (int j = 0; j < lengths[i]; j++)
     {
       if (sourceArrays[i]->GetValue(j) != buffer->GetValue(offsets[i] + j))
       {
-        vtkGenericWarningMacro("Gathered array from " << i << " incorrect.");
+        vtkGenericWarningMacro("Gathered array from " << i << " incorrect at " << j << ".");
         result = 0;
         break;
       }
@@ -574,7 +569,8 @@ void ExerciseType(vtkMultiProcessController* controller)
   {
     if (sourceArrays[srcProcessId]->GetValue(rank * length + i) != buffer->GetValue(i))
     {
-      vtkGenericWarningMacro(<< "Scattered array from " << srcProcessId << " incorrect.");
+      vtkGenericWarningMacro(<< "Scattered array from " << srcProcessId << " incorrect at " << i
+                             << ".");
       result = 0;
       break;
     }
@@ -591,13 +587,13 @@ void ExerciseType(vtkMultiProcessController* controller)
   buffer->SetNumberOfTuples(lengths[rank]);
   if (rank == srcProcessId)
   {
-    controller->ScatterV(sourceArrays[rank]->GetPointer(0), buffer->GetPointer(0), &lengths[0],
-      &offsets[0], lengths[rank], srcProcessId);
+    controller->ScatterV(sourceArrays[rank]->GetPointer(0), buffer->GetPointer(0), lengths.data(),
+      offsets.data(), lengths[rank], srcProcessId);
   }
   else
   {
     controller->ScatterV(
-      nullptr, buffer->GetPointer(0), &lengths[0], &offsets[0], lengths[rank], srcProcessId);
+      nullptr, buffer->GetPointer(0), lengths.data(), offsets.data(), lengths[rank], srcProcessId);
   }
   result = 1;
   for (i = 0; i < lengths[rank]; i++)
@@ -798,7 +794,7 @@ void ExerciseType(vtkMultiProcessController* controller)
   tmpSource->SetNumberOfTuples(lengths[rank]);
   buffer->SetNumberOfTuples(offsets[numProc - 1] + lengths[numProc - 1]);
   result = 1;
-  controller->GatherV(tmpSource, buffer, &lengths[0], &offsets[0], destProcessId);
+  controller->GatherV(tmpSource, buffer, lengths.data(), offsets.data(), destProcessId);
   if (rank == destProcessId)
   {
     for (i = 0; i < numProc; i++)
@@ -881,7 +877,7 @@ void ExerciseType(vtkMultiProcessController* controller)
   tmpSource->SetNumberOfTuples(lengths[rank]);
   buffer->SetNumberOfTuples(offsets[numProc - 1] + lengths[numProc - 1]);
   result = 1;
-  controller->AllGatherV(tmpSource, buffer, &lengths[0], &offsets[0]);
+  controller->AllGatherV(tmpSource, buffer, lengths.data(), offsets.data());
   for (i = 0; i < numProc; i++)
   {
     for (int j = 0; j < lengths[i]; j++)
@@ -1151,6 +1147,7 @@ static void Run(vtkMultiProcessController* controller, void* _args)
 
   try
   {
+    vtkSMPTools::SetBackend("SEQUENTIAL");
     ExerciseType<int, vtkIntArray>(controller);
     ExerciseType<unsigned long, vtkUnsignedLongArray>(controller);
     ExerciseType<char, vtkCharArray>(controller);

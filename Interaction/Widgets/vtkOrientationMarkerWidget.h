@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOrientationMarkerWidget.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOrientationMarkerWidget
  * @brief   2D widget for manipulating a marker prop
@@ -72,6 +60,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkInteractorObserver.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor2D;
 class vtkPolyData;
 class vtkProp;
@@ -158,9 +147,9 @@ public:
    */
   vtkSetClampMacro(Zoom, double, 0.1, 10.0);
   vtkGetMacro(Zoom, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Need to reimplement this->Modified() because of the
    * vtkSetVector4Macro/vtkGetVector4Macro use
@@ -168,45 +157,45 @@ public:
   void Modified() override;
   ///@}
 
-  //@{
+  ///@{
   /**
    * Ends any in progress interaction and resets border visibility
    */
   void EndInteraction() override;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get whether the widget should constrain the size to be within the min and max limits.
    * Default is off (unconstrained).
    */
-  void SetShouldConstrainSize(const vtkTypeBool shouldConstrainSize);
+  void SetShouldConstrainSize(vtkTypeBool shouldConstrainSize);
   vtkGetMacro(ShouldConstrainSize, vtkTypeBool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Sets the minimum and maximum dimension (width and height) size limits for the widget.
    * Validates the sizes are within tolerances before setting; ignoring otherwise.
    * Default is 20, 500.
    * Returns whether the sizes are valid and correctly set (true), or invalid (false).
    */
-  bool SetSizeConstraintDimensionSizes(const int minDimensionSize, const int maxDimensionSize);
-  //@}
+  bool SetSizeConstraintDimensionSizes(int minDimensionSize, int maxDimensionSize);
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns the minimum dimension (width and height) size limit in pixels for the widget.
    */
   vtkGetMacro(MinDimensionSize, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns the maximum dimension (width and height) size limit in pixels for the widget.
    */
   vtkGetMacro(MaxDimensionSize, int);
-  //@}
+  ///@}
 
 protected:
   vtkOrientationMarkerWidget();
@@ -300,4 +289,5 @@ private:
   void TearDownWindowInteraction();
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMatplotlibMathTextUtilities.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMatplotlibMathTextUtilities
  * @brief   Access to MatPlotLib MathText rendering
@@ -49,14 +37,17 @@
 #include "vtkMathTextUtilities.h"
 #include "vtkRenderingMatplotlibModule.h" // For export macro
 
-#include <vector> // for std::vector
+#include <cstdint> // for std::uint64_t
+#include <vector>  // for std::vector
 
 struct _object;
 typedef struct _object PyObject;
-class vtkSmartPyObject;
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageData;
 class vtkPath;
 class vtkPythonInterpreter;
+class vtkSmartPyObject;
 class vtkTextProperty;
 struct TextColors;
 
@@ -240,10 +231,10 @@ private:
    * cellCols) a cell of size (pythonRows, pythonCols) with pixels value stored in pythonData. If
    * the python cell size is inferior to the cell size, fill with background color.
    */
-  bool RenderOneCell(vtkImageData* image, int bbox[4], const std::int64_t rowStart,
-    const std::int64_t colStart, vtkSmartPyObject& pythonData, const std::uint64_t pythonRows,
-    const std::uint64_t pythonCols, const std::uint64_t cellRows, const std::uint64_t cellCols,
-    vtkTextProperty* tprop, const TextColors& tcolors);
+  bool RenderOneCell(vtkImageData* image, int bbox[4], std::int64_t rowStart, std::int64_t colStart,
+    vtkSmartPyObject& pythonData, std::uint64_t pythonRows, std::uint64_t pythonCols,
+    std::uint64_t cellRows, std::uint64_t cellCols, vtkTextProperty* tprop,
+    const TextColors& tcolors);
 
   /**
    * Draw interior borders between cells.
@@ -251,4 +242,5 @@ private:
   bool DrawInteriorLines(vtkImageData* image, int bbox[4], vtkTextProperty* tprop);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

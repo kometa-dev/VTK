@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFunctionParser.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFunctionParser.h"
 #include "vtkObjectFactory.h"
 
 #include <algorithm>
 #include <cctype>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFunctionParser);
 
 static double vtkParserVectorErrorResult[3] = { VTK_PARSER_ERROR_RESULT, VTK_PARSER_ERROR_RESULT,
@@ -941,7 +930,7 @@ void vtkFunctionParser::SetScalarVariableValue(const char* inVariableName, doubl
   char* variableName = this->RemoveSpacesFrom(inVariableName);
   for (int i = 0, max = this->GetNumberOfScalarVariables(); i < max; i++)
   {
-    if (strcmp(variableName, this->ScalarVariableNames[i].c_str()) == 0)
+    if (this->ScalarVariableNames[i] == variableName)
     {
       if (this->ScalarVariableValues[i] != value)
       {
@@ -978,7 +967,7 @@ double vtkFunctionParser::GetScalarVariableValue(const char* inVariableName)
   char* variableName = this->RemoveSpacesFrom(inVariableName);
   for (int i = 0, max = this->GetNumberOfScalarVariables(); i < max; i++)
   {
-    if (strcmp(variableName, this->ScalarVariableNames[i].c_str()) == 0)
+    if (this->ScalarVariableNames[i] == variableName)
     {
       delete[] variableName;
       return this->ScalarVariableValues[i];
@@ -1009,7 +998,7 @@ void vtkFunctionParser::SetVectorVariableValue(
   char* variableName = this->RemoveSpacesFrom(inVariableName);
   for (int i = 0, max = this->GetNumberOfVectorVariables(); i < max; i++)
   {
-    if (strcmp(variableName, this->VectorVariableNames[i].c_str()) == 0)
+    if (this->VectorVariableNames[i] == variableName)
     {
       if (this->VectorVariableValues[i][0] != xValue ||
         this->VectorVariableValues[i][1] != yValue || this->VectorVariableValues[i][2] != zValue)
@@ -1058,7 +1047,7 @@ double* vtkFunctionParser::GetVectorVariableValue(const char* inVariableName)
 
   for (int i = 0, max = this->GetNumberOfVectorVariables(); i < max; i++)
   {
-    if (strcmp(variableName, this->VectorVariableNames[i].c_str()) == 0)
+    if (this->VectorVariableNames[i] == variableName)
     {
       delete[] variableName;
       return this->VectorVariableValues[i].GetData();
@@ -2419,3 +2408,4 @@ bool vtkFunctionParser::GetVectorVariableNeeded(const char* inVariableName)
     return false;
   }
 }
+VTK_ABI_NAMESPACE_END

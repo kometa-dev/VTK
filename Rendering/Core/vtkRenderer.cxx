@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRenderer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRenderer.h"
 
 #include "vtkAssemblyPath.h"
@@ -41,6 +29,7 @@
 
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkRenderer, Information, vtkInformation);
 vtkCxxSetObjectMacro(vtkRenderer, Delegate, vtkRendererDelegate);
 vtkCxxSetObjectMacro(vtkRenderer, BackgroundTexture, vtkTexture);
@@ -1225,14 +1214,14 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
   {
     this->ActiveCamera->GetViewPlaneNormal(vn);
     this->ActiveCamera->GetPosition(position);
-    this->ExpandBounds(expandedBounds, this->ActiveCamera->GetModelTransformMatrix());
   }
   else
   {
     this->ActiveCamera->GetEyePosition(position);
     this->ActiveCamera->GetEyePlaneNormal(vn);
-    this->ExpandBounds(expandedBounds, this->ActiveCamera->GetModelViewTransformMatrix());
   }
+
+  this->ExpandBounds(expandedBounds, this->ActiveCamera->GetModelTransformMatrix());
 
   a = -vn[0];
   b = -vn[1];
@@ -1263,6 +1252,12 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
   if (this->ActiveCamera->GetParallelProjection())
   {
     minGap = 0.1 * this->ActiveCamera->GetParallelScale();
+  }
+  else if (this->ActiveCamera->GetUseOffAxisProjection())
+  {
+    double offAxisAdustment = this->ActiveCamera->GetOffAxisClippingAdjustment();
+    range[0] -= offAxisAdustment;
+    range[1] += offAxisAdustment;
   }
   else
   {
@@ -1334,7 +1329,7 @@ void vtkRenderer::ResetCameraClippingRange(
 
 // Automatically set up the camera based on the visible actors.
 // Use a screen space bounding box to zoom closer to the data.
-void vtkRenderer::ResetCameraScreenSpace()
+void vtkRenderer::ResetCameraScreenSpace(const double offsetRatio)
 {
   double allBounds[6];
 
@@ -1346,7 +1341,7 @@ void vtkRenderer::ResetCameraScreenSpace()
   }
   else
   {
-    this->ResetCameraScreenSpace(allBounds);
+    this->ResetCameraScreenSpace(allBounds, offsetRatio);
   }
 
   // Here to let parallel/distributed compositing intercept
@@ -1355,8 +1350,8 @@ void vtkRenderer::ResetCameraScreenSpace()
 }
 
 // Alternative version of ResetCameraScreenSpace(bounds[6]);
-void vtkRenderer::ResetCameraScreenSpace(
-  double xmin, double xmax, double ymin, double ymax, double zmin, double zmax)
+void vtkRenderer::ResetCameraScreenSpace(double xmin, double xmax, double ymin, double ymax,
+  double zmin, double zmax, const double offsetRatio)
 {
   double bounds[6];
 
@@ -1367,11 +1362,11 @@ void vtkRenderer::ResetCameraScreenSpace(
   bounds[4] = zmin;
   bounds[5] = zmax;
 
-  this->ResetCameraScreenSpace(bounds);
+  this->ResetCameraScreenSpace(bounds, offsetRatio);
 }
 
 // Use a screen space bounding box to zoom closer to the data.
-void vtkRenderer::ResetCameraScreenSpace(const double bounds[6])
+void vtkRenderer::ResetCameraScreenSpace(const double bounds[6], const double offsetRatio)
 {
   // Make sure all bounds are visible to project into screen space
   this->ResetCamera(bounds);
@@ -1438,8 +1433,7 @@ void vtkRenderer::ResetCameraScreenSpace(const double bounds[6])
   // Now the focal point is at the center of the box
 
   const vtkRecti box(xmin, ymin, xmax - xmin, ymax - ymin);
-  // We let a 10% offset around the zoomed data
-  this->ZoomToBoxUsingViewAngle(box, 0.9);
+  this->ZoomToBoxUsingViewAngle(box, offsetRatio);
 }
 
 // Display to world using vtkVector3d
@@ -1456,7 +1450,7 @@ vtkVector3d vtkRenderer::DisplayToWorld(const vtkVector3d& display)
   return vtkVector3d(world4.GetData());
 }
 
-void vtkRenderer::ZoomToBoxUsingViewAngle(const vtkRecti& box, const double offsetRatio)
+void vtkRenderer::ZoomToBoxUsingViewAngle(const vtkRecti& box, double offsetRatio)
 {
   const int* size = this->GetSize();
   double zf1 = size[0] / static_cast<double>(box.GetWidth());
@@ -2035,7 +2029,7 @@ void vtkRenderer::ExpandBounds(double bounds[6], vtkMatrix4x4* matrix)
   bounds[5] = max[2];
 }
 
-int vtkRenderer::Transparent()
+vtkTypeBool vtkRenderer::Transparent()
 {
   return this->PreserveColorBuffer;
 }
@@ -2067,7 +2061,8 @@ double vtkRenderer::GetTiledAspectRatio()
 
 int vtkRenderer::CaptureGL2PSSpecialProp(vtkProp* prop)
 {
-  if (this->GL2PSSpecialPropCollection && !this->GL2PSSpecialPropCollection->IsItemPresent(prop))
+  if (this->GL2PSSpecialPropCollection &&
+    this->GL2PSSpecialPropCollection->IndexOfFirstOccurence(prop) < 0)
   {
     this->GL2PSSpecialPropCollection->AddItem(prop);
     return 1;
@@ -2121,3 +2116,4 @@ const std::array<double, 16>& vtkRenderer::GetProjectionTransformationMatrix()
   }
   return this->ProjectionTransformationMatrix;
 }
+VTK_ABI_NAMESPACE_END

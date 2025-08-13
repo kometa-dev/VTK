@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDescriptiveStatistics.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2011 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 // Hide VTK_DEPRECATED_IN_9_2_0() warnings for this class
 #define VTK_DEPRECATION_LEVEL 0
@@ -29,6 +13,7 @@
 #include "vtkDoubleArray.h"
 #include "vtkIdTypeArray.h"
 #include "vtkInformation.h"
+#include "vtkLegacy.h"
 #include "vtkMath.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkObjectFactory.h"
@@ -43,6 +28,7 @@
 #include <sstream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkDescriptiveStatistics);
 
 //------------------------------------------------------------------------------
@@ -412,11 +398,10 @@ void vtkDescriptiveStatistics::Learn(
   {
     // Each request contains only one column of interest (if there are others, they are ignored)
     std::set<vtkStdString>::const_iterator it = rit->begin();
-    vtkStdString varName = *it;
-    if (!inData->GetColumnByName(varName))
+    vtkStdString const& varName = *it;
+    if (!inData->GetColumnByName(varName.c_str()))
     {
-      vtkWarningMacro(
-        "InData table does not have a column " << varName.c_str() << ". Ignoring it.");
+      vtkWarningMacro("InData table does not have a column " << varName << ". Ignoring it.");
       continue;
     }
 
@@ -454,7 +439,7 @@ void vtkDescriptiveStatistics::Learn(
         n = r + 1. - numberOfSkippedElements;
         inv_n = 1. / n;
 
-        val = inData->GetValueByName(r, varName).ToDouble();
+        val = inData->GetValueByName(r, varName.c_str()).ToDouble();
         delta = val - mean;
 
         A = delta * inv_n;
@@ -515,7 +500,7 @@ void vtkDescriptiveStatistics::Derive(vtkMultiBlockDataSet* inMeta)
   }
 
   int numDoubles = 5;
-  vtkStdString doubleNames[] = { "Standard Deviation", "Variance", "Skewness", "Kurtosis", "Sum" };
+  std::string doubleNames[] = { "Standard Deviation", "Variance", "Skewness", "Kurtosis", "Sum" };
 
   // Create table for derived statistics
   vtkIdType nRow = primaryTab->GetNumberOfRows();
@@ -523,10 +508,10 @@ void vtkDescriptiveStatistics::Derive(vtkMultiBlockDataSet* inMeta)
   vtkDoubleArray* doubleCol;
   for (int j = 0; j < numDoubles; ++j)
   {
-    if (!derivedTab->GetColumnByName(doubleNames[j]))
+    if (!derivedTab->GetColumnByName(doubleNames[j].c_str()))
     {
       doubleCol = vtkDoubleArray::New();
-      doubleCol->SetName(doubleNames[j]);
+      doubleCol->SetName(doubleNames[j].c_str());
       doubleCol->SetNumberOfTuples(nRow);
       derivedTab->AddColumn(doubleCol);
       doubleCol->Delete();
@@ -554,7 +539,7 @@ void vtkDescriptiveStatistics::Derive(vtkMultiBlockDataSet* inMeta)
 
       for (int j = 0; j < numDoubles; ++j)
       {
-        derivedTab->SetValueByName(i, doubleNames[j], derivedVals[j]);
+        derivedTab->SetValueByName(i, doubleNames[j].c_str(), derivedVals[j]);
       }
 
       continue;
@@ -572,7 +557,7 @@ void vtkDescriptiveStatistics::Derive(vtkMultiBlockDataSet* inMeta)
 
       for (int j = 0; j < numDoubles; ++j)
       {
-        derivedTab->SetValueByName(i, doubleNames[j], derivedVals[j]);
+        derivedTab->SetValueByName(i, doubleNames[j].c_str(), derivedVals[j]);
       }
 
       continue;
@@ -641,7 +626,7 @@ void vtkDescriptiveStatistics::Derive(vtkMultiBlockDataSet* inMeta)
 
     for (int j = 0; j < numDoubles; ++j)
     {
-      derivedTab->SetValueByName(i, doubleNames[j], derivedVals[j]);
+      derivedTab->SetValueByName(i, doubleNames[j].c_str(), derivedVals[j]);
     }
   }
 
@@ -729,11 +714,10 @@ void vtkDescriptiveStatistics::Test(
   {
     // Each request contains only one column of interest (if there are others, they are ignored)
     std::set<vtkStdString>::const_iterator it = rit->begin();
-    vtkStdString varName = *it;
-    if (!inData->GetColumnByName(varName))
+    vtkStdString const& varName = *it;
+    if (!inData->GetColumnByName(varName.c_str()))
     {
-      vtkWarningMacro(
-        "InData table does not have a column " << varName.c_str() << ". Ignoring it.");
+      vtkWarningMacro("InData table does not have a column " << varName << ". Ignoring it.");
       continue;
     }
 
@@ -746,7 +730,7 @@ void vtkDescriptiveStatistics::Test(
     if (r >= nRowPrim)
     {
       vtkWarningMacro(
-        "Incomplete input: model does not have a row " << varName.c_str() << ". Cannot test.");
+        "Incomplete input: model does not have a row " << varName << ". Cannot test.");
       continue;
     }
 
@@ -875,7 +859,7 @@ void vtkDescriptiveStatistics::SelectAssessFunctor(
     return;
   }
 
-  vtkStdString varName = rowNames->GetValue(0);
+  std::string varName = rowNames->GetValue(0);
 
   // Downcast meta columns to string arrays for efficient data access
   vtkStringArray* vars = vtkArrayDownCast<vtkStringArray>(primaryTab->GetColumnByName("Variable"));
@@ -890,7 +874,7 @@ void vtkDescriptiveStatistics::SelectAssessFunctor(
     if (vars->GetValue(r) == varName)
     {
       // Grab the data for the requested variable
-      vtkAbstractArray* arr = outData->GetColumnByName(varName);
+      vtkAbstractArray* arr = outData->GetColumnByName(varName.c_str());
       if (!arr)
       {
         return;
@@ -934,3 +918,4 @@ void vtkDescriptiveStatistics::SelectAssessFunctor(
 
   // If arrived here it means that the variable of interest was not found in the parameter table
 }
+VTK_ABI_NAMESPACE_END

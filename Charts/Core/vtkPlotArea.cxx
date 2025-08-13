@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotArea.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPlotArea.h"
 
@@ -37,6 +25,7 @@
 #include <set>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 inline bool vtkIsBadPoint(const vtkVector2f& vec)
@@ -146,8 +135,8 @@ private:
       assert(array->GetNumberOfComponents() == this->ValidPointMask->GetNumberOfComponents());
 
       using Dispatcher =
-        vtkArrayDispatch::Dispatch2ByArray<vtkArrayDispatch::Arrays, // First array is input, can be
-                                                                     // anything.
+        vtkArrayDispatch::Dispatch2ByArray<vtkArrayDispatch::AllArrays, // First array is input, can
+                                                                        // be anything.
           vtkTypeList::Create<vtkCharArray> // Second is always vtkCharArray.
           >;
       ComputeArrayRange worker;
@@ -506,7 +495,7 @@ bool vtkPlotArea::UpdateCache()
   if (!this->ValidPointMaskName.empty())
   {
     cache.ValidPointMask =
-      vtkArrayDownCast<vtkCharArray>(table->GetColumnByName(this->ValidPointMaskName));
+      vtkArrayDownCast<vtkCharArray>(table->GetColumnByName(this->ValidPointMaskName.c_str()));
   }
   else
   {
@@ -597,8 +586,8 @@ vtkIdType vtkPlotArea::GetNearestPoint(const vtkVector2f& point, const vtkVector
 vtkStdString vtkPlotArea::GetTooltipLabel(
   const vtkVector2d& plotPos, vtkIdType seriesIndex, vtkIdType segmentIndex)
 {
-  vtkStdString tooltipLabel;
-  vtkStdString format = this->Superclass::GetTooltipLabel(plotPos, seriesIndex, segmentIndex);
+  std::string tooltipLabel;
+  std::string format = this->Superclass::GetTooltipLabel(plotPos, seriesIndex, segmentIndex);
 
   vtkIdType idx = (seriesIndex / 2) * 2;
 
@@ -649,10 +638,17 @@ void vtkPlotArea::SetColor(unsigned char r, unsigned char g, unsigned char b, un
 }
 
 //------------------------------------------------------------------------------
-void vtkPlotArea::SetColor(double r, double g, double b)
+void vtkPlotArea::SetColorF(double r, double g, double b, double a)
+{
+  this->Brush->SetColorF(r, g, b, a);
+  this->Superclass::SetColorF(r, g, b);
+}
+
+//------------------------------------------------------------------------------
+void vtkPlotArea::SetColorF(double r, double g, double b)
 {
   this->Brush->SetColorF(r, g, b);
-  this->Superclass::SetColor(r, g, b);
+  this->Superclass::SetColorF(r, g, b);
 }
 
 //------------------------------------------------------------------------------
@@ -660,3 +656,4 @@ void vtkPlotArea::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

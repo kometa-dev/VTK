@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkVRInteractorStyle.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVRInteractorStyle
  * @brief   Extended from vtkInteractorStyle3D to override command methods.
@@ -31,6 +19,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <map>    // for std::map
 #include <vector> // for std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCallbackCommand;
 class vtkCell;
 class vtkPlane;
@@ -79,7 +68,7 @@ public:
 
   ///@{
   /**
-   * Multitouch events binding.
+   * Complex gesture events binding.
    */
   void OnPan() override;
   void OnPinch() override;
@@ -122,7 +111,7 @@ public:
    * Define the helper text that goes with an input.
    */
   void AddTooltipForInput(
-    vtkEventDataDevice device, vtkEventDataDeviceInput input, const std::string& text = "");
+    vtkEventDataDevice device, vtkEventDataDeviceInput input, const std::string& text = {});
 
   /**
    * Creates a new ControlsHelper suitable for use with the child class.
@@ -286,9 +275,18 @@ protected:
   // Store movement style
   MovementStyle Style = vtkVRInteractorStyle::FLY_STYLE;
 
+  // Interaction timers
+  vtkNew<vtkTimerLog> LastGroundMovement3DEventTime;
+  vtkNew<vtkTimerLog> LastElevation3DEventTime;
+
+  // Interaction trackpad position
+  double LastGroundMovementTrackPadPosition[2] = { 0, 0 };
+  double LastElevationTrackPadPosition[2] = { 0, 0 };
+
 private:
   vtkVRInteractorStyle(const vtkVRInteractorStyle&) = delete;
   void operator=(const vtkVRInteractorStyle&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

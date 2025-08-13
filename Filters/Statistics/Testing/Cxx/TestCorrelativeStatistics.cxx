@@ -1,11 +1,6 @@
-/*
- * Copyright 2011 Sandia Corporation.
- * Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
- * license for use of this work by or on behalf of the
- * U.S. Government. Redistribution and use in source and binary forms, with
- * or without modification, are permitted provided that this Notice and any
- * statement of authorship are reproduced on all copies.
- */
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 // .SECTION Thanks
 // Thanks to Philippe Pebay from Sandia National Laboratories
 // for implementing this test.
@@ -124,7 +119,7 @@ int TestCorrelativeStatistics(int, char*[])
 
   // Pairs of interest
   int nMetricPairs = 2;
-  vtkStdString columnPairs[] = {
+  std::string columnPairs[] = {
     "M0", "M1", // First pair
     "M2", "M1"  // Second pair
   };
@@ -319,9 +314,9 @@ int TestCorrelativeStatistics(int, char*[])
       {
         ++nOutliers;
 
-        cout << "     (" << outputData1->GetValueByName(r, columnPairs[0]).ToDouble() << ","
-             << outputData1->GetValueByName(r, columnPairs[1]).ToDouble() << "): " << assessed
-             << "\n";
+        cout << "     (" << outputData1->GetValueByName(r, columnPairs[0].c_str()).ToDouble() << ","
+             << outputData1->GetValueByName(r, columnPairs[1].c_str()).ToDouble()
+             << "): " << assessed << "\n";
       }
     } // r
 
@@ -372,7 +367,7 @@ int TestCorrelativeStatistics(int, char*[])
   // Select all valid column pairs as pairs of interest
   for (int i = 0; i < nMetricPairs; ++i)
   {
-    cs2->AddColumnPair(columnPairs[2 * i], columnPairs[2 * i + 1]);
+    cs2->AddColumnPair(columnPairs[2 * i].c_str(), columnPairs[2 * i + 1].c_str());
   }
 
   // Update with Learn option only

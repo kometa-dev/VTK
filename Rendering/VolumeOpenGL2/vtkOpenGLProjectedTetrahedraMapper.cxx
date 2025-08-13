@@ -1,26 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLProjectedTetrahedraMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*
- * Copyright 2003 Sandia Corporation.
- * Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
- * license for use of this work by or on behalf of the
- * U.S. Government. Redistribution and use in source and binary forms, with
- * or without modification, are permitted provided that this Notice and any
- * statement of authorship are reproduced on all copies.
- */
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2003 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkOpenGLProjectedTetrahedraMapper.h"
 
@@ -52,6 +32,7 @@
 #include "vtkRenderer.h"
 #include "vtkShaderProgram.h"
 #include "vtkSmartPointer.h"
+#include "vtkTextureObject.h"
 #include "vtkTimerLog.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
@@ -67,6 +48,7 @@
 #include "vtkglProjectedTetrahedraFS.h"
 #include "vtkglProjectedTetrahedraVS.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 void annotate(const std::string& message)
@@ -338,32 +320,6 @@ void vtkOpenGLProjectedTetrahedraMapper::Render(vtkRenderer* renderer, vtkVolume
   vtkUnstructuredGridBase* input = this->GetInput();
   vtkVolumeProperty* property = volume->GetProperty();
 
-  // has something changed that would require us to recreate the shader?
-  if (!this->Tris.Program)
-  {
-    // build the shader source code
-    std::string VSSource = vtkglProjectedTetrahedraVS;
-    std::string FSSource = vtkglProjectedTetrahedraFS;
-    std::string GSSource;
-
-    // compile and bind it if needed
-    vtkShaderProgram* newShader = renWin->GetShaderCache()->ReadyShaderProgram(
-      VSSource.c_str(), FSSource.c_str(), GSSource.c_str());
-
-    // if the shader changed reinitialize the VAO
-    if (newShader != this->Tris.Program)
-    {
-      this->Tris.Program = newShader;
-      this->Tris.VAO->ShaderProgramChanged(); // reset the VAO as the shader has changed
-    }
-
-    this->Tris.ShaderSourceTime.Modified();
-  }
-  else
-  {
-    renWin->GetShaderCache()->ReadyShaderProgram(this->Tris.Program);
-  }
-
   // Check to see if input changed.
   if ((this->InputAnalyzedTime < this->MTime) || (this->InputAnalyzedTime < input->GetMTime()))
   {
@@ -465,8 +421,8 @@ void vtkOpenGLProjectedTetrahedraMapper::Render(vtkRenderer* renderer, vtkVolume
 
 //------------------------------------------------------------------------------
 
-inline float vtkOpenGLProjectedTetrahedraMapper::GetCorrectedDepth(float x, float y, float z1,
-  float z2, const float inverse_projection_mat[16], int use_linear_depth_correction,
+float vtkOpenGLProjectedTetrahedraMapper::GetCorrectedDepth(float x, float y, float z1, float z2,
+  const float inverse_projection_mat[16], int use_linear_depth_correction,
   float linear_depth_correction)
 {
   if (use_linear_depth_correction)
@@ -521,9 +477,9 @@ void vtkOpenGLProjectedTetrahedraMapper::ProjectTetrahedra(
   this->AllocateFOResources(renderer);
 
   vtkOpenGLFramebufferObject* fo = nullptr;
-
-  vtkOpenGLState* ostate =
-    static_cast<vtkOpenGLRenderWindow*>(renderer->GetRenderWindow())->GetState();
+  vtkOpenGLRenderWindow* renderWindow =
+    static_cast<vtkOpenGLRenderWindow*>(renderer->GetRenderWindow());
+  vtkOpenGLState* ostate = renderWindow->GetState();
 
   // Copy existing Depth/Color buffers to FO
   if (this->UseFloatingPointFrameBuffer && this->CanDoFloatingPointFrameBuffer)
@@ -541,11 +497,56 @@ void vtkOpenGLProjectedTetrahedraMapper::ProjectTetrahedra(
       vtkErrorMacro("FO is incomplete ");
     }
 
-    ostate->vtkglBlitFramebuffer(0, 0, this->CurrentFBOWidth, this->CurrentFBOHeight, 0, 0,
-      this->CurrentFBOWidth, this->CurrentFBOHeight, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
-      GL_NEAREST);
+    auto srcDepthTexture =
+      renderWindow->GetRenderFramebuffer()->GetDepthAttachmentAsTextureObject();
+    auto dstDepthTexture = fo->GetDepthAttachmentAsTextureObject();
+    const auto srcDepthFormat = srcDepthTexture->GetFormat(0, 0, false);
+    const auto dstDepthFormat = dstDepthTexture->GetFormat(0, 0, false);
+    // We need to treat depth buffer blitting specially because depth buffer formats may not
+    // be compatible between the FBO used in this class and the renderwindow's FBO.
+    if (srcDepthFormat == dstDepthFormat)
+    {
+      // compatible, blit color and depth attachments.
+      ostate->vtkglBlitFramebuffer(0, 0, this->CurrentFBOWidth, this->CurrentFBOHeight, 0, 0,
+        this->CurrentFBOWidth, this->CurrentFBOHeight, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
+        GL_NEAREST);
+    }
+    else
+    {
+      // incompatible, blit only color attachment
+      ostate->vtkglBlitFramebuffer(0, 0, this->CurrentFBOWidth, this->CurrentFBOHeight, 0, 0,
+        this->CurrentFBOWidth, this->CurrentFBOHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+      // depth values are sampled from srcDepthTexture into our framebuffer's depth attachment.
+      renderWindow->TextureDepthBlit(srcDepthTexture);
+    }
 
     vtkOpenGLCheckErrorMacro("failed at glBlitFramebuffer");
+  }
+
+  // has something changed that would require us to recreate the shader?
+  if (!this->Tris.Program)
+  {
+    // build the shader source code
+    std::string VSSource = vtkglProjectedTetrahedraVS;
+    std::string FSSource = vtkglProjectedTetrahedraFS;
+    std::string GSSource;
+
+    // compile and bind it if needed
+    vtkShaderProgram* newShader = window->GetShaderCache()->ReadyShaderProgram(
+      VSSource.c_str(), FSSource.c_str(), GSSource.c_str());
+
+    // if the shader changed reinitialize the VAO
+    if (newShader != this->Tris.Program)
+    {
+      this->Tris.Program = newShader;
+      this->Tris.VAO->ShaderProgramChanged(); // reset the VAO as the shader has changed
+    }
+
+    this->Tris.ShaderSourceTime.Modified();
+  }
+  else
+  {
+    window->GetShaderCache()->ReadyShaderProgram(this->Tris.Program);
   }
 
   // TODO:
@@ -824,9 +825,12 @@ void vtkOpenGLProjectedTetrahedraMapper::ProjectTetrahedra(
       }
 
 #define VEC3SUB(Z, X, Y)                                                                           \
-  (Z)[0] = (X)[0] - (Y)[0];                                                                        \
-  (Z)[1] = (X)[1] - (Y)[1];                                                                        \
-  (Z)[2] = (X)[2] - (Y)[2];
+  do                                                                                               \
+  {                                                                                                \
+    (Z)[0] = (X)[0] - (Y)[0];                                                                      \
+    (Z)[1] = (X)[1] - (Y)[1];                                                                      \
+    (Z)[2] = (X)[2] - (Y)[2];                                                                      \
+  } while (false)
 #define P1 (tet_points + 3 * segment1[0])
 #define P2 (tet_points + 3 * segment1[1])
 #define P3 (tet_points + 3 * segment2[0])
@@ -1112,3 +1116,4 @@ void vtkOpenGLProjectedTetrahedraMapper::GLSafeUpdateProgress(double, vtkOpenGLR
   vtkOpenGLCheckErrorMacro("failed after GLSafeUpdateProgress");
 #endif
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTemporalInterpolator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTemporalInterpolator.h"
 
 #include "vtkArrayDispatch.h"
@@ -34,6 +22,7 @@
 #include <algorithm>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTemporalInterpolator);
 
 //------------------------------------------------------------------------------
@@ -169,7 +158,7 @@ int vtkTemporalInterpolator::RequestInformation(vtkInformation* vtkNotUsed(reque
     {
       OutputTimeValues.push_back((double)(i) * this->DiscreteTimeStepInterval + outRange[0]);
     }
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &OutputTimeValues[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), OutputTimeValues.data(),
       NumberOfOutputTimeSteps);
   }
   else if (this->ResampleFactor > 0)
@@ -188,7 +177,11 @@ int vtkTemporalInterpolator::RequestInformation(vtkInformation* vtkNotUsed(reque
         OutputTimeValues.push_back(newT);
       }
     }
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &OutputTimeValues[0],
+
+    // Add the last timestep, as it is never reached
+    OutputTimeValues.push_back(inTimes[numTimes - 1]);
+
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), OutputTimeValues.data(),
       static_cast<int>(OutputTimeValues.size()));
   }
   else
@@ -248,6 +241,10 @@ int vtkTemporalInterpolator::Execute(vtkInformation*,
   originalTimes->SetNumberOfTuples(numTimeSteps);
   for (int i = 0; i < numTimeSteps; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     originalTimes->SetValue(i, inputs[i]->GetInformation()->Get(vtkDataObject::DATA_TIME_STEP()));
   }
   outData->GetFieldData()->AddArray(originalTimes);
@@ -485,7 +482,7 @@ vtkDataSet* vtkTemporalInterpolator ::InterpolateDataSet(
     if (arrays[1])
     {
       // do a quick check to see if all arrays have the same number of tuples
-      if (this->VerifyArrays(&arrays[0], 2) != MATCHED)
+      if (this->VerifyArrays(arrays.data(), 2) != MATCHED)
       {
         vtkWarningMacro(<< "Interpolation aborted for array "
                         << (scalarname ? scalarname : "(unnamed array)")
@@ -496,7 +493,7 @@ vtkDataSet* vtkTemporalInterpolator ::InterpolateDataSet(
       {
         // allocate double for output if input is double - otherwise float
         vtkDataArray* outarray =
-          this->InterpolateDataArray(ratio, &arrays[0], arrays[0]->GetNumberOfTuples());
+          this->InterpolateDataArray(ratio, arrays.data(), arrays[0]->GetNumberOfTuples());
         output->GetPointData()->AddArray(outarray);
         outarray->Delete();
       }
@@ -540,7 +537,7 @@ vtkDataSet* vtkTemporalInterpolator ::InterpolateDataSet(
     if (arrays[1])
     {
       // do a quick check to see if all arrays have the same number of tuples
-      if (this->VerifyArrays(&arrays[0], 2) != MATCHED)
+      if (this->VerifyArrays(arrays.data(), 2) != MATCHED)
       {
         vtkWarningMacro(<< "Interpolation aborted for array "
                         << (scalarname ? scalarname : "(unnamed array)")
@@ -549,7 +546,7 @@ vtkDataSet* vtkTemporalInterpolator ::InterpolateDataSet(
       }
       // allocate double for output if input is double - otherwise float
       vtkDataArray* outarray =
-        this->InterpolateDataArray(ratio, &arrays[0], arrays[0]->GetNumberOfTuples());
+        this->InterpolateDataArray(ratio, arrays.data(), arrays[0]->GetNumberOfTuples());
       output->GetCellData()->AddArray(outarray);
       outarray->Delete();
     }
@@ -614,3 +611,4 @@ vtkDataArray* vtkTemporalInterpolator ::InterpolateDataArray(
 
   return output;
 }
+VTK_ABI_NAMESPACE_END

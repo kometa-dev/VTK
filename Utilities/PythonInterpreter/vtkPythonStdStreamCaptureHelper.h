@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonStdStreamCaptureHelper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPythonStdStreamCaptureHelper
  *
@@ -24,6 +12,7 @@
 #include "vtkPythonCompatibility.h"
 #include "vtkPythonInterpreter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkPythonStdStreamCaptureHelper
 {
   PyObject_HEAD
@@ -73,14 +62,11 @@ static PyObject* vtkFlush(PyObject* self, PyObject* args);
 static PyObject* vtkIsatty(PyObject* self, PyObject* args);
 static PyObject* vtkClose(PyObject* self, PyObject* args);
 
-// const_cast since older versions of python are not const correct.
-static PyMethodDef vtkPythonStdStreamCaptureHelperMethods[] = {
-  { const_cast<char*>("write"), vtkWrite, METH_VARARGS, const_cast<char*>("Dump message") },
-  { const_cast<char*>("readline"), vtkRead, METH_VARARGS, const_cast<char*>("Read input line") },
-  { const_cast<char*>("flush"), vtkFlush, METH_VARARGS, const_cast<char*>("Flush") },
-  { const_cast<char*>("isatty"), vtkIsatty, METH_VARARGS, const_cast<char*>("Is a TTY") },
-  { const_cast<char*>("close"), vtkClose, METH_VARARGS, const_cast<char*>("Close") }, { 0, 0, 0, 0 }
-};
+static PyMethodDef vtkPythonStdStreamCaptureHelperMethods[] = { { "write", vtkWrite, METH_VARARGS,
+                                                                  "Dump message" },
+  { "readline", vtkRead, METH_VARARGS, "Read input line" },
+  { "flush", vtkFlush, METH_VARARGS, "Flush" }, { "isatty", vtkIsatty, METH_VARARGS, "Is a TTY" },
+  { "close", vtkClose, METH_VARARGS, "Close" }, { nullptr, nullptr, 0, nullptr } };
 
 static PyObject* vtkPythonStdStreamCaptureHelperNew(
   PyTypeObject* type, PyObject* /*args*/, PyObject* /*kwds*/)
@@ -88,11 +74,20 @@ static PyObject* vtkPythonStdStreamCaptureHelperNew(
   return type->tp_alloc(type, 0);
 }
 
+#if PY_VERSION_HEX >= 0x03070000
+#define VTK_PYTHON_MEMBER_DEF_STR(x) x
+#else
+#define VTK_PYTHON_MEMBER_DEF_STR(x) const_cast<char*>(x)
+#endif
+
 static PyMemberDef vtkPythonStdStreamCaptureHelperMembers[] = {
-  { const_cast<char*>("softspace"), T_INT, offsetof(vtkPythonStdStreamCaptureHelper, softspace), 0,
-    const_cast<char*>("Placeholder so print can keep state.") },
-  { 0, 0, 0, 0, 0 }
+  { VTK_PYTHON_MEMBER_DEF_STR("softspace"), T_INT,
+    offsetof(vtkPythonStdStreamCaptureHelper, softspace), 0,
+    VTK_PYTHON_MEMBER_DEF_STR("Placeholder so print can keep state.") },
+  { nullptr, 0, 0, 0, nullptr }
 };
+
+#undef VTK_PYTHON_MEMBER_DEF_STR
 
 #ifdef VTK_PYTHON_NEEDS_DEPRECATION_WARNING_SUPPRESSION
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -104,51 +99,51 @@ static PyTypeObject vtkPythonStdStreamCaptureHelperType = {
   "vtkPythonStdStreamCaptureHelper",       // tp_name
   sizeof(vtkPythonStdStreamCaptureHelper), // tp_basicsize
   0,                                       // tp_itemsize
-  0,                                       // tp_dealloc
+  nullptr,                                 // tp_dealloc
 #if PY_VERSION_HEX >= 0x03080000
   0, // tp_vectorcall_offset
 #else
   nullptr, // tp_print
 #endif
-  0,                                        // tp_getattr
-  0,                                        // tp_setattr
-  0,                                        // tp_compare
-  0,                                        // tp_repr
-  0,                                        // tp_as_number
-  0,                                        // tp_as_sequence
-  0,                                        // tp_as_mapping
-  0,                                        // tp_hash
-  0,                                        // tp_call
-  0,                                        // tp_str
+  nullptr,                                  // tp_getattr
+  nullptr,                                  // tp_setattr
+  nullptr,                                  // tp_compare
+  nullptr,                                  // tp_repr
+  nullptr,                                  // tp_as_number
+  nullptr,                                  // tp_as_sequence
+  nullptr,                                  // tp_as_mapping
+  nullptr,                                  // tp_hash
+  nullptr,                                  // tp_call
+  nullptr,                                  // tp_str
   PyObject_GenericGetAttr,                  // tp_getattro
   PyObject_GenericSetAttr,                  // tp_setattro
-  0,                                        // tp_as_buffer
+  nullptr,                                  // tp_as_buffer
   Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, // tp_flags
   "vtkPythonStdStreamCaptureHelper",        //  tp_doc
-  0,                                        //  tp_traverse
-  0,                                        //  tp_clear
-  0,                                        //  tp_richcompare
+  nullptr,                                  //  tp_traverse
+  nullptr,                                  //  tp_clear
+  nullptr,                                  //  tp_richcompare
   0,                                        //  tp_weaklistoffset
-  0,                                        //  tp_iter
-  0,                                        //  tp_iternext
+  nullptr,                                  //  tp_iter
+  nullptr,                                  //  tp_iternext
   vtkPythonStdStreamCaptureHelperMethods,   //  tp_methods
   vtkPythonStdStreamCaptureHelperMembers,   //  tp_members
-  0,                                        //  tp_getset
-  0,                                        //  tp_base
-  0,                                        //  tp_dict
-  0,                                        //  tp_descr_get
-  0,                                        //  tp_descr_set
+  nullptr,                                  //  tp_getset
+  nullptr,                                  //  tp_base
+  nullptr,                                  //  tp_dict
+  nullptr,                                  //  tp_descr_get
+  nullptr,                                  //  tp_descr_set
   0,                                        //  tp_dictoffset
-  0,                                        //  tp_init
-  0,                                        //  tp_alloc
+  nullptr,                                  //  tp_init
+  nullptr,                                  //  tp_alloc
   vtkPythonStdStreamCaptureHelperNew,       //  tp_new
-  0,                                        // freefunc tp_free; /* Low-level free-memory routine */
-  0,                                        // inquiry tp_is_gc; /* For PyObject_IS_GC */
-  0,                                        // PyObject *tp_bases;
-  0,                                        // PyObject *tp_mro; /* method resolution order */
-  0,                                        // PyObject *tp_cache;
-  0,                                        // PyObject *tp_subclasses;
-  0,                                        // PyObject *tp_weaklist;
+  nullptr,                                  // freefunc tp_free; /* Low-level free-memory routine */
+  nullptr,                                  // inquiry tp_is_gc; /* For PyObject_IS_GC */
+  nullptr,                                  // PyObject *tp_bases;
+  nullptr,                                  // PyObject *tp_mro; /* method resolution order */
+  nullptr,                                  // PyObject *tp_cache;
+  nullptr,                                  // PyObject *tp_subclasses;
+  nullptr,                                  // PyObject *tp_weaklist;
   VTK_WRAP_PYTHON_SUPPRESS_UNINITIALIZED
 };
 // clang-format on
@@ -157,7 +152,7 @@ static PyObject* vtkWrite(PyObject* self, PyObject* args)
 {
   if (!self || !PyObject_TypeCheck(self, &vtkPythonStdStreamCaptureHelperType))
   {
-    return 0;
+    return nullptr;
   }
 
   vtkPythonStdStreamCaptureHelper* wrapper =
@@ -177,13 +172,13 @@ static PyObject* vtkRead(PyObject* self, PyObject* args)
   (void)args;
   if (!self || !PyObject_TypeCheck(self, &vtkPythonStdStreamCaptureHelperType))
   {
-    return 0;
+    return nullptr;
   }
 
   vtkPythonStdStreamCaptureHelper* wrapper =
     reinterpret_cast<vtkPythonStdStreamCaptureHelper*>(self);
 
-  vtkStdString ret;
+  std::string ret;
   if (wrapper)
   {
     ret = wrapper->Read();
@@ -196,7 +191,7 @@ static PyObject* vtkFlush(PyObject* self, PyObject* args)
   (void)args;
   if (!self || !PyObject_TypeCheck(self, &vtkPythonStdStreamCaptureHelperType))
   {
-    return 0;
+    return nullptr;
   }
 
   vtkPythonStdStreamCaptureHelper* wrapper =
@@ -213,7 +208,7 @@ static PyObject* vtkIsatty(PyObject* self, PyObject* args)
   (void)args;
   if (!self || !PyObject_TypeCheck(self, &vtkPythonStdStreamCaptureHelperType))
   {
-    return 0;
+    return nullptr;
   }
   vtkPythonStdStreamCaptureHelper* wrapper =
     reinterpret_cast<vtkPythonStdStreamCaptureHelper*>(self);
@@ -231,7 +226,7 @@ static PyObject* vtkClose(PyObject* self, PyObject* args)
   (void)args;
   if (!self || !PyObject_TypeCheck(self, &vtkPythonStdStreamCaptureHelperType))
   {
-    return 0;
+    return nullptr;
   }
 
   vtkPythonStdStreamCaptureHelper* wrapper =
@@ -248,7 +243,7 @@ static vtkPythonStdStreamCaptureHelper* NewPythonStdStreamCaptureHelper(bool for
   vtkPythonScopeGilEnsurer gilEnsurer;
   if (PyType_Ready(&vtkPythonStdStreamCaptureHelperType) < 0)
   {
-    return 0;
+    return nullptr;
   }
 
   vtkPythonStdStreamCaptureHelper* wrapper =
@@ -261,5 +256,6 @@ static vtkPythonStdStreamCaptureHelper* NewPythonStdStreamCaptureHelper(bool for
   return wrapper;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkPythonStdStreamCaptureHelper.h

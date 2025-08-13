@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    LSDynaFamily.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 // .NAME LSDynaFamily
 // .SECTION Description
@@ -67,6 +52,7 @@ typedef FILE* vtkLSDynaFile_t;
 #include <errno.h>
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 class LSDynaFamily
 {
 public:
@@ -155,7 +141,7 @@ public:
   // Setup reading of a number of words to be split across multiple
   // bufferChunk. This is used to read really large buffer sections
   // in more reasonable sizes. The parameters are used to specify the total buffer
-  // size. The buffer size will always be evenly divisable by numComps and total
+  // size. The buffer size will always be evenly divisible by numComps and total
   // word size of all buffers will be numTuples*numComps
   vtkIdType InitPartialChunkBuffering(const vtkIdType& numTuples, const vtkIdType& numComps);
   vtkIdType GetNextChunk(const WordType& wType);
@@ -196,7 +182,7 @@ public:
   /// Print all adaptation and time step marker information.
   void DumpMarks(std::ostream& os);
 
-  // Closes the current file descripter. This is called after
+  // Closes the current file descriptor. This is called after
   // we are done reading in request data
   void CloseFileHandles();
 
@@ -325,4 +311,5 @@ inline T* LSDynaFamily::GetBufferAs()
   return reinterpret_cast<T*>(this->Chunk);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif // __LSDynaFamily_h

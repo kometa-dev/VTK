@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFixedPointVolumeRayCastMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFixedPointVolumeRayCastMapper.h"
 
 #include "vtkCamera.h"
@@ -48,25 +36,32 @@
 #include <cmath>
 #include <exception>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFixedPointVolumeRayCastMapper);
 vtkCxxSetObjectMacro(vtkFixedPointVolumeRayCastMapper, RayCastImage, vtkFixedPointRayCastImage);
 
 #define vtkVRCMultiplyPointMacro(A, B, M)                                                          \
-  B[0] = A[0] * M[0] + A[1] * M[1] + A[2] * M[2] + M[3];                                           \
-  B[1] = A[0] * M[4] + A[1] * M[5] + A[2] * M[6] + M[7];                                           \
-  B[2] = A[0] * M[8] + A[1] * M[9] + A[2] * M[10] + M[11];                                         \
-  B[3] = A[0] * M[12] + A[1] * M[13] + A[2] * M[14] + M[15];                                       \
-  if (B[3] != 1.0)                                                                                 \
+  do                                                                                               \
   {                                                                                                \
-    B[0] /= B[3];                                                                                  \
-    B[1] /= B[3];                                                                                  \
-    B[2] /= B[3];                                                                                  \
-  }
+    B[0] = A[0] * M[0] + A[1] * M[1] + A[2] * M[2] + M[3];                                         \
+    B[1] = A[0] * M[4] + A[1] * M[5] + A[2] * M[6] + M[7];                                         \
+    B[2] = A[0] * M[8] + A[1] * M[9] + A[2] * M[10] + M[11];                                       \
+    B[3] = A[0] * M[12] + A[1] * M[13] + A[2] * M[14] + M[15];                                     \
+    if (B[3] != 1.0)                                                                               \
+    {                                                                                              \
+      B[0] /= B[3];                                                                                \
+      B[1] /= B[3];                                                                                \
+      B[2] /= B[3];                                                                                \
+    }                                                                                              \
+  } while (false)
 
 #define vtkVRCMultiplyNormalMacro(A, B, M)                                                         \
-  B[0] = A[0] * M[0] + A[1] * M[4] + A[2] * M[8];                                                  \
-  B[1] = A[0] * M[1] + A[1] * M[5] + A[2] * M[9];                                                  \
-  B[2] = A[0] * M[2] + A[1] * M[6] + A[2] * M[10]
+  do                                                                                               \
+  {                                                                                                \
+    B[0] = A[0] * M[0] + A[1] * M[4] + A[2] * M[8];                                                \
+    B[1] = A[0] * M[1] + A[1] * M[5] + A[2] * M[9];                                                \
+    B[2] = A[0] * M[2] + A[1] * M[6] + A[2] * M[10];                                               \
+  } while (false)
 
 //------------------------------------------------------------------------------
 template <class T>
@@ -3229,3 +3224,4 @@ void vtkFixedPointVolumeRayCastMapper::ReleaseGraphicsResources(vtkWindow* win)
     this->ImageDisplayHelper->ReleaseGraphicsResources(win);
   }
 }
+VTK_ABI_NAMESPACE_END

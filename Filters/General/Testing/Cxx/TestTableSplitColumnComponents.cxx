@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestTableSplitColumnComponents.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDataSetAttributes.h"
 #include "vtkInformation.h"
@@ -22,15 +10,18 @@
 #include "vtkTable.h"
 
 #define GET_ARRAYS(arrays, out)                                                                    \
-  for (int cc = 0; cc < 10; ++cc)                                                                  \
+  do                                                                                               \
   {                                                                                                \
-    arrays[cc] = vtkArrayDownCast<vtkIntArray>(out->GetColumn(cc));                                \
-    if (arrays[cc] == nullptr)                                                                     \
+    for (int cc = 0; cc < 10; ++cc)                                                                \
     {                                                                                              \
-      vtkGenericWarningMacro(<< cc << ": one of the output arrays was zero - type change?");       \
-      return EXIT_FAILURE;                                                                         \
+      arrays[cc] = vtkArrayDownCast<vtkIntArray>(out->GetColumn(cc));                              \
+      if (arrays[cc] == nullptr)                                                                   \
+      {                                                                                            \
+        vtkGenericWarningMacro(<< cc << ": one of the output arrays was zero - type change?");     \
+        return EXIT_FAILURE;                                                                       \
+      }                                                                                            \
     }                                                                                              \
-  }
+  } while (false)
 
 int TestTableSplitColumnComponents(int, char*[])
 {

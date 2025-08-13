@@ -1,36 +1,17 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    H5RageAdaptor.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "H5RageAdaptor.h"
 
-#include "vtkCellArray.h"
 #include "vtkDataArraySelection.h"
 #include "vtkDirectory.h"
 #include "vtkDoubleArray.h"
-#include "vtkErrorCode.h"
+#include "vtkFieldData.h"
 #include "vtkFloatArray.h"
-#include "vtkIdList.h"
 #include "vtkImageData.h"
-#include "vtkInformation.h"
-#include "vtkMultiPieceDataSet.h"
 #include "vtkMultiProcessController.h"
 #include "vtkNew.h"
 #include "vtkPointData.h"
-#include "vtkPoints.h"
-#include "vtkStdString.h"
-#include "vtkStringArray.h"
 #include "vtksys/FStream.hxx"
 
 #include <cctype>
@@ -43,11 +24,16 @@
 #include <vtk_hdf5.h>
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
+VTK_ABI_NAMESPACE_BEGIN
 const static char* Slash = "\\";
+VTK_ABI_NAMESPACE_END
 #else
+VTK_ABI_NAMESPACE_BEGIN
 const static char* Slash = "/";
+VTK_ABI_NAMESPACE_END
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // mpi tag
@@ -63,14 +49,14 @@ void BroadcastString(vtkMultiProcessController* controller, std::string& str, in
     {
       std::vector<char> tmp;
       tmp.resize(len);
-      controller->Broadcast(&(tmp[0]), len, 0);
-      str = &tmp[0];
+      controller->Broadcast(tmp.data(), len, 0);
+      str = tmp.data();
     }
     else
     {
       const char* start = str.c_str();
       std::vector<char> tmp(start, start + len);
-      controller->Broadcast(&tmp[0], len, 0);
+      controller->Broadcast(tmp.data(), len, 0);
     }
   }
 }
@@ -878,3 +864,4 @@ void H5RageAdaptor::ConvertHDFData(int ndims, int* dimensions, T* hdfData)
   }
   delete[] convertedData;
 }
+VTK_ABI_NAMESPACE_END

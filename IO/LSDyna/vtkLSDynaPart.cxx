@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLSDynaPart.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkLSDynaPart.h"
 
@@ -32,6 +21,7 @@
 #include <map>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -298,7 +288,7 @@ vtkLSDynaPart::vtkLSDynaPart()
   this->GlobalPointsUsed = nullptr;
 
   this->Type = LSDynaMetaData::NUM_CELL_TYPES;
-  this->Name = vtkStdString();
+  this->Name = std::string();
   this->UserMaterialId = -1;
   this->PartId = -1;
 
@@ -497,7 +487,7 @@ vtkUnstructuredGrid* vtkLSDynaPart::GenerateGrid()
   }
   else
   {
-    // we threshold the datset on the ghost cells and return
+    // we threshold the dataset on the ghost cells and return
     // the new dataset
     return this->RemoveDeletedCells();
   }
@@ -862,7 +852,7 @@ void vtkLSDynaPart::BuildCells()
 
   // copy the contents from the part into a cell array.
   vtkIdTypeArray* cellArray = vtkIdTypeArray::New();
-  cellArray->SetVoidArray(&this->Cells->data[0], cellDataSize, 1);
+  cellArray->SetVoidArray(this->Cells->data.data(), cellDataSize, 1);
 
   // set the idtype array as the cellarray
   vtkCellArray* cells = vtkCellArray::New();
@@ -871,7 +861,7 @@ void vtkLSDynaPart::BuildCells()
 
   // now copy the cell types from the vector to
   vtkUnsignedCharArray* cellTypes = vtkUnsignedCharArray::New();
-  cellTypes->SetVoidArray(&this->Cells->types[0], this->NumberOfCells, 1);
+  cellTypes->SetVoidArray(this->Cells->types.data(), this->NumberOfCells, 1);
 
   // actually set up the grid
   this->Grid->SetCells(cellTypes, cells, nullptr, nullptr);
@@ -973,3 +963,4 @@ void vtkLSDynaPart::BuildUniquePoints()
     this->GlobalPointsUsed = new vtkLSDynaPart::SparsePointsUsed(&pointUsage, min, max);
   }
 }
+VTK_ABI_NAMESPACE_END

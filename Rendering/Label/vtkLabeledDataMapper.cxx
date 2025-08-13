@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLabeledDataMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkLabeledDataMapper.h"
 
@@ -37,6 +25,7 @@
 
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLabeledDataMapper::Internals
 {
 public:
@@ -369,7 +358,7 @@ void vtkLabeledDataMapper::BuildLabelsInternal(vtkDataSet* input)
     case VTK_LABEL_IDS:
     {
       pointIdLabels = 1;
-    };
+    }
     break;
     case VTK_LABEL_SCALARS:
       if (pd->GetScalars())
@@ -417,7 +406,7 @@ void vtkLabeledDataMapper::BuildLabelsInternal(vtkDataSet* input)
       }
       numericData = vtkArrayDownCast<vtkDataArray>(abstractData);
       stringData = vtkArrayDownCast<vtkStringArray>(abstractData);
-    };
+    }
     break;
   }
 
@@ -460,7 +449,7 @@ void vtkLabeledDataMapper::BuildLabelsInternal(vtkDataSet* input)
     }
   }
 
-  vtkStdString FormatString;
+  std::string FormatString;
   if (this->LabelFormat)
   {
     // The user has specified a format string.
@@ -538,7 +527,7 @@ void vtkLabeledDataMapper::BuildLabelsInternal(vtkDataSet* input)
       FormatString = "BUG - COULDN'T DETECT DATA TYPE";
     }
 
-    vtkDebugMacro(<< "Using default format string " << FormatString.c_str());
+    vtkDebugMacro(<< "Using default format string " << FormatString);
 
   } // Done building default format string
 
@@ -562,7 +551,7 @@ void vtkLabeledDataMapper::BuildLabelsInternal(vtkDataSet* input)
     vtkArrayDownCast<vtkIntArray>(this->GetInputAbstractArrayToProcess(0, input));
   for (i = 0; i < numCurLabels; i++)
   {
-    vtkStdString ResultString;
+    std::string ResultString;
 
     if (pointIdLabels)
     {
@@ -815,3 +804,4 @@ void vtkLabeledDataMapper::SetFieldDataName(const char* arrayName)
   }
   this->Modified();
 }
+VTK_ABI_NAMESPACE_END

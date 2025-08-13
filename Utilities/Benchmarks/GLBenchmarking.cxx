@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    GLBenchmarking.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkActor.h"
 #include "vtkAxis.h"
@@ -46,8 +34,8 @@ namespace vtk
 class BenchmarkTest
 {
 public:
-  BenchmarkTest() { ; }
-  virtual ~BenchmarkTest() { ; }
+  BenchmarkTest() = default;
+  virtual ~BenchmarkTest() = default;
 
   virtual vtkIdType Build(vtkRenderer*, const vtkVector2i&) { return 0; }
 };

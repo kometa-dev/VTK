@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAppendDataSets.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAppendDataSets
  * @brief   Appends one or more datasets together into a single output vtkPointSet.
@@ -33,7 +21,7 @@
  * there are global point ids. In the case of the presence of global point ids,
  * the filter exclusively relies on those ids, not checking if points are
  * coincident. It assumes that the global ids were properly set. In the case of
- * the absence of global ids, points withing Tolerance are merged.
+ * the absence of global ids, points within Tolerance are merged.
  *
  * @sa
  * vtkAppendFilter vtkAppendPolyData
@@ -45,6 +33,7 @@
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPointSetAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkDataSetCollection;
 
@@ -156,4 +145,5 @@ private:
   vtkDataSetCollection* GetNonEmptyInputs(vtkInformationVector** inputVector);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

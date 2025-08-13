@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLagrangeCurve.h"
 #include "vtkLagrangeHexahedron.h"
 #include "vtkLagrangeInterpolation.h"
@@ -33,7 +35,6 @@
 #include "vtkRegressionTestImage.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
-#include "vtkTable.h"
 
 #include <sstream>
 #include <vector>
@@ -294,7 +295,7 @@ static vtkSmartPointer<vtkLagrangeHexahedron> CreateCell(const vtkVector3i& test
     */
   }
   vtkCell* hexc = hex.GetPointer();
-  hexc->Initialize(npts, &conn[0], pts);
+  hexc->Initialize(npts, conn.data(), pts);
 
   return hex;
 }
@@ -383,7 +384,7 @@ bool TestEvaluation(T& hex)
   vtkVector3d param(1., 1., 1.);
   vtkVector3d posn;
   std::vector<double> shape(hex->GetPoints()->GetNumberOfPoints());
-  hex->EvaluateLocation(subId, param.GetData(), posn.GetData(), &shape[0]);
+  hex->EvaluateLocation(subId, param.GetData(), posn.GetData(), shape.data());
   std::cout << "\nEvaluateLocation" << param << " -> " << posn << "\n";
   ok &= testEqual(subId, 0, "EvaluateLocation: subId should be 0");
   vtkVector3d p6;
@@ -394,7 +395,7 @@ bool TestEvaluation(T& hex)
   vtkVector3d closest;
   double minDist2 = -1.0; // invalid
   int result = hex->EvaluatePosition(
-    posn.GetData(), closest.GetData(), subId, param.GetData(), minDist2, &shape[0]);
+    posn.GetData(), closest.GetData(), subId, param.GetData(), minDist2, shape.data());
   std::cout << "\nEvaluatePosition" << posn << " -> " << param << " dist " << minDist2 << " subid "
             << subId << " status " << result << "\n";
   ok &= testEqual(result, 1, "EvaluatePosition: proper return code for interior point");

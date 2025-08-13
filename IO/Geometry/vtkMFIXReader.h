@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMFIXReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMFIXReader
  * @brief   reads a dataset in MFIX file format
@@ -38,6 +26,7 @@
 #include "vtkIOGeometryModule.h" // For export macro
 #include "vtkUnstructuredGridAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArraySelection;
 class vtkDoubleArray;
 class vtkStringArray;
@@ -48,7 +37,6 @@ class vtkWedge;
 class vtkQuad;
 class vtkHexahedron;
 class vtkPoints;
-class vtkStdString;
 
 class VTKIOGEOMETRY_EXPORT vtkMFIXReader : public vtkUnstructuredGridAlgorithm
 {
@@ -114,7 +102,7 @@ public:
   /**
    * Get the number of cell arrays available in the input.
    */
-  int GetNumberOfCellArrays(void);
+  int GetNumberOfCellArrays();
 
   /**
    * Get the name of the cell array with the given index in
@@ -268,12 +256,8 @@ private:
   void SwapDouble(double& value);
   void SwapFloat(float& value);
   void SwapInt(int& value);
-  vtkStdString ConvertIntToString(int in);
-  int ConvertCharToInt(char in);
-  int ConvertStringToInt(const vtkStdString& in);
   void GetInt(istream& in, int& val);
   void GetDouble(istream& in, double& val);
-  void GetFloat(istream& in, float& val);
   void SkipBytes(istream& in, int n);
   void RestartVersionNumber(const char* buffer);
   void GetBlockOfDoubles(istream& in, vtkDoubleArray* v, int n);
@@ -293,4 +277,5 @@ private:
   void GetAllTimes(vtkInformationVector* outputVector);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

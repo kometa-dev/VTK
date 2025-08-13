@@ -1,19 +1,8 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonUtil.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPythonUtil.h"
+#include "vtkABINamespace.h"
 #include "vtkPythonOverload.h"
 
 #include "PyVTKMethodDescriptor.h"
@@ -22,7 +11,7 @@
 
 #include "vtkObject.h"
 #include "vtkPythonCommand.h"
-#include "vtkStdString.h"
+#include "vtkSmartPyObject.h"
 #include "vtkVariant.h"
 #include "vtkWeakPointer.h"
 #include "vtkWindows.h"
@@ -43,6 +32,7 @@
 #include <cstdint>
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // A ghost object, can be used to recreate a deleted PyVTKObject
 class PyVTKObjectGhost
@@ -140,6 +130,14 @@ class vtkPythonClassMap : public std::map<std::string, PyVTKClass>
 {
 };
 
+// Map the Pythonic class names to the ones given by GetClassName().
+// These differ only for templated classes derived from vtkObjectBase,
+// where GetClassName() returns typeid(T).name() which in general is
+// not a valid Python name.
+class vtkPythonClassNameMap : public std::map<std::string, std::string>
+{
+};
+
 // Like the ClassMap, for types not derived from vtkObjectBase.
 class vtkPythonSpecialTypeMap : public std::map<std::string, PyVTKSpecialType>
 {
@@ -210,6 +208,7 @@ vtkPythonUtil::vtkPythonUtil()
   this->ObjectMap = new vtkPythonObjectMap;
   this->GhostMap = new vtkPythonGhostMap;
   this->ClassMap = new vtkPythonClassMap;
+  this->ClassNameMap = new vtkPythonClassNameMap;
   this->SpecialTypeMap = new vtkPythonSpecialTypeMap;
   this->NamespaceMap = new vtkPythonNamespaceMap;
   this->EnumMap = new vtkPythonEnumMap;
@@ -223,6 +222,7 @@ vtkPythonUtil::~vtkPythonUtil()
   delete this->ObjectMap;
   delete this->GhostMap;
   delete this->ClassMap;
+  delete this->ClassNameMap;
   delete this->SpecialTypeMap;
   delete this->NamespaceMap;
   delete this->EnumMap;
@@ -267,7 +267,7 @@ void vtkPythonUtil::UnRegisterPythonCommand(vtkPythonCommand* cmd)
 PyTypeObject* vtkPythonUtil::AddSpecialTypeToMap(
   PyTypeObject* pytype, PyMethodDef* methods, PyMethodDef* constructors, vtkcopyfunc copyfunc)
 {
-  const char* classname = vtkPythonUtil::StripModule(pytype->tp_name);
+  const char* classname = vtkPythonUtil::StripModuleFromType(pytype);
 
   // lets make sure it isn't already there
   vtkPythonSpecialTypeMap::iterator i = vtkPythonMap->SpecialTypeMap->find(classname);
@@ -466,11 +466,26 @@ const char* vtkPythonUtil::PythonicClassName(const char* classname)
     PyTypeObject* pytype = vtkPythonUtil::FindBaseTypeObject(classname);
     if (pytype)
     {
-      classname = vtkPythonUtil::StripModule(pytype->tp_name);
+      classname = vtkPythonUtil::StripModuleFromType(pytype);
     }
   }
 
   return classname;
+}
+
+//------------------------------------------------------------------------------
+const char* vtkPythonUtil::VTKClassName(const char* pyname)
+{
+  if (vtkPythonMap && pyname != nullptr)
+  {
+    vtkPythonClassNameMap::iterator it = vtkPythonMap->ClassNameMap->find(pyname);
+    if (it != vtkPythonMap->ClassNameMap->end())
+    {
+      return it->second.c_str();
+    }
+  }
+
+  return pyname;
 }
 
 //------------------------------------------------------------------------------
@@ -489,6 +504,35 @@ const char* vtkPythonUtil::StripModule(const char* tpname)
 }
 
 //------------------------------------------------------------------------------
+const char* vtkPythonUtil::StripModuleFromType(PyTypeObject* pytype)
+{
+  return vtkPythonUtil::StripModule(vtkPythonUtil::GetTypeName(pytype));
+}
+
+//------------------------------------------------------------------------------
+const char* vtkPythonUtil::StripModuleFromObject(PyObject* ob)
+{
+  return vtkPythonUtil::StripModuleFromType(Py_TYPE(ob));
+}
+
+//------------------------------------------------------------------------------
+const char* vtkPythonUtil::GetTypeName(PyTypeObject* pytype)
+{
+#ifdef PY_LIMITED_API
+  vtkSmartPyObject tname = PyType_GetName(pytype);
+  return PyUnicode_AsUTF8AndSize(tname, nullptr);
+#else
+  return pytype->tp_name;
+#endif
+}
+
+//------------------------------------------------------------------------------
+const char* vtkPythonUtil::GetTypeNameForObject(PyObject* ob)
+{
+  return vtkPythonUtil::GetTypeName(Py_TYPE(ob));
+}
+
+//------------------------------------------------------------------------------
 PyTypeObject* vtkPythonUtil::AddClassToMap(
   PyTypeObject* pytype, PyMethodDef* methods, const char* classname, vtknewfunc constructor)
 {
@@ -499,6 +543,16 @@ PyTypeObject* vtkPythonUtil::AddClassToMap(
     i = vtkPythonMap->ClassMap->insert(i,
       vtkPythonClassMap::value_type(
         classname, PyVTKClass(pytype, methods, classname, constructor)));
+
+    // if Python type name differs from VTK ClassName, store in ClassNameMap
+    // (this only occurs for templated classes, due to their GetClassName()
+    // implementation in their type macro in vtkSetGet.h)
+    const char* pyname = vtkPythonUtil::StripModuleFromType(pytype);
+    if (strcmp(pyname, classname) != 0)
+    {
+      vtkPythonMap->ClassNameMap->insert(
+        vtkPythonMap->ClassNameMap->end(), vtkPythonClassNameMap::value_type(pyname, classname));
+    }
   }
 
   return i->second.py_type;
@@ -535,11 +589,21 @@ PyVTKClass* vtkPythonUtil::FindNearestBaseClass(vtkObjectBase* ptr)
 
     if (ptr->IsA(pyclass->vtk_name))
     {
-      PyTypeObject* base = pyclass->py_type->tp_base;
+      PyTypeObject* base =
+#if PY_VERSION_HEX >= 0x030A0000
+        (PyTypeObject*)PyType_GetSlot(pyclass->py_type, Py_tp_base)
+#else
+        pyclass->py_type->tp_base
+#endif
+        ;
       // count the hierarchy depth for this class
       for (depth = 0; base != nullptr; depth++)
       {
+#if PY_VERSION_HEX >= 0x030A0000
+        base = (PyTypeObject*)PyType_GetSlot(base, Py_tp_base);
+#else
         base = base->tp_base;
+#endif
       }
       // we want the class that is furthest from vtkObjectBase
       if (depth > maxdepth)
@@ -714,7 +778,7 @@ void* vtkPythonUtil::GetPointerFromSpecialObject(
     return nullptr;
   }
 
-  const char* object_type = vtkPythonUtil::StripModule(Py_TYPE(obj)->tp_name);
+  const char* object_type = vtkPythonUtil::StripModuleFromObject(obj);
 
   // do a lookup on the desired type
   vtkPythonSpecialTypeMap::iterator it = vtkPythonMap->SpecialTypeMap->find(result_type);
@@ -736,12 +800,13 @@ void* vtkPythonUtil::GetPointerFromSpecialObject(
     // If a constructor signature exists for "obj", call it
     if (meth && meth->ml_meth)
     {
-      PyObject* args = PyTuple_New(1);
-      PyTuple_SET_ITEM(args, 0, obj);
-      Py_INCREF(obj);
-
-      sobj = meth->ml_meth(nullptr, args);
-
+      PyObject* args = PyTuple_Pack(1, obj);
+      PyObject* func = PyCFunction_New(meth, nullptr);
+      if (func)
+      {
+        sobj = PyObject_Call(func, args, nullptr);
+        Py_DECREF(func);
+      }
       Py_DECREF(args);
     }
 
@@ -874,9 +939,16 @@ PyTypeObject* vtkPythonUtil::FindBaseTypeObject(const char* name)
   {
     // in case of override, drill down to get the original (non-override) type,
     // that's what we need to use for the base class of other wrapped classes
-    for (PyTypeObject* pytype = info->py_type; pytype != nullptr; pytype = pytype->tp_base)
+    for (PyTypeObject* pytype = info->py_type; pytype != nullptr;
+         pytype =
+#if PY_VERSION_HEX >= 0x030A0000
+           (PyTypeObject*)PyType_GetSlot(pytype, Py_tp_base)
+#else
+           pytype->tp_base
+#endif
+    )
     {
-      if (strcmp(vtkPythonUtil::StripModule(pytype->tp_name), name) == 0)
+      if (strcmp(vtkPythonUtil::StripModuleFromType(pytype), name) == 0)
       {
         return pytype;
       }
@@ -939,8 +1011,8 @@ bool vtkPythonUtil::ImportModule(const char* fullname, PyObject* globals)
 
   if (fullname == name || (fullname[0] == '.' && &fullname[1] == name))
   {
-    // try relative import (const-cast is needed for Python 2.x only)
-    m = PyImport_ImportModuleLevel(const_cast<char*>(name), globals, nullptr, nullptr, 1);
+    // try relative import
+    m = PyImport_ImportModuleLevel(name, globals, nullptr, nullptr, 1);
     if (!m)
     {
       PyErr_Clear();
@@ -1055,8 +1127,8 @@ Py_hash_t vtkPythonUtil::VariantHash(const vtkVariant* v)
 
     default:
     {
-      vtkStdString s = v->ToString();
-      PyObject* tmp = PyString_FromString(s.c_str());
+      std::string s = v->ToString();
+      PyObject* tmp = PyUnicode_FromString(s.c_str());
       h = PyObject_Hash(tmp);
       Py_DECREF(tmp);
       break;
@@ -1126,3 +1198,4 @@ void vtkPythonVoidFuncArgDelete(void* arg)
     Py_DECREF(func);
   }
 }
+VTK_ABI_NAMESPACE_END

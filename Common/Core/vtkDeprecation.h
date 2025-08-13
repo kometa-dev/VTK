@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDeprecation.h
-
--------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #ifndef vtkDeprecation_h
 #define vtkDeprecation_h
@@ -69,8 +52,8 @@
 #define VTK_DEPRECATION_LEVEL VTK_VERSION_NUMBER
 #endif
 
-// API deprecated before 9.0.0 have already been removed.
-#define VTK_MINIMUM_DEPRECATION_LEVEL VTK_VERSION_CHECK(9, 0, 0)
+// API deprecated before 9.1.0 have already been removed.
+#define VTK_MINIMUM_DEPRECATION_LEVEL VTK_VERSION_CHECK(9, 1, 0)
 
 // Force the deprecation level to be at least that of VTK's build
 // configuration.
@@ -111,6 +94,15 @@
 
 // APIs deprecated in the next release.
 #if defined(__VTK_WRAP__)
+#define VTK_DEPRECATED_IN_9_3_0(reason) [[vtk::deprecated(reason, "9.3.0")]]
+#elif VTK_DEPRECATION_LEVEL >= VTK_VERSION_CHECK(9, 2, 20220617)
+#define VTK_DEPRECATED_IN_9_3_0(reason) VTK_DEPRECATION(reason)
+#else
+#define VTK_DEPRECATED_IN_9_3_0(reason)
+#endif
+
+// APIs deprecated in 9.2.0.
+#if defined(__VTK_WRAP__)
 #define VTK_DEPRECATED_IN_9_2_0(reason) [[vtk::deprecated(reason, "9.2.0")]]
 #elif VTK_DEPRECATION_LEVEL >= VTK_VERSION_CHECK(9, 1, 20211001)
 #define VTK_DEPRECATED_IN_9_2_0(reason) VTK_DEPRECATION(reason)
@@ -118,16 +110,13 @@
 #define VTK_DEPRECATED_IN_9_2_0(reason)
 #endif
 
-// APIs deprecated in 9.1.0.
+// APIs deprecated in the older release always warn.
 #if defined(__VTK_WRAP__)
 #define VTK_DEPRECATED_IN_9_1_0(reason) [[vtk::deprecated(reason, "9.1.0")]]
-#elif VTK_DEPRECATION_LEVEL >= VTK_VERSION_CHECK(9, 1, 0)
-#define VTK_DEPRECATED_IN_9_1_0(reason) VTK_DEPRECATION(reason)
 #else
 #define VTK_DEPRECATED_IN_9_1_0(reason)
 #endif
 
-// APIs deprecated in the older release always warn.
 #if defined(__VTK_WRAP__)
 #define VTK_DEPRECATED_IN_9_0_0(reason) [[vtk::deprecated(reason, "9.0.0")]]
 #else

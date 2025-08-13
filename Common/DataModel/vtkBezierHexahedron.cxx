@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBezierHexahedron.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBezierHexahedron.h"
 
@@ -31,6 +19,7 @@
 #include "vtkVector.h"
 #include "vtkVectorOperators.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBezierHexahedron);
 
 vtkBezierHexahedron::vtkBezierHexahedron() = default;
@@ -112,18 +101,6 @@ vtkCell* vtkBezierHexahedron::GetFace(int faceId)
   return result;
 }
 
-/**\brief EvaluateLocation Given a point_id. This is required by Bezier because the interior
- * points are non-interpolatory .
- */
-void vtkBezierHexahedron::EvaluateLocationProjectedNode(
-  int& subId, const vtkIdType point_id, double x[3], double* weights)
-{
-  this->vtkHigherOrderHexahedron::SetParametricCoords();
-  double pcoords[3];
-  this->PointParametricCoordinates->GetPoint(this->PointIds->FindIdLocation(point_id), pcoords);
-  this->vtkHigherOrderHexahedron::EvaluateLocation(subId, pcoords, x, weights);
-}
-
 /**\brief Populate the linear hex returned by GetApprox() with point-data from one voxel-like
  * intervals of this cell.
  *
@@ -183,7 +160,7 @@ void vtkBezierHexahedron::InterpolateFunctions(const double pcoords[3], double* 
 {
   vtkBezierInterpolation::Tensor3ShapeFunctions(this->GetOrder(), pcoords, weights);
 
-  // If the unit cell has rational weigths: weights_i = weights_i * rationalWeights / sum(
+  // If the unit cell has rational weights: weights_i = weights_i * rationalWeights / sum(
   // weights_i
   // * rationalWeights )
   const bool has_rational_weights = RationalWeights->GetNumberOfTuples() > 0;
@@ -210,7 +187,7 @@ void vtkBezierHexahedron::InterpolateDerivs(const double pcoords[3], double* der
 /**\brief Set the rational weight of the cell, given a vtkDataSet
  */
 void vtkBezierHexahedron::SetRationalWeightsFromPointData(
-  vtkPointData* point_data, const vtkIdType numPts)
+  vtkPointData* point_data, vtkIdType numPts)
 {
   vtkDataArray* v = point_data->GetRationalWeights();
   if (v)
@@ -241,3 +218,4 @@ vtkHigherOrderInterpolation* vtkBezierHexahedron::GetInterpolation()
 {
   return Interp;
 };
+VTK_ABI_NAMESPACE_END

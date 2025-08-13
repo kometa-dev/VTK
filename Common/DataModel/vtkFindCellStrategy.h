@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFindCellStrategy.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkFindCellStrategy
  * @brief   helper class to manage the vtkPointSet::FindCell() METHOD
@@ -51,6 +39,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCell;
 class vtkGenericCell;
 class vtkPointSet;
@@ -115,6 +104,8 @@ public:
    * generally is used to copy from instance prototype to another, or to copy
    * strategies between thread instances.  Sub-classes can contribute to
    * the parameter copying process via chaining.
+   *
+   * Note: CopyParameters should ALWAYS be called BEFORE Initialize.
    */
   virtual void CopyParameters(vtkFindCellStrategy* from);
 
@@ -127,6 +118,9 @@ protected:
   // together; resulting in memory leaks etc, So this defines if the locator specified or taken from
   // another strategy instance or the dataset.
   bool OwnsLocator;
+  // IsACopy is needed to ensure the point-set's locator is up-to-date
+  // otherwise thread-safety issue can arise.
+  bool IsACopy;
   vtkPointSet* PointSet; // vtkPointSet which this strategy is associated with
   double Bounds[6];      // bounding box of vtkPointSet
 
@@ -137,4 +131,5 @@ private:
   void operator=(const vtkFindCellStrategy&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLImageMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLImageMapper.h"
 
 #include "vtk_glew.h"
@@ -42,6 +30,7 @@
 
 #include "vtkOpenGLError.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLImageMapper);
 
 vtkOpenGLImageMapper::vtkOpenGLImageMapper()
@@ -99,6 +88,7 @@ void vtkOpenGLImageMapper::ReleaseGraphicsResources(vtkWindow* renWin)
 // be predefined to the same type as y
 
 #define vtkClampToUnsignedChar(x, y)                                                               \
+  do                                                                                               \
   {                                                                                                \
     val = (y);                                                                                     \
     if (val < 0)                                                                                   \
@@ -110,14 +100,19 @@ void vtkOpenGLImageMapper::ReleaseGraphicsResources(vtkWindow* renWin)
       val = 255;                                                                                   \
     }                                                                                              \
     (x) = static_cast<unsigned char>(val);                                                         \
-  }
+  } while (false)
 /* should do proper rounding, as follows:
+ *
+ * XXX(ben.boeckel): This is not proper rounding. This will round the value
+ * just less than 0.5 to 1.0 due to IEEE floating point rounding rules. *That*
+ * is the number to add.
   (x) = (unsigned char)(val + 0.5f); \
 */
 
 // the bit-shift must be done after the comparison to zero
 // because bit-shift is undefined behaviour for negative numbers
 #define vtkClampIntToUnsignedChar(x, y, shift)                                                     \
+  do                                                                                               \
   {                                                                                                \
     val = (y);                                                                                     \
     if (val < 0)                                                                                   \
@@ -130,7 +125,7 @@ void vtkOpenGLImageMapper::ReleaseGraphicsResources(vtkWindow* renWin)
       val = 255;                                                                                   \
     }                                                                                              \
     (x) = static_cast<unsigned char>(val);                                                         \
-  }
+  } while (false)
 
 // pad an integer to a multiply of four, for OpenGL
 inline int vtkPadToFour(int n)
@@ -590,6 +585,11 @@ void vtkOpenGLImageMapper::RenderData(vtkViewport* viewport, vtkImageData* data,
     return;
   }
 
+  if (!data->GetPointData()->GetScalars())
+  {
+    return;
+  }
+
   this->Actor->SetProperty(actor->GetProperty());
 
   // Make this window current. May have become not current due to
@@ -679,3 +679,4 @@ void vtkOpenGLImageMapper::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

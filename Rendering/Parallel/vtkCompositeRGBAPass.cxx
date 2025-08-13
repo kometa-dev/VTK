@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeRGBAPass.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCompositeRGBAPass.h"
 #include "vtkFrameBufferObjectBase.h"
@@ -38,7 +26,6 @@
 #include "vtkPNGWriter.h"
 #include "vtkPixelBufferObject.h"
 #include "vtkPointData.h"
-#include "vtkStdString.h"
 #include "vtkTimerLog.h"
 #include <sstream>
 
@@ -50,6 +37,7 @@
 
 #include "vtk_glew.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCompositeRGBAPass);
 vtkCxxSetObjectMacro(vtkCompositeRGBAPass, Controller, vtkMultiProcessController);
 vtkCxxSetObjectMacro(vtkCompositeRGBAPass, Kdtree, vtkPKdTree);
@@ -280,12 +268,8 @@ void vtkCompositeRGBAPass::Render(const vtkRenderState* s)
     timer->StopTimer();
     ostxx << "root0_" << vtkTimerLog::GetUniversalTime() << "_.png";
 
-    vtkStdString* sssxx = new vtkStdString;
-    (*sssxx) = ostxx.str();
-
     writer = vtkPNGWriter::New();
-    writer->SetFileName(*sssxx);
-    delete sssxx;
+    writer->SetFileName(ostxx.str().c_str());
     writer->SetInputConnection(converter->GetOutputPort());
     converter->Delete();
     importer->Delete();
@@ -434,12 +418,8 @@ void vtkCompositeRGBAPass::Render(const vtkRenderState* s)
     timer->StopTimer();
     osty << "rootend_" << vtkTimerLog::GetUniversalTime() << "_.png";
 
-    vtkStdString* sssy = new vtkStdString;
-    (*sssy) = osty.str();
-
     writer = vtkPNGWriter::New();
-    writer->SetFileName(*sssy);
-    delete sssy;
+    writer->SetFileName(osty.str().c_str());
     writer->SetInputConnection(converter->GetOutputPort());
     converter->Delete();
     importer->Delete();
@@ -495,12 +475,8 @@ void vtkCompositeRGBAPass::Render(const vtkRenderState* s)
     timer->StopTimer();
     ostxx << "satellite_send_" << vtkTimerLog::GetUniversalTime() << "_.png";
 
-    vtkStdString* sssxx = new vtkStdString;
-    (*sssxx) = ostxx.str();
-
     writer = vtkPNGWriter::New();
-    writer->SetFileName(*sssxx);
-    delete sssxx;
+    writer->SetFileName(ostxx.str().c_str());
     writer->SetInputConnection(converter->GetOutputPort());
     converter->Delete();
     importer->Delete();
@@ -549,3 +525,4 @@ void vtkCompositeRGBAPass::ReleaseGraphicsResources(vtkWindow* w)
     this->RootTexture = nullptr;
   }
 }
+VTK_ABI_NAMESPACE_END

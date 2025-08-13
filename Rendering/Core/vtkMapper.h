@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMapper
  * @brief   abstract class specifies interface to map data to graphics primitives
@@ -65,6 +53,7 @@
 #define VTK_MATERIALMODE_DIFFUSE 2
 #define VTK_MATERIALMODE_AMBIENT_AND_DIFFUSE 3
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkDataSet;
 class vtkDataObject;
@@ -570,4 +559,5 @@ private:
   void operator=(const vtkMapper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

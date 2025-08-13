@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSetGet.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   SetGet
  *
@@ -29,7 +17,6 @@
 
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkCompiler.h"
-#include "vtkLegacy.h"
 #include "vtkOptions.h"
 #include "vtkSystemIncludes.h"
 #include "vtksys/SystemTools.hxx"
@@ -153,7 +140,7 @@
 #define vtkGetMacro(name, type)                                                                    \
   virtual type Get##name() VTK_FUTURE_CONST                                                        \
   {                                                                                                \
-    vtkDebugMacro(<< " returning " << #name " of " << this->name);                                 \
+    vtkDebugMacro(<< " returning " #name " of " << this->name);                                    \
     return this->name;                                                                             \
   }
 
@@ -191,7 +178,7 @@
 #define vtkGetEnumMacro(name, enumType)                                                            \
   virtual enumType Get##name() const                                                               \
   {                                                                                                \
-    vtkDebugMacro(<< " returning " << #name " of "                                                 \
+    vtkDebugMacro(<< " returning " #name " of "                                                    \
                   << static_cast<std::underlying_type<enumType>::type>(this->name));               \
     return this->name;                                                                             \
   }
@@ -215,7 +202,7 @@
 // the header file using vtkSetStringMacro or in the implementation.
 #define vtkSetStringBodyMacro(name, _arg)                                                          \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to " << (_arg ? _arg : "(null)"));                     \
+    vtkDebugMacro(<< " setting " #name " to " << (_arg ? _arg : "(null)"));                        \
     if (this->name == nullptr && _arg == nullptr)                                                  \
     {                                                                                              \
       return;                                                                                      \
@@ -258,7 +245,7 @@
 // the header file using vtkGetStringMacro or in the implementation.
 #define vtkGetStringBodyMacro(name)                                                                \
   {                                                                                                \
-    vtkDebugMacro(<< " returning " << #name " of " << (this->name ? this->name : "(null)"));       \
+    vtkDebugMacro(<< " returning " #name " of " << (this->name ? this->name : "(null)"));          \
     return this->name;                                                                             \
   }
 
@@ -268,10 +255,18 @@
 #define vtkSetStdStringFromCharMacro(name)                                                         \
   virtual void Set##name(const char* arg)                                                          \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to " << (arg ? arg : "(null)"));                       \
+    vtkDebugMacro(<< " setting " #name " to " << (arg ? arg : "(null)"));                          \
     if (arg)                                                                                       \
     {                                                                                              \
+      if (this->name == arg)                                                                       \
+      {                                                                                            \
+        return;                                                                                    \
+      }                                                                                            \
       this->name = arg;                                                                            \
+    }                                                                                              \
+    else if (this->name.empty())                                                                   \
+    {                                                                                              \
+      return;                                                                                      \
     }                                                                                              \
     else                                                                                           \
     {                                                                                              \
@@ -282,10 +277,18 @@
 #define vtkSetStdStringFromCharMacroOverride(name)                                                 \
   void Set##name(const char* arg) override                                                         \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to " << (arg ? arg : "(null)"));                       \
+    vtkDebugMacro(<< " setting " #name " to " << (arg ? arg : "(null)"));                          \
     if (arg)                                                                                       \
     {                                                                                              \
+      if (this->name == arg)                                                                       \
+      {                                                                                            \
+        return;                                                                                    \
+      }                                                                                            \
       this->name = arg;                                                                            \
+    }                                                                                              \
+    else if (this->name.empty())                                                                   \
+    {                                                                                              \
+      return;                                                                                      \
     }                                                                                              \
     else                                                                                           \
     {                                                                                              \
@@ -301,7 +304,7 @@
 #define vtkGetCharFromStdStringMacro(name)                                                         \
   virtual const char* Get##name()                                                                  \
   {                                                                                                \
-    vtkDebugMacro(<< " returning " << #name " of " << this->name);                                 \
+    vtkDebugMacro(<< " returning " #name " of " << this->name);                                    \
     return this->name.c_str();                                                                     \
   }
 
@@ -315,7 +318,7 @@
 #define vtkSetClampMacro(name, type, min, max)                                                     \
   virtual void Set##name(type _arg)                                                                \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to " << _arg);                                         \
+    vtkDebugMacro(<< " setting " #name " to " << _arg);                                            \
     if (this->name != (_arg < min ? min : (_arg > max ? max : _arg)))                              \
     {                                                                                              \
       this->name = (_arg < min ? min : (_arg > max ? max : _arg));                                 \
@@ -327,7 +330,7 @@
 #define vtkSetClampMacroOverride(name, type, min, max)                                             \
   void Set##name(type _arg) override                                                               \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to " << _arg);                                         \
+    vtkDebugMacro(<< " setting " #name " to " << _arg);                                            \
     if (this->name != (_arg < min ? min : (_arg > max ? max : _arg)))                              \
     {                                                                                              \
       this->name = (_arg < min ? min : (_arg > max ? max : _arg));                                 \
@@ -346,7 +349,7 @@
 //
 #define vtkSetObjectBodyMacro(name, type, args)                                                    \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to " << args);                                         \
+    vtkDebugMacro(<< " setting " #name " to " << args);                                            \
     if (this->name != args)                                                                        \
     {                                                                                              \
       type* tempSGMacroVar = this->name;                                                           \
@@ -369,7 +372,7 @@
 //
 #define vtkSetSmartPointerBodyMacro(name, type, args)                                              \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to " << args);                                         \
+    vtkDebugMacro(<< " setting " #name " to " << args);                                            \
     if (this->name != args)                                                                        \
     {                                                                                              \
       this->name = args;                                                                           \
@@ -464,7 +467,7 @@
 #define vtkSetVector2Macro(name, type)                                                             \
   virtual void Set##name(type _arg1, type _arg2)                                                   \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to (" << _arg1 << "," << _arg2 << ")");                \
+    vtkDebugMacro(<< " setting " #name " to (" << _arg1 << "," << _arg2 << ")");                   \
     if ((this->name[0] != _arg1) || (this->name[1] != _arg2))                                      \
     {                                                                                              \
       this->name[0] = _arg1;                                                                       \
@@ -476,7 +479,7 @@
 #define vtkSetVector2MacroOverride(name, type)                                                     \
   void Set##name(type _arg1, type _arg2) override                                                  \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to (" << _arg1 << "," << _arg2 << ")");                \
+    vtkDebugMacro(<< " setting " #name " to (" << _arg1 << "," << _arg2 << ")");                   \
     if ((this->name[0] != _arg1) || (this->name[1] != _arg2))                                      \
     {                                                                                              \
       this->name[0] = _arg1;                                                                       \
@@ -488,7 +491,7 @@
 #define vtkGetVector2Macro(name, type)                                                             \
   virtual type* Get##name() VTK_SIZEHINT(2)                                                        \
   {                                                                                                \
-    vtkDebugMacro(<< " returning " << #name " pointer " << this->name);                            \
+    vtkDebugMacro(<< " returning " #name " pointer " << this->name);                               \
     return this->name;                                                                             \
   }                                                                                                \
   VTK_WRAPEXCLUDE                                                                                  \
@@ -496,7 +499,7 @@
   {                                                                                                \
     _arg1 = this->name[0];                                                                         \
     _arg2 = this->name[1];                                                                         \
-    vtkDebugMacro(<< " returning " << #name " = (" << _arg1 << "," << _arg2 << ")");               \
+    vtkDebugMacro(<< " returning " #name " = (" << _arg1 << "," << _arg2 << ")");                  \
   }                                                                                                \
   VTK_WRAPEXCLUDE                                                                                  \
   virtual void Get##name(type _arg[2]) { this->Get##name(_arg[0], _arg[1]); }
@@ -504,8 +507,7 @@
 #define vtkSetVector3Macro(name, type)                                                             \
   virtual void Set##name(type _arg1, type _arg2, type _arg3)                                       \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to (" << _arg1 << "," << _arg2 << "," << _arg3         \
-                  << ")");                                                                         \
+    vtkDebugMacro(<< " setting " #name " to (" << _arg1 << "," << _arg2 << "," << _arg3 << ")");   \
     if ((this->name[0] != _arg1) || (this->name[1] != _arg2) || (this->name[2] != _arg3))          \
     {                                                                                              \
       this->name[0] = _arg1;                                                                       \
@@ -518,8 +520,7 @@
 #define vtkSetVector3MacroOverride(name, type)                                                     \
   void Set##name(type _arg1, type _arg2, type _arg3) override                                      \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to (" << _arg1 << "," << _arg2 << "," << _arg3         \
-                  << ")");                                                                         \
+    vtkDebugMacro(<< " setting " #name " to (" << _arg1 << "," << _arg2 << "," << _arg3 << ")");   \
     if ((this->name[0] != _arg1) || (this->name[1] != _arg2) || (this->name[2] != _arg3))          \
     {                                                                                              \
       this->name[0] = _arg1;                                                                       \
@@ -533,7 +534,7 @@
 #define vtkGetVector3Macro(name, type)                                                             \
   virtual type* Get##name() VTK_SIZEHINT(3)                                                        \
   {                                                                                                \
-    vtkDebugMacro(<< " returning " << #name " pointer " << this->name);                            \
+    vtkDebugMacro(<< " returning " #name " pointer " << this->name);                               \
     return this->name;                                                                             \
   }                                                                                                \
   VTK_WRAPEXCLUDE                                                                                  \
@@ -542,8 +543,7 @@
     _arg1 = this->name[0];                                                                         \
     _arg2 = this->name[1];                                                                         \
     _arg3 = this->name[2];                                                                         \
-    vtkDebugMacro(<< " returning " << #name " = (" << _arg1 << "," << _arg2 << "," << _arg3        \
-                  << ")");                                                                         \
+    vtkDebugMacro(<< " returning " #name " = (" << _arg1 << "," << _arg2 << "," << _arg3 << ")");  \
   }                                                                                                \
   VTK_WRAPEXCLUDE                                                                                  \
   virtual void Get##name(type _arg[3]) { this->Get##name(_arg[0], _arg[1], _arg[2]); }
@@ -551,7 +551,7 @@
 #define vtkSetVector4Macro(name, type)                                                             \
   virtual void Set##name(type _arg1, type _arg2, type _arg3, type _arg4)                           \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to (" << _arg1 << "," << _arg2 << "," << _arg3 << ","  \
+    vtkDebugMacro(<< " setting " #name " to (" << _arg1 << "," << _arg2 << "," << _arg3 << ","     \
                   << _arg4 << ")");                                                                \
     if ((this->name[0] != _arg1) || (this->name[1] != _arg2) || (this->name[2] != _arg3) ||        \
       (this->name[3] != _arg4))                                                                    \
@@ -570,7 +570,7 @@
 #define vtkSetVector4MacroOverride(name, type)                                                     \
   void Set##name(type _arg1, type _arg2, type _arg3, type _arg4) override                          \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to (" << _arg1 << "," << _arg2 << "," << _arg3 << ","  \
+    vtkDebugMacro(<< " setting " #name " to (" << _arg1 << "," << _arg2 << "," << _arg3 << ","     \
                   << _arg4 << ")");                                                                \
     if ((this->name[0] != _arg1) || (this->name[1] != _arg2) || (this->name[2] != _arg3) ||        \
       (this->name[3] != _arg4))                                                                    \
@@ -590,7 +590,7 @@
 #define vtkGetVector4Macro(name, type)                                                             \
   virtual type* Get##name() VTK_SIZEHINT(4)                                                        \
   {                                                                                                \
-    vtkDebugMacro(<< " returning " << #name " pointer " << this->name);                            \
+    vtkDebugMacro(<< " returning " #name " pointer " << this->name);                               \
     return this->name;                                                                             \
   }                                                                                                \
   VTK_WRAPEXCLUDE                                                                                  \
@@ -600,7 +600,7 @@
     _arg2 = this->name[1];                                                                         \
     _arg3 = this->name[2];                                                                         \
     _arg4 = this->name[3];                                                                         \
-    vtkDebugMacro(<< " returning " << #name " = (" << _arg1 << "," << _arg2 << "," << _arg3 << "," \
+    vtkDebugMacro(<< " returning " #name " = (" << _arg1 << "," << _arg2 << "," << _arg3 << ","    \
                   << _arg4 << ")");                                                                \
   }                                                                                                \
   VTK_WRAPEXCLUDE                                                                                  \
@@ -609,7 +609,7 @@
 #define vtkSetVector6Macro(name, type)                                                             \
   virtual void Set##name(type _arg1, type _arg2, type _arg3, type _arg4, type _arg5, type _arg6)   \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to (" << _arg1 << "," << _arg2 << "," << _arg3 << ","  \
+    vtkDebugMacro(<< " setting " #name " to (" << _arg1 << "," << _arg2 << "," << _arg3 << ","     \
                   << _arg4 << "," << _arg5 << "," << _arg6 << ")");                                \
     if ((this->name[0] != _arg1) || (this->name[1] != _arg2) || (this->name[2] != _arg3) ||        \
       (this->name[3] != _arg4) || (this->name[4] != _arg5) || (this->name[5] != _arg6))            \
@@ -630,7 +630,7 @@
 #define vtkSetVector6MacroOverride(name, type)                                                     \
   void Set##name(type _arg1, type _arg2, type _arg3, type _arg4, type _arg5, type _arg6) override  \
   {                                                                                                \
-    vtkDebugMacro(<< " setting " << #name " to (" << _arg1 << "," << _arg2 << "," << _arg3 << ","  \
+    vtkDebugMacro(<< " setting " #name " to (" << _arg1 << "," << _arg2 << "," << _arg3 << ","     \
                   << _arg4 << "," << _arg5 << "," << _arg6 << ")");                                \
     if ((this->name[0] != _arg1) || (this->name[1] != _arg2) || (this->name[2] != _arg3) ||        \
       (this->name[3] != _arg4) || (this->name[4] != _arg5) || (this->name[5] != _arg6))            \
@@ -652,7 +652,7 @@
 #define vtkGetVector6Macro(name, type)                                                             \
   virtual type* Get##name() VTK_SIZEHINT(6)                                                        \
   {                                                                                                \
-    vtkDebugMacro(<< " returning " << #name " pointer " << this->name);                            \
+    vtkDebugMacro(<< " returning " #name " pointer " << this->name);                               \
     return this->name;                                                                             \
   }                                                                                                \
   VTK_WRAPEXCLUDE                                                                                  \
@@ -665,7 +665,7 @@
     _arg4 = this->name[3];                                                                         \
     _arg5 = this->name[4];                                                                         \
     _arg6 = this->name[5];                                                                         \
-    vtkDebugMacro(<< " returning " << #name " = (" << _arg1 << "," << _arg2 << "," << _arg3 << "," \
+    vtkDebugMacro(<< " returning " #name " = (" << _arg1 << "," << _arg2 << "," << _arg3 << ","    \
                   << _arg4 << "," << _arg5 << "," << _arg6 << ")");                                \
   }                                                                                                \
   VTK_WRAPEXCLUDE                                                                                  \
@@ -729,7 +729,7 @@
 #define vtkGetVectorMacro(name, type, count)                                                       \
   virtual type* Get##name() VTK_SIZEHINT(count)                                                    \
   {                                                                                                \
-    vtkDebugMacro(<< " returning " << #name " pointer " << this->name);                            \
+    vtkDebugMacro(<< " returning " #name " pointer " << this->name);                               \
     return this->name;                                                                             \
   }                                                                                                \
   VTK_WRAPEXCLUDE                                                                                  \
@@ -746,6 +746,7 @@
 // This is to avoid vtkObject #include of vtkOutputWindow
 // while vtkOutputWindow #includes vtkObject
 
+VTK_ABI_NAMESPACE_BEGIN
 extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayText(const char*);
 extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayErrorText(const char*);
 extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayWarningText(const char*);
@@ -763,6 +764,7 @@ extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayGenericWarningText(
   const char*, int, const char*);
 extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(
   const char*, int, const char*, vtkObject* sourceObj);
+VTK_ABI_NAMESPACE_END
 
 //
 // This macro is used for any output that may not be in an instance method
@@ -773,11 +775,11 @@ extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(
   {                                                                                                \
     if (vtkObject::GetGlobalWarningDisplay())                                                      \
     {                                                                                              \
-      vtkOStreamWrapper::EndlType endl;                                                            \
+      vtkOStreamWrapper::EndlType const endl;                                                      \
       vtkOStreamWrapper::UseEndl(endl);                                                            \
       vtkOStrStreamWrapper vtkmsg;                                                                 \
       vtkmsg << "" x;                                                                              \
-      std::string _filename = vtksys::SystemTools::GetFilenameName(__FILE__);                      \
+      std::string const _filename = vtksys::SystemTools::GetFilenameName(__FILE__);                \
       vtkOutputWindowDisplayGenericWarningText(_filename.c_str(), __LINE__, vtkmsg.str());         \
       vtkmsg.rdbuf()->freeze(0);                                                                   \
     }                                                                                              \
@@ -813,7 +815,7 @@ extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(
   {                                                                                                \
     if (vtkObject::GetGlobalWarningDisplay())                                                      \
     {                                                                                              \
-      vtkOStreamWrapper::EndlType endl;                                                            \
+      vtkOStreamWrapper::EndlType const endl;                                                      \
       vtkOStreamWrapper::UseEndl(endl);                                                            \
       vtkOStrStreamWrapper vtkmsg;                                                                 \
       vtkObject* _object = const_cast<vtkObject*>(static_cast<const vtkObject*>(self));            \
@@ -826,7 +828,7 @@ extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(
         vtkmsg << "(nullptr): ";                                                                   \
       }                                                                                            \
       vtkmsg << "" x;                                                                              \
-      std::string _filename = vtksys::SystemTools::GetFilenameName(__FILE__);                      \
+      std::string const _filename = vtksys::SystemTools::GetFilenameName(__FILE__);                \
       vtkOutputWindowDisplayErrorText(_filename.c_str(), __LINE__, vtkmsg.str(), _object);         \
       vtkmsg.rdbuf()->freeze(0);                                                                   \
       vtkObject::BreakOnError();                                                                   \
@@ -845,7 +847,7 @@ extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(
   {                                                                                                \
     if (vtkObject::GetGlobalWarningDisplay())                                                      \
     {                                                                                              \
-      vtkOStreamWrapper::EndlType endl;                                                            \
+      vtkOStreamWrapper::EndlType const endl;                                                      \
       vtkOStreamWrapper::UseEndl(endl);                                                            \
       vtkOStrStreamWrapper vtkmsg;                                                                 \
       vtkObject* _object = const_cast<vtkObject*>(static_cast<const vtkObject*>(self));            \
@@ -858,7 +860,7 @@ extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(
         vtkmsg << "(nullptr): ";                                                                   \
       }                                                                                            \
       vtkmsg << "" x;                                                                              \
-      std::string _filename = vtksys::SystemTools::GetFilenameName(__FILE__);                      \
+      std::string const _filename = vtksys::SystemTools::GetFilenameName(__FILE__);                \
       vtkOutputWindowDisplayWarningText(_filename.c_str(), __LINE__, vtkmsg.str(), _object);       \
       vtkmsg.rdbuf()->freeze(0);                                                                   \
     }                                                                                              \
@@ -883,7 +885,7 @@ extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(
     vtkObject* _object = const_cast<vtkObject*>(static_cast<const vtkObject*>(self));              \
     if ((!_object || _object->GetDebug()) && vtkObject::GetGlobalWarningDisplay())                 \
     {                                                                                              \
-      vtkOStreamWrapper::EndlType endl;                                                            \
+      vtkOStreamWrapper::EndlType const endl;                                                      \
       vtkOStreamWrapper::UseEndl(endl);                                                            \
       vtkOStrStreamWrapper vtkmsg;                                                                 \
       if (_object)                                                                                 \
@@ -895,7 +897,7 @@ extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(
         vtkmsg << "(nullptr): ";                                                                   \
       }                                                                                            \
       vtkmsg << "" x;                                                                              \
-      std::string _filename = vtksys::SystemTools::GetFilenameName(__FILE__);                      \
+      std::string const _filename = vtksys::SystemTools::GetFilenameName(__FILE__);                \
       vtkOutputWindowDisplayDebugText(_filename.c_str(), __LINE__, vtkmsg.str(), _object);         \
       vtkmsg.rdbuf()->freeze(0);                                                                   \
     }                                                                                              \
@@ -1236,6 +1238,22 @@ public:
 #ifndef VTK_FALLTHROUGH
 #define VTK_FALLTHROUGH ((void)0)
 #endif
+
+//----------------------------------------------------------------------------
+// To suppress code with undefined behaviour. Ideally, such code should be fixed
+// but sometimes suppression can be useful.
+
+#if defined(__has_attribute)
+#if __has_attribute(no_sanitize)
+#define VTK_NO_UBSAN __attribute__((no_sanitize("undefined")))
+#else
+#define VTK_NO_UBSAN
+#endif
+#else
+#define VTK_NO_UBSAN
+#endif
+
+//----------------------------------------------------------------------------
 
 // XXX(xcode-8)
 // AppleClang first supported thread_local only by Xcode 8, for older Xcodes

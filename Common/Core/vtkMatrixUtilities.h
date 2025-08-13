@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMathPrivate.hxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMathPrivate
  * @brief   Internal toolkit used in some vtkMath methods.
@@ -27,10 +15,13 @@
 #ifndef vtkMatrixUtilities_h
 #define vtkMatrixUtilities_h
 
+#include "vtkABINamespace.h"
+
 #include <type_traits> // for type traits
 
 namespace vtkMatrixUtilities
 {
+VTK_ABI_NAMESPACE_BEGIN
 //=============================================================================
 /**
  * This struct determines a prior transform to input matrices, changing the
@@ -353,6 +344,7 @@ public:
       MatrixLayoutIs2D<MatrixT>()>::template Get<RowT, ColT>(M);
   }
 };
+VTK_ABI_NAMESPACE_END
 } // namespace vtkMatrixUtilities
 #endif
 

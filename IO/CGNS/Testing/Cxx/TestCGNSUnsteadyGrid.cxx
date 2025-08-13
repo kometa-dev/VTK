@@ -1,16 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestCGNSUnsteadyGrid.cxx
-
-  Copyright (c) Jakub Benda, CFD support, Czech Republic
-  All rights reserved.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Jakub Benda, CFD support, Czech Republic
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCGNSReader.h"
 #include "vtkCell.h"
 #include "vtkInformation.h"
@@ -23,11 +13,14 @@
 #include <cmath>
 
 #define vtk_assert(x)                                                                              \
-  if (!(x))                                                                                        \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "On line " << __LINE__ << " ERROR: Condition FAILED!! : " << #x << endl;               \
-    return EXIT_FAILURE;                                                                           \
-  }
+    if (!(x))                                                                                      \
+    {                                                                                              \
+      cerr << "On line " << __LINE__ << " ERROR: Condition FAILED!! : " << #x << endl;             \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  } while (false)
 
 int TestOutput(vtkMultiBlockDataSet* mb, double size)
 {
@@ -73,7 +66,7 @@ int TestCGNSUnsteadyGrid(int argc, char* argv[])
   std::string grids = fname ? fname : "";
   delete[] fname;
 
-  cout << "Opening " << grids.c_str() << endl;
+  cout << "Opening " << grids << endl;
   vtkNew<vtkCGNSReader> gridsReader;
   gridsReader->SetFileName(grids.c_str());
   gridsReader->Update();

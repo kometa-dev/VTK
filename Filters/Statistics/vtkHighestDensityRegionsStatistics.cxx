@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHighestDensityRegionsStatistics.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkHighestDensityRegionsStatistics.h"
 
@@ -29,6 +17,7 @@
 #include <set>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHighestDensityRegionsStatistics);
 
 //------------------------------------------------------------------------------
@@ -115,20 +104,18 @@ void vtkHighestDensityRegionsStatistics::Learn(
     // Each request contains only one pair of columns of interest
     // (if there are others, they are ignored).
     std::set<vtkStdString>::const_iterator colIt = reqIt->begin();
-    const vtkStdString& colY = *colIt;
+    const std::string& colY = *colIt;
     if (!inData->GetColumnByName(colY.c_str()))
     {
-      vtkWarningMacro(
-        "InData table does not have a column " << colY.c_str() << ". Ignoring this pair.");
+      vtkWarningMacro("InData table does not have a column " << colY << ". Ignoring this pair.");
       continue;
     }
 
     ++colIt;
-    const vtkStdString& colX = *colIt;
+    const std::string& colX = *colIt;
     if (!inData->GetColumnByName(colX.c_str()))
     {
-      vtkWarningMacro(
-        "InData table does not have a column " << colX.c_str() << ". Ignoring this pair.");
+      vtkWarningMacro("InData table does not have a column " << colX << ". Ignoring this pair.");
       continue;
     }
 
@@ -249,3 +236,4 @@ double vtkHighestDensityRegionsStatistics::ComputeSmoothGaussianKernel(
 
   return (exp(-d * 0.5)) / (2.0 * vtkMath::Pi() * this->Determinant);
 }
+VTK_ABI_NAMESPACE_END

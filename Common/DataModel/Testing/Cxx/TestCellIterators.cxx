@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestCellIterators.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCellIterator.h"
 
@@ -108,24 +96,27 @@ bool testCellIterator(vtkCellIterator* iter, vtkUnstructuredGrid* grid)
 }
 
 #define TEST_ITERATOR(iter_, className_)                                                           \
-  if (std::string(#className_) != std::string(iter->GetClassName()))                               \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "Unexpected iterator type (expected " #className_ ", got " << (iter_)->GetClassName()  \
-         << ")" << endl;                                                                           \
-    return false;                                                                                  \
-  }                                                                                                \
+    if (std::string(#className_) != std::string(iter->GetClassName()))                             \
+    {                                                                                              \
+      cerr << "Unexpected iterator type (expected " #className_ ", got "                           \
+           << (iter_)->GetClassName() << ")" << endl;                                              \
+      return false;                                                                                \
+    }                                                                                              \
                                                                                                    \
-  if (!testCellIterator(iter_, grid))                                                              \
-  {                                                                                                \
-    cerr << #className_ << " test failed." << endl;                                                \
-    return false;                                                                                  \
-  }                                                                                                \
+    if (!testCellIterator(iter_, grid))                                                            \
+    {                                                                                              \
+      cerr << #className_ << " test failed." << endl;                                              \
+      return false;                                                                                \
+    }                                                                                              \
                                                                                                    \
-  if (!testCellIterator(iter_, grid))                                                              \
-  {                                                                                                \
-    cerr << #className_ << " test failed after rewind." << endl;                                   \
-    return false;                                                                                  \
-  }
+    if (!testCellIterator(iter_, grid))                                                            \
+    {                                                                                              \
+      cerr << #className_ << " test failed after rewind." << endl;                                 \
+      return false;                                                                                \
+    }                                                                                              \
+  } while (false)
 
 bool runValidation(vtkUnstructuredGrid* grid)
 {

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEnSightReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkEnSightReader
  * @brief   superclass for EnSight file readers
@@ -20,10 +8,10 @@
 #ifndef vtkEnSightReader_h
 #define vtkEnSightReader_h
 
-#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_1_0
 #include "vtkGenericEnSightReader.h"
 #include "vtkIOEnSightModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkDataSetCollection;
 class vtkEnSightReaderCellIdsType;
@@ -131,6 +119,8 @@ protected:
   int ReadCaseFileVariable(char* line);
   int ReadCaseFileTime(char* line);
   int ReadCaseFileFile(char* line);
+  int ReadCaseFileScripts(char* line);
+
   ///@}
 
   // set in UpdateInformation to value returned from ReadCaseFile
@@ -253,15 +243,6 @@ protected:
   int GetSectionType(const char* line);
 
   /**
-   * Replace the *'s in the filename with the given filename number.
-   */
-  VTK_DEPRECATED_IN_9_1_0("Use vtkGenericEnSightReader::ReplaceWildcardsHelper instead.")
-  void ReplaceWildcards(char* filename, int num);
-
-  // Remove when removing the deprecated method above.
-  using vtkGenericEnSightReader::ReplaceWildcards;
-
-  /**
    * Remove leading blank spaces from a string.
    */
   void RemoveLeadingBlanks(char* line);
@@ -359,4 +340,5 @@ private:
   void operator=(const vtkEnSightReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

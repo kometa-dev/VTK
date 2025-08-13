@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestVariantSerialization.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*
- * Copyright (C) 2008 The Trustees of Indiana University.
- * Use, modification and distribution is subject to the Boost Software
- * License, Version 1.0. (See http://www.boost.org/LICENSE_1_0.txt)
- */
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (C) 2008 The Trustees of Indiana University.
+// SPDX-License-Identifier: BSD-3-Clause AND BSL-1.0
 #include "vtkSmartPointer.h"
 #include "vtkVariant.h"
 #include "vtkVariantArray.h"
@@ -94,12 +77,15 @@ int TestVariantSerialization(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
   }
 
 #define VTK_VARIANT_ARRAY_DATA_CHECK(Index, Function, Kind)                                        \
-  if (sourceArray->GetValue(Index).Function() != sinkArray->GetValue(Index).Function())            \
+  do                                                                                               \
   {                                                                                                \
-    cerr << Kind << " mismatch: \"" << sourceArray->GetValue(Index).Function() << "\" vs. \""      \
-         << sinkArray->GetValue(Index).Function() << "\".\n";                                      \
-    ++errors;                                                                                      \
-  }
+    if (sourceArray->GetValue(Index).Function() != sinkArray->GetValue(Index).Function())          \
+    {                                                                                              \
+      cerr << Kind << " mismatch: \"" << sourceArray->GetValue(Index).Function() << "\" vs. \""    \
+           << sinkArray->GetValue(Index).Function() << "\".\n";                                    \
+      ++errors;                                                                                    \
+    }                                                                                              \
+  } while (false)
 
   VTK_VARIANT_ARRAY_DATA_CHECK(0, ToChar, "Character");
   VTK_VARIANT_ARRAY_DATA_CHECK(1, ToFloat, "Float");

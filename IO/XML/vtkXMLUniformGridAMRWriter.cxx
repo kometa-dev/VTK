@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLUniformGridAMRWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLUniformGridAMRWriter.h"
 
 #include "vtkAMRBox.h"
@@ -25,6 +13,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkXMLUniformGridAMRWriter);
 //------------------------------------------------------------------------------
 vtkXMLUniformGridAMRWriter::vtkXMLUniformGridAMRWriter() = default;
@@ -127,12 +116,12 @@ int vtkXMLUniformGridAMRWriter::WriteComposite(
         datasetXML->SetVectorAttribute("amr_box", 6, box_buffer);
       }
 
-      vtkStdString fileName = this->CreatePieceFileName(writerIdx);
+      std::string fileName = this->CreatePieceFileName(writerIdx);
       if (!fileName.empty())
       {
         // if fileName is empty, it implies that no file is written out for this
         // node, so don't add a filename attribute for it.
-        datasetXML->SetAttribute("file", fileName);
+        datasetXML->SetAttribute("file", fileName.c_str());
       }
       block->AddNestedElement(datasetXML);
 
@@ -156,3 +145,4 @@ void vtkXMLUniformGridAMRWriter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

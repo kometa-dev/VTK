@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExodusIIWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExodusIIWriter.h"
 #include "vtkArrayIteratorIncludes.h"
 #include "vtkCellArray.h"
@@ -39,7 +22,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkPlatform.h" // for VTK_MAXPATH
 #include "vtkPointData.h"
-#include "vtkStdString.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 #include "vtkThreshold.h"
@@ -51,6 +33,7 @@
 #include <map>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkExodusIIWriter);
 vtkCxxSetObjectMacro(vtkExodusIIWriter, ModelMetadata, vtkModelMetadata);
 
@@ -904,7 +887,7 @@ int vtkExodusIIWriter::ConstructBlockInfoMap()
             break;
           default:
             b.NodesPerElement = this->FlattenedInput[i]->GetCell(j)->GetNumberOfPoints();
-        };
+        }
 
         // TODO this could be a push if i is different.
         b.GridIndex = i;
@@ -1991,7 +1974,7 @@ int vtkExodusIIWriter::WriteBlockInformation()
       if (blockIter->second.NodesPerElement == 0)
       {
         rc = ex_put_entity_count_per_polyhedra(
-          this->fid, EX_ELEM_BLOCK, blockIter->first, &(blockIter->second.EntityCounts[0]));
+          this->fid, EX_ELEM_BLOCK, blockIter->first, blockIter->second.EntityCounts.data());
       }
     }
   }
@@ -2477,7 +2460,7 @@ int vtkExodusIIWriter::WriteNodeSetInformation()
 
   for (i = 0; i < nnsets; i++)
   {
-    vtkStdString name = em->GetNodeSetNames()->GetValue(node_ids[i]);
+    std::string name = em->GetNodeSetNames()->GetValue(node_ids[i]);
     ex_put_name(this->fid, EX_NODE_SET, node_ids[i], name.c_str());
   }
 
@@ -2704,7 +2687,7 @@ int vtkExodusIIWriter::WriteSideSetInformation()
 
   for (i = 0; i < nssets; i++)
   {
-    vtkStdString name = em->GetSideSetNames()->GetValue(sids[i]);
+    std::string name = em->GetSideSetNames()->GetValue(sids[i]);
     ex_put_name(this->fid, EX_SIDE_SET, sids[i], name.c_str());
   }
 
@@ -3294,3 +3277,4 @@ vtkIntArray* vtkExodusIIWriter::GetBlockIdArray(const char* name, vtkUnstructure
   }
   return nullptr;
 }
+VTK_ABI_NAMESPACE_END

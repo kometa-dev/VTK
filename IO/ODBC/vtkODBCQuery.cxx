@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkODBCQuery.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /*
  * Microsoft's own version of sqltypes.h relies on some typedefs and
@@ -44,9 +32,10 @@
 
 //------------------------------------------------------------------------------
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkODBCQuery);
 
-static vtkStdString GetErrorMessage(SQLSMALLINT handleType, SQLHANDLE handle, int* code = nullptr);
+static std::string GetErrorMessage(SQLSMALLINT handleType, SQLHANDLE handle, int* code = nullptr);
 
 /*
  * Bound Parameters and ODBC
@@ -139,12 +128,12 @@ public:
   void FreeStatement();
   void FreeUserParameterList();
   void ClearBoundParameters();
-  bool PrepareQuery(const char* queryString, SQLHANDLE connection, vtkStdString& error_message);
+  bool PrepareQuery(const char* queryString, SQLHANDLE connection, std::string& error_message);
   bool SetBoundParameter(int index, vtkODBCBoundParameter* param);
   bool BindParametersToStatement();
 
   SQLHANDLE Statement;
-  vtkStdString Name;
+  std::string Name;
 
   vtkVariantArray* CurrentRow;
   vtkStringArray* ColumnNames;
@@ -186,8 +175,15 @@ void vtkODBCQueryInternals::FreeStatement()
 
 //------------------------------------------------------------------------------
 
+template <typename T>
+SQLSMALLINT vtkODBCTypeNameC();
+
 #define VTK_ODBC_C_TYPENAME_MACRO(type, return_type)                                               \
-  SQLSMALLINT vtkODBCTypeNameC(type) { return return_type; }
+  template <>                                                                                      \
+  SQLSMALLINT vtkODBCTypeNameC<type>()                                                             \
+  {                                                                                                \
+    return return_type;                                                                            \
+  }
 
 VTK_ODBC_C_TYPENAME_MACRO(signed char, SQL_C_STINYINT);
 VTK_ODBC_C_TYPENAME_MACRO(unsigned char, SQL_C_UTINYINT);
@@ -206,8 +202,15 @@ VTK_ODBC_C_TYPENAME_MACRO(char*, SQL_C_CHAR);
 VTK_ODBC_C_TYPENAME_MACRO(unsigned char*, SQL_C_CHAR);
 VTK_ODBC_C_TYPENAME_MACRO(void*, SQL_C_BINARY);
 
+template <typename T>
+SQLSMALLINT vtkODBCTypeNameSQL();
+
 #define VTK_ODBC_SQL_TYPENAME_MACRO(type, return_type)                                             \
-  SQLSMALLINT vtkODBCTypeNameSQL(type) { return return_type; }
+  template <>                                                                                      \
+  SQLSMALLINT vtkODBCTypeNameSQL<type>()                                                           \
+  {                                                                                                \
+    return return_type;                                                                            \
+  }
 
 VTK_ODBC_SQL_TYPENAME_MACRO(signed char, SQL_TINYINT);
 VTK_ODBC_SQL_TYPENAME_MACRO(unsigned char, SQL_TINYINT);
@@ -234,12 +237,12 @@ VTK_ODBC_SQL_TYPENAME_MACRO(void*, SQL_VARBINARY);
 // int, long, etc).  I'll need to special-case strings and blobs.
 
 template <typename T>
-vtkODBCBoundParameter* vtkBuildODBCBoundParameter(T data_value)
+vtkODBCBoundParameter* vtkBuildODBCBoundParameter(T const& data_value)
 {
   vtkODBCBoundParameter* param = new vtkODBCBoundParameter;
 
-  param->DataTypeC = vtkODBCTypeNameC(data_value);
-  param->DataTypeSQL = vtkODBCTypeNameSQL(data_value);
+  param->DataTypeC = vtkODBCTypeNameC<T>();
+  param->DataTypeSQL = vtkODBCTypeNameSQL<T>();
   param->BufferSize = sizeof(T);
   param->DataLength = sizeof(T);
   param->SetData(reinterpret_cast<const char*>(&data_value), sizeof(T));
@@ -252,17 +255,24 @@ vtkODBCBoundParameter* vtkBuildODBCBoundParameter(T data_value)
 // strings (i.e. CHAR and VARCHAR fields)
 
 template <>
-vtkODBCBoundParameter* vtkBuildODBCBoundParameter<const char*>(const char* data_value)
+vtkODBCBoundParameter* vtkBuildODBCBoundParameter<const char*>(const char* const& data_value)
 {
   vtkODBCBoundParameter* param = new vtkODBCBoundParameter;
 
+  size_t len = strlen(data_value);
   param->DataTypeC = SQL_C_CHAR;
   param->DataTypeSQL = SQL_VARCHAR;
-  param->BufferSize = strlen(data_value);
-  param->DataLength = static_cast<unsigned long>(strlen(data_value));
-  param->SetData(data_value, static_cast<unsigned long>(strlen(data_value)));
+  param->BufferSize = len;
+  param->DataLength = static_cast<unsigned long>(len);
+  param->SetData(data_value, static_cast<unsigned long>(len));
 
   return param;
+}
+
+template <>
+vtkODBCBoundParameter* vtkBuildODBCBoundParameter<vtkStdString>(vtkStdString const& data_value)
+{
+  return vtkBuildODBCBoundParameter(data_value.c_str());
 }
 
 // Description:
@@ -292,7 +302,7 @@ vtkODBCBoundParameter* vtkBuildODBCBoundParameter(
 //------------------------------------------------------------------------------
 
 bool vtkODBCQueryInternals::PrepareQuery(
-  const char* queryString, SQLHANDLE dbConnection, vtkStdString& error_message)
+  const char* queryString, SQLHANDLE dbConnection, std::string& error_message)
 {
   this->FreeStatement();
   this->FreeUserParameterList();
@@ -322,7 +332,7 @@ bool vtkODBCQueryInternals::PrepareQuery(
 
   if (status != SQL_SUCCESS && status != SQL_SUCCESS_WITH_INFO)
   {
-    error_message = vtkStdString(GetErrorMessage(SQL_HANDLE_STMT, this->Statement));
+    error_message = GetErrorMessage(SQL_HANDLE_STMT, this->Statement);
     return false;
   }
 
@@ -340,12 +350,12 @@ bool vtkODBCQueryInternals::PrepareQuery(
   }
   else
   {
-    error_message = vtkStdString();
+    error_message = {};
     SQLSMALLINT paramCount;
     status = SQLNumParams(this->Statement, &paramCount);
     if (status != SQL_SUCCESS)
     {
-      error_message = vtkStdString(GetErrorMessage(SQL_HANDLE_STMT, this->Statement));
+      error_message = GetErrorMessage(SQL_HANDLE_STMT, this->Statement);
       return false;
     }
     else
@@ -434,14 +444,14 @@ bool vtkODBCQueryInternals::BindParametersToStatement()
 
 //------------------------------------------------------------------------------
 
-static vtkStdString GetErrorMessage(SQLSMALLINT handleType, SQLHANDLE handle, int* code)
+static std::string GetErrorMessage(SQLSMALLINT handleType, SQLHANDLE handle, int* code)
 {
   SQLINTEGER sqlNativeCode = 0;
   SQLSMALLINT messageLength = 0;
   SQLRETURN status;
   SQLCHAR state[SQL_SQLSTATE_SIZE + 1];
   SQLCHAR description[SQL_MAX_MESSAGE_LENGTH + 1];
-  vtkStdString finalResult;
+  std::string finalResult;
   int i = 1;
 
   // There may be several error messages queued up so we need to loop
@@ -467,12 +477,12 @@ static vtkStdString GetErrorMessage(SQLSMALLINT handleType, SQLHANDLE handle, in
     }
     else if (status == SQL_ERROR || status == SQL_INVALID_HANDLE)
     {
-      return vtkStdString(messagebuf.str());
+      return messagebuf.str();
     }
     ++i;
   } while (status != SQL_NO_DATA);
 
-  return vtkStdString(messagebuf.str());
+  return messagebuf.str();
 }
 
 //------------------------------------------------------------------------------
@@ -517,7 +527,7 @@ bool vtkODBCQuery::SetQuery(const char* newQuery)
     return false;
   }
 
-  vtkStdString error;
+  std::string error;
   bool prepareStatus = this->Internals->PrepareQuery(newQuery, db->Internals->Connection, error);
   if (prepareStatus)
   {
@@ -526,7 +536,7 @@ bool vtkODBCQuery::SetQuery(const char* newQuery)
   }
   else
   {
-    vtkErrorMacro(<< error.c_str());
+    vtkErrorMacro(<< error);
     this->SetLastErrorText(error.c_str());
     return false;
   }
@@ -609,7 +619,7 @@ bool vtkODBCQuery::Execute()
           errbuf << "During vtkODBCQuery::Execute while looking up column " << i << ": "
                  << GetErrorMessage(SQL_HANDLE_STMT, this->Internals->Statement);
           this->SetLastErrorText(errbuf.str().c_str());
-          vtkErrorMacro(<< errbuf.str().c_str());
+          vtkErrorMacro(<< errbuf.str());
         }
 
         status = SQLColAttribute(
@@ -621,7 +631,7 @@ bool vtkODBCQuery::Execute()
           errbuf << "vtkODBCQuery::Execute: Unable to get unsigned flag for column " << i << ": "
                  << GetErrorMessage(SQL_HANDLE_STMT, this->Internals->Statement);
           this->SetLastErrorText(errbuf.str().c_str());
-          vtkErrorMacro(<< errbuf.str().c_str());
+          vtkErrorMacro(<< errbuf.str());
         }
 
         this->Internals->ColumnNames->SetValue(i, reinterpret_cast<const char*>(name));
@@ -1322,7 +1332,7 @@ bool vtkODBCQuery::CacheStringColumn(int column)
   SQLRETURN status;
   SQLLEN bufferLength;
   SQLLEN indicator;
-  vtkStdString result;
+  std::string result;
   std::ostringstream outbuf;
 
   bufferLength = 65536; // this is a pretty reasonable compromise
@@ -1408,7 +1418,7 @@ bool vtkODBCQuery::CacheStringColumn(int column)
 bool vtkODBCQuery::CacheBinaryColumn(int column)
 {
   SQLRETURN status;
-  vtkStdString result;
+  std::string result;
 
   SQLSMALLINT nameLength;
   SQLSMALLINT columnType;
@@ -1694,3 +1704,4 @@ bool vtkODBCQuery::ClearParameterBindings()
   this->Internals->ClearBoundParameters();
   return true;
 }
+VTK_ABI_NAMESPACE_END

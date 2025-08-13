@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataAssembly.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataAssembly.h"
 
 #include "vtkDataAssemblyVisitor.h"
@@ -32,6 +20,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+VTK_ABI_NAMESPACE_BEGIN
 static constexpr const char* DATASET_NODE_NAME = "dataset";
 
 //============================================================================
@@ -574,7 +563,7 @@ std::vector<int> vtkDataAssembly::AddNodes(const std::vector<std::string>& names
   {
     if (!vtkDataAssembly::IsNodeNameValid(name.c_str()))
     {
-      vtkErrorMacro("Invalid name specified '" << name.c_str() << "'.");
+      vtkErrorMacro("Invalid name specified '" << name << "'.");
       return std::vector<int>{};
     }
   }
@@ -1333,3 +1322,4 @@ void vtkDataAssembly::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "XML Representation : " << endl << endl;
   this->Internals->Document.save(os, "    ");
 }
+VTK_ABI_NAMESPACE_END

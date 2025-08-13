@@ -1,18 +1,7 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkmGradient
  * @brief   A general filter for gradient estimation.
@@ -35,7 +24,9 @@
 
 #include "vtkAcceleratorsVTKmFiltersModule.h" //required for correct implementation
 #include "vtkGradientFilter.h"
+#include "vtkmlib/vtkmInitializer.h" // Need for initializing vtk-m
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKACCELERATORSVTKMFILTERS_EXPORT vtkmGradient : public vtkGradientFilter
 {
 public:
@@ -56,6 +47,13 @@ public:
   ///@}
 
 protected:
+  /// \brief Check if the input dataset and parameters combination is supported by this filter
+  ///
+  /// Certain input and parameters combinations are not currently supported by vtkm.
+  /// This information is internally used to determine if this filter should fall back to
+  /// Superclass implementation.
+  bool CanProcessInput(vtkDataSet* input);
+
   vtkmGradient();
   ~vtkmGradient() override;
 
@@ -66,6 +64,8 @@ protected:
 private:
   vtkmGradient(const vtkmGradient&) = delete;
   void operator=(const vtkmGradient&) = delete;
+  vtkmInitializer Initializer;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkmGradient_h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkEvenlySpacedStreamlines2D.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkEvenlySpacedStreamlines2D.h"
 
 #include "vtkAMRInterpolatedVelocityField.h"
@@ -53,6 +41,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <iostream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkEvenlySpacedStreamlines2D);
 vtkCxxSetObjectMacro(vtkEvenlySpacedStreamlines2D, Integrator, vtkInitialValueProblemSolver);
 vtkCxxSetObjectMacro(
@@ -125,7 +114,7 @@ int vtkEvenlySpacedStreamlines2D::RequestData(vtkInformation* vtkNotUsed(request
   }
   std::array<double, 3> v = { { bounds[1] - bounds[0], bounds[3] - bounds[2],
     bounds[5] - bounds[4] } };
-  double length = vtkMath::Norm(&v[0]);
+  double length = vtkMath::Norm(v.data());
 
   vtkPolyData* output = vtkPolyData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
@@ -157,6 +146,7 @@ int vtkEvenlySpacedStreamlines2D::RequestData(vtkInformation* vtkNotUsed(request
   // we end streamlines after one loop iteration
   streamTracer->AddCustomTerminationCallback(&vtkEvenlySpacedStreamlines2D::IsStreamlineLooping,
     this, vtkStreamTracer::FIXED_REASONS_FOR_TERMINATION_COUNT);
+  streamTracer->SetContainerAlgorithm(this);
   streamTracer->Update();
 
   auto streamline = vtkSmartPointer<vtkPolyData>::New();
@@ -167,6 +157,7 @@ int vtkEvenlySpacedStreamlines2D::RequestData(vtkInformation* vtkNotUsed(request
   append->UserManagedInputsOn();
   append->SetNumberOfInputs(2);
   output->ShallowCopy(streamline);
+  append->SetContainerAlgorithm(this);
   int currentSeedId = 1;
   int processedSeedId = 0;
 
@@ -195,6 +186,10 @@ int vtkEvenlySpacedStreamlines2D::RequestData(vtkInformation* vtkNotUsed(request
       if (progress > lastProgress)
       {
         this->UpdateProgress(progress);
+        if (this->CheckAbort())
+        {
+          break;
+        }
         lastProgress = progress;
       }
     }
@@ -214,15 +209,15 @@ int vtkEvenlySpacedStreamlines2D::RequestData(vtkInformation* vtkNotUsed(request
       double point[3];
       streamline->GetPoint(pointId, point);
       std::array<std::array<double, 3>, 2> newSeeds;
-      vtkMath::Add(point, newSeedVector, &newSeeds[0][0]);
-      vtkMath::Subtract(point, newSeedVector, &newSeeds[1][0]);
+      vtkMath::Add(point, newSeedVector, newSeeds[0].data());
+      vtkMath::Subtract(point, newSeedVector, newSeeds[1].data());
 
       for (auto newSeed : newSeeds)
       {
-        if (vtkMath::PointIsWithinBounds(&newSeed[0], bounds, delta) &&
-          !this->ForEachCell(&newSeed[0], &vtkEvenlySpacedStreamlines2D::IsTooClose<DISTANCE>))
+        if (vtkMath::PointIsWithinBounds(newSeed.data(), bounds, delta) &&
+          !this->ForEachCell(newSeed.data(), &vtkEvenlySpacedStreamlines2D::IsTooClose<DISTANCE>))
         {
-          streamTracer->SetStartPosition(&newSeed[0]);
+          streamTracer->SetStartPosition(newSeed.data());
           streamTracer->Update();
           auto newStreamline = vtkSmartPointer<vtkPolyData>::New();
           newStreamline->ShallowCopy(streamTracer->GetOutput());
@@ -366,7 +361,7 @@ bool vtkEvenlySpacedStreamlines2D::ForEachCell(
   this->SuperposedGrid->GetExtent(extent);
   for (auto cellPos : around)
   {
-    cellId = this->SuperposedGrid->ComputeCellId(&cellPos[0]);
+    cellId = this->SuperposedGrid->ComputeCellId(cellPos.data());
     if (cellPos[0] >= extent[0] && cellPos[0] < extent[1] && cellPos[1] >= extent[2] &&
       cellPos[1] < extent[3] && (this->*checker)(point, cellId, points, velocity, direction))
     {
@@ -457,7 +452,7 @@ bool vtkEvenlySpacedStreamlines2D::IsTooClose(
   }
   for (auto cellPoint : this->AllPoints[cellId])
   {
-    double distance2 = vtkMath::Distance2BetweenPoints(point, &cellPoint[0]);
+    double distance2 = vtkMath::Distance2BetweenPoints(point, cellPoint.data());
     if (distance2 < testDistance2)
     {
       return true;
@@ -869,3 +864,4 @@ void vtkEvenlySpacedStreamlines2D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Integrator: " << this->Integrator << endl;
   os << indent << "Vorticity computation: " << (this->ComputeVorticity ? " On" : " Off") << endl;
 }
+VTK_ABI_NAMESPACE_END

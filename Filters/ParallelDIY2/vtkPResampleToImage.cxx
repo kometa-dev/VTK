@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPResampleToImage.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warning for this class
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPResampleToImage.h"
 
@@ -52,9 +37,11 @@
 #include <algorithm>
 #include <iterator>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPResampleToImage);
 
 vtkCxxSetObjectMacro(vtkPResampleToImage, Controller, vtkMultiProcessController);
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -429,6 +416,7 @@ void Redistribute(
 
 } // anonymous namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkPResampleToImage::vtkPResampleToImage()
   : Controller(nullptr)
@@ -535,6 +523,7 @@ int vtkPResampleToImage::RequestData(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END
 
 //------------------------------------------------------------------------------
 namespace diy
@@ -551,8 +540,8 @@ struct mpi_datatype<Array<T, Len>>
   typedef Array<T, Len> ArrayType;
 
   static MPI_Datatype datatype() { return get_mpi_datatype<T>(); }
-  static const void* address(const ArrayType& x) { return &x[0]; }
-  static void* address(ArrayType& x) { return &x[0]; }
+  static const void* address(const ArrayType& x) { return x.data(); }
+  static void* address(ArrayType& x) { return x.data(); }
   static int count(const ArrayType&) { return Len; }
 };
 

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOSPRayPointGaussianMapperNode.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOSPRayPointGaussianMapperNode.h"
 
 #include "vtkActor.h"
@@ -50,6 +38,7 @@
 
 namespace vtkosp
 {
+VTK_ABI_NAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 double GetComponent(double* tuple, int nComp, int c)
 {
@@ -306,7 +295,10 @@ OSPVolumetricModel RenderAsParticles(osp::vec3f* vertices, std::vector<unsigned 
 
   return ospVolModel;
 }
+VTK_ABI_NAMESPACE_END
 }
+
+VTK_ABI_NAMESPACE_BEGIN
 
 //============================================================================
 vtkStandardNewMacro(vtkOSPRayPointGaussianMapperNode);
@@ -600,3 +592,4 @@ bool vtkOSPRayPointGaussianMapperNode::GetNeedToRebuild(vtkOSPRayActorNode* aNod
   }
   return false;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMetaImageWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifdef _MSC_VER
 #pragma warning(disable : 4018)
 #endif
@@ -40,6 +28,7 @@
 #include <sys/stat.h>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMetaImageWriter);
 
 //------------------------------------------------------------------------------
@@ -112,14 +101,9 @@ void vtkMetaImageWriter::Write()
   this->GetInputAlgorithm()->UpdateExtent(ext);
 
   double origin[3];
-  double spacingDouble[3];
+  double spacing[3];
   this->GetInput()->GetOrigin(origin);
-  this->GetInput()->GetSpacing(spacingDouble);
-
-  float spacing[3];
-  spacing[0] = spacingDouble[0];
-  spacing[1] = spacingDouble[1];
-  spacing[2] = spacingDouble[2];
+  this->GetInput()->GetSpacing(spacing);
 
   int dimSize[3];
   dimSize[0] = ext[1] - ext[0] + 1;
@@ -200,3 +184,4 @@ void vtkMetaImageWriter::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "MHDFileName: " << (this->MHDFileName ? this->MHDFileName : "(none)") << endl;
 }
+VTK_ABI_NAMESPACE_END

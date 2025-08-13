@@ -1,23 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmf3HeavyDataHandler.h
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXdmf3HeavyDataHandler
  * @brief   internal helper for vtkXdmf3Reader
  *
- * vtkXdmf3Reader uses this class to read the heave data from the XDMF
+ * vtkXdmf3Reader uses this class to read the heavy data from the XDMF
  * file(s).
  *
  * This file is a helper for the vtkXdmf3Reader and not intended to be
@@ -50,6 +37,7 @@
 #include VTKXDMF3_HEADER(XdmfUnstructuredGrid.hpp)
 #include VTKXDMF3_HEADER(XdmfDomain.hpp)
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataObject;
 class vtkDataSet;
 class vtkImageData;
@@ -123,5 +111,6 @@ protected:
   bool AsTime;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkXdmf3HeavyDataHandler_h
 // VTK-HeaderTest-Exclude: vtkXdmf3HeavyDataHandler.h

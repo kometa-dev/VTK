@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataObjectToDataSetFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataObjectToDataSetFilter.h"
 
 #include "vtkCellArray.h"
@@ -28,6 +16,7 @@
 #include "vtkStructuredPoints.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDataObjectToDataSetFilter);
 
 //------------------------------------------------------------------------------
@@ -79,18 +68,15 @@ vtkDataObjectToDataSetFilter::vtkDataObjectToDataSetFilter()
 
   this->DefaultNormalize = 0;
 
-  this->DimensionsArray = nullptr;
-  ; // the name of the array
+  this->DimensionsArray = nullptr; // the name of the array
   this->DimensionsArrayComponent = -1;
   this->DimensionsComponentRange[0] = this->DimensionsComponentRange[1] = -1;
 
-  this->SpacingArray = nullptr;
-  ; // the name of the array
+  this->SpacingArray = nullptr; // the name of the array
   this->SpacingArrayComponent = -1;
   this->SpacingComponentRange[0] = this->SpacingComponentRange[1] = -1;
 
-  this->OriginArray = nullptr;
-  ; // the name of the array
+  this->OriginArray = nullptr; // the name of the array
   this->OriginArrayComponent = -1;
   this->OriginComponentRange[0] = this->OriginComponentRange[1] = -1;
 
@@ -317,6 +303,8 @@ int vtkDataObjectToDataSetFilter::RequestData(vtkInformation* vtkNotUsed(request
   vtkFieldData* outFD = output->GetFieldData();
   outFD->CopyAllOn();
   outFD->PassData(inFD);
+
+  this->CheckAbort();
 
   return 1;
 }
@@ -1406,3 +1394,4 @@ int vtkDataObjectToDataSetFilter::RequestDataObject(
   }
   return 1;
 }
+VTK_ABI_NAMESPACE_END

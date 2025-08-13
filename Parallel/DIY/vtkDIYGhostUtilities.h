@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDIYGhostUtilities.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkDIYGhostUtilities
  * @brief Utilities to produce ghost cells between a collection of data sets of same type.
@@ -91,6 +79,7 @@
 #include VTK_DIY2(diy/partners/all-reduce.hpp)
 // clang-format on
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractPointLocator;
 class vtkAlgorithm;
 class vtkCellArray;
@@ -148,6 +137,8 @@ protected:
 
   struct DataSetInformation
   {
+    virtual ~DataSetInformation() = default;
+
     /**
      * @warning This method does not work before the link map between blocks is computed.
      */
@@ -199,6 +190,8 @@ protected:
    */
   struct GridInformation : public DataSetInformation
   {
+    ~GridInformation() override = default;
+
     bool InputNeedsGhostsPeeledOff() const override { return this->Extent != this->InputExtent; }
 
     /**
@@ -216,6 +209,8 @@ protected:
 
   struct ImageDataInformation : public GridInformation
   {
+    ~ImageDataInformation() override = default;
+
     vtkImageData* Input;
   };
 
@@ -259,6 +254,8 @@ protected:
 
   struct RectilinearGridInformation : public GridInformation
   {
+    ~RectilinearGridInformation() override = default;
+
     ///@{
     /**
      * Point coordinates without ghosts.
@@ -308,6 +305,8 @@ protected:
 
   struct StructuredGridInformation : public GridInformation
   {
+    ~StructuredGridInformation() override = default;
+
     /**
      * This structure represents the set of points and their corresponding extent
      * of an external face of the structured grid.
@@ -760,7 +759,7 @@ public:
   using UnstructuredDataBlock = Block<UnstructuredDataBlockStructure, UnstructuredDataInformation>;
   using UnstructuredGridBlock = Block<UnstructuredGridBlockStructure, UnstructuredGridInformation>;
   using PolyDataBlock = Block<PolyDataBlockStructure, PolyDataInformation>;
-  //@}
+  ///@}
 
   /**
    * Main pipeline generating ghosts. It takes as parameters a list of `DataSetT` for the `inputs`
@@ -962,7 +961,8 @@ protected:
    * This method exchanges ghosts between connected blocks.
    */
   template <class DataSetT>
-  static void ExchangeGhosts(diy::Master& master, std::vector<DataSetT*>& inputs);
+  static bool ExchangeGhosts(diy::Master& master, diy::Assigner& assigner,
+    diy::RegularAllReducePartners& partners, std::vector<DataSetT*>& inputs);
 
   /**
    * This methods allocate a point and cell ghost array and fills it with 0.
@@ -1012,6 +1012,7 @@ private:
   ///@}
 };
 
+VTK_ABI_NAMESPACE_END
 #include "vtkDIYGhostUtilities.txx" // for template implementations
 
 #endif

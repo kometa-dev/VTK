@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointData.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPointData
  * @brief   represent and manipulate point attribute data
@@ -30,8 +18,8 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataSetAttributes.h"
-#include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_1_0
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONDATAMODEL_EXPORT vtkPointData : public vtkDataSetAttributes
 {
 public:
@@ -40,8 +28,6 @@ public:
 
   vtkTypeMacro(vtkPointData, vtkDataSetAttributes);
   void PrintSelf(ostream& os, vtkIndent indent) override;
-  VTK_DEPRECATED_IN_9_1_0("Use vtkFieldData::NullData")
-  void NullPoint(vtkIdType ptId);
 
 protected:
   vtkPointData();
@@ -52,4 +38,5 @@ private:
   void operator=(const vtkPointData&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

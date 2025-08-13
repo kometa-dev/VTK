@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLine.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLine
  * @brief   cell represents a 1D line
@@ -24,7 +12,8 @@
 
 #include "vtkCell.h"
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_1_0
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIncrementalPointLocator;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkLine : public vtkCell
@@ -122,24 +111,8 @@ public:
    *
    */
   static int Intersection(const double p1[3], const double p2[3], const double x1[3],
-    const double x2[3], double& u, double& v, const double tolerance = 1e-6,
+    const double x2[3], double& u, double& v, double tolerance = 1e-6,
     int toleranceType = ToleranceType::Relative);
-
-  /**
-   * Performs intersection of two finite 3D lines. An intersection is found if
-   * the projection of the two lines onto the plane perpendicular to the cross
-   * product of the two lines intersect, and if the distance between the
-   * closest points of approach are within a relative tolerance. The parameters
-   * (u,v) are the parametric coordinates of the lines at the position of
-   * closest approach.
-   *
-   * The results are of type vtkLine::IntersectionType.
-   *
-   * NOTE: Legacy method, returns vtkLine::Intersection(...).
-   */
-  VTK_DEPRECATED_IN_9_1_0("Use vtkLine::Intersection(...) instead.")
-  static int Intersection3D(double p1[3], double p2[3], double x1[3], double x2[3], double& u,
-    double& v, const double tolerance = 1e-6);
 
   /**
    * Compute the distance of a point x to a finite line (p1,p2). The method
@@ -215,4 +188,5 @@ inline int vtkLine::GetParametricCenter(double pcoords[3])
   return 0;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

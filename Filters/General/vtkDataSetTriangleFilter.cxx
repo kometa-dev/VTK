@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetTriangleFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataSetTriangleFilter.h"
 
 #include "vtkCellData.h"
@@ -30,6 +18,7 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDataSetTriangleFilter);
 
 vtkDataSetTriangleFilter::vtkDataSetTriangleFilter()
@@ -129,11 +118,11 @@ void vtkDataSetTriangleFilter::StructuredExecute(vtkDataSet* input, vtkUnstructu
   dimensions[2] = dimensions[2] - 1;
 
   vtkIdType numSlices = (dimensions[2] > 0 ? dimensions[2] : 1);
-  int abort = 0;
+  bool abort = false;
   for (k = 0; k < numSlices && !abort; k++)
   {
     this->UpdateProgress(static_cast<double>(k) / numSlices);
-    abort = this->GetAbortExecute();
+    abort = this->CheckAbort();
 
     for (j = 0; j < dimensions[1]; j++)
     {
@@ -284,7 +273,7 @@ void vtkDataSetTriangleFilter::UnstructuredExecute(
     if (!(cellId % updateTime))
     {
       this->UpdateProgress(static_cast<double>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
 
     input->GetCell(cellId, cell);
@@ -411,3 +400,4 @@ void vtkDataSetTriangleFilter::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "TetrahedraOnly: " << (this->TetrahedraOnly ? "On" : "Off") << "\n";
 }
+VTK_ABI_NAMESPACE_END

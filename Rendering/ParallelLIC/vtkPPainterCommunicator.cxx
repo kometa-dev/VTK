@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPPainterCommunicator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPPainterCommunicator.h"
 
 #include "vtkMPI.h"
@@ -24,6 +12,7 @@
 using std::vector;
 
 // use PImpl to avoid MPI types in public API.
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPPainterCommunicatorInternals
 {
 public:
@@ -270,7 +259,7 @@ void vtkPPainterCommunicator::SubsetCommunicator(vtkMPICommunicatorOpaqueComm* c
     MPI_Comm_size(defaultComm, &worldSize);
 
     vector<int> included(worldSize, 0);
-    MPI_Allgather(&include, 1, MPI_INT, &included[0], 1, MPI_INT, defaultComm);
+    MPI_Allgather(&include, 1, MPI_INT, included.data(), 1, MPI_INT, defaultComm);
 
     vector<int> activeRanks;
     activeRanks.reserve(worldSize);
@@ -304,7 +293,7 @@ void vtkPPainterCommunicator::SubsetCommunicator(vtkMPICommunicatorOpaqueComm* c
       MPI_Comm_group(defaultComm, &wholeGroup);
 
       MPI_Group activeGroup;
-      MPI_Group_incl(wholeGroup, nActive, &activeRanks[0], &activeGroup);
+      MPI_Group_incl(wholeGroup, nActive, activeRanks.data(), &activeGroup);
 
       MPI_Comm subsetComm;
       MPI_Comm_create(defaultComm, activeGroup, &subsetComm);
@@ -314,3 +303,4 @@ void vtkPPainterCommunicator::SubsetCommunicator(vtkMPICommunicatorOpaqueComm* c
     }
   }
 }
+VTK_ABI_NAMESPACE_END

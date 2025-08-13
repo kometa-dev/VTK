@@ -1,26 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUnstructuredGridPartialPreIntegration.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*
- * Copyright 2004 Sandia Corporation.
- * Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
- * license for use of this work by or on behalf of the
- * U.S. Government. Redistribution and use in source and binary forms, with
- * or without modification, are permitted provided that this Notice and any
- * statement of authorship are reproduced on all copies.
- */
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2004 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkUnstructuredGridPartialPreIntegration.h"
 
@@ -42,6 +22,7 @@
 // VTK's native classes for defining transfer functions is actually slow to
 // access, so we have to cache it somehow.  This class is straightforward
 // copy of the transfer function.
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPartialPreIntegrationTransferFunction
 {
 public:
@@ -538,17 +519,18 @@ void vtkUnstructuredGridPartialPreIntegration::BuildPsiTable()
 
   for (int gammafi = 0; gammafi < PSI_TABLE_SIZE; gammafi++)
   {
-    float gammaf = ((float)gammafi + 0.0f) / PSI_TABLE_SIZE;
+    float gammaf = ((float)gammafi + 0.0f) / static_cast<int>(PSI_TABLE_SIZE);
     float taufD = gammaf / (1 - gammaf);
     for (int gammabi = 0; gammabi < PSI_TABLE_SIZE; gammabi++)
     {
-      float gammab = ((float)gammabi + 0.0f) / PSI_TABLE_SIZE;
+      float gammab = ((float)gammabi + 0.0f) / static_cast<int>(PSI_TABLE_SIZE);
       float taubD = gammab / (1 - gammab);
 
-      PsiTable[gammafi * PSI_TABLE_SIZE + gammabi] =
+      PsiTable[gammafi * static_cast<int>(PSI_TABLE_SIZE) + gammabi] =
         vtkUnstructuredGridLinearRayIntegrator::Psi(1, taufD, taubD);
     }
   }
 
   vtkUnstructuredGridPartialPreIntegration::PsiTableBuilt = 1;
 }
+VTK_ABI_NAMESPACE_END

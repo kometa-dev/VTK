@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPNGReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGDALVectorReader.h"
 
 // VTK includes
@@ -35,6 +23,7 @@
 // C++ includes
 #include <vector> // Requires STL vector
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGDALVectorReader);
 
 int vtkGDALVectorReader::OGRRegistered = 0;
@@ -262,7 +251,7 @@ public:
       case wkbPoint25D:
         gpt = (OGRPoint*)geom;
         ptIds.push_back(pts->InsertNextPoint(gpt->getX(), gpt->getY(), gpt->getZ()));
-        verts->InsertNextCell(1, &(ptIds[0]));
+        verts->InsertNextCell(1, ptIds.data());
         ++nCells;
         break;
 
@@ -277,7 +266,7 @@ public:
           ptIds.push_back(pts->InsertNextPoint(gls->getX(p), gls->getY(p), gls->getZ(p)));
         }
         // insert ring line segments
-        lines->InsertNextCell((int)ptIds.size(), &(ptIds[0]));
+        lines->InsertNextCell((int)ptIds.size(), ptIds.data());
         ++nCells;
         break;
 
@@ -685,3 +674,4 @@ int vtkGDALVectorReader::InitializeInternal()
 
   return VTK_OK;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFixedWidthTextReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkFixedWidthTextReader.h"
 #include "vtkCommand.h"
@@ -24,7 +8,6 @@
 #include "vtkInformation.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
-#include "vtkStdString.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
 #include "vtkVariantArray.h"
@@ -36,17 +19,18 @@
 
 #include <cctype>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFixedWidthTextReader);
 vtkCxxSetObjectMacro(vtkFixedWidthTextReader, TableErrorObserver, vtkCommand);
 
 // Function body at bottom of file
-static int splitString(const vtkStdString& input, unsigned int fieldWidth, bool stripWhitespace,
-  std::vector<vtkStdString>& results, bool includeEmpties = true);
+static int splitString(const std::string& input, unsigned int fieldWidth, bool stripWhitespace,
+  std::vector<std::string>& results, bool includeEmpties = true);
 
 // I need a safe way to read a line of arbitrary length.  It exists on
 // some platforms but not others so I'm afraid I have to write it
 // myself.
-static int my_getline(std::istream& stream, vtkStdString& output, char delim = '\n');
+static int my_getline(std::istream& stream, std::string& output, char delim = '\n');
 
 //------------------------------------------------------------------------------
 
@@ -108,13 +92,13 @@ int vtkFixedWidthTextReader::RequestData(
   // The first line of the file might contain the headers, so we want
   // to be a little bit careful about it.  If we don't have headers
   // we'll have to make something up.
-  std::vector<vtkStdString> headers;
-  std::vector<vtkStdString> firstLineFields;
-  vtkStdString firstLine;
+  std::vector<std::string> headers;
+  std::vector<std::string> firstLineFields;
+  std::string firstLine;
 
   my_getline(infile, firstLine);
 
-  //  vtkDebugMacro(<<"First line of file: " << firstLine.c_str());
+  //  vtkDebugMacro(<<"First line of file: " << firstLine);
 
   if (this->HaveHeaders)
   {
@@ -140,7 +124,7 @@ int vtkFixedWidthTextReader::RequestData(
 
   // Now we can create the arrays that will hold the data for each
   // field.
-  std::vector<vtkStdString>::const_iterator fieldIter;
+  std::vector<std::string>::const_iterator fieldIter;
   for (fieldIter = headers.begin(); fieldIter != headers.end(); ++fieldIter)
   {
     vtkStringArray* array = vtkStringArray::New();
@@ -154,7 +138,7 @@ int vtkFixedWidthTextReader::RequestData(
   if (!this->HaveHeaders)
   {
     vtkVariantArray* dataArray = vtkVariantArray::New();
-    std::vector<vtkStdString>::const_iterator I;
+    std::vector<std::string>::const_iterator I;
     for (I = firstLineFields.begin(); I != firstLineFields.end(); ++I)
     {
       dataArray->InsertNextValue(vtkVariant(*I));
@@ -166,7 +150,7 @@ int vtkFixedWidthTextReader::RequestData(
   }
 
   // Read the file line-by-line and add it to the table.
-  vtkStdString nextLine;
+  std::string nextLine;
   while (my_getline(infile, nextLine))
   {
     ++numLines;
@@ -176,8 +160,8 @@ int vtkFixedWidthTextReader::RequestData(
       this->InvokeEvent(vtkCommand::ProgressEvent, &numLinesRead);
     }
 
-    vtkDebugMacro(<< "Next line: " << nextLine.c_str());
-    std::vector<vtkStdString> dataVector;
+    vtkDebugMacro(<< "Next line: " << nextLine);
+    std::vector<std::string> dataVector;
 
     // Split string on the delimiters
     splitString(nextLine, this->FieldWidth, this->StripWhiteSpace, dataVector);
@@ -187,7 +171,7 @@ int vtkFixedWidthTextReader::RequestData(
 
     // Convert from vector to variant array
     vtkVariantArray* dataArray = vtkVariantArray::New();
-    std::vector<vtkStdString>::const_iterator I;
+    std::vector<std::string>::const_iterator I;
     for (I = dataVector.begin(); I != dataVector.end(); ++I)
     {
       dataArray->InsertNextValue(vtkVariant(*I));
@@ -211,8 +195,8 @@ int vtkFixedWidthTextReader::RequestData(
 
 //------------------------------------------------------------------------------
 
-static int splitString(const vtkStdString& input, unsigned int fieldWidth, bool stripWhitespace,
-  std::vector<vtkStdString>& results, bool includeEmpties)
+static int splitString(const std::string& input, unsigned int fieldWidth, bool stripWhitespace,
+  std::vector<std::string>& results, bool includeEmpties)
 {
   if (input.empty())
   {
@@ -220,8 +204,8 @@ static int splitString(const vtkStdString& input, unsigned int fieldWidth, bool 
   }
 
   unsigned int thisField = 0;
-  vtkStdString thisFieldText;
-  vtkStdString parsedField;
+  std::string thisFieldText;
+  std::string parsedField;
 
   while (thisField * fieldWidth < input.size())
   {
@@ -246,7 +230,7 @@ static int splitString(const vtkStdString& input, unsigned int fieldWidth, bool 
       }
       else
       {
-        parsedField = vtkStdString();
+        parsedField = std::string();
       }
     }
     else
@@ -265,9 +249,9 @@ static int splitString(const vtkStdString& input, unsigned int fieldWidth, bool 
 
 //------------------------------------------------------------------------------
 
-static int my_getline(istream& in, vtkStdString& out, char delimiter)
+static int my_getline(istream& in, std::string& out, char delimiter)
 {
-  out = vtkStdString();
+  out = std::string();
   unsigned int numCharactersRead = 0;
   int nextValue = 0;
 
@@ -288,3 +272,4 @@ static int my_getline(istream& in, vtkStdString& out, char delimiter)
 
   return numCharactersRead;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,37 +1,7 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkH5PartReader.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*=========================================================================
-
-  Project                 : vtkCSCS
-  Module                  : vtkH5PartReader.h
-  Revision of last commit : $Rev: 793 $
-  Author of last commit   : $Author: utkarsh $
-  Date of last commit     : $Date: 2010-04-05 14:20:00 $
-
-  Copyright (C) CSCS - Swiss National Supercomputing Centre.
-  You may use modify and and distribute this code freely providing
-  1) This copyright notice appears on all copies of source code
-  2) An acknowledgment appears with any substantial usage of the code
-  3) If this code is contributed to any other open source project, it
-  must not be reformatted such that the indentation, bracketing or
-  overall style is modified significantly.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (C) CSCS - Swiss National Supercomputing Centre
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkH5PartReader.h"
 //
 #include "vtkDataArray.h"
@@ -62,18 +32,9 @@
 #include <vtksys/RegularExpression.hxx>
 #include <vtksys/SystemTools.hxx>
 //
-#include "vtkCharArray.h"
-#include "vtkDoubleArray.h"
-#include "vtkFloatArray.h"
-#include "vtkIntArray.h"
-#include "vtkLongArray.h"
-#include "vtkShortArray.h"
 #include "vtkSmartPointer.h"
-#include "vtkUnsignedCharArray.h"
-#include "vtkUnsignedShortArray.h"
 
 #include <algorithm>
-#include <functional>
 
 #include "vtk_h5part.h"
 // clang-format off
@@ -92,6 +53,7 @@
 
   \return  \c an hdf5 handle to the native type of the data
 */
+VTK_ABI_NAMESPACE_BEGIN
 static hid_t H5PartGetNativeDatasetType(H5PartFile* f, const char* name)
 {
   hid_t dataset, datatype, datatypen;
@@ -369,7 +331,7 @@ int vtkH5PartReader::RequestInformation(vtkInformation* vtkNotUsed(request),
         this->TimeStepValues[i] = i;
       }
     }
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &this->TimeStepValues[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), this->TimeStepValues.data(),
       static_cast<int>(this->TimeStepValues.size()));
     double timeRange[2];
     timeRange[0] = this->TimeStepValues.front();
@@ -480,17 +442,13 @@ int GetVTKDataType(hid_t datatype)
     H5Dclose(dataset);                                                                             \
   }
 
-class H5PartToleranceCheck : public std::binary_function<double, double, bool>
+class H5PartToleranceCheck
 {
 public:
   H5PartToleranceCheck(double tol) { this->tolerance = tol; }
   double tolerance;
   //
-  result_type operator()(first_argument_type a, second_argument_type b) const
-  {
-    bool result = (fabs(a - b) <= (this->tolerance));
-    return (result_type)result;
-  }
+  bool operator()(double a, double b) const { return (fabs(a - b) <= (this->tolerance)); }
 };
 //------------------------------------------------------------------------------
 int vtkH5PartReader::RequestData(vtkInformation* vtkNotUsed(request),
@@ -855,3 +813,4 @@ void vtkH5PartReader::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "NumberOfSteps: " << this->NumberOfTimeSteps << "\n";
 }
+VTK_ABI_NAMESPACE_END

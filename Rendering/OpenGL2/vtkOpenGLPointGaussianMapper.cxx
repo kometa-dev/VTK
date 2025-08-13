@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLPointGaussianMapper.h"
 
 #include "vtkOpenGLHelper.h"
@@ -52,6 +41,7 @@
 
 #include "vtk_glew.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLPointGaussianMapperHelper : public vtkOpenGLPolyDataMapper
 {
 public:
@@ -600,10 +590,9 @@ void vtkOpenGLPointGaussianMapperHelper::BuildBufferObjects(
     clrs->SetNumberOfTuples(splatCount);
 
     vtkOpenGLPointGaussianMapperHelperColors(clrs, poly->GetPoints()->GetNumberOfPoints(),
-      this->Colors ? (unsigned char*)this->Colors->GetVoidPointer(0) : (unsigned char*)nullptr,
+      this->Colors ? (unsigned char*)this->Colors->GetVoidPointer(0) : nullptr,
       this->Colors ? this->Colors->GetNumberOfComponents() : 0,
-      hasOpacityArray ? poly->GetPointData()->GetArray(this->Owner->GetOpacityArray())
-                      : (vtkDataArray*)nullptr,
+      hasOpacityArray ? poly->GetPointData()->GetArray(this->Owner->GetOpacityArray()) : nullptr,
       this->Owner->GetOpacityArrayComponent(), this, poly->GetVerts());
     this->VBOs->CacheDataArray("scalarColor", clrs, ren, VTK_UNSIGNED_CHAR);
     clrs->Delete();
@@ -1095,3 +1084,4 @@ void vtkOpenGLPointGaussianMapper::ProcessSelectorPixelBuffers(
     }
   }
 }
+VTK_ABI_NAMESPACE_END

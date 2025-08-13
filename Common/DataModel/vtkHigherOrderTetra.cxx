@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHigherOrderTetra.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkHigherOrderTetra.h"
 
@@ -32,6 +17,7 @@
 #define ENABLE_CACHING
 #define FIFTEEN_POINT_TETRA
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // The linearized tetra is comprised of four linearized faces. Each face is
@@ -99,20 +85,6 @@ constexpr vtkIdType FifteenPointTetraSubtetras[24][4] = { { 0, 4, 10, 14 }, { 4,
   { 1, 8, 12, 14 }, { 7, 0, 13, 14 }, { 3, 7, 13, 14 }, { 9, 3, 13, 14 }, { 2, 9, 13, 14 },
   { 6, 2, 13, 14 }, { 0, 6, 13, 14 } };
 #endif
-}
-
-vtkHigherOrderCurve* vtkHigherOrderTetra::getEdgeCell()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkHigherOrderTetra::getEdgeCell, "VTK 9.1", vtkHigherOrderTetra::GetEdgeCell);
-  return this->GetEdgeCell();
-}
-
-vtkHigherOrderTriangle* vtkHigherOrderTetra::getFaceCell()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkHigherOrderHexahedron::getFaceCell, "VTK 9.1", vtkHigherOrderTetra::GetFaceCell);
-  return this->GetFaceCell();
 }
 
 //------------------------------------------------------------------------------
@@ -502,6 +474,15 @@ int vtkHigherOrderTetra::EvaluatePosition(const double x[3], double closestPoint
   vtkIdType order = this->GetOrder();
   vtkIdType numberOfSubtetras = this->GetNumberOfSubtetras();
 
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
   minDist2 = VTK_DOUBLE_MAX;
   for (vtkIdType subCellId = 0; subCellId < numberOfSubtetras; subCellId++)
   {
@@ -510,7 +491,7 @@ int vtkHigherOrderTetra::EvaluatePosition(const double x[3], double closestPoint
     for (vtkIdType i = 0; i < 4; i++)
     {
       pointIndices[i] = this->ToIndex(bindices[i]);
-      this->Tetra->Points->SetPoint(i, this->Points->GetPoint(pointIndices[i]));
+      this->Tetra->Points->SetPoint(i, pts + 3 * pointIndices[i]);
     }
 
     status = this->Tetra->EvaluatePosition(x, closest, ignoreId, pc, dist2, tempWeights);
@@ -567,11 +548,20 @@ void vtkHigherOrderTetra::EvaluateLocation(
 
   this->InterpolateFunctions(pcoords, weights);
 
-  double p[3];
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
+  const double* p;
   vtkIdType nPoints = this->GetPoints()->GetNumberOfPoints();
   for (vtkIdType idx = 0; idx < nPoints; idx++)
   {
-    this->Points->GetPoint(idx, p);
+    p = pts + 3 * idx;
     for (vtkIdType jdx = 0; jdx < 3; jdx++)
     {
       x[jdx] += p[jdx] * weights[idx];
@@ -753,7 +743,7 @@ void vtkHigherOrderTetra::Derivatives(
   jI[0] = j0;
   jI[1] = j1;
   jI[2] = j2;
-  this->JacobianInverse(pcoords, jI, &fDs[0]);
+  this->JacobianInverse(pcoords, jI, fDs.data());
 
   // now compute derivatives of values provided
   for (k = 0; k < dim; k++) // loop over values per vertex
@@ -872,7 +862,7 @@ vtkIdType vtkHigherOrderTetra::ComputeOrder()
   return vtkHigherOrderTetra::ComputeOrder(this->Points->GetNumberOfPoints());
 }
 
-vtkIdType vtkHigherOrderTetra::ComputeOrder(const vtkIdType nPoints)
+vtkIdType vtkHigherOrderTetra::ComputeOrder(vtkIdType nPoints)
 {
   switch (nPoints)
   {
@@ -920,6 +910,13 @@ vtkIdType vtkHigherOrderTetra::ComputeOrder(const vtkIdType nPoints)
       return order;
     }
   }
+}
+
+//------------------------------------------------------------------------------
+bool vtkHigherOrderTetra::PointCountSupportsUniformOrder(vtkIdType pointsPerCell)
+{
+  auto nn = vtkHigherOrderTetra::ComputeOrder(pointsPerCell);
+  return (nn * nn * nn == pointsPerCell);
 }
 
 //------------------------------------------------------------------------------
@@ -1097,3 +1094,4 @@ void vtkHigherOrderTetra::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

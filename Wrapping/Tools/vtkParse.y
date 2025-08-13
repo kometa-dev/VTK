@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParse.y
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 %{
 
 /*
@@ -963,7 +951,7 @@ static void clearTemplate(void)
 {
   if (currentTemplate)
   {
-    free(currentTemplate);
+    vtkParse_FreeTemplate(currentTemplate);
   }
   currentTemplate = NULL;
 }
@@ -972,7 +960,7 @@ static void clearTemplate(void)
 static void pushTemplate(void)
 {
   templateStack[templateDepth++] = currentTemplate;
-  startTemplate();
+  currentTemplate = NULL;
 }
 
 /* pop a template off the stack */
@@ -1280,12 +1268,6 @@ static unsigned int buildTypeBase(unsigned int a, unsigned int b)
       if (basemod == VTK_PARSE_UNSIGNED_INT)
       {
         base = VTK_PARSE_UNSIGNED_LONG_LONG;
-      }
-      break;
-    case VTK_PARSE___INT64:
-      if (basemod == VTK_PARSE_UNSIGNED_INT)
-      {
-        base = VTK_PARSE_UNSIGNED___INT64;
       }
       break;
     case VTK_PARSE_DOUBLE:
@@ -1655,7 +1637,7 @@ static unsigned int add_indirection_to_array(unsigned int type)
 
 /* Expect 110 reduce/reduce conflicts, these can be cleared by removing
    either '<' or angle_brackets_sig from constant_expression_item. */
-%expect-rr 110
+%expect-rr 109
 
 /* The parser will shift/reduce values <str> or <integer>, where
    <str> is for IDs and <integer> is for types, modifiers, etc. */
@@ -1781,7 +1763,6 @@ static unsigned int add_indirection_to_array(unsigned int type)
 %token INT
 %token SHORT
 %token LONG
-%token INT64__
 %token CHAR
 %token CHAR16_T
 %token CHAR32_T
@@ -2206,7 +2187,7 @@ alias_declaration:
       item->ItemType = VTK_TYPEDEF_INFO;
       item->Access = access_level;
 
-      handle_complex_type(item, getAttributes(), getType(), $<integer>6, copySig());
+      handle_complex_type(item, getAttributes(), getType(), $<integer>7, copySig());
 
       item->Name = $<str>2;
       item->Comment = vtkstrdup(getComment());
@@ -3046,7 +3027,6 @@ primitive_type:
   | INT    { postSig("int "); $<integer>$ = VTK_PARSE_INT; }
   | SHORT  { postSig("short "); $<integer>$ = VTK_PARSE_SHORT; }
   | LONG   { postSig("long "); $<integer>$ = VTK_PARSE_LONG; }
-  | INT64__ { postSig("__int64 "); $<integer>$ = VTK_PARSE___INT64; }
   | SIGNED { postSig("signed "); $<integer>$ = VTK_PARSE_INT; }
   | UNSIGNED { postSig("unsigned "); $<integer>$ = VTK_PARSE_UNSIGNED_INT; }
 
@@ -3535,12 +3515,6 @@ static const char* type_class(unsigned int type, const char* classname)
         case VTK_PARSE_UNSIGNED_LONG_LONG:
           classname = "unsigned long long";
           break;
-        case VTK_PARSE___INT64:
-          classname = "__int64";
-          break;
-        case VTK_PARSE_UNSIGNED___INT64:
-          classname = "unsigned __int64";
-          break;
       }
     }
   }
@@ -3596,6 +3570,11 @@ static void start_class(const char* classname, int is_struct_or_union)
         vtkParse_AddClassToNamespace(currentNamespace, currentClass);
       }
     }
+    else
+    {
+      /* mark class to be deleted at end of its definition */
+      currentClass->Name = NULL;
+    }
   }
 
   /* template information */
@@ -3624,8 +3603,16 @@ static void start_class(const char* classname, int is_struct_or_union)
 /* reached the end of a class definition */
 static void end_class(void)
 {
-  /* add default constructors */
-  vtkParse_AddDefaultConstructors(currentClass, data->Strings);
+  if (currentClass->Name && currentClass->Name[0] != '\0')
+  {
+    /* add default constructors */
+    vtkParse_AddDefaultConstructors(currentClass, data->Strings);
+  }
+  else
+  {
+    /* classes we had to parse but don't want to record */
+    vtkParse_FreeClass(currentClass);
+  }
 
   popClass();
 }
@@ -3724,7 +3711,7 @@ static void start_enum(const char* name, int is_scoped, unsigned int type, const
       vtkParse_AddEnumToNamespace(currentNamespace, item);
     }
 
-    if (type)
+    if (type && basename)
     {
       vtkParse_AddStringToArray(
         &item->SuperClasses, &item->NumberOfSuperClasses, type_class(type, basename));
@@ -3867,10 +3854,6 @@ static unsigned int guess_constant_type(const char* valstring)
     if (strncmp(cp, "long long", k) == 0)
     {
       valtype = VTK_PARSE_LONG_LONG;
-    }
-    else if (strncmp(cp, "__int64", k) == 0)
-    {
-      valtype = VTK_PARSE___INT64;
     }
     else if (strncmp(cp, "long", k) == 0)
     {
@@ -4121,10 +4104,14 @@ static void set_return(
   if (count)
   {
     val->Count = count;
-    sprintf(text, "%i", count);
+    snprintf(text, sizeof(text), "%i", count);
     vtkParse_AddStringToArray(&val->Dimensions, &val->NumberOfDimensions, vtkstrdup(text));
   }
 
+  if (func->ReturnValue)
+  {
+    vtkParse_FreeValue(func->ReturnValue);
+  }
   func->ReturnValue = val;
 
 #ifndef VTK_PARSE_LEGACY_REMOVE
@@ -4420,8 +4407,16 @@ static void handle_attribute(const char* att, int pack)
         }
         if (i == currentFunction->NumberOfParameters)
         {
-          print_parser_error("unrecognized parameter name", args, l);
-          exit(1);
+          /* underscore by itself signifies the return value */
+          if (l == 1 && args[0] == '_')
+          {
+            arg = currentFunction->ReturnValue;
+          }
+          else
+          {
+            print_parser_error("unrecognized parameter name", args, l);
+            exit(1);
+          }
         }
         /* advance args to second attribute arg */
         args += n;
@@ -4716,9 +4711,13 @@ static void output_function(void)
     if (!match)
     {
       vtkParse_AddFunctionToNamespace(currentNamespace, currentFunction);
-
-      currentFunction = (FunctionInfo*)malloc(sizeof(FunctionInfo));
     }
+    else
+    {
+      vtkParse_FreeFunction(currentFunction);
+    }
+
+    currentFunction = (FunctionInfo*)malloc(sizeof(FunctionInfo));
   }
 
   vtkParse_InitFunction(currentFunction);
@@ -4868,7 +4867,7 @@ FileInfo* vtkParse_ParseFile(const char* filename, FILE* ifile, FILE* errfile)
   data->Contents = currentNamespace;
 
   templateDepth = 0;
-  currentTemplate = NULL;
+  clearTemplate();
 
   currentFunction = (FunctionInfo*)malloc(sizeof(FunctionInfo));
   vtkParse_InitFunction(currentFunction);
@@ -4889,7 +4888,7 @@ FileInfo* vtkParse_ParseFile(const char* filename, FILE* ifile, FILE* errfile)
     return NULL;
   }
 
-  free(currentFunction);
+  vtkParse_FreeFunction(currentFunction);
   yylex_destroy();
 
   /* The main class name should match the file name */
@@ -4959,7 +4958,7 @@ int vtkParse_ReadHints(FileInfo* file_info, FILE* hfile, FILE* errfile)
   contents = file_info->Contents;
 
   /* read each hint line in succession */
-  while ((n = fscanf(hfile, "%s %s %x %i", h_cls, h_func, &h_type, &h_value)) != EOF)
+  while ((n = fscanf(hfile, "%511s %511s %x %i", h_cls, h_func, &h_type, &h_value)) != EOF)
   {
     lineno++;
     if (n < 4)
@@ -4995,8 +4994,6 @@ int vtkParse_ReadHints(FileInfo* file_info, FILE* hfile, FILE* errfile)
               case VTK_PARSE_DOUBLE_PTR:
               case VTK_PARSE_LONG_LONG_PTR:
               case VTK_PARSE_UNSIGNED_LONG_LONG_PTR:
-              case VTK_PARSE___INT64_PTR:
-              case VTK_PARSE_UNSIGNED___INT64_PTR:
               case VTK_PARSE_INT_PTR:
               case VTK_PARSE_UNSIGNED_INT_PTR:
               case VTK_PARSE_SHORT_PTR:
@@ -5010,7 +5007,7 @@ int vtkParse_ReadHints(FileInfo* file_info, FILE* hfile, FILE* errfile)
                 if (func_info->ReturnValue->NumberOfDimensions == 0)
                 {
                   char text[64];
-                  sprintf(text, "%i", h_value);
+                  snprintf(text, sizeof(text), "%i", h_value);
                   func_info->ReturnValue->Count = h_value;
                   vtkParse_AddStringToArray(&func_info->ReturnValue->Dimensions,
                     &func_info->ReturnValue->NumberOfDimensions,

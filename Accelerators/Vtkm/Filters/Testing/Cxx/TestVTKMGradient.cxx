@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestGradientAndVorticity.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkArrayCalculator.h"
 #include "vtkCell.h"
@@ -26,7 +11,9 @@
 #include "vtkPointData.h"
 #include "vtkRTAnalyticSource.h"
 #include "vtkUnstructuredGrid.h"
+
 #include "vtkmCleanGrid.h"
+#include "vtkmFilterOverrides.h"
 #include "vtkmGradient.h"
 
 #include <vtkm/testing/Testing.h>
@@ -215,7 +202,9 @@ int PerformTest(vtkDataSet* grid)
   pointGradients->SetInputScalars(vtkDataObject::FIELD_ASSOCIATION_POINTS, fieldName);
   pointGradients->SetResultArrayName(resultName);
 
+  vtkmFilterOverrides::EnabledOff(); // Turn off override to instantiate VTK filter
   vtkNew<vtkGradientFilter> correctPointGradients;
+  vtkmFilterOverrides::EnabledOn();
   correctPointGradients->SetInputConnection(calculator->GetOutputPort());
   correctPointGradients->SetInputScalars(vtkDataObject::FIELD_ASSOCIATION_POINTS, fieldName);
   correctPointGradients->SetResultArrayName(resultName);

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRedistributeDataSetFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkRedistributeDataSetFilter
  * @brief redistributes input dataset into requested number of partitions
@@ -82,6 +70,7 @@
 #include VTK_DIY2(diy/assigner.hpp)
 // clang-format on
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController;
 class vtkBoundingBox;
 class vtkPartitionedDataSet;
@@ -348,4 +337,5 @@ private:
   bool LoadBalanceAcrossAllBlocks;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSQLiteDatabase.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkSQLiteDatabase.h"
 #include "vtkSQLiteDatabaseInternals.h"
 #include "vtkSQLiteQuery.h"
@@ -33,6 +17,7 @@
 
 #include "vtk_sqlite.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSQLiteDatabase);
 
 //------------------------------------------------------------------------------
@@ -99,7 +84,7 @@ vtkStdString vtkSQLiteDatabase::GetColumnSpecification(
 
   // Figure out column type
   int colType = schema->GetColumnTypeFromHandle(tblHandle, colHandle);
-  vtkStdString colTypeStr;
+  std::string colTypeStr;
   switch (static_cast<vtkSQLDatabaseSchema::DatabaseColumnType>(colType))
   {
     case vtkSQLDatabaseSchema::SERIAL:
@@ -146,7 +131,7 @@ vtkStdString vtkSQLiteDatabase::GetColumnSpecification(
   else // if ( colTypeStr.size() )
   {
     vtkGenericWarningMacro("Unable to get column specification: unsupported data type " << colType);
-    return vtkStdString();
+    return {};
   }
 
   // Decide whether size is allowed, required, or unused
@@ -211,7 +196,7 @@ vtkStdString vtkSQLiteDatabase::GetColumnSpecification(
     }
   }
 
-  vtkStdString attStr = schema->GetColumnAttributesFromHandle(tblHandle, colHandle);
+  std::string attStr = schema->GetColumnAttributesFromHandle(tblHandle, colHandle);
   if (!attStr.empty())
   {
     queryStr << " " << attStr;
@@ -244,7 +229,7 @@ bool vtkSQLiteDatabase::IsSupported(int feature)
       vtkErrorMacro(<< "Unknown SQL feature code " << feature << "!  See "
                     << "vtkSQLDatabase.h for a list of possible features.");
       return false;
-    };
+    }
   }
 }
 
@@ -397,7 +382,7 @@ vtkStringArray* vtkSQLiteDatabase::GetTables()
 vtkStringArray* vtkSQLiteDatabase::GetRecord(const char* table)
 {
   vtkSQLQuery* query = this->GetQueryInstance();
-  vtkStdString text("PRAGMA table_info ('");
+  std::string text("PRAGMA table_info ('");
   text += table;
   text += "')";
 
@@ -454,7 +439,7 @@ bool vtkSQLiteDatabase::ParseURL(const char* URL)
 
   if (!vtksys::SystemTools::ParseURLProtocol(urlstr, protocol, dataglom))
   {
-    vtkErrorMacro("Invalid URL: \"" << urlstr.c_str() << "\"");
+    vtkErrorMacro("Invalid URL: \"" << urlstr << "\"");
     return false;
   }
 
@@ -477,3 +462,4 @@ const char* vtkSQLiteDatabase::GetLastErrorText()
 {
   return sqlite3_errmsg(this->Internal->SQLiteInstance);
 }
+VTK_ABI_NAMESPACE_END

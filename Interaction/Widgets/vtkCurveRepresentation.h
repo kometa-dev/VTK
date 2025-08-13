@@ -1,21 +1,8 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCurveRepresentation
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCurveRepresentation
- * @brief   vtkWidgetRepresentation
- * base class for a widget that represents an curve that connects control
+ * @brief   base class for a widget that represents a curve that connects control
  * points.
  *
  * Base class for widgets used to define curves from points, such as
@@ -23,16 +10,20 @@
  * uses handles, the number of which can be changed, to represent the
  * points that define the curve. The handles can be picked can be
  * picked on the curve itself to translate or rotate it in the scene.
+ *
+ * @sa
+ * vtkPolyLineRepresentation vtkSplineRepresentation
  */
 
 #ifndef vtkCurveRepresentation_h
 #define vtkCurveRepresentation_h
 
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
+#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkPolyDataAlgorithm.h"        // needed for vtkPolyDataAlgorithm
 #include "vtkWidgetRepresentation.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkCellPicker;
 class vtkDoubleArray;
@@ -156,20 +147,6 @@ public:
 
   ///@{
   /**
-   * @deprecated VTK 9.1. Use `GetDirectional`  and `SetDirectional` instead.
-   */
-  VTK_DEPRECATED_IN_9_1_0("renamed to SetDirectional")
-  virtual void SetDirectionalLine(bool val);
-  VTK_DEPRECATED_IN_9_1_0("renamed to GetDirectional")
-  virtual bool GetDirectionalLine();
-  VTK_DEPRECATED_IN_9_1_0("renamed to DirectionalOn")
-  virtual void DirectionalLineOn();
-  VTK_DEPRECATED_IN_9_1_0("renamed to DirectionalOff")
-  virtual void DirectionalLineOff();
-  ///@}
-
-  ///@{
-  /**
    * Set the representation to be directional or not.
    * The meaning of being directional depends on the representation and
    * its handles implementations in the subclasses.
@@ -255,6 +232,16 @@ public:
    */
   void SetLineColor(double r, double g, double b);
 
+  ///@{
+  /**
+   * Set the color when unselected and selected.
+   */
+  void SetInteractionColor(double, double, double);
+  void SetInteractionColor(double c[3]) { this->SetInteractionColor(c[0], c[1], c[2]); }
+  void SetForegroundColor(double, double, double);
+  void SetForegroundColor(double c[3]) { this->SetForegroundColor(c[0], c[1], c[2]); }
+  ///@}
+
   /*
    * Register internal Pickers within PickingManager
    */
@@ -291,7 +278,7 @@ public:
 
   ///@{
   /**
-   * Returns true if ContrainedAxis
+   * Returns true if ConstrainedAxis
    **/
   bool IsTranslationConstrained() { return this->TranslationAxis != Axis::NONE; }
   ///@}
@@ -387,4 +374,5 @@ private:
   vtkCurveRepresentation(const vtkCurveRepresentation&) = delete;
   void operator=(const vtkCurveRepresentation&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

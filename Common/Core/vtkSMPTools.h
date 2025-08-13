@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPTools.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMPTools
  * @brief   A set of parallel (multi-threaded) utility functions.
@@ -37,7 +25,6 @@
 #include "vtkSMPThreadLocal.h" // For Initialized
 
 #include <functional>  // For std::function
-#include <iterator>    // For std::iterator
 #include <type_traits> // For std:::enable_if
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
@@ -47,6 +34,7 @@ namespace detail
 {
 namespace smp
 {
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 class vtkSMPTools_Has_Initialize
 {
@@ -219,11 +207,13 @@ public:
 
 template <typename T>
 using resolvedNotInt = typename std::enable_if<!std::is_integral<T>::value, void>::type;
+VTK_ABI_NAMESPACE_END
 } // namespace smp
 } // namespace detail
 } // namespace vtk
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONCORE_EXPORT vtkSMPTools
 {
 public:
@@ -424,17 +414,18 @@ public:
    * /!\ This method is not thread safe.
    * If true enable nested parallelism for underlying backends.
    * When enabled the comportement is different for each backend:
-   *    - TBB support nested parallelism by default.
-   *    - For OpenMP, we set `omp_set_nested` to true so that it is supported.
-   *    - STDThread support nested parallelism by creating new threads pools.
+   *    - TBB support nested parallelism using a single thread pool
+   *    - For OpenMP, set `omp_set_nested` to the value of `isNested`.
+   *    - For STDThread nested parallelism implies creating new threads pools.
    *    - For Sequential nothing changes.
    *
-   * Default to true
+   * Default to false except for TBB.
    */
   static void SetNestedParallelism(bool isNested);
 
   /**
    * Get true if the nested parallelism is enabled.
+   * By default, nested parallelism is enabled only for TBB.
    */
   static bool GetNestedParallelism();
 
@@ -442,6 +433,12 @@ public:
    * Return true if it is called from a parallel scope.
    */
   static bool IsParallelScope();
+
+  /**
+   * Returns true if the given thread is specified thread
+   * for single scope. Returns false otherwise.
+   */
+  static bool GetSingleThread();
 
   /**
    * Structure used to specify configuration for LocalScope() method.
@@ -454,9 +451,9 @@ public:
   {
     int MaxNumberOfThreads = 0;
     std::string Backend = vtk::detail::smp::vtkSMPToolsAPI::GetInstance().GetBackend();
-    bool NestedParallelism = true;
+    bool NestedParallelism = false;
 
-    Config() {}
+    Config() = default;
     Config(int maxNumberOfThreads)
       : MaxNumberOfThreads(maxNumberOfThreads)
     {
@@ -596,5 +593,6 @@ public:
   }
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkSMPTools.h

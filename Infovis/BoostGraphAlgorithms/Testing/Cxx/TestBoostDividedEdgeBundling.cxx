@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestDiagram.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBoostDividedEdgeBundling.h"
 #include "vtkDataSetAttributes.h"
@@ -31,7 +19,6 @@
 #include "vtkContextItem.h"
 #include "vtkContextScene.h"
 #include "vtkContextTransform.h"
-#include "vtkNew.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
@@ -99,7 +86,7 @@ void BuildGraphMLGraph(vtkMutableDirectedGraph* graph, std::string file)
   graph->SetPoints(points);
   for (vtkIdType i = 0; i < tree->GetNumberOfVertices(); ++i)
   {
-    vtkStdString k = keyArr->GetValue(i);
+    std::string k = keyArr->GetValue(i);
     if (k == "x")
     {
       x = vtkVariant(contentArr->GetValue(i)).ToDouble();
@@ -110,12 +97,12 @@ void BuildGraphMLGraph(vtkMutableDirectedGraph* graph, std::string file)
       graph->AddVertex();
       points->InsertNextPoint(x, y, 0.0);
     }
-    vtkStdString s = sourceArr->GetValue(i);
+    std::string s = sourceArr->GetValue(i);
     if (!s.empty())
     {
       source = vtkVariant(s).ToInt();
     }
-    vtkStdString t = targetArr->GetValue(i);
+    std::string t = targetArr->GetValue(i);
     if (!t.empty())
     {
       target = vtkVariant(t).ToInt();

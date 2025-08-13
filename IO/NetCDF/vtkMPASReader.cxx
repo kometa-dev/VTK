@@ -1,47 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkMPASReader.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*=========================================================================
-
-  Copyright (c) 2002-2005 Los Alamos National Laboratory
-
-  This software and ancillary information known as vtk_ext (and herein
-  called "SOFTWARE") is made available under the terms described below.
-  The SOFTWARE has been approved for release with associated LA_CC
-  Number 99-44, granted by Los Alamos National Laboratory in July 1999.
-
-  Unless otherwise indicated, this SOFTWARE has been authored by an
-  employee or employees of the University of California, operator of the
-  Los Alamos National Laboratory under Contract No. W-7405-ENG-36 with
-  the United States Department of Energy.
-
-  The United States Government has rights to use, reproduce, and
-  distribute this SOFTWARE.  The public may copy, distribute, prepare
-  derivative works and publicly display this SOFTWARE without charge,
-  provided that this Notice and any statement of authorship are
-  reproduced on all copies.
-
-  Neither the U. S. Government, the University of California, nor the
-  Advanced Computing Laboratory makes any warranty, either express or
-  implied, nor assumes any liability or responsibility for the use of
-  this SOFTWARE.
-
-  If SOFTWARE is modified to produce derivative works, such modified
-  SOFTWARE should be clearly marked, so as not to confuse it with the
-  version available from Los Alamos National Laboratory.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2002-2005 Los Alamos National Laboratory
+// SPDX-License-Identifier: BSD-3-Clause-Sandia-LANL-California-USGov
 
 // Christine Ahrens (cahrens@lanl.gov)
 // Version 1.3
@@ -109,14 +68,18 @@ PURPOSE.  See the above copyright notice for more information.
   vtkTemplateMacroCase(VTK_SIGNED_CHAR, signed char, call) /* ncbyte */
 
 #define vtkNcDispatch(type, call)                                                                  \
-  switch (type)                                                                                    \
+  do                                                                                               \
   {                                                                                                \
-    vtkNcTemplateMacro(call);                                                                      \
-    default:                                                                                       \
-      vtkErrorMacro(<< "Unsupported data type: " << (type));                                       \
-      abort();                                                                                     \
-  }
+    switch (type)                                                                                  \
+    {                                                                                              \
+      vtkNcTemplateMacro(call);                                                                    \
+      default:                                                                                     \
+        vtkErrorMacro(<< "Unsupported data type: " << (type));                                     \
+        abort();                                                                                   \
+    }                                                                                              \
+  } while (false)
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -593,7 +556,7 @@ bool vtkMPASReader::Internal::LoadDataArray(int nc_var, vtkDataArray* array, boo
     return false;
   }
 
-  if (nc_err(nc_get_vara<ValueType>(ncFile, nc_var, &cursor[0], &counts[0], dataBlock)))
+  if (nc_err(nc_get_vara<ValueType>(ncFile, nc_var, cursor.data(), counts.data(), dataBlock)))
   {
     vtkWarningWithObjectMacro(reader, "Reading " << size << " elements failed.");
     return false;
@@ -678,7 +641,7 @@ int vtkMPASReader::Internal::LoadPointVarDataImpl(int nc_var, vtkDataArray* arra
 
     tempData.resize(reader->MaximumPoints);
     size_t vertPointOffset = reader->MaximumNVertLevels * reader->PointOffset;
-    ValueType* dataPtr = &tempData[0] + vertPointOffset;
+    ValueType* dataPtr = tempData.data() + vertPointOffset;
 
     assert(varSize < array->GetNumberOfTuples());
     assert(varSize < static_cast<vtkIdType>(reader->MaximumPoints - vertPointOffset));
@@ -868,22 +831,28 @@ int vtkMPASReader::Internal::nc_att_id(const char* name, bool msg_on_err) const
 //------------------------------------------------------------------------------
 
 #define CHECK_DIM(name, out)                                                                       \
-  if ((out = this->Internals->nc_dim_id(name)) == -1)                                              \
+  do                                                                                               \
   {                                                                                                \
-    vtkErrorMacro(<< "Cannot find dimension: " << name << endl);                                   \
-    return 0;                                                                                      \
-  }
+    if ((out = this->Internals->nc_dim_id(name)) == -1)                                            \
+    {                                                                                              \
+      vtkErrorMacro(<< "Cannot find dimension: " << name << endl);                                 \
+      return 0;                                                                                    \
+    }                                                                                              \
+  } while (false)
 
 //------------------------------------------------------------------------------
 // Macro to check if the named NetCDF variable exists
 //------------------------------------------------------------------------------
 
 #define CHECK_VAR(name, out)                                                                       \
-  if ((out = this->Internals->nc_var_id(name)) == -1)                                              \
+  do                                                                                               \
   {                                                                                                \
-    vtkErrorMacro(<< "Cannot find variable: " << name << endl);                                    \
-    return 0;                                                                                      \
-  }
+    if ((out = this->Internals->nc_var_id(name)) == -1)                                            \
+    {                                                                                              \
+      vtkErrorMacro(<< "Cannot find variable: " << name << endl);                                  \
+      return 0;                                                                                    \
+    }                                                                                              \
+  } while (false)
 
 //------------------------------------------------------------------------------
 //  Function to convert cartesian coordinates to spherical, for use in
@@ -1126,7 +1095,7 @@ int vtkMPASReader::RequestInformation(
     {
       timeSteps.push_back(static_cast<double>(i));
     }
-    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &timeSteps[0],
+    outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), timeSteps.data(),
       static_cast<int>(timeSteps.size()));
 
     double tRange[2];
@@ -2453,7 +2422,7 @@ void vtkMPASReader::OutputCells()
           polygon[k] = conns[k];
         }
       }
-      output->InsertNextCell(cellType, static_cast<vtkIdType>(pointsPerPolygon), &polygon[0]);
+      output->InsertNextCell(cellType, static_cast<vtkIdType>(pointsPerPolygon), polygon.data());
     }
     else
     { // multilayer
@@ -2485,7 +2454,7 @@ void vtkMPASReader::OutputCells()
         }
         // vtkDebugMacro
         //("InsertingCell j: " << j << " level: " << levelNum << endl);
-        output->InsertNextCell(cellType, static_cast<vtkIdType>(pointsPerPolygon), &polygon[0]);
+        output->InsertNextCell(cellType, static_cast<vtkIdType>(pointsPerPolygon), polygon.data());
       }
     }
   }
@@ -2649,11 +2618,12 @@ void vtkMPASReader::LoadTimeFieldData(vtkUnstructuredGrid* dataset)
         size_t start[] = { this->Internals->GetCursorForDimension(dimid), 0 };
         size_t count[] = { 1, strLen };
         if (this->Internals->nc_err(
+              // NOLINTNEXTLINE(readability-container-data-pointer): needs C++17
               nc_get_vara_text(this->Internals->ncFile, varid, start, count, &time[0])))
         {
           // Trim off trailing whitespace:
           size_t realLength = time.find_last_not_of(' ');
-          if (realLength != vtkStdString::npos)
+          if (realLength != std::string::npos)
           {
             time.resize(realLength + 1);
           }
@@ -3039,3 +3009,4 @@ int vtkMPASReader::GetNumberOfPointVars()
 {
   return static_cast<int>(this->Internals->pointVars.size());
 }
+VTK_ABI_NAMESPACE_END

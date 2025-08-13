@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPartitionedDataSetSource.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPartitionedDataSetSource.h"
 
 #include "vtkInformation.h"
@@ -33,6 +21,7 @@
 #include <typeinfo>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -47,7 +36,7 @@ enum NUM_PARTITIONS : signed int
  *
  * - Some ranks might not accept any partitions
  * - Some ranks might accept a finite amount of partitions.
- * - Some ranks might accept a any multiplicty of partitions.
+ * - Some ranks might accept a any multiplicity of partitions.
  *
  */
 std::vector<int> GenerateAllocations(const std::vector<int>& allocs, const int numPartitions)
@@ -76,7 +65,7 @@ std::vector<int> GenerateAllocations(const std::vector<int>& allocs, const int n
     for (size_t i = 0; i < static_cast<size_t>(partsToAlloc); ++i)
     {
       ++(*ranksToAllocIters[i % ranksToAllocSize]);
-    };
+    }
   }
 
   if (std::accumulate(partsPerRank.begin(), partsPerRank.end(), 0) != numPartitions)
@@ -287,3 +276,4 @@ int vtkPartitionedDataSetSource::RequestData(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

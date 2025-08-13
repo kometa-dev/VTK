@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridGeometry.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridGeometry
  * @brief   Hyper tree grid outer surface
@@ -34,6 +22,7 @@
 #include "vtkFiltersHyperTreeModule.h" // For export macro
 #include "vtkHyperTreeGridAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBitArray;
 class vtkCellArray;
 class vtkDoubleArray;
@@ -62,6 +51,32 @@ public:
   vtkSetMacro(Merging, bool);
   vtkGetMacro(Merging, bool);
   ///@}
+
+  //@{
+  /**
+   * Set/Get for the PassThroughCellIds boolean.
+   *
+   * When set to true this boolean ensures an array named with whatever is
+   * in `OriginalCellIdArrayName` gets created in the output holding the
+   * original cell ids
+   *
+   * default is false
+   */
+  vtkSetMacro(PassThroughCellIds, bool);
+  vtkGetMacro(PassThroughCellIds, bool);
+  vtkBooleanMacro(PassThroughCellIds, bool);
+
+  /**
+   * Set/Get the OriginalCellIdArrayName string.
+   *
+   * When PassThroughCellIds is set to true, the name of the generated
+   * array is whatever is set in this variable.
+   *
+   * default to vtkOriginalCellIds
+   */
+  vtkSetMacro(OriginalCellIdArrayName, std::string);
+  vtkGetMacro(OriginalCellIdArrayName, std::string);
+  //@}
 
 protected:
   vtkHyperTreeGridGeometry();
@@ -143,6 +158,18 @@ protected:
   vtkCellArray* Cells;
 
   /**
+   * Boolean for passing cell ids to poly data
+   *
+   * default is false
+   */
+  bool PassThroughCellIds = false;
+
+  /**
+   * Name of the array holding original cell ids in output if PassThroughCellIds is true
+   */
+  std::string OriginalCellIdArrayName = "vtkOriginalCellIds";
+
+  /**
    *JB Un locator est utilise afin de produire un maillage avec moins
    *JB de points. Le gain en 3D est de l'ordre d'un facteur 4 !
    */
@@ -177,4 +204,5 @@ private:
   void operator=(const vtkHyperTreeGridGeometry&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkHyperTreeGridGeometry_h */

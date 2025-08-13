@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Project:   vtkCSCS
-  Module:    vtkTemporalPathLineFilter.cxx
-
-  Copyright (c) CSCS - Swiss National Supercomputing Centre.
-  You may use modify and and distribute this code freely providing this
-  copyright notice appears on all copies of source code and an
-  acknowledgment appears with any substantial usage of the code.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) CSCS - Swiss National Supercomputing Centre
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTemporalPathLineFilter.h"
 #include "vtkCellArray.h"
 #include "vtkFloatArray.h"
@@ -34,6 +23,7 @@
 #include <string>
 #include <vector>
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTemporalPathLineFilter);
 //------------------------------------------------------------------------------
 //
@@ -94,7 +84,7 @@ public:
   //
   // This specifies the order of the arrays in the trails fields.  These are
   // valid in between calls to RequestData.
-  std::vector<vtkStdString> TrailFieldNames;
+  std::vector<std::string> TrailFieldNames;
   // Input arrays corresponding to the entries in TrailFieldNames.  nullptr arrays
   // indicate missing arrays.  This field is only valid during a call to
   // RequestData.
@@ -436,8 +426,8 @@ int vtkTemporalPathLineFilter::RequestData(vtkInformation* vtkNotUsed(informatio
   for (size_t i = 0; i < this->Internals->TrailFieldNames.size(); i++)
   {
     this->Internals->InputFieldArrays[i] =
-      inPD->GetAbstractArray(this->Internals->TrailFieldNames[i]);
-    outputFieldArrays[i] = outPD->GetAbstractArray(this->Internals->TrailFieldNames[i]);
+      inPD->GetAbstractArray(this->Internals->TrailFieldNames[i].c_str());
+    outputFieldArrays[i] = outPD->GetAbstractArray(this->Internals->TrailFieldNames[i].c_str());
   }
 
   //
@@ -569,6 +559,10 @@ int vtkTemporalPathLineFilter::RequestData(vtkInformation* vtkNotUsed(informatio
   for (vtkTemporalPathLineFilterInternals::TrailIterator t = this->Internals->Trails.begin();
        t != this->Internals->Trails.end(); ++t)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     TrailPointer tp = t->second;
     if (tp->length > 0)
     {
@@ -595,7 +589,7 @@ int vtkTemporalPathLineFilter::RequestData(vtkInformation* vtkNotUsed(informatio
       }
       if (tp->length > 1)
       {
-        this->PolyLines->InsertNextCell(tp->length, &TempIds[0]);
+        this->PolyLines->InsertNextCell(tp->length, TempIds.data());
       }
       this->Vertices->InsertNextCell(1, &VertexId);
     }
@@ -640,3 +634,4 @@ void vtkTemporalPathLineFilter::PrintSelf(ostream& os, vtkIndent indent)
      << this->MaxStepDistance[1] << "," << this->MaxStepDistance[2] << "}\n";
   os << indent << "KeepDeadTrails: " << this->KeepDeadTrails << "\n";
 }
+VTK_ABI_NAMESPACE_END

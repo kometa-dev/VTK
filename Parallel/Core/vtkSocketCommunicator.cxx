@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSocketCommunicator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSocketCommunicator.h"
 
 #include "vtkClientSocket.h"
@@ -19,7 +7,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkServerSocket.h"
 #include "vtkSocketController.h"
-#include "vtkStdString.h"
 #include "vtkTypeTraits.h"
 #include "vtksys/Encoding.hxx"
 #include "vtksys/FStream.hxx"
@@ -35,6 +22,7 @@
 // receive is successful.
 //#define ENABLE_SYNCHRONIZED_COMMUNICATION
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSocketCommunicator::vtkMessageBuffer
 {
 public:
@@ -57,7 +45,7 @@ public:
 
   void Push(int tag, int numchars, char* data)
   {
-    this->Buffer[tag].push_back(MessageType());
+    this->Buffer[tag].emplace_back();
     MessageType& msg = this->Buffer[tag].back();
     msg.insert(msg.end(), data, (data + numchars));
   }
@@ -75,10 +63,13 @@ public:
 };
 
 #define vtkSocketCommunicatorErrorMacro(msg)                                                       \
-  if (this->ReportErrors)                                                                          \
+  do                                                                                               \
   {                                                                                                \
-    vtkErrorMacro(msg);                                                                            \
-  }
+    if (this->ReportErrors)                                                                        \
+    {                                                                                              \
+      vtkErrorMacro(msg);                                                                          \
+    }                                                                                              \
+  } while (false)
 
 // The handshake checks that the client and server are using the same
 // version of this source file.  It first compares a fixed integer
@@ -87,8 +78,10 @@ public:
 // represent the CVS revision number of this file, so the value must
 // be larger than the last revision which used that strategy.
 #define vtkSocketCommunicatorHashId 100 /* MD5 */
+VTK_ABI_NAMESPACE_END
 #include "vtkSocketCommunicatorHash.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSocketCommunicator);
 vtkCxxSetObjectMacro(vtkSocketCommunicator, Socket, vtkClientSocket);
 //------------------------------------------------------------------------------
@@ -244,12 +237,12 @@ int vtkSocketCommunicator::SendVoidArray(
     newData.resize(length);
     std::copy(reinterpret_cast<const vtkIdType*>(data),
       reinterpret_cast<const vtkIdType*>(data) + length, newData.begin());
-    return this->SendVoidArray(&newData[0], length, VTK_INT, remoteProcessId, tag);
+    return this->SendVoidArray(newData.data(), length, VTK_INT, remoteProcessId, tag);
   }
 #endif
 
   int typeSize;
-  vtkStdString typeName;
+  std::string typeName;
   switch (type)
   {
     vtkTemplateMacro(typeSize = sizeof(VTK_TT); typeName = vtkTypeTraits<VTK_TT>().SizedName());
@@ -271,14 +264,14 @@ int vtkSocketCommunicator::SendVoidArray(
   // in an integer, break up the array into pieces.
   while (length >= maxSend)
   {
-    if (!this->SendTagged(byteData, typeSize, maxSend, tag, typeName))
+    if (!this->SendTagged(byteData, typeSize, maxSend, tag, typeName.c_str()))
     {
       return 0;
     }
     byteData += maxSend * typeSize;
     length -= maxSend;
   }
-  if (!this->SendTagged(byteData, typeSize, length, tag, typeName))
+  if (!this->SendTagged(byteData, typeSize, length, tag, typeName.c_str()))
   {
     return 0;
   }
@@ -314,14 +307,14 @@ int vtkSocketCommunicator::ReceiveVoidArray(
   {
     std::vector<int> newData;
     newData.resize(length);
-    int retval = this->ReceiveVoidArray(&newData[0], length, VTK_INT, remoteProcessId, tag);
+    int retval = this->ReceiveVoidArray(newData.data(), length, VTK_INT, remoteProcessId, tag);
     std::copy(newData.begin(), newData.end(), reinterpret_cast<vtkIdType*>(data));
     return retval;
   }
 #endif
 
   int typeSize;
-  vtkStdString typeName;
+  std::string typeName;
   switch (type)
   {
     vtkTemplateMacro(typeSize = sizeof(VTK_TT); typeName = vtkTypeTraits<VTK_TT>().SizedName());
@@ -343,7 +336,7 @@ int vtkSocketCommunicator::ReceiveVoidArray(
   // in an integer, break up the array into pieces.
   int ret = 0;
   while (this->ReceiveTagged(
-    byteData, typeSize, vtkSocketCommunicatorMin(maxReceive, length), tag, typeName))
+    byteData, typeSize, vtkSocketCommunicatorMin(maxReceive, length), tag, typeName.c_str()))
   {
     this->Count += this->TagMessageLength;
     byteData += this->TagMessageLength * typeSize;
@@ -745,7 +738,7 @@ int vtkSocketCommunicator::ReceivedTaggedFromBuffer(
 
   // The static_cast is OK since we split messages > VTK_INT_MAX.
   this->TagMessageLength = static_cast<int>(message.size()) / wordSize;
-  memcpy(data, &message[0], message.size());
+  memcpy(data, message.data(), message.size());
   this->ReceivedMessageBuffer->Pop(tag);
 
   this->FixByteOrder(data, wordSize, numWords);
@@ -1134,3 +1127,4 @@ int vtkSocketCommunicator::GetVersion()
 {
   return vtkSocketCommunicatorHashId;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    VTXHelper.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /*
  * VTXHelper.cxx
@@ -38,6 +26,7 @@ namespace vtx
 {
 namespace helper
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 MPI_Comm MPIGetComm()
 {
@@ -163,7 +152,7 @@ pugi::xml_attribute XMLAttribute(const std::string attributeName, const pugi::xm
 }
 
 types::DataSet XMLInitDataSet(
-  const pugi::xml_node& dataSetNode, const std::set<std::string>& specialNames)
+  const pugi::xml_node& dataSetNode, const std::set<std::string>& specialNames, const bool persist)
 {
   types::DataSet dataSet;
 
@@ -174,13 +163,19 @@ types::DataSet XMLInitDataSet(
     auto result = dataSet.emplace(xmlName.value(), types::DataArray());
     types::DataArray& dataArray = result.first->second;
 
+    // set if persist, overwritten by special names
+    if (persist)
+    {
+      dataArray.Persist = true;
+    }
+
     // handle special names
     const std::string name(xmlName.value());
     auto itSpecialName = specialNames.find(name);
     const bool isSpecialName = itSpecialName != specialNames.end();
     if (isSpecialName)
     {
-      const std::string specialName = *itSpecialName;
+      const std::string& specialName = *itSpecialName;
       if (specialName == "connectivity")
       {
         dataArray.IsIdType = true;
@@ -357,5 +352,6 @@ bool EndsWith(const std::string& input, const std::string& ends) noexcept
   return false;
 }
 
+VTK_ABI_NAMESPACE_END
 } // end helper namespace
 } // end adios2vtk namespace

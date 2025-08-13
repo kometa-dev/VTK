@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConduitSource.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkConduitSource
  * @brief data source for Conduit Mesh Blueprint.
@@ -33,11 +21,12 @@
 
 #include "vtkDataObjectAlgorithm.h"
 #include "vtkIOCatalystConduitModule.h" // for exports
-#include <memory>                       // for std::unique_ptr
-extern "C"
-{
-  typedef void conduit_node;
-}
+
+#include "conduit.h" // for conduit_node
+
+#include <memory> // for std::unique_ptr
+
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOCATALYSTCONDUIT_EXPORT vtkConduitSource : public vtkDataObjectAlgorithm
 {
 public:
@@ -65,15 +54,15 @@ public:
   vtkBooleanMacro(OutputMultiBlock, bool);
   ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the conduit_node. This must be the node satisfying the Conduit Mesh
    * Blueprint.
    */
   void SetNode(const conduit_node* node);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Mechanism to add global / field-data arrays.
    *
@@ -83,14 +72,14 @@ public:
    * it, but if it does, this should be changed to directly leverage that.
    */
   void SetGlobalFieldsNode(const conduit_node* node);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the node to read the assembly information from, if any.
    */
   void SetAssemblyNode(const conduit_node* node);
-  //@}
+  ///@}
 
 protected:
   vtkConduitSource();
@@ -110,5 +99,6 @@ private:
   bool UseMultiMeshProtocol;
   bool OutputMultiBlock;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif

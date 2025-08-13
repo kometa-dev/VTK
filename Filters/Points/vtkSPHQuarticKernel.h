@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSPHQuarticKernel.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSPHQuarticKernel
  * @brief   a quartic SPH interpolation kernel
@@ -41,6 +29,7 @@
 #include "vtkSPHKernel.h"
 #include <algorithm> // For std::min()
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 class vtkDoubleArray;
 
@@ -68,9 +57,9 @@ public:
    */
   double ComputeFunctionWeight(const double d) override
   {
-    double tmp1 = 2.5 - std::min(d, 2.5);
-    double tmp2 = 1.5 - std::min(d, 1.5);
-    double tmp3 = 0.5 - std::min(d, 0.5);
+    double tmp1 = 2.5 - (std::min)(d, 2.5);
+    double tmp2 = 1.5 - (std::min)(d, 1.5);
+    double tmp3 = 0.5 - (std::min)(d, 0.5);
     return (tmp1 * tmp1 * tmp1 * tmp1 - 5.0 * tmp2 * tmp2 * tmp2 * tmp2 +
       10.0 * tmp3 * tmp3 * tmp3 * tmp3);
   }
@@ -83,9 +72,9 @@ public:
    */
   double ComputeDerivWeight(const double d) override
   {
-    double tmp1 = 2.5 - std::min(d, 2.5);
-    double tmp2 = 1.5 - std::min(d, 1.5);
-    double tmp3 = 0.5 - std::min(d, 0.5);
+    double tmp1 = 2.5 - (std::min)(d, 2.5);
+    double tmp2 = 1.5 - (std::min)(d, 1.5);
+    double tmp3 = 0.5 - (std::min)(d, 0.5);
     return (-4.0 * tmp1 * tmp1 * tmp1 + 20.0 * tmp2 * tmp2 * tmp2 - 40.0 * tmp3 * tmp3 * tmp3);
   }
   ///@}
@@ -99,4 +88,5 @@ private:
   void operator=(const vtkSPHQuarticKernel&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

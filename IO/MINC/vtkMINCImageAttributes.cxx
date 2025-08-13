@@ -1,50 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMINCImageAttributes.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*=========================================================================
-
-Copyright (c) 2006 Atamai, Inc.
-
-Use, modification and redistribution of the software, in source or
-binary forms, are permitted provided that the following terms and
-conditions are met:
-
-1) Redistribution of the source code, in verbatim or modified
-   form, must retain the above copyright notice, this license,
-   the following disclaimer, and any notices that refer to this
-   license and/or the following disclaimer.
-
-2) Redistribution in binary form must include the above copyright
-   notice, a copy of this license and the following disclaimer
-   in the documentation or with other materials provided with the
-   distribution.
-
-3) Modified copies of the source code must be clearly marked as such,
-   and must not be misrepresented as verbatim copies of the source code.
-
-THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE SOFTWARE "AS IS"
-WITHOUT EXPRESSED OR IMPLIED WARRANTY INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE.  IN NO EVENT SHALL ANY COPYRIGHT HOLDER OR OTHER PARTY WHO MAY
-MODIFY AND/OR REDISTRIBUTE THE SOFTWARE UNDER THE TERMS OF THIS LICENSE
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, LOSS OF DATA OR DATA BECOMING INACCURATE
-OR LOSS OF PROFIT OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF
-THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGES.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2006 Atamai, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkMINCImageAttributes.h"
 
@@ -73,6 +29,7 @@ POSSIBILITY OF SUCH DAMAGES.
 
 //------------------------------------------------------------------------------
 // A container for mapping attribute names to arrays
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMINCImageAttributeMap
 {
 public:
@@ -113,6 +70,10 @@ protected:
 
   vtkObject* GetObject(const char* name) const
   {
+    if (!name)
+    {
+      return nullptr;
+    }
     MapType::const_iterator iter = this->Map.find(name);
     if (iter != this->Map.end())
     {
@@ -262,7 +223,7 @@ void vtkMINCImageAttributes::AddDimension(const char* dimension, vtkIdType lengt
   vtkIdType n = this->DimensionNames->GetNumberOfValues();
   for (vtkIdType i = 0; i < n; i++)
   {
-    if (strcmp(dimension, this->DimensionNames->GetValue(i)) == 0)
+    if (this->DimensionNames->GetValue(i) == dimension)
     {
       vtkErrorMacro("The dimension " << dimension << " has already been created.");
       return;
@@ -370,17 +331,17 @@ const char* vtkMINCImageAttributes::ConvertDataArrayToString(vtkDataArray* array
   vtkIdType j;
   for (j = 0; j < m; j++)
   {
-    result = this->StringStore->GetValue(j);
-    if (strcmp(str.c_str(), result) == 0)
+    if (str == this->StringStore->GetValue(j))
     {
+      result = this->StringStore->GetValue(j).c_str();
       break;
     }
   }
   // If not, add it to the array.
   if (j == m)
   {
-    j = this->StringStore->InsertNextValue(str.c_str());
-    result = this->StringStore->GetValue(j);
+    j = this->StringStore->InsertNextValue(str);
+    result = this->StringStore->GetValue(j).c_str();
   }
 
   return result;
@@ -452,7 +413,7 @@ void vtkMINCImageAttributes::PrintFileHeader(ostream& os)
   }
   for (ivar = 0; ivar < nvar + 1; ivar++)
   {
-    const char* varname = MI_EMPTY_STRING;
+    std::string varname;
     if (ivar == nvar)
     {
       os << "\n// global attributes:\n";
@@ -460,8 +421,7 @@ void vtkMINCImageAttributes::PrintFileHeader(ostream& os)
     else
     {
       varname = this->VariableNames->GetValue(ivar);
-      if (strcmp(varname, MIimage) == 0 || strcmp(varname, MIimagemax) == 0 ||
-        strcmp(varname, MIimagemin) == 0)
+      if (varname == MIimage || varname == MIimagemax || varname == MIimagemin)
       {
         vtkIdType nvardim = this->DimensionNames->GetNumberOfValues();
         // If this is image-min or image-max, only print the
@@ -500,14 +460,14 @@ void vtkMINCImageAttributes::PrintFileHeader(ostream& os)
            << "int " << varname << " ;\n";
       }
     }
-    vtkStringArray* attArray = this->AttributeNames->GetStringArray(varname);
+    vtkStringArray* attArray = this->AttributeNames->GetStringArray(varname.c_str());
     if (attArray)
     {
       vtkIdType natt = attArray->GetNumberOfValues();
       for (vtkIdType iatt = 0; iatt < natt; iatt++)
       {
-        const char* attname = attArray->GetValue(iatt);
-        vtkDataArray* array = this->GetAttributeValueAsArray(varname, attname);
+        std::string attname = attArray->GetValue(iatt);
+        vtkDataArray* array = this->GetAttributeValueAsArray(varname.c_str(), attname.c_str());
         os << "\t\t" << varname << ":" << attname << " = ";
         if (array->GetDataType() == VTK_CHAR)
         {
@@ -616,16 +576,16 @@ void vtkMINCImageAttributes::PrintFileHeader(ostream& os)
   }
   for (ivar = 0; ivar < nvar; ivar++)
   {
-    const char* varname = this->VariableNames->GetValue(ivar);
+    std::string varname = this->VariableNames->GetValue(ivar);
 
-    if (strcmp(varname, MIimage) == 0)
+    if (varname == MIimage)
     {
       continue;
     }
 
     os << "\n " << varname << " = ";
 
-    if (strcmp(varname, MIimagemin) == 0)
+    if (varname == MIimagemin)
     {
       if (this->ImageMin)
       {
@@ -636,7 +596,7 @@ void vtkMINCImageAttributes::PrintFileHeader(ostream& os)
         os << "0. ;\n";
       }
     }
-    else if (strcmp(varname, MIimagemax) == 0)
+    else if (varname == MIimagemax)
     {
       if (this->ImageMax)
       {
@@ -669,7 +629,7 @@ vtkStringArray* vtkMINCImageAttributes::GetAttributeNames(const char* variable)
 }
 
 //------------------------------------------------------------------------------
-int vtkMINCImageAttributes::HasAttribute(const char* variable, const char* attribute)
+vtkTypeBool vtkMINCImageAttributes::HasAttribute(const char* variable, const char* attribute)
 {
   return (this->GetAttributeValueAsArray(variable, attribute) != nullptr);
 }
@@ -817,7 +777,7 @@ void vtkMINCImageAttributes::SetAttributeValueAsArray(
   vtkIdType i = 0;
   for (i = 0; i < n; i++)
   {
-    if (strcmp(this->VariableNames->GetValue(i), variable) == 0)
+    if (this->VariableNames->GetValue(i) == variable)
     {
       break;
     }
@@ -841,7 +801,7 @@ void vtkMINCImageAttributes::SetAttributeValueAsArray(
   n = attribs->GetNumberOfValues();
   for (i = 0; i < n; i++)
   {
-    if (strcmp(attribs->GetValue(i), attribute) == 0)
+    if (attribs->GetValue(i) == attribute)
     {
       break;
     }
@@ -1452,18 +1412,18 @@ void vtkMINCImageAttributes::ShallowCopy(vtkMINCImageAttributes* source)
   for (vtkIdType ivar = 0; ivar <= nvar; ivar++)
   {
     // set varname to empty last time around to get global attributes
-    const char* varname = MI_EMPTY_STRING;
+    std::string varname;
     if (ivar < nvar)
     {
       varname = varnames->GetValue(ivar);
     }
-    vtkStringArray* attnames = source->GetAttributeNames(varname);
+    vtkStringArray* attnames = source->GetAttributeNames(varname.c_str());
     vtkIdType natt = attnames->GetNumberOfValues();
     for (vtkIdType iatt = 0; iatt < natt; iatt++)
     {
-      const char* attname = attnames->GetValue(iatt);
-      this->SetAttributeValueAsArray(
-        varname, attname, source->GetAttributeValueAsArray(varname, attname));
+      std::string attname = attnames->GetValue(iatt);
+      this->SetAttributeValueAsArray(varname.c_str(), attname.c_str(),
+        source->GetAttributeValueAsArray(varname.c_str(), attname.c_str()));
     }
   }
 
@@ -1472,3 +1432,4 @@ void vtkMINCImageAttributes::ShallowCopy(vtkMINCImageAttributes* source)
     this->StringStore->Reset();
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDIYUtilities.txx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkDIYUtilities_txx
 #define vtkDIYUtilities_txx
 
@@ -35,15 +23,7 @@
 // clang-format on
 
 //------------------------------------------------------------------------------
-template <class DataSetT>
-std::vector<DataSetT*> vtkDIYUtilities::GetDataSets(vtkDataObject* dobj)
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkDIYUtilities::GetDataSets, "VTK 9.1", vtkCompositeDataSet::GetDataSets);
-  return vtkCompositeDataSet::GetDataSets<DataSetT>(dobj);
-}
-
-//------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 template <class DummyT>
 void vtkDIYUtilities::Link(diy::Master& master, const diy::Assigner& assigner,
   const std::vector<std::map<int, DummyT>>& linksMap)
@@ -61,4 +41,5 @@ void vtkDIYUtilities::Link(diy::Master& master, const diy::Assigner& assigner,
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

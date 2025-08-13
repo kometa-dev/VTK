@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPDistributedDataFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPDistributedDataFilter.h"
 
@@ -57,16 +42,19 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPDistributedDataFilter);
 
 #define TEMP_ELEMENT_ID_NAME "___D3___GlobalCellIds"
 #define TEMP_INSIDE_BOX_FLAG "___D3___WHERE"
 #define TEMP_NODE_ID_NAME "___D3___GlobalNodeIds"
 
+VTK_ABI_NAMESPACE_END
 #include <algorithm>
 #include <map>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 class TimeLog // Similar to vtkTimerLogScope, but can be disabled at runtime.
@@ -269,7 +257,7 @@ int vtkPDistributedDataFilter::RequestData(vtkInformation* vtkNotUsed(request),
       {
         std::vector<int> receivedTypes;
         receivedTypes.resize(numLeaves, -1);
-        if (!this->Controller->Receive(&receivedTypes[0], numLeaves, cc, 1020202))
+        if (!this->Controller->Receive(receivedTypes.data(), numLeaves, cc, 1020202))
         {
           vtkErrorMacro("Communication error.");
           return 0;
@@ -288,13 +276,13 @@ int vtkPDistributedDataFilter::RequestData(vtkInformation* vtkNotUsed(request),
       }
       for (int kk = 1; kk < numProcs; kk++)
       {
-        this->Controller->Send(&leafTypes[0], numLeaves, kk, 1020203);
+        this->Controller->Send(leafTypes.data(), numLeaves, kk, 1020203);
       }
     }
     else
     {
-      this->Controller->Send(&leafTypes[0], numLeaves, 0, 1020202);
-      this->Controller->Receive(&leafTypes[0], numLeaves, 0, 1020203);
+      this->Controller->Send(leafTypes.data(), numLeaves, 0, 1020202);
+      this->Controller->Receive(leafTypes.data(), numLeaves, 0, 1020203);
     }
   }
   TimeLog::EndEvent("Classify leaves", this->Timing);
@@ -599,7 +587,7 @@ int vtkPDistributedDataFilter::PartitionDataAndAssignToProcesses(vtkDataSet* set
     }
     else
     {
-      this->Kdtree->AssignRegions(&this->UserRegionAssignments[0], nregions);
+      this->Kdtree->AssignRegions(this->UserRegionAssignments.data(), nregions);
     }
   }
 
@@ -814,29 +802,34 @@ struct vtkPDistributedDataFilterProcInfo
   int procId;
   vtkIdType has;
 };
-extern "C"
+
+VTK_ABI_NAMESPACE_END
+
+namespace
 {
-  int vtkPDistributedDataFilterSortSize(const void* s1, const void* s2)
+int vtkPDistributedDataFilterSortSize(const void* s1, const void* s2)
+{
+  vtkPDistributedDataFilterProcInfo *a, *b;
+
+  a = (struct vtkPDistributedDataFilterProcInfo*)s1;
+  b = (struct vtkPDistributedDataFilterProcInfo*)s2;
+
+  if (a->has < b->has)
   {
-    vtkPDistributedDataFilterProcInfo *a, *b;
-
-    a = (struct vtkPDistributedDataFilterProcInfo*)s1;
-    b = (struct vtkPDistributedDataFilterProcInfo*)s2;
-
-    if (a->has < b->has)
-    {
-      return 1;
-    }
-    else if (a->has == b->has)
-    {
-      return 0;
-    }
-    else
-    {
-      return -1;
-    }
+    return 1;
+  }
+  else if (a->has == b->has)
+  {
+    return 0;
+  }
+  else
+  {
+    return -1;
   }
 }
+}
+
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 vtkDataSet* vtkPDistributedDataFilter::TestFixTooFewInputFiles(
@@ -4345,3 +4338,4 @@ void vtkPDistributedDataFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Timing: " << this->Timing << endl;
   os << indent << "UseMinimalMemory: " << this->UseMinimalMemory << endl;
 }
+VTK_ABI_NAMESPACE_END

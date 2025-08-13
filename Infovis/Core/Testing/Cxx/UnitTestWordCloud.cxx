@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    UnitTestWordCloud.cxx
-
--------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkSmartPointer.h"
 #include "vtkWordCloud.h"
 
@@ -135,6 +118,7 @@ int UnitTestWordCloud(int argc, char* argv[])
 
   // Check modified times for containers
 #define CHECK_CONTAINER_MTIMES(name)                                                               \
+  do                                                                                               \
   {                                                                                                \
     auto name = wordCloud->Get##name();                                                            \
     auto mtime = wordCloud->GetMTime();                                                            \
@@ -153,7 +137,7 @@ int UnitTestWordCloud(int argc, char* argv[])
       std::cout << "\n Modify time is bad for " #name;                                             \
       status2++;                                                                                   \
     }                                                                                              \
-  }
+  } while (false)
 
   std::cout << "Testing Container MTimes...";
   auto status2 = 0;

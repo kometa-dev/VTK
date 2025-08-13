@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkActor.h"
 #include "vtkCamera.h"
 #include "vtkCompositeDataIterator.h"
@@ -13,13 +15,12 @@
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
-#include "vtkStdString.h"
 #include "vtkTestUtilities.h"
 #include "vtkTesting.h"
 #include "vtkWindowToImageFilter.h"
 
 #include "vtkSmartPointer.h"
-#define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New();
+#define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
 
 int TestMultiBlockExodusWrite(int argc, char* argv[])
 {
@@ -76,13 +77,13 @@ int TestMultiBlockExodusWrite(int argc, char* argv[])
     testing->AddArgument(argv[i]);
   }
 
-  vtkStdString OutputFile;
+  std::string OutputFile;
   OutputFile = testing->GetTempDirectory();
   OutputFile += "/testExodus.exii";
 
   VTK_CREATE(vtkExodusIIWriter, writer);
   writer->SetInputConnection(reader->GetOutputPort());
-  writer->SetFileName(OutputFile);
+  writer->SetFileName(OutputFile.c_str());
   writer->WriteOutBlockIdArrayOn();
   writer->WriteOutGlobalNodeIdArrayOn();
   writer->WriteOutGlobalElementIdArrayOn();
@@ -92,11 +93,11 @@ int TestMultiBlockExodusWrite(int argc, char* argv[])
   writer->GetModelMetadata()->PrintLocalInformation();
 
   VTK_CREATE(vtkExodusIIReader, outputReader);
-  if (!outputReader->CanReadFile(OutputFile))
+  if (!outputReader->CanReadFile(OutputFile.c_str()))
   {
     return 1;
   }
-  outputReader->SetFileName(OutputFile);
+  outputReader->SetFileName(OutputFile.c_str());
   outputReader->SetGlobalResultArrayStatus("CALIBER", 1);
   outputReader->SetGlobalResultArrayStatus("GUNPOWDER", 1);
   outputReader->Update();

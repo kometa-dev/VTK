@@ -1,31 +1,21 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCGNSReaderInternal.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-// Copyright 2013-2014 Mickael Philit.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2013-2014 Mickael Philit
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCGNSReaderInternal.h"
 
 #include "cgio_helpers.h"
 #include "vtkCellType.h"
+#include "vtkIdTypeArray.h"
 #include "vtkMultiProcessStream.h"
 
 #include <algorithm>
 
 namespace CGNSRead
 {
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
-int setUpRind(const int cgioNum, const double rindId, int* rind)
+int setUpRind(int cgioNum, double rindId, int* rind)
 {
   CGNSRead::char_33 dataType;
   if (cgio_get_data_type(cgioNum, rindId, dataType) != CG_OK)
@@ -56,8 +46,7 @@ int setUpRind(const int cgioNum, const double rindId, int* rind)
 }
 
 //------------------------------------------------------------------------------
-int getFirstNodeId(
-  const int cgioNum, const double parentId, const char* label, double* id, const char* name)
+int getFirstNodeId(int cgioNum, double parentId, const char* label, double* id, const char* name)
 {
   int nId, n, nChildren, len;
   int ier = 0;
@@ -128,10 +117,10 @@ int getFirstNodeId(
 }
 
 //------------------------------------------------------------------------------
-int get_section_connectivity(const int cgioNum, const double cgioSectionId, const int dim,
-  const cgsize_t* srcStart, const cgsize_t* srcEnd, const cgsize_t* srcStride,
-  const cgsize_t* memStart, const cgsize_t* memEnd, const cgsize_t* memStride,
-  const cgsize_t* memDim, vtkIdType* localElements)
+int get_section_connectivity(int cgioNum, double cgioSectionId, int dim, const cgsize_t* srcStart,
+  const cgsize_t* srcEnd, const cgsize_t* srcStride, const cgsize_t* memStart,
+  const cgsize_t* memEnd, const cgsize_t* memStride, const cgsize_t* memDim,
+  vtkIdType* localElements)
 {
   const char* connectivityPath = "ElementConnectivity";
   double cgioElemConnectId;
@@ -225,10 +214,10 @@ int get_section_connectivity(const int cgioNum, const double cgioSectionId, cons
 }
 
 //------------------------------------------------------------------------------
-int get_section_start_offset(const int cgioNum, const double cgioSectionId, const int dim,
-  const cgsize_t* srcStart, const cgsize_t* srcEnd, const cgsize_t* srcStride,
-  const cgsize_t* memStart, const cgsize_t* memEnd, const cgsize_t* memStride,
-  const cgsize_t* memDim, vtkIdType* localElementsIdx)
+int get_section_start_offset(int cgioNum, double cgioSectionId, int dim, const cgsize_t* srcStart,
+  const cgsize_t* srcEnd, const cgsize_t* srcStride, const cgsize_t* memStart,
+  const cgsize_t* memEnd, const cgsize_t* memStride, const cgsize_t* memDim,
+  vtkIdType* localElementsIdx)
 {
   const char* offsetPath = "ElementStartOffset";
   double cgioElemOffsetId;
@@ -326,6 +315,105 @@ int get_section_start_offset(const int cgioNum, const double cgioSectionId, cons
   return 0;
 }
 
+//------------------------------------------------------------------------------
+int get_section_parent_elements(const int cgioNum, const double cgioSectionId, const int dim,
+  const cgsize_t* srcStart, const cgsize_t* srcEnd, const cgsize_t* srcStride,
+  const cgsize_t* memStart, const cgsize_t* memEnd, const cgsize_t* memStride,
+  const cgsize_t* memDim, vtkIdType* localPE)
+{
+  const char* PEPath = "ParentElements";
+  double cgioPEId;
+  char dataType[3];
+  std::size_t sizeOfCnt = 0;
+
+  if (cgio_get_node_id(cgioNum, cgioSectionId, PEPath, &cgioPEId) != CG_OK)
+  {
+    return 1; // ParentElements not found
+  }
+
+  cgio_get_data_type(cgioNum, cgioPEId, dataType);
+
+  if (strcmp(dataType, "I4") == 0)
+  {
+    sizeOfCnt = sizeof(int);
+  }
+  else if (strcmp(dataType, "I8") == 0)
+  {
+    sizeOfCnt = sizeof(cglong_t);
+  }
+  else
+  {
+    std::cerr << "ParentElements data_type unknown\n";
+  }
+  if (sizeOfCnt == sizeof(vtkIdType))
+  {
+
+    if (cgio_read_data_type(cgioNum, cgioPEId, srcStart, srcEnd, srcStride, dataType, dim, memDim,
+          memStart, memEnd, memStride, (void*)localPE) != CG_OK)
+    {
+      char message[81];
+      cgio_error_message(message);
+      std::cerr << "cgio_read_data_type :" << message;
+      return 1;
+    }
+  }
+  else
+  {
+    // Need to read into temp array to convert data
+    cgsize_t nn = 1;
+    for (int ii = 0; ii < dim; ii++)
+    {
+      nn *= memDim[ii];
+    }
+    if (sizeOfCnt == sizeof(int))
+    {
+      int* data = new int[nn];
+      if (data == nullptr)
+      {
+        std::cerr << "Allocation failed for temporary ParentElements array\n";
+      }
+      if (cgio_read_data_type(cgioNum, cgioPEId, srcStart, srcEnd, srcStride, "I4", dim, memDim,
+            memStart, memEnd, memStride, (void*)data) != CG_OK)
+      {
+        delete[] data;
+        char message[81];
+        cgio_error_message(message);
+        std::cerr << "cgio_read_data_type :" << message;
+        return 1;
+      }
+      for (cgsize_t n = 0; n < nn; n++)
+      {
+        localPE[n] = static_cast<vtkIdType>(data[n]);
+      }
+      delete[] data;
+    }
+    else if (sizeOfCnt == sizeof(cglong_t))
+    {
+      cglong_t* data = new cglong_t[nn];
+      if (data == nullptr)
+      {
+        std::cerr << "Allocation failed for temporary ParentElements array\n";
+        return 1;
+      }
+      if (cgio_read_data_type(cgioNum, cgioPEId, srcStart, srcEnd, srcStride, "I8", dim, memDim,
+            memStart, memEnd, memStride, (void*)data) != CG_OK)
+      {
+        delete[] data;
+        char message[81];
+        cgio_error_message(message);
+        std::cerr << "cgio_read_data_type :" << message;
+        return 1;
+      }
+      for (cgsize_t n = 0; n < nn; n++)
+      {
+        localPE[n] = static_cast<vtkIdType>(data[n]);
+      }
+      delete[] data;
+    }
+  }
+  cgio_release_id(cgioNum, cgioPEId);
+  return 0;
+}
 //------------------------------------------------------------------------------
 int GetVTKElemType(
   CGNS_ENUMT(ElementType_t) elemType, bool& higherOrderWarning, bool& cgnsOrderFlag)
@@ -504,7 +592,7 @@ static const int PYRA_30_ToVTK[30] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 9, 12, 11,
 static const int QUAD_16_ToVTK[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 9, 8, 11, 10, 12, 13, 15, 14 };
 
 //------------------------------------------------------------------------------
-inline const int* getTranslator(const int cellType)
+inline const int* getTranslator(int cellType)
 {
   switch (cellType)
   {
@@ -549,7 +637,7 @@ inline const int* getTranslator(const int cellType)
 }
 
 //------------------------------------------------------------------------------
-void CGNS2VTKorder(const vtkIdType size, const int* cells_types, vtkIdType* elements)
+void CGNS2VTKorder(vtkIdType size, const int* cells_types, vtkIdType* elements)
 {
   const int maxPointsPerCells = 64;
   int tmp[maxPointsPerCells];
@@ -576,11 +664,12 @@ void CGNS2VTKorder(const vtkIdType size, const int* cells_types, vtkIdType* elem
 }
 
 //------------------------------------------------------------------------------
-void CGNS2VTKorderMonoElem(const vtkIdType size, const int cell_type, vtkIdType* elements)
+void ReorderMonoCellPointsCGNS2VTK(
+  vtkIdType size, int cell_type, vtkIdType numPointsPerCell, vtkIdType* elements)
 {
-  const int maxPointsPerCells = 64;
+  vtkNew<vtkIdTypeArray> tempArray;
+  tempArray->SetNumberOfTuples(numPointsPerCell);
 
-  int tmp[maxPointsPerCells];
   const int* translator;
   translator = getTranslator(cell_type);
   if (translator == nullptr)
@@ -591,15 +680,13 @@ void CGNS2VTKorderMonoElem(const vtkIdType size, const int cell_type, vtkIdType*
   vtkIdType pos = 0;
   for (vtkIdType icell = 0; icell < size; ++icell)
   {
-    vtkIdType numPointsPerCell = elements[pos];
-    pos++;
     for (vtkIdType ip = 0; ip < numPointsPerCell; ++ip)
     {
-      tmp[ip] = elements[translator[ip] + pos];
+      tempArray->SetValue(ip, elements[translator[ip] + pos]);
     }
     for (vtkIdType ip = 0; ip < numPointsPerCell; ++ip)
     {
-      elements[pos + ip] = tmp[ip];
+      elements[pos + ip] = tempArray->GetValue(ip);
     }
     pos += numPointsPerCell;
   }
@@ -614,7 +701,7 @@ bool testValidVector(const CGNSVector& item)
 
 //------------------------------------------------------------------------------
 void fillVectorsFromVars(std::vector<CGNSRead::CGNSVariable>& vars,
-  std::vector<CGNSRead::CGNSVector>& vectors, const int physicalDim)
+  std::vector<CGNSRead::CGNSVector>& vectors, int physicalDim)
 {
   // get number of scalars and vectors
   const std::size_t nvar = vars.size();
@@ -959,13 +1046,14 @@ static void BroadcastString(vtkMultiProcessController* controller, std::string& 
     {
       std::vector<char> tmp;
       tmp.resize(len);
-      controller->Broadcast(&(tmp[0]), len, 0);
-      str = &tmp[0];
+      controller->Broadcast(tmp.data(), len, 0);
+      str = tmp.data();
     }
     else
     {
       const char* start = str.c_str();
       std::vector<char> tmp(start, start + len);
+      // NOLINTNEXTLINE(readability-container-data-pointer): needs C++17
       controller->Broadcast(&tmp[0], len, 0);
     }
   }
@@ -982,7 +1070,7 @@ static void BroadcastDoubleVector(
   }
   if (len)
   {
-    controller->Broadcast(&dvec[0], len, 0);
+    controller->Broadcast(dvec.data(), len, 0);
   }
 }
 //------------------------------------------------------------------------------
@@ -997,7 +1085,7 @@ static void BroadcastIntVector(
   }
   if (len)
   {
-    controller->Broadcast(&ivec[0], len, 0);
+    controller->Broadcast(ivec.data(), len, 0);
   }
 }
 //------------------------------------------------------------------------------
@@ -1017,7 +1105,7 @@ static void BroadcastSelection(
       {
         const char* start = ite.first.c_str();
         std::vector<char> tmpVector(start, start + len2);
-        controller->Broadcast(&tmpVector[0], len2, 0);
+        controller->Broadcast(tmpVector.data(), len2, 0);
       }
       tmp = (int)ite.second;
       controller->Broadcast(&tmp, 1, 0);
@@ -1054,7 +1142,7 @@ static void BroadcastRefState(
       {
         const char* start = ite.first.c_str();
         std::vector<char> tmp(start, start + len2);
-        controller->Broadcast(&tmp[0], len2, 0);
+        controller->Broadcast(tmp.data(), len2, 0);
       }
       controller->Broadcast(&ite.second, 1, 0);
     }
@@ -1273,4 +1361,5 @@ bool ReadPatch(vtkCGNSReader* reader, const BaseInformation&, const ZoneInformat
   return true;
 }
 
+VTK_ABI_NAMESPACE_END
 } // end of namespace

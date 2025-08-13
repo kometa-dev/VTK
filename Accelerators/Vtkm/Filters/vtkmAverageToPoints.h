@@ -1,18 +1,7 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkmAverageToPoints
  * @brief   Accelerated cell to point interpolation filter.
@@ -28,12 +17,14 @@
 #define vtkmAverageToPoints_h
 
 #include "vtkAcceleratorsVTKmFiltersModule.h" //required for correct implementation
-#include "vtkDataSetAlgorithm.h"
+#include "vtkCellDataToPointData.h"
+#include "vtkmlib/vtkmInitializer.h" // Need for initializing vtk-m
 
-class VTKACCELERATORSVTKMFILTERS_EXPORT vtkmAverageToPoints : public vtkDataSetAlgorithm
+VTK_ABI_NAMESPACE_BEGIN
+class VTKACCELERATORSVTKMFILTERS_EXPORT vtkmAverageToPoints : public vtkCellDataToPointData
 {
 public:
-  vtkTypeMacro(vtkmAverageToPoints, vtkDataSetAlgorithm);
+  vtkTypeMacro(vtkmAverageToPoints, vtkCellDataToPointData);
   void PrintSelf(ostream& os, vtkIndent indent) override;
   static vtkmAverageToPoints* New();
 
@@ -46,6 +37,8 @@ protected:
 private:
   vtkmAverageToPoints(const vtkmAverageToPoints&) = delete;
   void operator=(const vtkmAverageToPoints&) = delete;
+  vtkmInitializer Initializer;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkmAverageToPoints_h

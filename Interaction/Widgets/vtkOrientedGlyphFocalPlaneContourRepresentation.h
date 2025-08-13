@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOrientedGlyphFocalPlaneContourRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOrientedGlyphFocalPlaneContourRepresentation
  * @brief   Contours constrained
@@ -34,6 +22,7 @@
 #include "vtkFocalPlaneContourRepresentation.h"
 #include "vtkInteractionWidgetsModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkProperty2D;
 class vtkActor2D;
 class vtkPolyDataMapper2D;
@@ -203,4 +192,5 @@ private:
   void operator=(const vtkOrientedGlyphFocalPlaneContourRepresentation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkClipDataSet.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkClipDataSet.h"
 
@@ -27,19 +15,16 @@
 #include "vtkIncrementalPointLocator.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
-#include "vtkIntArray.h"
 #include "vtkMergePoints.h"
+#include "vtkNonLinearCell.h"
 #include "vtkObjectFactory.h"
-#include "vtkPlane.h"
 #include "vtkPointData.h"
 #include "vtkPolyhedron.h"
 #include "vtkSmartPointer.h"
-#include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
-#include <cmath>
-
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkClipDataSet);
 vtkCxxSetObjectMacro(vtkClipDataSet, ClipFunction, vtkImplicitFunction);
 
@@ -99,10 +84,6 @@ void vtkClipDataSet::InternalProgressCallback(vtkAlgorithm* algorithm)
 {
   float progress = algorithm->GetProgress();
   this->UpdateProgress(progress);
-  if (this->AbortExecute)
-  {
-    algorithm->SetAbortExecute(1);
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -174,19 +155,18 @@ int vtkClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
   vtkPointData *inPD = input->GetPointData(), *outPD = output->GetPointData();
   vtkCellData* inCD = input->GetCellData();
   vtkCellData* outCD[2];
-  vtkPoints* newPoints;
-  vtkFloatArray* cellScalars;
+  vtkSmartPointer<vtkPoints> newPoints;
+  vtkSmartPointer<vtkFloatArray> cellScalars;
   vtkDataArray* clipScalars;
   vtkPoints* cellPts;
   vtkIdList* cellIds;
   double s;
   vtkIdType npts;
   const vtkIdType* pts;
-  int cellType = 0;
   vtkIdType i;
   int j;
   vtkIdType estimatedSize;
-  vtkUnsignedCharArray* types[2];
+  vtkSmartPointer<vtkUnsignedCharArray> types[2];
   types[0] = types[1] = nullptr;
   int numOutputs = 1;
 
@@ -242,25 +222,25 @@ int vtkClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
   {
     estimatedSize = 1024;
   }
-  cellScalars = vtkFloatArray::New();
+  cellScalars = vtkSmartPointer<vtkFloatArray>::New();
   cellScalars->Allocate(VTK_CELL_SIZE);
-  vtkCellArray* conn[2];
+  vtkSmartPointer<vtkCellArray> conn[2];
   conn[0] = conn[1] = nullptr;
-  conn[0] = vtkCellArray::New();
+  conn[0] = vtkSmartPointer<vtkCellArray>::New();
   conn[0]->AllocateEstimate(estimatedSize, 1);
   conn[0]->InitTraversal();
-  types[0] = vtkUnsignedCharArray::New();
+  types[0] = vtkSmartPointer<vtkUnsignedCharArray>::New();
   types[0]->Allocate(estimatedSize, estimatedSize / 2);
   if (this->GenerateClippedOutput)
   {
     numOutputs = 2;
-    conn[1] = vtkCellArray::New();
+    conn[1] = vtkSmartPointer<vtkCellArray>::New();
     conn[1]->AllocateEstimate(estimatedSize, 1);
     conn[1]->InitTraversal();
-    types[1] = vtkUnsignedCharArray::New();
+    types[1] = vtkSmartPointer<vtkUnsignedCharArray>::New();
     types[1]->Allocate(estimatedSize, estimatedSize / 2);
   }
-  newPoints = vtkPoints::New();
+  newPoints = vtkSmartPointer<vtkPoints>::New();
 
   // set precision for the points in the output
   if (this->OutputPointsPrecision == vtkAlgorithm::DEFAULT_PRECISION)
@@ -306,10 +286,11 @@ int vtkClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
     {
       inPD->SetScalars(tmpScalars);
     }
+    double pt[3];
     for (i = 0; i < numPts; i++)
     {
-      s = this->ClipFunction->FunctionValue(input->GetPoint(i));
-      tmpScalars->SetTuple1(i, s);
+      input->GetPoint(i, pt);
+      tmpScalars->SetValue(i, this->ClipFunction->FunctionValue(pt));
     }
     clipScalars = tmpScalars;
   }
@@ -318,19 +299,6 @@ int vtkClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
     clipScalars = this->GetInputArrayToProcess(0, inputVector);
     if (!clipScalars)
     {
-      for (i = 0; i < 2; i++)
-      {
-        if (conn[i])
-        {
-          conn[i]->Delete();
-        }
-        if (types[i])
-        {
-          types[i]->Delete();
-        }
-      }
-      cellScalars->Delete();
-      newPoints->Delete();
       // When processing composite datasets with partial arrays, this warning is
       // not applicable, hence disabling it.
       // vtkErrorMacro(<<"Cannot clip without clip function or input scalars");
@@ -368,25 +336,28 @@ int vtkClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
 
   // Process all cells and clip each in turn
   //
-  int abort = 0;
+  bool abort = false;
   vtkIdType updateTime = numCells / 20 + 1; // update roughly every 5%
-  vtkGenericCell* cell = vtkGenericCell::New();
+  vtkSmartPointer<vtkGenericCell> cell = vtkSmartPointer<vtkGenericCell>::New();
   int num[2];
   num[0] = num[1] = 0;
   int numNew[2];
   numNew[0] = numNew[1] = 0;
+  bool sameCell[2] = { false, false };
+
   for (vtkIdType cellId = 0; cellId < numCells && !abort; cellId++)
   {
     if (!(cellId % updateTime))
     {
       this->UpdateProgress(static_cast<double>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
 
     input->GetCell(cellId, cell);
     cellPts = cell->GetPoints();
     cellIds = cell->GetPointIds();
     npts = cellPts->GetNumberOfPoints();
+    vtkNonLinearCell* nonLinearCell = vtkNonLinearCell::SafeDownCast(cell->GetRepresentativeCell());
 
     // evaluate implicit cutting function
     for (i = 0; i < npts; i++)
@@ -402,84 +373,83 @@ int vtkClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
     }
 
     // perform the clipping
-    cell->Clip(value, cellScalars, this->Locator, conn[0], inPD, outPD, inCD, cellId, outCD[0],
-      this->InsideOut);
-    numNew[0] = conn[0]->GetNumberOfCells() - num[0];
-    num[0] = conn[0]->GetNumberOfCells();
-
-    if (this->GenerateClippedOutput)
+    for (i = 0; i < numOutputs; ++i)
     {
-      cell->Clip(value, cellScalars, this->Locator, conn[1], inPD, outPD, inCD, cellId, outCD[1],
-        !this->InsideOut);
-      numNew[1] = conn[1]->GetNumberOfCells() - num[1];
-      num[1] = conn[1]->GetNumberOfCells();
+      if (this->StableClipNonLinear && nonLinearCell != nullptr)
+      {
+        sameCell[i] = nonLinearCell->StableClip(value, cellScalars, this->Locator, conn[i], inPD,
+          outPD, inCD, cellId, outCD[i], this->InsideOut);
+        numNew[i] = conn[i]->GetNumberOfCells() - num[i];
+        num[i] = conn[i]->GetNumberOfCells();
+      }
+      else
+      {
+        cell->Clip(value, cellScalars, this->Locator, conn[i], inPD, outPD, inCD, cellId, outCD[i],
+          this->InsideOut);
+        numNew[i] = conn[i]->GetNumberOfCells() - num[i];
+        num[i] = conn[i]->GetNumberOfCells();
+        sameCell[i] = false;
+      }
     }
 
-    for (i = 0; i < numOutputs; i++) // for both outputs
+    auto getCellType = [](vtkGenericCell* gCell, vtkIdType nPts, bool isSameCell) {
+      if (isSameCell)
+      {
+        return static_cast<VTKCellType>(gCell->GetCellType());
+      }
+      else if (gCell->GetCellType() == VTK_POLYHEDRON)
+      {
+        return VTK_POLYHEDRON;
+      }
+      else
+      {
+        switch (gCell->GetCellDimension())
+        {
+          case 0: // points are generated--------------------------------
+            return (nPts > 1 ? VTK_POLY_VERTEX : VTK_VERTEX);
+
+          case 1: // lines are generated---------------------------------
+            return (nPts > 2 ? VTK_POLY_LINE : VTK_LINE);
+
+          case 2: // polygons are generated------------------------------
+            return (nPts == 3 ? VTK_TRIANGLE : (nPts == 4 ? VTK_QUAD : VTK_POLYGON));
+
+          case 3: // tetrahedra or wedges are generated------------------
+            return (nPts == 4 ? VTK_TETRA : VTK_WEDGE);
+
+          default:
+            vtkErrorWithObjectMacro(nullptr, "Dimension cannot be lower than 0 or higher than 3");
+            break;
+        }
+      }
+
+      return VTK_EMPTY_CELL;
+    };
+
+    for (i = 0; i < numOutputs; i++)
     {
       for (j = 0; j < numNew[i]; j++)
       {
-        if (cell->GetCellType() == VTK_POLYHEDRON)
-        {
-          // Polyhedron cells have a special cell connectivity format
-          //(nCell0Faces, nFace0Pts, i, j, k, nFace1Pts, i, j, k, ...).
-          // But we don't need to deal with it here. The special case is handled
-          // by vtkUnstructuredGrid::SetCells(), which will be called next.
-          types[i]->InsertNextValue(VTK_POLYHEDRON);
-        }
-        else
-        {
-          conn[i]->GetNextCell(npts, pts);
-
-          // For each new cell added, got to set the type of the cell
-          switch (cell->GetCellDimension())
-          {
-            case 0: // points are generated--------------------------------
-              cellType = (npts > 1 ? VTK_POLY_VERTEX : VTK_VERTEX);
-              break;
-
-            case 1: // lines are generated---------------------------------
-              cellType = (npts > 2 ? VTK_POLY_LINE : VTK_LINE);
-              break;
-
-            case 2: // polygons are generated------------------------------
-              cellType = (npts == 3 ? VTK_TRIANGLE : (npts == 4 ? VTK_QUAD : VTK_POLYGON));
-              break;
-
-            case 3: // tetrahedra or wedges are generated------------------
-              cellType = (npts == 4 ? VTK_TETRA : VTK_WEDGE);
-              break;
-          } // switch
-
-          types[i]->InsertNextValue(cellType);
-        }
-      } // for each new cell
-    }   // for both outputs
-  }     // for each cell
-
-  cell->Delete();
-  cellScalars->Delete();
+        conn[i]->GetNextCell(npts, pts);
+        types[i]->InsertNextValue(getCellType(cell, npts, sameCell[i]));
+      }
+    }
+  }
 
   if (this->ClipFunction)
   {
     clipScalars->Delete();
     inPD->Delete();
   }
-
   output->SetPoints(newPoints);
   output->SetCells(types[0], conn[0]);
-  conn[0]->Delete();
-  types[0]->Delete();
 
   if (this->GenerateClippedOutput)
   {
     clippedOutput->SetPoints(newPoints);
     clippedOutput->SetCells(types[1], conn[1]);
-    conn[1]->Delete();
-    types[1]->Delete();
   }
 
-  newPoints->Delete();
   this->Locator->Initialize(); // release any extra memory
   output->Squeeze();
 
@@ -506,9 +476,10 @@ int vtkClipDataSet::ClipPoints(
   }
   if (this->ClipFunction)
   {
+    double pt[3];
     for (vtkIdType i = 0; i < numPts; i++)
     {
-      double* pt = input->GetPoint(i);
+      input->GetPoint(i, pt);
       double fv = this->ClipFunction->FunctionValue(pt);
       int addPoint = 0;
       if (this->InsideOut)
@@ -527,7 +498,7 @@ int vtkClipDataSet::ClipPoints(
       }
       if (addPoint)
       {
-        vtkIdType id = outPoints->InsertNextPoint(input->GetPoint(i));
+        vtkIdType id = outPoints->InsertNextPoint(pt);
         outPD->CopyData(inPD, i, id);
       }
     }
@@ -537,10 +508,12 @@ int vtkClipDataSet::ClipPoints(
     vtkDataArray* clipScalars = this->GetInputArrayToProcess(0, inputVector);
     if (clipScalars)
     {
+      double pt[3];
       for (vtkIdType i = 0; i < numPts; i++)
       {
         int addPoint = 0;
-        double fv = clipScalars->GetTuple1(i);
+        double fv;
+        clipScalars->GetTuple(i, &fv);
         if (this->InsideOut)
         {
           if (fv <= value)
@@ -557,7 +530,8 @@ int vtkClipDataSet::ClipPoints(
         }
         if (addPoint)
         {
-          vtkIdType id = outPoints->InsertNextPoint(input->GetPoint(i));
+          input->GetPoint(i, pt);
+          vtkIdType id = outPoints->InsertNextPoint(pt);
           outPD->CopyData(inPD, i, id);
         }
       }
@@ -632,6 +606,7 @@ void vtkClipDataSet::ClipVolume(vtkDataSet* input, vtkUnstructuredGrid* output)
   clipVolume->SetMergeTolerance(this->MergeTolerance);
   clipVolume->SetDebug(this->Debug);
   clipVolume->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
+  clipVolume->SetContainerAlgorithm(this);
   clipVolume->Update();
 
   clipVolume->RemoveObserver(this->InternalProgressObserver);
@@ -684,3 +659,4 @@ void vtkClipDataSet::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Precision of the output points: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

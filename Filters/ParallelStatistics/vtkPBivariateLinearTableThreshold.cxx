@@ -1,22 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkPBivariateLinearTableThreshold.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2009 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2009 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkPBivariateLinearTableThreshold.h"
 
 #include "vtkDataArrayCollection.h"
@@ -31,6 +15,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPBivariateLinearTableThreshold);
 vtkCxxSetObjectMacro(vtkPBivariateLinearTableThreshold, Controller, vtkMultiProcessController);
 
@@ -88,7 +73,7 @@ int vtkPBivariateLinearTableThreshold::RequestData(
     std::vector<vtkIdType> recvOffsets(numProcesses, 0);
 
     // gathers all of the array lengths together
-    comm->AllGather(&myLength, &recvLengths[0], 1);
+    comm->AllGather(&myLength, recvLengths.data(), 1);
 
     // compute the displacements
     vtkIdType typeSize = col->GetDataTypeSize();
@@ -106,7 +91,7 @@ int vtkPBivariateLinearTableThreshold::RequestData(
     char* sendBuf = (char*)col->GetVoidPointer(0);
     char* recvBuf = (char*)received->GetVoidPointer(0);
 
-    comm->AllGatherV(sendBuf, recvBuf, myLength * typeSize, &recvLengths[0], &recvOffsets[0]);
+    comm->AllGatherV(sendBuf, recvBuf, myLength * typeSize, recvLengths.data(), recvOffsets.data());
 
     gatheredTable->AddColumn(received);
     received->Delete();
@@ -116,3 +101,4 @@ int vtkPBivariateLinearTableThreshold::RequestData(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

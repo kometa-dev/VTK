@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCameraOrientationRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCameraOrientationRepresentation.h"
 
 #include "vtkActor.h"
@@ -58,6 +46,7 @@
   }
 
 //-----------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCameraOrientationRepresentation);
 
 //-----------------------------------------------------------------------------
@@ -356,15 +345,19 @@ void vtkCameraOrientationRepresentation::ApplyInteractionState(const int& state)
 //-----------------------------------------------------------------------------
 void vtkCameraOrientationRepresentation::GetActors(vtkPropCollection* ac)
 {
-  ac->AddItem(this->Container);
-  for (int ax = 0; ax < 3; ++ax)
+  if (ac != nullptr && this->GetVisibility())
   {
-    ac->AddItem(this->Shafts);
-    for (int dir = 0; dir < 2; ++dir)
+    ac->AddItem(this->Container);
+    for (int ax = 0; ax < 3; ++ax)
     {
-      ac->AddItem(this->Handles[ax][dir]);
+      ac->AddItem(this->Shafts);
+      for (int dir = 0; dir < 2; ++dir)
+      {
+        ac->AddItem(this->Handles[ax][dir]);
+      }
     }
   }
+  this->Superclass::GetActors(ac);
 }
 
 //-----------------------------------------------------------------------------
@@ -485,7 +478,7 @@ void vtkCameraOrientationRepresentation::Rotate(double newEventPos[2])
 
   const int* size = this->Renderer->GetSize();
 
-  // permit 90 degree roatation across renderer w, h
+  // permit 90 degree rotation across renderer w, h
   double delta_azimuth = -90.0 / size[0];
   double delta_elevation = -90.0 / size[1];
 
@@ -890,3 +883,4 @@ void vtkCameraOrientationRepresentation::PrintSelf(ostream& os, vtkIndent indent
   this->Transform->PrintSelf(os, indent);
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

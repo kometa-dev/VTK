@@ -1,27 +1,19 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlot.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPlot.h"
 
+#include "vtkArrayDispatch.h"
 #include "vtkAxis.h"
 #include "vtkBrush.h"
 #include "vtkContextMapper2D.h"
 #include "vtkContextMouseEvent.h"
 #include "vtkContextTransform.h"
+#include "vtkDataArrayMeta.h"
+#include "vtkDataArrayRange.h"
 #include "vtkDataObject.h"
 #include "vtkIdTypeArray.h"
+#include "vtkInformation.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPen.h"
@@ -30,6 +22,7 @@
 #include "vtkTransform2D.h"
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkPlot, XAxis, vtkAxis);
 vtkCxxSetObjectMacro(vtkPlot, YAxis, vtkAxis);
 
@@ -130,8 +123,8 @@ vtkIdType vtkPlot::GetNearestPoint(const vtkVector2f& vtkNotUsed(point),
 //------------------------------------------------------------------------------
 vtkStdString vtkPlot::GetTooltipLabel(const vtkVector2d& plotPos, vtkIdType seriesIndex, vtkIdType)
 {
-  vtkStdString tooltipLabel;
-  vtkStdString& format =
+  std::string tooltipLabel;
+  std::string& format =
     this->TooltipLabelFormat.empty() ? this->TooltipDefaultLabelFormat : this->TooltipLabelFormat;
   // Parse TooltipLabelFormat and build tooltipLabel
   bool escapeNext = false;
@@ -237,25 +230,27 @@ void vtkPlot::SetColor(unsigned char r, unsigned char g, unsigned char b, unsign
 }
 
 //------------------------------------------------------------------------------
-void vtkPlot::SetColor(double r, double g, double b)
+void vtkPlot::SetColorF(double r, double g, double b, double a)
+{
+  this->Pen->SetColorF(r, g, b, a);
+}
+
+//------------------------------------------------------------------------------
+void vtkPlot::SetColorF(double r, double g, double b)
 {
   this->Pen->SetColorF(r, g, b);
 }
 
 //------------------------------------------------------------------------------
-void vtkPlot::GetColor(double rgb[3])
+void vtkPlot::GetColor(unsigned char rgb[3])
 {
-  this->Pen->GetColorF(rgb);
+  this->Pen->GetColor(rgb);
 }
 
 //------------------------------------------------------------------------------
-void vtkPlot::GetColor(unsigned char rgb[3])
+void vtkPlot::GetColorF(double rgb[3])
 {
-  double rgbF[3];
-  this->GetColor(rgbF);
-  rgb[0] = static_cast<unsigned char>(255. * rgbF[0] + 0.5);
-  rgb[1] = static_cast<unsigned char>(255. * rgbF[1] + 0.5);
-  rgb[2] = static_cast<unsigned char>(255. * rgbF[2] + 0.5);
+  this->Pen->GetColorF(rgb);
 }
 
 //------------------------------------------------------------------------------
@@ -372,7 +367,9 @@ vtkStringArray* vtkPlot::GetLabels()
   {
     return this->AutoLabels;
   }
-  else if (this->Data->GetInput() && this->Data->GetInputArrayToProcess(1, this->Data->GetInput()))
+  else if (this->Data->GetInput() &&
+    this->Data->GetInformation()->Get(vtkAlgorithm::INPUT_ARRAYS_TO_PROCESS()) &&
+    this->Data->GetInputArrayToProcess(1, this->Data->GetInput()))
   {
     this->AutoLabels = vtkSmartPointer<vtkStringArray>::New();
     this->AutoLabels->InsertNextValue(
@@ -485,7 +482,7 @@ vtkStdString vtkPlot::GetLabel(vtkIdType index)
   }
   else
   {
-    return vtkStdString();
+    return {};
   }
 }
 //------------------------------------------------------------------------------
@@ -499,8 +496,8 @@ void vtkPlot::SetInputData(vtkTable* table)
 void vtkPlot::SetInputData(
   vtkTable* table, const vtkStdString& xColumn, const vtkStdString& yColumn)
 {
-  vtkDebugMacro(<< "Setting input, X column = \"" << xColumn.c_str() << "\", "
-                << "Y column = \"" << yColumn.c_str() << "\"");
+  vtkDebugMacro(<< "Setting input, X column = \"" << xColumn << "\", "
+                << "Y column = \"" << yColumn << "\"");
 
   this->Data->SetInputData(table);
   this->Data->SetInputArrayToProcess(
@@ -605,7 +602,7 @@ void vtkPlot::TransformDataToScreen(const vtkVector2f& in, vtkVector2f& out)
 }
 
 //------------------------------------------------------------------------------
-void vtkPlot::TransformScreenToData(const double inX, const double inY, double& outX, double& outY)
+void vtkPlot::TransformScreenToData(double inX, double inY, double& outX, double& outY)
 {
   // inverse shift/scale from screen space.
   const vtkRectd& ss = this->ShiftScale;
@@ -626,7 +623,7 @@ void vtkPlot::TransformScreenToData(const double inX, const double inY, double& 
 }
 
 //------------------------------------------------------------------------------
-void vtkPlot::TransformDataToScreen(const double inX, const double inY, double& outX, double& outY)
+void vtkPlot::TransformDataToScreen(double inX, double inY, double& outX, double& outY)
 {
   outX = inX;
   outY = inY;
@@ -712,3 +709,43 @@ bool vtkPlot::Hit(const vtkContextMouseEvent& mouse)
   vtkIdType segmentId;
   return this->GetNearestPoint(mouse.GetPos(), tol, &loc, &segmentId) >= 0;
 }
+
+namespace
+{
+struct FilterSelectedPoints
+{
+  template <typename ArrayType1, typename ArrayType2>
+  void operator()(ArrayType1* points, ArrayType2* selectedPoints, vtkIdTypeArray* selectedIds)
+  {
+    auto pointsRange = vtk::DataArrayTupleRange(points);
+    auto selectedPointsRange = vtk::DataArrayTupleRange(selectedPoints);
+    const vtkIdType nSelected = selectedIds->GetNumberOfTuples();
+    const vtkIdType* ids = selectedIds->GetPointer(0);
+    assert(pointsRange.GetTupleSize() > 1);
+    assert(selectedPointsRange.GetTupleSize() > 1);
+    for (vtkIdType i = 0; i < nSelected; ++i)
+    {
+      const vtkIdType& id = ids[i];
+      std::copy(pointsRange[id].cbegin(), pointsRange[id].cend(), selectedPointsRange[i].begin());
+    }
+  }
+};
+}
+
+//------------------------------------------------------------------------------
+void vtkPlot::FilterSelectedPoints(
+  vtkDataArray* points, vtkDataArray* selectedPoints, vtkIdTypeArray* selectedIds)
+{
+  // resize selectedPoints
+  selectedPoints->SetNumberOfComponents(points->GetNumberOfComponents());
+  selectedPoints->SetNumberOfTuples(selectedIds->GetNumberOfTuples());
+  // filter using selectedIds
+  using DispatchT = vtkArrayDispatch::Dispatch2BySameValueType<vtkArrayDispatch::Reals>;
+  ::FilterSelectedPoints worker;
+  if (!DispatchT::Execute(points, selectedPoints, worker, selectedIds))
+  {
+    worker(points, selectedPoints, selectedIds);
+  }
+  selectedPoints->Modified();
+}
+VTK_ABI_NAMESPACE_END

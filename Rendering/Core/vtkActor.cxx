@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkActor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkActor.h"
 
 #include "vtkDataArray.h"
@@ -33,6 +21,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkActor, Texture, vtkTexture);
 vtkCxxSetObjectMacro(vtkActor, Mapper, vtkMapper);
 vtkCxxSetObjectMacro(vtkActor, BackfaceProperty, vtkProperty);
@@ -395,6 +384,11 @@ double* vtkActor::GetBounds()
   // of caching. If the values returned this time are different, or
   // the modified time of this class is newer than the cached time,
   // then we need to rebuild.
+  //
+  // `clang-tidy` is wary of this mechanism, but we are also OK if different
+  // NaN representations busts the cache (NaN bounds are likely problematic
+  // elsewhere too).
+  // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison)
   if ((memcmp(this->MapperBounds, bounds, 6 * sizeof(double)) != 0) ||
     (this->GetMTime() > this->BoundsMTime) || this->CoordinateSystem != vtkProp3D::WORLD)
   {
@@ -582,3 +576,4 @@ void vtkActor::ProcessSelectorPixelBuffers(
     this->Mapper->ProcessSelectorPixelBuffers(sel, pixeloffsets, this);
   }
 }
+VTK_ABI_NAMESPACE_END

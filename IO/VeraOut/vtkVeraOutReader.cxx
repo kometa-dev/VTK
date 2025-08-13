@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVeraOutReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME vtkVeraOutReader - File reader for VERA OUT HDF5 format.
 
 #include "vtkVeraOutReader.h"
@@ -52,6 +40,8 @@
 #define VERA_MAX_DIMENSION 6
 #define DATASET_NAME_MAX_SIZE 1024
 
+VTK_ABI_NAMESPACE_BEGIN
+
 //*****************************************************************************
 class vtkVeraOutReader::Internals
 {
@@ -83,7 +73,6 @@ public:
   void SetFileName(const char* filename)
   {
     std::string newFileName(filename ? filename : "");
-    ;
     if (newFileName != this->FileName)
     {
       this->FileName = filename;
@@ -121,8 +110,7 @@ public:
     }
     if ((this->FileId = H5Fopen(this->FileName.c_str(), H5F_ACC_RDONLY, fileAccessPropListID)) < 0)
     {
-      vtkErrorWithObjectMacro(
-        this->Owner, "Cannot be a VERA file (" << this->FileName.c_str() << ")");
+      vtkErrorWithObjectMacro(this->Owner, "Cannot be a VERA file (" << this->FileName << ")");
       return false;
     }
     H5Pclose(fileAccessPropListID);
@@ -522,8 +510,8 @@ public:
       hid_t datasetId;
       if ((datasetId = H5Dopen(groupId, dsName.c_str())) < 0)
       {
-        vtkErrorWithObjectMacro(this->Owner,
-          "DataSet " << dsName.c_str() << " in group " << groupName << " don't want to open.");
+        vtkErrorWithObjectMacro(
+          this->Owner, "DataSet " << dsName << " in group " << groupName << " don't want to open.");
         continue;
       }
 
@@ -712,7 +700,7 @@ public:
     hid_t groupId = -1;
     if ((groupId = H5Gopen(this->FileId, stateGroupName.str().c_str())) < 0)
     {
-      vtkErrorWithObjectMacro(this->Owner, "Can't open Group " << stateGroupName.str().c_str());
+      vtkErrorWithObjectMacro(this->Owner, "Can't open Group " << stateGroupName.str());
       return;
     }
 
@@ -720,8 +708,7 @@ public:
     int status = H5Gget_info(groupId, &groupInfo);
     if (status < 0)
     {
-      vtkErrorWithObjectMacro(
-        this->Owner, "Can't get group info for " << stateGroupName.str().c_str());
+      vtkErrorWithObjectMacro(this->Owner, "Can't get group info for " << stateGroupName.str());
       return;
     }
 
@@ -868,8 +855,8 @@ int vtkVeraOutReader::RequestInformation(
   this->TimeSteps.resize(this->NumberOfTimeSteps);
   std::iota(this->TimeSteps.begin(), this->TimeSteps.end(), 1.0);
 
-  outInfo->Set(
-    vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &this->TimeSteps[0], this->NumberOfTimeSteps);
+  outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), this->TimeSteps.data(),
+    this->NumberOfTimeSteps);
 
   double tRange[2];
   tRange[0] = this->NumberOfTimeSteps ? this->TimeSteps[0] : 0;
@@ -969,3 +956,4 @@ vtkMTimeType vtkVeraOutReader::GetMTime()
 
   return mTime;
 }
+VTK_ABI_NAMESPACE_END

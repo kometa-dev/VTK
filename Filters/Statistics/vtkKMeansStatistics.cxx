@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkKMeansStatistics.h"
 #include "vtkKMeansAssessFunctor.h"
 #include "vtkKMeansDistanceFunctor.h"
@@ -21,6 +23,7 @@
 #include <sstream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkKMeansStatistics);
 vtkCxxSetObjectMacro(vtkKMeansStatistics, DistanceFunctor, vtkKMeansDistanceFunctor);
 
@@ -191,7 +194,7 @@ int vtkKMeansStatistics::InitializeDataAndClusterCenters(vtkTable* inParameters,
         }
         else if (dArr != inData->GetRowData()->GetGhostArray())
         {
-          vtkWarningMacro("Skipping requested column \"" << colItr->c_str() << "\".");
+          vtkWarningMacro("Skipping requested column \"" << *colItr << "\".");
         }
       }
       newClusterElements->DeepCopy(condensedTable);
@@ -329,7 +332,7 @@ bool vtkKMeansStatistics::SetParameter(
   if (!parameter)
     return false;
 
-  vtkStdString pname = parameter;
+  std::string pname = parameter;
   if (pname == "DefaultNumberOfClusters" || pname == "k" || pname == "K")
   {
     bool valid;
@@ -719,7 +722,7 @@ void vtkKMeansStatistics::Assess(vtkTable* inData, vtkMultiBlockDataSet* inMeta,
 
   vtkIdType nv = this->AssessNames->GetNumberOfValues();
   int numRuns = kmfunc->GetNumberOfRuns();
-  std::vector<vtkStdString> names(nv * numRuns);
+  std::vector<std::string> names(nv * numRuns);
   vtkIdType nRow = inData->GetNumberOfRows();
   for (int i = 0; i < numRuns; ++i)
   {
@@ -738,9 +741,9 @@ void vtkKMeansStatistics::Assess(vtkTable* inData, vtkMultiBlockDataSet* inMeta,
         assessValues = vtkDoubleArray::New();
       }
       names[i * nv + v] =
-        assessColName.str()
-          .c_str(); // Storing names to be able to use SetValueByName which is faster than SetValue
-      assessValues->SetName(names[i * nv + v]);
+        assessColName
+          .str(); // Storing names to be able to use SetValueByName which is faster than SetValue
+      assessValues->SetName(names[i * nv + v].c_str());
       assessValues->SetNumberOfTuples(nRow);
       outData->AddColumn(assessValues);
       assessValues->Delete();
@@ -760,7 +763,7 @@ void vtkKMeansStatistics::Assess(vtkTable* inData, vtkMultiBlockDataSet* inMeta,
     (*dfunc)(assessResult, r);
     for (vtkIdType j = 0; j < nv * numRuns; ++j)
     {
-      outData->SetValueByName(r, names[j], assessResult->GetValue(j));
+      outData->SetValueByName(r, names[j].c_str(), assessResult->GetValue(j));
     }
   }
   assessResult->Delete();
@@ -894,3 +897,4 @@ void vtkKMeansAssessFunctor::operator()(vtkDoubleArray* result, vtkIdType row)
     result->SetValue(resIndex++, this->ClusterMemberIDs->GetValue(row * this->NumRuns + runID));
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestXYPlotActor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .SECTION Thanks
 // This test was written by Philippe Pebay, Kitware SAS 2012
 
@@ -28,7 +16,6 @@
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
 #include "vtkSmartPointer.h"
-#include "vtkStdString.h"
 #include "vtkTextProperty.h"
 #include "vtkXYPlotActor.h"
 
@@ -41,7 +28,7 @@ int TestXYPlotActor(int argc, char* argv[])
 
   // Create containers for data
   unsigned int nPlots = 4;
-  vtkStdString names[] = {
+  std::string names[] = {
     "sqrt(x)",
     "sqrt(x)sin(10ln(sqrt(x)))",
     "sqrt(x)cos(x/10)",
@@ -128,7 +115,7 @@ int TestXYPlotActor(int argc, char* argv[])
   xyPlot->SetLegendBackgroundColor(.86, .86, .86);
   for (unsigned int i = 0; i < nPlots; ++i)
   {
-    xyPlot->GetLegendActor()->SetEntryString(i, names[i]);
+    xyPlot->GetLegendActor()->SetEntryString(i, names[i].c_str());
   }
 
   // Axes settings

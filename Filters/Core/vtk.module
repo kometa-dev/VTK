@@ -9,6 +9,17 @@ KIT
   VTK::Filters
 GROUPS
   StandAlone
+SPDX_LICENSE_IDENTIFIER
+  LicenseRef-BSD-3-Clause-Sandia-USGov
+SPDX_COPYRIGHT_TEXT
+  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  Copyright Sandia Corporation
+SPDX_CUSTOM_LICENSE_FILE
+  LICENSE
+SPDX_CUSTOM_LICENSE_NAME
+  BSD-3-Clause-Sandia-USGov
+LICENSE_FILES
+  LICENSE
 DEPENDS
   VTK::CommonCore
   VTK::CommonDataModel
@@ -40,3 +51,5 @@ TEST_DEPENDS
   VTK::RenderingVolumeOpenGL2
   VTK::TestingRendering
   VTK::TestingDataModel
+TEST_OPTIONAL_DEPENDS
+  VTK::AcceleratorsVTKmFilters

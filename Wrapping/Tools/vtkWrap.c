@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrap.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrap.h"
 #include "vtkParseData.h"
@@ -79,6 +67,11 @@ int vtkWrap_IsPODPointer(ValueInfo* val)
 int vtkWrap_IsZeroCopyPointer(ValueInfo* val)
 {
   return (vtkWrap_IsPointer(val) && (val->Attributes & VTK_PARSE_ZEROCOPY) != 0);
+}
+
+int vtkWrap_IsArrayRef(ValueInfo* val)
+{
+  return (vtkWrap_IsRef(val) && val->NumberOfDimensions > 0);
 }
 
 int vtkWrap_IsStdVector(ValueInfo* val)
@@ -152,7 +145,6 @@ int vtkWrap_IsNumeric(ValueInfo* val)
     case VTK_PARSE_INT:
     case VTK_PARSE_LONG:
     case VTK_PARSE_LONG_LONG:
-    case VTK_PARSE___INT64:
     case VTK_PARSE_SIGNED_CHAR:
     case VTK_PARSE_SSIZE_T:
     case VTK_PARSE_BOOL:
@@ -197,7 +189,6 @@ int vtkWrap_IsInteger(ValueInfo* val)
     case VTK_PARSE_INT:
     case VTK_PARSE_LONG:
     case VTK_PARSE_LONG_LONG:
-    case VTK_PARSE___INT64:
     case VTK_PARSE_UNSIGNED_CHAR:
     case VTK_PARSE_SIGNED_CHAR:
     case VTK_PARSE_SSIZE_T:
@@ -728,7 +719,7 @@ void vtkWrap_FindCountHints(ClassInfo* data, FileInfo* finfo, HierarchyInfo* hin
       if (count)
       {
         char counttext[24];
-        sprintf(counttext, "%d", count);
+        snprintf(counttext, sizeof(counttext), "%d", count);
         theFunc->Parameters[0]->Count = count;
         vtkParse_AddStringToArray(&theFunc->Parameters[0]->Dimensions,
           &theFunc->Parameters[0]->NumberOfDimensions,
@@ -998,12 +989,8 @@ const char* vtkWrap_GetTypeName(ValueInfo* val)
       return "unsigned char";
     case VTK_PARSE_LONG_LONG:
       return "long long";
-    case VTK_PARSE___INT64:
-      return "__int64";
     case VTK_PARSE_UNSIGNED_LONG_LONG:
       return "unsigned long long";
-    case VTK_PARSE_UNSIGNED___INT64:
-      return "unsigned __int64";
     case VTK_PARSE_SIGNED_CHAR:
       return "signed char";
     case VTK_PARSE_BOOL:
@@ -1047,14 +1034,15 @@ void vtkWrap_DeclareVariable(
   {
     /* use a typedef to work around compiler issues when someone used
        the same name for the enum type as for a variable or method */
-    newTypeName = (char*)malloc(strlen(name) + 16);
+    size_t newTypeNameLen = strlen(name) + 19 + 5 + 1;
+    newTypeName = (char*)malloc(newTypeNameLen);
     if (i >= 0)
     {
-      sprintf(newTypeName, "%s%i_type", name, i);
+      snprintf(newTypeName, newTypeNameLen, "%s%i_type", name, i);
     }
     else
     {
-      sprintf(newTypeName, "%s_type", name);
+      snprintf(newTypeName, newTypeNameLen, "%s_type", name);
     }
     fprintf(fp, "  typedef %s::%s %s;\n", data->Name, typeName, newTypeName);
     typeName = newTypeName;
@@ -1184,7 +1172,7 @@ void vtkWrap_DeclareVariableSize(FILE* fp, ValueInfo* val, const char* name, int
   idx[0] = '\0';
   if (i >= 0)
   {
-    sprintf(idx, "%d", i);
+    snprintf(idx, sizeof(idx), "%d", i);
   }
 
   if (val->NumberOfDimensions > 1)

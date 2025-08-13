@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointInterpolator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPointInterpolator.h"
 
 #include "vtkAbstractPointLocator.h"
@@ -39,6 +27,7 @@
 #include <cassert>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPointInterpolator);
 vtkCxxSetObjectMacro(vtkPointInterpolator, Locator, vtkAbstractPointLocator);
 vtkCxxSetObjectMacro(vtkPointInterpolator, Kernel, vtkInterpolationKernel);
@@ -347,7 +336,7 @@ void vtkPointInterpolator::Probe(vtkDataSet* input, vtkDataSet* source, vtkDataS
   // Clean up
   if (mask)
   {
-    this->ValidPointsMask->SetName(this->ValidPointsMaskArrayName);
+    this->ValidPointsMask->SetName(this->ValidPointsMaskArrayName.c_str());
     outPD->AddArray(this->ValidPointsMask);
     this->ValidPointsMask->Delete();
   }
@@ -503,8 +492,7 @@ void vtkPointInterpolator::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Null Points Strategy: " << this->NullPointsStrategy << endl;
   os << indent << "Null Value: " << this->NullValue << "\n";
-  os << indent << "Valid Points Mask Array Name: "
-     << (this->ValidPointsMaskArrayName ? this->ValidPointsMaskArrayName : "(none)") << "\n";
+  os << indent << "Valid Points Mask Array Name: " << this->ValidPointsMaskArrayName << "\n";
 
   os << indent << "Number of Excluded Arrays:" << this->GetNumberOfExcludedArrays() << endl;
   vtkIndent nextIndent = indent.GetNextIndent();
@@ -519,3 +507,4 @@ void vtkPointInterpolator::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Pass Cell Arrays: " << (this->PassCellArrays ? "On" : " Off") << "\n";
   os << indent << "Pass Field Arrays: " << (this->PassFieldArrays ? "On" : " Off") << "\n";
 }
+VTK_ABI_NAMESPACE_END

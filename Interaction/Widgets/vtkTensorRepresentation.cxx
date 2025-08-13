@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTensorRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTensorRepresentation.h"
 
 #include "vtkActor.h"
@@ -45,6 +33,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTensorRepresentation);
 
 //------------------------------------------------------------------------------
@@ -1713,9 +1702,12 @@ vtkTypeBool vtkTensorRepresentation::HasTranslucentPolygonalGeometry()
 }
 
 #define VTK_AVERAGE(a, b, c)                                                                       \
-  c[0] = (a[0] + b[0]) / 2.0;                                                                      \
-  c[1] = (a[1] + b[1]) / 2.0;                                                                      \
-  c[2] = (a[2] + b[2]) / 2.0;
+  do                                                                                               \
+  {                                                                                                \
+    c[0] = (a[0] + b[0]) / 2.0;                                                                    \
+    c[1] = (a[1] + b[1]) / 2.0;                                                                    \
+    c[2] = (a[2] + b[2]) / 2.0;                                                                    \
+  } while (false)
 
 //------------------------------------------------------------------------------
 // Position the handles based on the current positions of the eight corner points
@@ -1963,3 +1955,4 @@ void vtkTensorRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Tensor Ellipsoid: " << (this->TensorEllipsoid ? "On\n" : "Off\n");
   os << indent << "Inside Out: " << (this->InsideOut ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

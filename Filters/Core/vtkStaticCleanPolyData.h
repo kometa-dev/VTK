@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStaticCleanPolyData.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStaticCleanPolyData
  * @brief   merge duplicate points, and/or remove unused points and/or remove degenerate cells
@@ -58,7 +46,7 @@
  * vtkCleanPolyData. However, vtkStaticCleanPolyData is non-incremental and
  * uses a much faster (especially for larger datasets) threading approach and
  * when merging points with a non-zero tolerance. However because of the
- * difference in the traveral order in the point merging process, the output
+ * difference in the traversal order in the point merging process, the output
  * of the filters may be different.
  *
  * @warning
@@ -77,6 +65,7 @@
 #include "vtkPolyDataAlgorithm.h"
 #include "vtkStaticPointLocator.h" // For enums
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSCORE_EXPORT vtkStaticCleanPolyData : public vtkPolyDataAlgorithm
 {
 public:
@@ -260,4 +249,5 @@ private:
   void operator=(const vtkStaticCleanPolyData&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

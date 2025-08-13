@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestCutter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataSetTriangleFilter.h"
 #include "vtkImageDataToPointSet.h"
 #include "vtkMappedUnstructuredGridGenerator.h"
@@ -25,17 +13,20 @@
 #include "vtkUnstructuredGridBase.h"
 
 #define Compare(output, expected)                                                                  \
-  if (output->GetNumberOfCells() != expected)                                                      \
+  do                                                                                               \
   {                                                                                                \
-    cerr << "Test " << __FUNCTION__ << " expected " << expected << " cells, got "                  \
-         << output->GetNumberOfCells() << endl;                                                    \
-    return false;                                                                                  \
-  }                                                                                                \
-  else                                                                                             \
-  {                                                                                                \
-    cout << "Test " << __FUNCTION__ << " succeeded with " << output->GetNumberOfCells()            \
-         << " cells." << endl;                                                                     \
-  }
+    if (output->GetNumberOfCells() != expected)                                                    \
+    {                                                                                              \
+      cerr << "Test " << __FUNCTION__ << " expected " << expected << " cells, got "                \
+           << output->GetNumberOfCells() << endl;                                                  \
+      return false;                                                                                \
+    }                                                                                              \
+    else                                                                                           \
+    {                                                                                              \
+      cout << "Test " << __FUNCTION__ << " succeeded with " << output->GetNumberOfCells()          \
+           << " cells." << endl;                                                                   \
+    }                                                                                              \
+  } while (false)
 
 bool TestPlaneCutterStructured(int type, int expected)
 {
@@ -164,10 +155,9 @@ bool TestPlaneCutterUnstructured(int expected)
 
 int TestPlaneCutter(int, char*[])
 {
-  int expected[] = { 7, 4 };
   for (int type = 0; type < 2; type++)
   {
-    if (!TestPlaneCutterStructured(type, expected[type]))
+    if (!TestPlaneCutterStructured(type, 4))
     {
       cerr << "Cutting Structured failed" << endl;
       return EXIT_FAILURE;

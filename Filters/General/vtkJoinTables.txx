@@ -1,19 +1,8 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkJoinTables.txx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 template <typename KeyColType, typename KeyValues>
 KeyValues GetCell(KeyColType*, int);
 
@@ -30,7 +19,7 @@ inline void InsertNext<vtkDataArray, double>(vtkDataArray* col, double val)
 
 //------------------------------------------------------------------------------
 template <>
-inline void InsertNext<vtkStringArray, vtkStdString>(vtkStringArray* col, vtkStdString val)
+inline void InsertNext<vtkStringArray, std::string>(vtkStringArray* col, std::string val)
 {
   col->InsertNextValue(val);
 }
@@ -44,7 +33,7 @@ inline double GetCell<vtkDataArray, double>(vtkDataArray* col, int index)
 
 //------------------------------------------------------------------------------
 template <>
-inline vtkStdString GetCell<vtkStringArray, vtkStdString>(vtkStringArray* col, int index)
+inline std::string GetCell<vtkStringArray, std::string>(vtkStringArray* col, int index)
 {
   return (col->GetValue(index));
 }
@@ -85,7 +74,7 @@ void vtkJoinTables::MergeColumn(ColType* outputColumn, ColType* Column, KeyColTy
       }
       else
       {
-        auto val = vtkStdString("");
+        std::string val;
         outputStringColumn->InsertNextValue(val);
       }
     }
@@ -274,3 +263,4 @@ void vtkJoinTables::JoinAlgorithm(vtkTable* left, vtkTable* right, vtkTable* out
   }
   outputKeyCol->Delete();
 }
+VTK_ABI_NAMESPACE_END

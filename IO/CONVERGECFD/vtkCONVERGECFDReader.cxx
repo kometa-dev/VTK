@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCONVERGECFDReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCONVERGECFDReader.h"
 
 #include "vtkBuffer.h"
@@ -45,6 +33,7 @@
 
 #include "vtkHDF5ScopedHandle.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCONVERGECFDReader);
 
 namespace
@@ -195,7 +184,7 @@ bool ReadStrings(hid_t fileId, const char* path, std::vector<std::string>& strin
   strings.clear();
   for (hsize_t i = 0; i < dim; ++i)
   {
-    strings.emplace_back(std::string(rdata[i]));
+    strings.emplace_back(rdata[i]);
   }
 
   delete[] rdata[0];
@@ -920,7 +909,7 @@ int vtkCONVERGECFDReader::RequestData(
         vtkIdType ptId = polygons[polygonOffsets[polyId] + id];
         ptIds[id] = blocksOriginalToBlockPointId[boundaryIndex][ptId];
       }
-      polyData->GetPolys()->InsertNextCell(numCellPts, &ptIds[0]);
+      polyData->GetPolys()->InsertNextCell(numCellPts, ptIds.data());
     }
 
     // Clear some memory
@@ -1262,8 +1251,8 @@ void vtkCONVERGECFDReader::ReadTimeSteps(vtkInformation* outInfo)
   vtkNew<vtkDirectory> dir;
   if (!dir->Open(path.c_str()))
   {
-    vtkWarningMacro(<< "Could not open directory " << originalFile.c_str()
-                    << " is supposed to be from (" << path.c_str() << ")");
+    vtkWarningMacro(<< "Could not open directory " << originalFile << " is supposed to be from ("
+                    << path << ")");
     fileNames.emplace_back(originalFile);
     return;
   }
@@ -1289,7 +1278,7 @@ void vtkCONVERGECFDReader::ReadTimeSteps(vtkInformation* outInfo)
     bool timeRead = this->ReadOutputTime(file, time);
     if (timeRead)
     {
-      timesAndFiles.emplace_back(std::make_pair(time, file));
+      timesAndFiles.emplace_back(time, file);
     }
   }
 
@@ -1313,7 +1302,7 @@ void vtkCONVERGECFDReader::ReadTimeSteps(vtkInformation* outInfo)
     double timeRange[2] = { times[0], times[times.size() - 1] };
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), timeRange, 2);
     outInfo->Set(
-      vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &times[0], static_cast<int>(times.size()));
+      vtkStreamingDemandDrivenPipeline::TIME_STEPS(), times.data(), static_cast<int>(times.size()));
   }
 }
 
@@ -1401,3 +1390,4 @@ int vtkCONVERGECFDReader::CanReadFile(const char* fname)
   // Everything succeeded
   return 1;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,19 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBlueObeliskData.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBlueObeliskData.h"
 
@@ -21,10 +7,6 @@
 #include "vtkBlueObeliskDataInternal.h"
 #include "vtkBlueObeliskDataParser.h"
 #include "vtkFloatArray.h"
-#include "vtkLegacy.h" // For VTK_LEGACY_REMOVE
-#if !defined(VTK_LEGACY_REMOVE)
-#include "vtkMutexLock.h"
-#endif
 #include "vtkObjectFactory.h"
 #include "vtkStringArray.h"
 #include "vtkTypeTraits.h"
@@ -33,6 +15,7 @@
 #include <vector>
 
 // Hidden STL reference: std::vector<vtkAbstractArray*>
+VTK_ABI_NAMESPACE_BEGIN
 class MyStdVectorOfVtkAbstractArrays : public std::vector<vtkAbstractArray*>
 {
 };
@@ -41,12 +24,7 @@ vtkStandardNewMacro(vtkBlueObeliskData);
 
 //------------------------------------------------------------------------------
 vtkBlueObeliskData::vtkBlueObeliskData()
-  :
-#if !defined(VTK_LEGACY_REMOVE)
-  WriteMutex(vtkSimpleMutexLock::New())
-  ,
-#endif
-  Initialized(false)
+  : Initialized(false)
   , NumberOfElements(0)
   , Arrays(new MyStdVectorOfVtkAbstractArrays)
 {
@@ -115,9 +93,6 @@ vtkBlueObeliskData::vtkBlueObeliskData()
 vtkBlueObeliskData::~vtkBlueObeliskData()
 {
   delete Arrays;
-#if !defined(VTK_LEGACY_REMOVE)
-  this->WriteMutex->Delete();
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -168,6 +143,7 @@ void vtkBlueObeliskData::PrintSelfIfExists(
     os << indent << name << " is null.\n";
   }
 }
+VTK_ABI_NAMESPACE_END
 
 // Helpers for reading raw data from the private header into a VTK array.
 namespace
@@ -199,24 +175,17 @@ void LoadDataArray(
 
 } // End anon namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 void vtkBlueObeliskData::LockWriteMutex()
 {
-#if !defined(VTK_LEGACY_REMOVE)
-  this->WriteMutex->Lock();
-#else
   this->NewWriteMutex.lock();
-#endif
 }
 
 //------------------------------------------------------------------------------
 void vtkBlueObeliskData::UnlockWriteMutex()
 {
-#if !defined(VTK_LEGACY_REMOVE)
-  this->WriteMutex->Unlock();
-#else
   this->NewWriteMutex.unlock();
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -263,6 +232,7 @@ void vtkBlueObeliskData::Initialize()
   this->Initialized = true;
 }
 
+VTK_ABI_NAMESPACE_END
 // Helpers for GenerateHeaderFromXML:
 namespace
 {
@@ -337,6 +307,7 @@ void WriteDataArray(const std::string& name, ArrayT* data, std::ostream& out)
 
 } // end anon namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 bool vtkBlueObeliskData::GenerateHeaderFromXML(std::istream& xml, std::ostream& out)
 {
@@ -423,3 +394,4 @@ void vtkBlueObeliskData::Reset()
     (*it)->Reset();
   }
 }
+VTK_ABI_NAMESPACE_END

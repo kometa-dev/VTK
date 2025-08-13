@@ -1,22 +1,6 @@
-// -*- c++ -*-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPNrrdReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPNrrdReader.h"
 
@@ -72,6 +56,7 @@
 // Reporting errors is more important with file I/O because, unlike network I/O,
 // they usually don't terminate the program.
 #define MPICall(funcall)                                                                           \
+  do                                                                                               \
   {                                                                                                \
     int __my_result = funcall;                                                                     \
     if (__my_result != MPI_SUCCESS)                                                                \
@@ -84,11 +69,12 @@
                     << endl                                                                        \
                     << errormsg);                                                                  \
     }                                                                                              \
-  }
+  } while (false)
 #endif // VTK_USE_MPI_IO
 
 //------------------------------------------------------------------------------
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPNrrdReader);
 vtkCxxSetObjectMacro(vtkPNrrdReader, Controller, vtkMultiProcessController);
 vtkCxxSetObjectMacro(vtkPNrrdReader, GroupedController, vtkMultiProcessController);
@@ -560,3 +546,4 @@ int vtkPNrrdReader::ReadHeader(vtkCharArray* headerBuffer)
 {
   return this->Superclass::ReadHeader(headerBuffer);
 }
+VTK_ABI_NAMESPACE_END

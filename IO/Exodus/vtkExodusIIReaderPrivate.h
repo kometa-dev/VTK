@@ -1,10 +1,11 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkExodusIIReaderPrivate_h
 #define vtkExodusIIReaderPrivate_h
 
 // Do not include this file directly. It is only for use
 // from inside the ExodusII reader and its descendants.
 
-#include "vtkDeprecation.h"    // for deprecation macros
 #include "vtkExodusIICache.h"  // for vtkExodusIICacheKey
 #include "vtkExodusIIReader.h" // for vtkExodusIIReader
 #include "vtkObject.h"
@@ -16,6 +17,7 @@
 
 #include "vtkIOExodusModule.h" // For export macro
 #include "vtk_exodusII.h"      // for exodus APIs
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkExodusIIReaderParser;
 class vtkIdTypeArray;
@@ -31,8 +33,6 @@ class VTKIOEXODUS_EXPORT vtkExodusIIReaderPrivate : public vtkObject
 {
 public:
   static vtkExodusIIReaderPrivate* New();
-  VTK_DEPRECATED_IN_9_1_0("Renamed to PrintSelf")
-  void PrintData(ostream& os, vtkIndent indent) { this->PrintSelf(os, indent); }
   void PrintSelf(ostream& os, vtkIndent indent) override;
   vtkTypeMacro(vtkExodusIIReaderPrivate, vtkObject);
   // virtual void Modified();
@@ -359,7 +359,7 @@ public:
     vtkStdString TypeName;
     // number of boundaries per entry
     // The index is the dimensionality of the entry. 0=node, 1=edge, 2=face
-    int BdsPerEntry[3];
+    int64_t BdsPerEntry[3];
     vtkIdType AttributesPerEntry;
     std::vector<vtkStdString> AttributeNames;
     std::vector<int> AttributeStatus;
@@ -865,4 +865,5 @@ private:
   void operator=(const vtkExodusIIReaderPrivate&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkExodusIIReaderPrivate_h

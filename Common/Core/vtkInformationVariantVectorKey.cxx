@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInformationVariantVectorKey.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInformationVariantVectorKey.h"
 
 #include "vtkInformation.h" // For vtkErrorWithObjectMacro
@@ -20,6 +8,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkInformationVariantVectorKey ::vtkInformationVariantVectorKey(
   const char* name, const char* location, int length)
   : vtkInformationKey(name, location)
@@ -95,7 +84,7 @@ const vtkVariant* vtkInformationVariantVectorKey::Get(vtkInformation* info) cons
 {
   const vtkInformationVariantVectorValue* v =
     static_cast<const vtkInformationVariantVectorValue*>(this->GetAsObjectBase(info));
-  return (v && !v->Value.empty()) ? (&v->Value[0]) : nullptr;
+  return (v && !v->Value.empty()) ? v->Value.data() : nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -155,3 +144,4 @@ void vtkInformationVariantVectorKey::Print(ostream& os, vtkInformation* info)
     }
   }
 }
+VTK_ABI_NAMESPACE_END

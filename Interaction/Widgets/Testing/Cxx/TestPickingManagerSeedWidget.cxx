@@ -1,38 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestPickingManagerSeedWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*==============================================================================
-
-  Library: MSVTK
-
-  Copyright (c) Kitware Inc.
-
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0.txt
-
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-
-==============================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause AND Apache-2.0
 //
 // This example tests the PickingManager using a scene full of seed widgets.
 // It measures the performances using the Picking manager into different modes:
@@ -65,7 +33,6 @@
 #include "vtkSeedWidget.h"
 #include "vtkSmartPointer.h"
 #include "vtkSphereHandleRepresentation.h"
-#include "vtkStdString.h"
 #include "vtkTimerLog.h"
 #include "vtksys/FStream.hxx"
 
@@ -320,8 +287,7 @@ public:
     vtkRenderWindowInteractor* iren = static_cast<vtkRenderWindowInteractor*>(caller);
 
     // Enable/Disable the PickingManager
-    if ((vtkStdString(iren->GetKeySym()) == "Control_L" ||
-          vtkStdString(iren->GetKeySym()) == "Control_R") &&
+    if ((!strcmp(iren->GetKeySym(), "Control_L") || !strcmp(iren->GetKeySym(), "Control_R")) &&
       iren->GetPickingManager())
     {
       if (!iren->GetPickingManager()->GetEnabled())
@@ -336,7 +302,7 @@ public:
       }
     }
     // Enable/Disable the Optimization on render events.
-    else if (vtkStdString(iren->GetKeySym()) == "o" && iren->GetPickingManager())
+    else if (!strcmp(iren->GetKeySym(), "o") && iren->GetPickingManager())
     {
       if (!iren->GetPickingManager()->GetOptimizeOnInteractorEvents())
       {
@@ -366,7 +332,7 @@ public:
     vtkRenderWindowInteractor* iren = static_cast<vtkRenderWindowInteractor*>(caller);
 
     // Reorganize the cube
-    if (vtkStdString(iren->GetKeySym()) == "space")
+    if (!strcmp(iren->GetKeySym(), "space"))
     {
       const int baseCube = static_cast<int>(pow(this->Seeds.size(), 1. / 3.) / 2 + 0.5);
       std::list<vtkSmartPointer<vtkHandleWidget>>::iterator it = this->Seeds.begin();

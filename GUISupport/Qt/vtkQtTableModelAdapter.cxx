@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtTableModelAdapter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkQtTableModelAdapter.h"
 
 #include "vtkConvertSelection.h"
@@ -28,7 +12,6 @@
 #include "vtkSelection.h"
 #include "vtkSelectionNode.h"
 #include "vtkSmartPointer.h"
-#include "vtkStdString.h"
 #include "vtkTable.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkVariant.h"
@@ -47,6 +30,7 @@
 #include <sstream>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkQtTableModelAdapter::vtkInternal
 {
 public:
@@ -370,8 +354,7 @@ bool vtkQtTableModelAdapter::noTableCheck() const
 //------------------------------------------------------------------------------
 // Description:
 // Selection conversion from VTK land to Qt land
-vtkSelection* vtkQtTableModelAdapter::QModelIndexListToVTKIndexSelection(
-  const QModelIndexList qmil) const
+vtkSelection* vtkQtTableModelAdapter::QModelIndexListToVTKIndexSelection(QModelIndexList qmil) const
 {
   // Create vtk index selection
   vtkSelection* IndexSelection = vtkSelection::New(); // Caller needs to delete
@@ -481,7 +464,7 @@ QVariant vtkQtTableModelAdapter::data(const QModelIndex& idx, int role) const
     }
     else
     {
-      return QString::fromUtf8(v.ToString()).trimmed();
+      return QString::fromUtf8(v.ToString().c_str()).trimmed();
     }
   }
 
@@ -871,3 +854,4 @@ void vtkQtTableModelAdapter::SetIconSize(int w, int h)
   this->IconSize[0] = w;
   this->IconSize[1] = h;
 }
+VTK_ABI_NAMESPACE_END

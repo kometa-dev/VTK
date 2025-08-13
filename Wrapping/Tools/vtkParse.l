@@ -143,7 +143,6 @@ ID [a-zA-Z_\x80-\xff][0-9a-zA-Z_\x80-\xff]*
 
 "double"        return(DOUBLE);
 "float"         return(FLOAT);
-"__int64"       return(INT64__);
 "short"         return(SHORT);
 "long"          return(LONG);
 "char"          return(CHAR);
@@ -1115,7 +1114,7 @@ void doxygen_cpp_comment()
 }
 
 /*
- * Called for //@{
+ * Called for ///@{
  */
 void doxygen_group_start()
 {
@@ -1124,7 +1123,7 @@ void doxygen_group_start()
 }
 
 /*
- * Called for //@}
+ * Called for ///@}
  */
 void doxygen_group_end()
 {

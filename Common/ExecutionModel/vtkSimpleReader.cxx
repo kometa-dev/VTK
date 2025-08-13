@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSimpleReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSimpleReader.h"
 
 #include "vtkInformation.h"
@@ -22,6 +10,7 @@
 #include <numeric>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkSimpleReaderInternal
 {
   using FileNamesType = std::vector<std::string>;
@@ -51,11 +40,11 @@ void vtkSimpleReader::PrintSelf(ostream& os, vtkIndent indent)
 //------------------------------------------------------------------------------
 void vtkSimpleReader::AddFileName(const char* fname)
 {
-  if (fname == nullptr || strlen(fname) == 0)
+  if (fname == nullptr || *fname == '\0')
   {
     return;
   }
-  this->Internal->FileNames.push_back(fname);
+  this->Internal->FileNames.emplace_back(fname);
   this->Modified();
 }
 
@@ -159,7 +148,7 @@ int vtkSimpleReader::ReadMetaData(vtkInformation* metadata)
   timeRange[0] = times[0];
   timeRange[1] = times[nTimes - 1];
 
-  metadata->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), &times[0], (int)nTimes);
+  metadata->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), times.data(), (int)nTimes);
   metadata->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), timeRange, 2);
 
   return 1;
@@ -238,3 +227,4 @@ double vtkSimpleReader::GetTimeValue(const std::string&)
 {
   return vtkMath::Nan();
 }
+VTK_ABI_NAMESPACE_END

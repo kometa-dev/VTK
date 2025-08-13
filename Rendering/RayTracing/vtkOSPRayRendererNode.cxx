@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOSPRayRendererNode.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifdef _WIN32
 #define _USE_MATH_DEFINES
@@ -60,6 +48,7 @@ namespace ospray
 {
 namespace opengl
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 // code borrowed from ospray::modules::opengl to facilitate updating
 // and linking
@@ -172,9 +161,11 @@ OSPTexture getOSPDepthTextureFromOpenGLPerspective(const double& fovy, const dou
 
   return depthTexture;
 }
+VTK_ABI_NAMESPACE_END
 }
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkInformationKeyMacro(vtkOSPRayRendererNode, SAMPLES_PER_PIXEL, Integer);
 vtkInformationKeyMacro(vtkOSPRayRendererNode, MAX_CONTRIBUTION, Double);
 vtkInformationKeyMacro(vtkOSPRayRendererNode, MAX_DEPTH, Integer);
@@ -184,6 +175,7 @@ vtkInformationKeyMacro(vtkOSPRayRendererNode, VOLUME_ANISOTROPY, Double);
 vtkInformationKeyMacro(vtkOSPRayRendererNode, VARIANCE_THRESHOLD, Double);
 vtkInformationKeyMacro(vtkOSPRayRendererNode, MAX_FRAMES, Integer);
 vtkInformationKeyMacro(vtkOSPRayRendererNode, AMBIENT_SAMPLES, Integer);
+vtkInformationKeyMacro(vtkOSPRayRendererNode, VOLUME_SAMPLING_RATE, Double);
 vtkInformationKeyMacro(vtkOSPRayRendererNode, COMPOSITE_ON_GL, Integer);
 vtkInformationKeyMacro(vtkOSPRayRendererNode, RENDERER_TYPE, String);
 vtkInformationKeyMacro(vtkOSPRayRendererNode, NORTH_POLE, DoubleVector);
@@ -798,6 +790,32 @@ int vtkOSPRayRendererNode::GetAmbientSamples(vtkRenderer* renderer)
 }
 
 //------------------------------------------------------------------------------
+void vtkOSPRayRendererNode::SetVolumeSamplingRate(double value, vtkRenderer* renderer)
+{
+  if (!renderer)
+  {
+    return;
+  }
+  vtkInformation* info = renderer->GetInformation();
+  info->Set(vtkOSPRayRendererNode::VOLUME_SAMPLING_RATE(), value);
+}
+
+//------------------------------------------------------------------------------
+double vtkOSPRayRendererNode::GetVolumeSamplingRate(vtkRenderer* renderer)
+{
+  if (!renderer)
+  {
+    return 1.0;
+  }
+  vtkInformation* info = renderer->GetInformation();
+  if (info && info->Has(vtkOSPRayRendererNode::VOLUME_SAMPLING_RATE()))
+  {
+    return (info->Get(vtkOSPRayRendererNode::VOLUME_SAMPLING_RATE()));
+  }
+  return 1.0;
+}
+
+//------------------------------------------------------------------------------
 void vtkOSPRayRendererNode::SetCompositeOnGL(int value, vtkRenderer* renderer)
 {
   if (!renderer)
@@ -1208,6 +1226,7 @@ void vtkOSPRayRendererNode::Render(bool prepass)
     ospSetFloat(this->ORenderer, "rouletteDepth", this->GetRouletteDepth(ren));
     ospSetFloat(this->ORenderer, "varianceThreshold", this->GetVarianceThreshold(ren));
     // ospSetInt(oRenderer, "geometryLights", 0); //avoid a crash in ospray 2.1.0
+    ospSetFloat(this->ORenderer, "volumeSamplingRate", this->GetVolumeSamplingRate(ren));
     ospCommit(this->ORenderer);
 
     if (ren->GetUseShadows())
@@ -1772,3 +1791,4 @@ RTW::Backend* vtkOSPRayRendererNode::GetBackend()
 {
   return this->Internal->Backend;
 }
+VTK_ABI_NAMESPACE_END

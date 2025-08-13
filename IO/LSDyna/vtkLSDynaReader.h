@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLSDynaReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkLSDynaReader
@@ -153,10 +138,10 @@
 #define vtkLSDynaReader_h
 
 #include "vtkIOLSDynaModule.h" // For export macro
-#include "vtkLegacy.h"         // For VTK_LEGACY_REMOVE
 #include "vtkMultiBlockDataSetAlgorithm.h"
 #include <string> // for method signature
 
+VTK_ABI_NAMESPACE_BEGIN
 class LSDynaMetaData;
 class vtkLSDynaPartCollection;
 class vtkPoints;
@@ -195,11 +180,7 @@ public:
    */
   virtual void SetDatabaseDirectory(VTK_FILEPATH const std::string&);
   virtual void SetDatabaseDirectory(VTK_FILEPATH const char*);
-#ifdef VTK_LEGACY_REMOVE
   VTK_FILEPATH std::string GetDatabaseDirectory();
-#else
-  VTK_LEGACY(VTK_FILEPATH const char* GetDatabaseDirectory());
-#endif
   int IsDatabaseValid();
   ///@}
 
@@ -212,11 +193,7 @@ public:
    */
   virtual void SetFileName(VTK_FILEPATH const std::string&);
   virtual void SetFileName(VTK_FILEPATH const char*);
-#ifdef VTK_LEGACY_REMOVE
   VTK_FILEPATH std::string GetFileName();
-#else
-  VTK_LEGACY(VTK_FILEPATH const char* GetFileName());
-#endif
   ///@}
 
   /**
@@ -1080,4 +1057,5 @@ inline int vtkLSDynaReader::GetPartArrayStatus(const char* partName)
   return 0;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkLSDynaReader_h

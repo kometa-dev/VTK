@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestPNGReaderReadFromMemory.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkImageData.h"
 #include "vtkImageViewer.h"
@@ -41,7 +29,7 @@ int TestPNGReaderReadFromMemory(int argc, char* argv[])
   vtksys::ifstream stream(filename.c_str(), std::ios::in | std::ios::binary);
   if (!stream.is_open())
   {
-    std::cerr << "Could not open file " << filename.c_str() << std::endl;
+    std::cerr << "Could not open file " << filename << std::endl;
   }
   // Get file size
   unsigned long len = vtksys::SystemTools::FileLength(filename);

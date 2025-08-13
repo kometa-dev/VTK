@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestExtractSelectedTree.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDataSetAttributes.h"
 #include "vtkDoubleArray.h"
@@ -99,10 +87,10 @@ int TestExtractSelectedTree(int, char*[])
     {
       vtkStringArray* nodename =
         vtkArrayDownCast<vtkStringArray>(vertexData->GetAbstractArray("node name"));
-      vtkStdString n = nodename->GetValue(4);
+      std::string n = nodename->GetValue(4);
       if (n != "d")
       {
-        std::cerr << "The node name should be \'d\', but appear to be: " << n.c_str() << std::endl;
+        std::cerr << "The node name should be \'d\', but appear to be: " << n << std::endl;
         return EXIT_FAILURE;
       }
     }

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSelectionSource.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSelectionSource
  * @brief   Generate selection from given set of ids
@@ -49,6 +37,7 @@
 #include <memory> // for std::shared_ptr
 #include <vector> // for std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSSOURCES_EXPORT vtkSelectionSource : public vtkSelectionAlgorithm
 {
 public:
@@ -133,7 +122,7 @@ public:
   vtkGetMacro(FieldType, int);
   ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get which types of elements are being selected.
    * Accepted values are defined in `vtkDataObject::AttributeTypes`. Note,
@@ -144,9 +133,9 @@ public:
    */
   vtkSetClampMacro(ElementType, int, vtkDataObject::POINT, vtkDataObject::ROW);
   vtkGetMacro(ElementType, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get which process to limit the selection to. `-1` is treated as
    * all processes.
@@ -155,13 +144,13 @@ public:
    */
   vtkSetClampMacro(ProcessID, int, -1, VTK_INT_MAX);
   vtkGetMacro(ProcessID, int);
-  //@}
+  ///@}
 
   //------------------------------------------------------------------------------
   // Functions to manipulate the information of each selection node.
   //------------------------------------------------------------------------------
 
-  //@{
+  ///@{
   /**
    * Set/Get the node name.
    *
@@ -175,7 +164,7 @@ public:
   void SetNodeName(const char* name) { this->SetNodeName(0, name); }
   const char* GetNodeName(unsigned int nodeId);
   const char* GetNodeName() { return this->GetNodeName(0); }
-  //@}
+  ///@}
 
   ///@{
   /**
@@ -314,6 +303,33 @@ public:
 
   ///@{
   /**
+   * Set/Get the number of layers related flag to remove seed selection
+   *
+   * The default is false.
+   */
+  void SetRemoveSeed(unsigned int nodeId, bool RemoveSeed);
+  void SetRemoveSeed(bool RemoveSeed) { this->SetRemoveSeed(0, RemoveSeed); }
+  bool GetRemoveSeed(unsigned int nodeId);
+  bool GetRemoveSeed() { return this->GetRemoveSeed(0); }
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get the number of layers related flag to remove intermediate layers
+   *
+   * The default is false.
+   */
+  void SetRemoveIntermediateLayers(unsigned int nodeId, bool RemoveIntermediateLayers);
+  void SetRemoveIntermediateLayers(bool RemoveIntermediateLayers)
+  {
+    this->SetRemoveIntermediateLayers(0, RemoveIntermediateLayers);
+  }
+  bool GetRemoveIntermediateLayers(unsigned int nodeId);
+  bool GetRemoveIntermediateLayers() { return this->GetRemoveIntermediateLayers(0); }
+  ///@}
+
+  ///@{
+  /**
    * Determines whether the selection describes what to include or exclude.
    *
    * The Default is 0, meaning include.
@@ -426,4 +442,5 @@ private:
   void operator=(const vtkSelectionSource&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLState.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLState.h"
 #include "vtk_glew.h"
 
@@ -52,6 +40,7 @@
 
 // this method checks all the cached state to make sure
 // nothing is out of sync. It can be slow.
+VTK_ABI_NAMESPACE_BEGIN
 bool vtkOpenGLState::CheckState()
 {
   bool error = false;
@@ -313,6 +302,7 @@ bool reportOpenGLErrors(std::string& result)
     }                                                                                              \
   }
 
+VTK_ABI_NAMESPACE_END
 #else // VTK_REPORT_OPENGL_ERRORS
 
 #define vtkCheckOpenGLErrorsWithStack(message)
@@ -323,6 +313,7 @@ bool reportOpenGLErrors(std::string& result)
 //
 //////////////////////////////////////////////////////////////////////////////
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkOpenGLState::BufferBindingState::BufferBindingState()
 {
   // this->Framebuffer = nullptr;
@@ -1888,7 +1879,7 @@ vtkOpenGLState::vtkOpenGLState()
 
   this->TextureUnitManager = vtkTextureUnitManager::New();
 
-  this->Stack.push(GLState());
+  this->Stack.emplace();
 
   auto& cs = this->Stack.top();
 
@@ -2190,3 +2181,4 @@ void vtkOpenGLState::InitializeTextureInternalFormats()
   this->TextureInternalFormats[VTK_SHORT][1][4] = GL_RGBA32F;
 #endif
 }
+VTK_ABI_NAMESPACE_END

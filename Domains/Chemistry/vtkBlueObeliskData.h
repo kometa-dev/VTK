@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBlueObeliskData.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBlueObeliskData
  * @brief   Contains chemical data from the Blue
@@ -36,21 +24,16 @@
 #ifndef vtkBlueObeliskData_h
 #define vtkBlueObeliskData_h
 
-#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_1_0
-
 #include "vtkDomainsChemistryModule.h" // For export macro
-#include "vtkLegacy.h"                 // For VTK_LEGACY_REMOVE
 #include "vtkNew.h"                    // For vtkNew
 #include "vtkObject.h"
 
 #include <mutex> // for std::mutex
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkFloatArray;
 class vtkStringArray;
-#if !defined(VTK_LEGACY_REMOVE)
-class vtkSimpleMutexLock;
-#endif
 class vtkUnsignedShortArray;
 
 // Hidden STL reference: std::vector<vtkAbstractArray*>
@@ -74,17 +57,6 @@ public:
    * Check if this object has been initialized yet.
    */
   bool IsInitialized() { return this->Initialized; }
-
-  ///@{
-  /**
-   * Access the mutex that protects the arrays during a call to
-   * Initialize()
-   */
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_1_0("Use LockWriteMutex() and UnlockWriteMutex() instead.")
-  vtkGetObjectMacro(WriteMutex, vtkSimpleMutexLock);
-#endif
-  ///@}
 
   ///@{
   /**
@@ -149,15 +121,6 @@ protected:
   vtkBlueObeliskData();
   ~vtkBlueObeliskData() override;
 
-#if !defined(VTK_LEGACY_REMOVE)
-  vtkSimpleMutexLock* WriteMutex;
-#else
-private:
-  std::mutex NewWriteMutex;
-
-protected:
-#endif
-
   bool Initialized;
 
   /**
@@ -213,6 +176,9 @@ protected:
 private:
   vtkBlueObeliskData(const vtkBlueObeliskData&) = delete;
   void operator=(const vtkBlueObeliskData&) = delete;
+
+  std::mutex NewWriteMutex;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

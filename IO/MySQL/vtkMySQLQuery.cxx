@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMySQLQuery.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkMySQLQuery.h"
 #include "vtkMySQLDatabase.h"
@@ -66,6 +54,7 @@
 
 //------------------------------------------------------------------------------
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMySQLBoundParameter
 {
 public:
@@ -258,7 +247,7 @@ public:
   void FreeStatement();
   void FreeUserParameterList();
   void FreeBoundParameters();
-  bool SetQuery(const char* queryString, MYSQL* db, vtkStdString& error_message);
+  bool SetQuery(const char* queryString, MYSQL* db, std::string& error_message);
   bool SetBoundParameter(int index, vtkMySQLBoundParameter* param);
   bool BindParametersToStatement();
 
@@ -325,7 +314,7 @@ void vtkMySQLQueryInternals::FreeStatement()
 //------------------------------------------------------------------------------
 
 bool vtkMySQLQueryInternals::SetQuery(
-  const char* queryString, MYSQL* db, vtkStdString& error_message)
+  const char* queryString, MYSQL* db, std::string& error_message)
 {
   this->FreeStatement();
   this->FreeUserParameterList();
@@ -339,7 +328,7 @@ bool vtkMySQLQueryInternals::SetQuery(
   this->Statement = mysql_stmt_init(db);
   if (this->Statement == nullptr)
   {
-    error_message = vtkStdString("vtkMySQLQuery: mysql_stmt_init returned out of memory error");
+    error_message = "vtkMySQLQuery: mysql_stmt_init returned out of memory error";
     return false;
   }
 
@@ -352,7 +341,7 @@ bool vtkMySQLQueryInternals::SetQuery(
   }
   else
   {
-    error_message = vtkStdString(mysql_stmt_error(this->Statement));
+    error_message = mysql_stmt_error(this->Statement);
     return false;
   }
 }
@@ -833,7 +822,7 @@ vtkVariant vtkMySQLQuery::DataValue(vtkIdType column)
     if (!isNull)
     {
       // Make a string holding the data, including possible embedded null characters.
-      vtkStdString s(this->Internals->CurrentRow[column],
+      std::string s(this->Internals->CurrentRow[column],
         static_cast<size_t>(this->Internals->CurrentLengths[column]));
       base = vtkVariant(s);
     }
@@ -890,7 +879,7 @@ bool vtkMySQLQuery::HasError()
 
 vtkStdString vtkMySQLQuery::EscapeString(vtkStdString src, bool addSurroundingQuotes)
 {
-  vtkStdString dst;
+  std::string dst;
   vtkMySQLDatabase* dbContainer = static_cast<vtkMySQLDatabase*>(this->Database);
   assert(dbContainer != nullptr);
 
@@ -972,12 +961,12 @@ bool vtkMySQLQuery::SetQuery(const char* newQuery)
   MYSQL* db = dbContainer->Private->Connection;
   assert(db != nullptr);
 
-  vtkStdString errorMessage;
+  std::string errorMessage;
   bool success = this->Internals->SetQuery(this->Query, db, errorMessage);
   if (!success)
   {
     this->SetLastErrorText(errorMessage.c_str());
-    vtkErrorMacro(<< "SetQuery: Error while preparing statement: " << errorMessage.c_str());
+    vtkErrorMacro(<< "SetQuery: Error while preparing statement: " << errorMessage);
   }
   return success;
 }
@@ -1117,3 +1106,4 @@ bool vtkMySQLQuery::ClearParameterBindings()
   this->Internals->FreeBoundParameters();
   return true;
 }
+VTK_ABI_NAMESPACE_END

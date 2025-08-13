@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #pragma once
 
 #include "../Types.h"
@@ -9,6 +11,7 @@
 
 namespace RTW
 {
+VTK_ABI_NAMESPACE_BEGIN
     class FrameBuffer : public Object
     {
         friend class Renderer;
@@ -75,7 +78,7 @@ namespace RTW
             {
                 vtkLogF(ERROR, "VISRTX Error: Could not get color texture.");
                 return 0;
-            }  
+            }
         }
 
         int GetDepthTextureGL()
@@ -88,7 +91,7 @@ namespace RTW
             {
                 vtkLogF(ERROR, "VISRTX Error: Could not get depth texture.");
                 return 0;
-            }             
+            }
         }
 
     private:
@@ -96,4 +99,5 @@ namespace RTW
         RTWFrameBufferFormat format;
         uint32_t channels;
     };
+VTK_ABI_NAMESPACE_END
 }

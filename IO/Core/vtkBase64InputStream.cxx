@@ -1,22 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBase64InputStream.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkBase64InputStream.h"
 #include "vtkBase64Utilities.h"
 #include "vtkObjectFactory.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBase64InputStream);
 
 //------------------------------------------------------------------------------
@@ -35,8 +24,7 @@ void vtkBase64InputStream::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //------------------------------------------------------------------------------
-inline int vtkBase64InputStream::DecodeTriplet(
-  unsigned char& c0, unsigned char& c1, unsigned char& c2)
+int vtkBase64InputStream::DecodeTriplet(unsigned char& c0, unsigned char& c1, unsigned char& c2)
 {
   // Read the 4 bytes encoding this triplet from the stream.
 
@@ -74,7 +62,7 @@ int vtkBase64InputStream::Seek(vtkTypeInt64 offset)
     return 0;
   }
 
-  // Decode the first triplet if it is paritally skipped.
+  // Decode the first triplet if it is partially skipped.
   if (skipLength == 0)
   {
     this->BufferLength = 0;
@@ -164,3 +152,4 @@ size_t vtkBase64InputStream::Read(void* data_in, size_t length)
 
   return (out - data);
 }
+VTK_ABI_NAMESPACE_END

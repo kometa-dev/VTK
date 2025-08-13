@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOverlappingCellsDetector.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkOverlappingCellsDetector
  * @brief Exposes how many cells each cell of the input collide.
@@ -24,7 +12,7 @@
  * To detect collisions, coarse bounding spheres are estimated for each cell of the input.
  * The center of those spheres is stored in a point cloud which is used to find potential
  * colliding cells candidates, querying with twice the bounding sphere radius to ensure
- * we do not miss other bouding sphere centers. Duplicate intersections might appear during
+ * we do not miss other bounding sphere centers. Duplicate intersections might appear during
  * this process, so a sphere id map is stored to avoid adding already added overlapping cell ids.
  *
  * This filter works in a multi-process environment. When so, each cell of the input
@@ -56,6 +44,7 @@
 #include <unordered_map> // For DetectOverlappingCells
 #include <vector>        // For DetectOverlappingCells
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkMultiProcessController;
 class vtkPointSet;
@@ -161,4 +150,5 @@ private:
   void operator=(const vtkOverlappingCellsDetector&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

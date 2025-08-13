@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInformationDoubleVectorKey.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInformationDoubleVectorKey.h"
 
 #include "vtkInformation.h" // For vtkErrorWithObjectMacro
@@ -19,6 +7,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkInformationDoubleVectorKey ::vtkInformationDoubleVectorKey(
   const char* name, const char* location, int length)
   : vtkInformationKey(name, location)
@@ -91,7 +80,7 @@ double* vtkInformationDoubleVectorKey::Get(vtkInformation* info)
 {
   vtkInformationDoubleVectorValue* v =
     static_cast<vtkInformationDoubleVectorValue*>(this->GetAsObjectBase(info));
-  return (v && !v->Value.empty()) ? (&v->Value[0]) : nullptr;
+  return (v && !v->Value.empty()) ? v->Value.data() : nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -151,3 +140,4 @@ void vtkInformationDoubleVectorKey::Print(ostream& os, vtkInformation* info)
     }
   }
 }
+VTK_ABI_NAMESPACE_END

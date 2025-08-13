@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkKMeansDistanceFunctorCalculator_h
 #define vtkKMeansDistanceFunctorCalculator_h
 
@@ -17,13 +19,14 @@
  * may be converted to a floating point representation. (Strings and
  * vtkObject pointers are not allowed.)
  * An example distance expression is "sqrt( (x0-y0)^2 + (x1-y1)^2 )"
- * which computes Euclidian distance in a plane defined by the first
+ * which computes Euclidean distance in a plane defined by the first
  * 2 coordinates of the vectors specified.
  */
 
 #include "vtkFiltersStatisticsModule.h" // For export macro
 #include "vtkKMeansDistanceFunctor.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFunctionParser;
 class vtkDoubleArray;
 
@@ -73,4 +76,5 @@ private:
   void operator=(const vtkKMeansDistanceFunctorCalculator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkKMeansDistanceFunctorCalculator_h

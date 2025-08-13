@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPeriodicTable.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
-
-// Hide VTK_DEPRECATED_IN_9_1_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPeriodicTable.h"
 
@@ -35,6 +20,7 @@
 #include <string>
 
 // Setup static variables
+VTK_ABI_NAMESPACE_BEGIN
 vtkNew<vtkBlueObeliskData> vtkPeriodicTable::BlueObeliskData;
 
 //------------------------------------------------------------------------------
@@ -223,3 +209,4 @@ vtkColor3f vtkPeriodicTable::GetDefaultRGBTuple(unsigned short atomicNum)
   vtkPeriodicTable::BlueObeliskData->GetDefaultColors()->GetTypedTuple(atomicNum, result.GetData());
   return result;
 }
+VTK_ABI_NAMESPACE_END

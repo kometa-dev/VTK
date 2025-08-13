@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPDataSetWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPDataSetWriter.h"
 #include "vtkDataSet.h"
@@ -27,6 +15,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPDataSetWriter);
 
 vtkCxxSetObjectMacro(vtkPDataSetWriter, Controller, vtkMultiProcessController);
@@ -376,7 +365,7 @@ int vtkPDataSetWriter::WriteImageMetaData(
       for (int count = 0; iter != this->Extents.end(); ++iter, ++count)
       {
         sendBuffer[count * 7] = iter->first;
-        memcpy(sendBuffer.data() + count * 7 + 1, &iter->second[0], 6 * sizeof(int));
+        memcpy(sendBuffer.data() + count * 7 + 1, iter->second.data(), 6 * sizeof(int));
       }
     }
     std::vector<int> recvBuffer;
@@ -404,7 +393,7 @@ int vtkPDataSetWriter::WriteImageMetaData(
 
   for (int i = 0; i < this->NumberOfPieces; ++i)
   {
-    pi = &this->Extents[i][0];
+    pi = this->Extents[i].data();
     snprintf(str, strSize, this->FilePattern, root, i);
     *fptr << "  <Piece fileName=\"" << str << "\"" << endl
           << "      extent=\"" << pi[0] << " " << pi[1] << " " << pi[2] << " " << pi[3] << " "
@@ -438,7 +427,7 @@ int vtkPDataSetWriter::WriteRectilinearGridMetaData(
   *fptr << "      numberOfPieces=\"" << this->NumberOfPieces << "\" >" << endl;
   for (i = 0; i < this->NumberOfPieces; ++i)
   {
-    pi = &this->Extents[i][0];
+    pi = this->Extents[i].data();
     snprintf(str, strSize, this->FilePattern, root, i);
     *fptr << "  <Piece fileName=\"" << str << "\"" << endl
           << "      extent=\"" << pi[0] << " " << pi[1] << " " << pi[2] << " " << pi[3] << " "
@@ -473,7 +462,7 @@ int vtkPDataSetWriter::WriteStructuredGridMetaData(
   *fptr << "      numberOfPieces=\"" << this->NumberOfPieces << "\" >" << endl;
   for (i = 0; i < this->NumberOfPieces; ++i)
   {
-    pi = &this->Extents[i][0];
+    pi = this->Extents[i].data();
     snprintf(str, strSize, this->FilePattern, root, i);
     *fptr << "  <Piece fileName=\"" << str << "\"" << endl
           << "      extent=\"" << pi[0] << " " << pi[1] << " " << pi[2] << " " << pi[3] << " "
@@ -575,3 +564,4 @@ void vtkPDataSetWriter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "FilePattern: " << this->FilePattern << endl;
   os << indent << "UseRelativeFileNames: " << this->UseRelativeFileNames << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointHandleRepresentation3D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPointHandleRepresentation3D.h"
 #include "vtkActor.h"
 #include "vtkAssemblyPath.h"
@@ -34,6 +22,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPointHandleRepresentation3D);
 
 vtkCxxSetObjectMacro(vtkPointHandleRepresentation3D, Property, vtkProperty);
@@ -506,21 +495,6 @@ void vtkPointHandleRepresentation3D::WidgetInteraction(double eventPos[2])
           if (this->PointPlacer->ComputeWorldPosition(
                 this->Renderer, newCenterPointRequested, newCenterPoint, worldOrient))
           {
-
-            // Once the placer has validated us, update the handle
-            // position and its bounds.
-            double* p = this->GetWorldPosition();
-
-            // Get the motion vector
-            double v[3] = { newCenterPoint[0] - p[0], newCenterPoint[1] - p[1],
-              newCenterPoint[2] - p[2] };
-            double *bounds = this->Cursor3D->GetModelBounds(), newBounds[6];
-            for (int i = 0; i < 3; i++)
-            {
-              newBounds[2 * i] = bounds[2 * i] + v[i];
-              newBounds[2 * i + 1] = bounds[2 * i + 1] + v[i];
-            }
-
             this->SetWorldPosition(newCenterPoint);
           }
         }
@@ -638,17 +612,16 @@ void vtkPointHandleRepresentation3D::SetTranslationMode(vtkTypeBool mode)
 void vtkPointHandleRepresentation3D::Translate(const double* p1, const double* p2)
 {
   double v[3] = { 0, 0, 0 };
-  vtkHandleRepresentation::Translate(p1, p2);
   this->GetTranslationVector(p1, p2, v);
+  this->vtkHandleRepresentation::Translate(v);
 
   double* bounds = this->Cursor3D->GetModelBounds();
   double* pos = this->Cursor3D->GetFocalPoint();
   double newBounds[6], newFocus[3];
-  int i;
 
   if (this->ConstraintAxis >= 0)
-  { // move along axis
-    for (i = 0; i < 3; i++)
+  {
+    for (int i = 0; i < 3; i++)
     {
       if (i != this->ConstraintAxis)
       {
@@ -657,7 +630,7 @@ void vtkPointHandleRepresentation3D::Translate(const double* p1, const double* p
     }
   }
 
-  for (i = 0; i < 3; i++)
+  for (int i = 0; i < 3; i++)
   {
     newBounds[2 * i] = bounds[2 * i] + v[i];
     newBounds[2 * i + 1] = bounds[2 * i + 1] + v[i];
@@ -739,13 +712,25 @@ void vtkPointHandleRepresentation3D::CreateDefaultProperties()
 {
   this->Property = vtkProperty::New();
   this->Property->SetAmbient(1.0);
-  this->Property->SetAmbientColor(1.0, 1.0, 1.0);
+  this->Property->SetColor(1.0, 1.0, 1.0);
   this->Property->SetLineWidth(0.5);
 
   this->SelectedProperty = vtkProperty::New();
   this->SelectedProperty->SetAmbient(1.0);
-  this->SelectedProperty->SetAmbientColor(0.0, 1.0, 0.0);
+  this->SelectedProperty->SetColor(0.0, 1.0, 0.0);
   this->SelectedProperty->SetLineWidth(2.0);
+}
+
+//------------------------------------------------------------------------------
+void vtkPointHandleRepresentation3D::SetInteractionColor(double r, double g, double b)
+{
+  this->SelectedProperty->SetColor(r, g, b);
+}
+
+//------------------------------------------------------------------------------
+void vtkPointHandleRepresentation3D::SetForegroundColor(double r, double g, double b)
+{
+  this->Property->SetColor(r, g, b);
 }
 
 //------------------------------------------------------------------------------
@@ -901,3 +886,4 @@ void vtkPointHandleRepresentation3D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Translation Mode: " << (this->TranslationMode ? "On\n" : "Off\n");
   os << indent << "SmoothMotion: " << this->SmoothMotion << endl;
 }
+VTK_ABI_NAMESPACE_END

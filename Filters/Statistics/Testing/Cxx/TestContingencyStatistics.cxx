@@ -1,11 +1,6 @@
-/*
- * Copyright 2008 Sandia Corporation.
- * Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
- * license for use of this work by or on behalf of the
- * U.S. Government. Redistribution and use in source and binary forms, with
- * or without modification, are permitted provided that this Notice and any
- * statement of authorship are reproduced on all copies.
- */
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 // .SECTION Thanks
 // Thanks to Philippe Pebay from Sandia National Laboratories
 // for implementing this test.
@@ -237,11 +232,11 @@ int TestContingencyStatistics(int, char*[])
 
   // Now inspect results of the Assess option by looking for outliers
   key = 0;
-  vtkStdString varX = outputSummary->GetValue(key, 0).ToString();
-  vtkStdString varY = outputSummary->GetValue(key, 1).ToString();
+  std::string varX = outputSummary->GetValue(key, 0).ToString();
+  std::string varY = outputSummary->GetValue(key, 1).ToString();
 
   // List of columns used for outlier detection
-  vtkStdString outlierColumn[] = { "P", "Px|y", "PMI" };
+  std::string outlierColumn[] = { "P", "Px|y", "PMI" };
   // Corresponding threshold (low) values
   double threshold[] = { .2, .2, .0 };
 
@@ -251,7 +246,7 @@ int TestContingencyStatistics(int, char*[])
   int nOutlierTypes = 3;
   for (int i = 0; i < nOutlierTypes; ++i)
   {
-    vtkStdString colName = outlierColumn[i] + "(" + varX + "," + varY + ")";
+    std::string colName = outlierColumn[i] + "(" + varX + "," + varY + ")";
 
     cout << "## Found the following outliers such that " << colName << " < " << threshold[i]
          << ":\n";
@@ -260,7 +255,7 @@ int TestContingencyStatistics(int, char*[])
     testIntValue = 0;
     for (vtkIdType r = 0; r < outputData->GetNumberOfRows(); ++r)
     {
-      val = outputData->GetValueByName(r, colName).ToDouble();
+      val = outputData->GetValueByName(r, colName.c_str()).ToDouble();
       if (val >= threshold[i])
       {
         continue;
@@ -268,8 +263,9 @@ int TestContingencyStatistics(int, char*[])
 
       ++testIntValue;
 
-      cout << "   " << outlierColumn[i] << "(" << outputData->GetValueByName(r, varX).ToString()
-           << "," << outputData->GetValueByName(r, varY).ToString() << ") = " << val << "\n";
+      cout << "   " << outlierColumn[i] << "("
+           << outputData->GetValueByName(r, varX.c_str()).ToString() << ","
+           << outputData->GetValueByName(r, varY.c_str()).ToString() << ") = " << val << "\n";
     }
 
     if (testIntValue != nOutliers[i])

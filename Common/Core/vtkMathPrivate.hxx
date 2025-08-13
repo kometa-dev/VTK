@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMathPrivate.hxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMathPrivate
  * @brief   Internal toolkit used in some vtkMath methods.
@@ -33,6 +21,7 @@
 
 namespace vtkMathPrivate
 {
+VTK_ABI_NAMESPACE_BEGIN
 static constexpr int VTK_MATH_PRIVATE_PACK_SIZE = 4;
 
 //=============================================================================
@@ -219,7 +208,7 @@ private:
 };
 
 //=============================================================================
-// This class returns zero. Is is used for rectangular diagonal matrices, when
+// This class returns zero. It is used for rectangular diagonal matrices, when
 // lines / rows are filled with zeros.
 template <class ScalarT>
 class NullContractRowWithCol
@@ -953,5 +942,6 @@ public:
     y[2] = x[2] / M[2];
   }
 };
+VTK_ABI_NAMESPACE_END
 } // namespace vtkMathPrivate
 #endif

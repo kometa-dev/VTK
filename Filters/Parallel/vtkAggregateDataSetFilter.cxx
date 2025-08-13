@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAggregateDataSetFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAggregateDataSetFilter.h"
 
 #include "vtkAppendFilter.h"
@@ -27,6 +15,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkAggregateDataSetFilter);
 
 //------------------------------------------------------------------------------
@@ -129,7 +118,7 @@ int vtkAggregateDataSetFilter::RequestData(
 
   std::vector<vtkIdType> pointCount(subNumProcs, 0);
   vtkIdType numPoints = input->GetNumberOfPoints();
-  subController->AllGather(&numPoints, &pointCount[0], 1);
+  subController->AllGather(&numPoints, pointCount.data(), 1);
 
   // The first process in the subcontroller to have points is the one that data will
   // be aggregated to. All of the other processes send their data set to that process.
@@ -204,3 +193,4 @@ void vtkAggregateDataSetFilter::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "NumberOfTargetProcesses: " << this->NumberOfTargetProcesses << endl;
 }
+VTK_ABI_NAMESPACE_END

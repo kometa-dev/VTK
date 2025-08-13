@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFidesReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkFidesReader
  * @brief   Read ADIOS2 streams using Fides data model
@@ -39,6 +27,7 @@
 #include <memory>             // for std::unique_ptr
 #include <string>             // for std::string
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArraySelection;
 class vtkInformationIntegerKey;
 
@@ -93,6 +82,11 @@ public:
   void SetDataSourcePath(const std::string& name, VTK_FILEPATH const std::string& path);
 
   /**
+   * Set the engine for a Fides data source. Defaults to BP engine.
+   */
+  void SetDataSourceEngine(const std::string& name, const std::string& engine);
+
+  /**
    * Set the ADIOS2::IO object to be used for setting up the Inline engine reader.
    * This should not be used for any other engine type.
    * ioAddress is a string containing the address of the IO object, which Fides
@@ -140,6 +134,15 @@ public:
   vtkGetMacro(ConvertToVTK, bool);
   ///@}
 
+  ///@{
+  /**
+   * Methods to determine whether streaming mode is used. False by default.
+   */
+  vtkBooleanMacro(StreamSteps, bool);
+  vtkSetMacro(StreamSteps, bool);
+  vtkGetMacro(StreamSteps, bool);
+  ///@}
+
   /**
    * Object to perform point array selection before update.
    */
@@ -173,6 +176,7 @@ protected:
 
   vtkDataArraySelection* PointDataArraySelection;
   vtkDataArraySelection* CellDataArraySelection;
+  vtkDataArraySelection* FieldDataArraySelection;
 
   static vtkInformationIntegerKey* NUMBER_OF_BLOCKS();
 
@@ -183,4 +187,5 @@ private:
   void operator=(const vtkFidesReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
